@@ -1,0 +1,61 @@
+{
+  "video_type": "quotes",
+  "topic": "Jordan Peterson quotes",
+  "person": "Jordan Peterson",
+  "franchise": null,
+  "language": "ru",
+  "quote_source": "curated_test_quote",
+  "visual_style": "dark cinematic intellectual",
+  "image_style": "dramatic editorial portrait, clean shadows, subtle film grain",
+  "intro_style": "minimal cinematic title card, future OpenAI image generation ready",
+  "layout": "portrait_left_quote_right",
+  "resolution": [1280, 720],
+  "prod_resolution": [1920, 1080],
+  "fps": 15,
+  "prod_fps": 24,
+  "dev_mode": true,
+  "scene_duration": 7,
+  "prod_scene_duration": 18,
+  "font_path": "C:/Windows/Fonts/arial.ttf",
+  "font_size": 42,
+  "author_font_size": 24,
+  "text_color": "#F4EFE7",
+  "muted_text_color": "#B7AA98",
+  "accent_color": "#C8A96A",
+  "background_color": "#090B10",
+  "music_path": "music/background.mp3",
+  "music_volume": 0.18,
+  "transition_type": "fade",
+  "animation_type": "slow_zoom",
+  "output_filename": "outputs/final_preview.mp4",
+  "plans": {
+    "quote_plan": "outputs/quote_plan.json",
+    "scene_plan": "outputs/scene_plan.json",
+    "asset_plan": "outputs/asset_plan.json",
+    "render_plan": "outputs/render_plan.json"
+  },
+  "api_models": {
+    "script_llm": "gpt-5.4-mini",
+    "planner_llm": "gpt-5.4-mini",
+    "image_generation": "gpt-image-1"
+  },
+  "openai_image_generation": {
+    "enabled": false,
+    "model": "gpt-image-1",
+    "size": "1536x864",
+    "quality": "medium",
+    "style_prompt": "dark cinematic intellectual editorial image"
+  },
+  "pexels_search": {
+    "enabled": false,
+    "query": "Jordan Peterson portrait",
+    "orientation": "landscape",
+    "per_page": 5
+  },
+  "fallback_behavior": {
+    "missing_image": "create_placeholder",
+    "missing_music": "render_silent_video",
+    "missing_font": "use_pillow_default",
+    "openai_disabled": "use_curated_quote"
+  }
+}
