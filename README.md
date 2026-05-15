@@ -1,6 +1,30 @@
 # AI-YouTube
 
-Локальный MVP-pipeline для структурированного производства YouTube-видео. Сейчас проект собирает короткое превью с цитатой Jordan Peterson, сохраняет данные ролика в JSON-планы, генерирует YouTube-метаданные и экспортирует Markdown-заметку в Obsidian.
+AI-YouTube - локальная система для создания русскоязычных cinematic quote/thought videos для YouTube.
+
+Проект начинался как MVP для мотивационных и психологических видео, но текущий фокус шире: интеллектуальные ролики с цитатами, сильными фразами, идеями из книг, фразами из фильмов, аниме, мультфильмов, а также мыслями актеров, философов и публичных деятелей.
+
+Текущий рабочий пример все еще использует тему Jordan Peterson, но архитектура проекта рассчитана на более общий формат.
+
+## Что делает проект
+
+Pipeline собирает ролик по шагам:
+
+- создает план цитат и мыслей;
+- создает план сцен;
+- подбирает или создает визуальные ассеты;
+- готовит план музыки;
+- строит render plan;
+- рендерит preview или production-видео;
+- создает YouTube-метаданные;
+- пишет self-eval;
+- экспортирует Markdown-заметку в Obsidian или в `outputs/obsidian_note_preview.md`.
+
+Главная точка входа:
+
+```bash
+python pipeline.py
+```
 
 ## Установка
 
@@ -11,221 +35,213 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Активация в PowerShell:
+PowerShell:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-## Dev-превью
+## Конфиг
+
+Основные настройки находятся здесь:
+
+```text
+config/video_style.json
+```
+
+Там задаются:
+
+- тема ролика;
+- персона или источник;
+- язык;
+- визуальный стиль;
+- размеры и fps;
+- длительность сцен;
+- путь к музыке;
+- настройки Pexels/Pixabay;
+- пути к JSON-планам;
+- настройки Obsidian.
+
+## Dev preview
 
 ```bash
 python pipeline.py --dev
 ```
 
-Ожидаемые результаты:
+Dev-режим делает короткий безопасный preview-рендер:
 
 - `outputs/final_preview.mp4`
 - `outputs/quote_plan.json`
 - `outputs/scene_plan.json`
 - `outputs/asset_plan.json`
 - `outputs/render_plan.json`
-- `outputs/self_eval.json`
+- `outputs/music_plan.json`
 - `outputs/youtube_metadata.json`
-- заметка в Obsidian или резервный файл `outputs/obsidian_note_preview.md`
+- `outputs/self_eval.json`
+- `outputs/render_stage.json`
 
-Режим разработки специально короткий и быстрый: по умолчанию 7 секунд, 1280x720, 15 fps.
-
-## Production-режим
+## Production
 
 ```bash
 python pipeline.py --prod
 ```
 
-Продакшен-режим использует поля `prod_resolution`, `prod_fps` и `prod_scene_duration` из `config/video_style.json`. Это фундамент для будущих роликов на 4-10 минут: несколько сцен, интро, переходы, B-roll и voice-over.
+Production-режим использует `prod_resolution`, `prod_fps`, `prod_scene_duration`, `prod_font_size` и `prod_output_filename` из `config/video_style.json`.
 
-## Экспорт в Obsidian
+Он может быть долгим, поэтому не запускай его как обычную проверку.
 
-Настройки Obsidian находятся в:
+## Полезные режимы
 
-```text
-config/video_style.json
-```
-
-Текущий блок:
-
-```json
-"obsidian": {
-  "enabled": true,
-  "vault_path": "G:\\ObsidianBase\\ObsidianBase",
-  "folder": "YouTube/Цитаты",
-  "note_template": "quote_video",
-  "write_json_links": true,
-  "write_asset_links": true,
-  "fallback_to_outputs": true
-}
-```
-
-Если `vault_path` существует, заметка сохраняется сюда:
-
-```text
-G:\ObsidianBase\ObsidianBase\YouTube\Цитаты
-```
-
-Если путь к vault не найден, pipeline не падает. Вместо этого создается:
-
-```text
-outputs/obsidian_note_preview.md
-```
-
-Запустить только экспорт заметки из уже готовых outputs:
-
-```bash
-python pipeline.py --export-obsidian
-```
-
-Отключить экспорт в Obsidian для одного запуска:
-
-```bash
-python pipeline.py --dev --no-obsidian
-```
-
-Пропустить рендер и обновить только metadata/Obsidian:
+Пропустить рендер и обновить только планы/metadata/Obsidian:
 
 ```bash
 python pipeline.py --dev --skip-render
 ```
 
-## Что сохраняется в Obsidian
-
-Markdown-заметка содержит:
-
-- статус ролика
-- базовые данные видео
-- цитату или основной текст
-- идеи заголовков
-- описание, теги, ключевые слова и идею обложки для YouTube
-- визуальный стиль
-- ассеты
-- ссылки на production JSON-планы
-- следующие действия
-- блок для ручных заметок
-- self-eval проверки и предупреждения
-
-## Конфиг
-
-Стили и пути меняются здесь:
-
-```text
-config/video_style.json
-```
-
-Важные поля:
-
-- `visual_style`
-- `image_style`
-- `intro_style`
-- `layout`
-- `resolution`
-- `fps`
-- `scene_duration`
-- `font_path`
-- `font_size`
-- `text_color`
-- `background_color`
-- `music_path`
-- `music_volume`
-- `animation_type`
-- `transition_type`
-
-Для кириллицы оставляй полный путь к Windows-шрифту:
-
-```json
-"font_path": "C:/Windows/Fonts/arial.ttf"
-```
-
-## Ассеты
-
-Музыка кладется сюда:
-
-```text
-music/background.mp3
-```
-
-Если музыки нет, pipeline соберет видео без музыки и не упадет.
-
-Изображения кладутся сюда:
-
-```text
-assets/images/
-```
-
-Пример:
-
-```text
-assets/images/jordan_peterson.jpg
-```
-
-Если изображение не найдено, pipeline создаст темную placeholder-картинку и продолжит работу.
-
-## API-ключи
-
-MVP не требует API-ключей. На следующих этапах могут понадобиться:
-
-- `OPENAI_API_KEY` для сценариев, структурных планов и генерации intro-изображений
-- `PEXELS_API_KEY` для поиска ассетов
-- `ELEVENLABS_API_KEY` для озвучки
-
-Создай `.env` на основе `.env.example`. Никогда не коммить `.env`.
-
-## GSD/Superpowers-процесс
-
-Рекомендуемый цикл работы:
-
-1. Проверить `git status`.
-2. Закоммитить рабочее состояние перед рискованными изменениями.
-3. Сделать небольшой архитектурный шаг.
-4. Запустить `python pipeline.py --dev`.
-5. Проверить outputs и self-eval.
-6. Коммитить только безопасные исходники, конфиг, документацию, JSON и Markdown.
-
-Pipeline использует промежуточные структуры:
-
-- quote plan
-- scene plan
-- asset plan
-- render plan
-- YouTube metadata
-- Obsidian note
-
-Так систему проще дебажить и расширять от коротких preview до production-видео.
-
-## Безопасный commit перед крупными изменениями
+Только экспортировать Obsidian-заметку из готовых outputs:
 
 ```bash
-git status
-git add .
-git status --short
-git commit -m "working MVP before large change"
+python pipeline.py --export-obsidian
 ```
 
-Перед commit проверь, что не staged:
-
-- `.env`
-- `venv/`
-- `outputs/*.mp4`
-- `outputs/*.mov`
-- `outputs/*.wav`
-- `outputs/*.mp3`
-- `assets/broll/`
-- `music/*.mp3`
-
-## Откат
-
-Если нужно удалить локальные изменения и вернуться к последнему commit:
+Запустить без экспорта в Obsidian:
 
 ```bash
-git reset --hard HEAD
+python pipeline.py --dev --no-obsidian
 ```
 
-Используй это осторожно: команда удаляет незакоммиченные изменения.
+Production-preview на первых сценах:
+
+```bash
+python pipeline.py --prod-preview
+```
+
+Обновить только music plan:
+
+```bash
+python pipeline.py --find-music
+```
+
+Повторно искать ассеты:
+
+```bash
+python pipeline.py --prod --refresh-assets
+```
+
+## Архитектура
+
+```text
+pipeline.py
+src/
+  config_loader.py
+  quote_generator.py
+  youtube_metadata.py
+  scene_planner.py
+  intro_generator.py
+  music_finder.py
+  asset_finder.py
+  image_tools.py
+  layout_renderer.py
+  video_renderer.py
+  music_tools.py
+  self_eval.py
+  obsidian_exporter.py
+  utils.py
+config/
+  video_style.json
+outputs/
+assets/
+music/
+docs/
+```
+
+`pipeline.py` связывает шаги вместе. Реальная логика живет в `src/`.
+
+## Outputs
+
+Рабочие JSON-файлы:
+
+- `quote_plan.json` - цитаты, мысли и карточки текста;
+- `scene_plan.json` - сцены ролика;
+- `asset_plan.json` - изображения, placeholder, b-roll и музыка;
+- `render_plan.json` - технический план рендера;
+- `music_plan.json` - план музыки;
+- `youtube_metadata.json` - заголовки, описание, теги, thumbnail idea;
+- `self_eval.json` - самопроверка;
+- `render_stage.json` - журнал стадий рендера.
+
+Видео и большие ассеты не нужно коммитить.
+
+## Obsidian
+
+Obsidian используется как человеческая база знаний для production-процесса.
+
+Заметка может содержать:
+
+- тему;
+- статус;
+- цитаты и идеи;
+- сцены;
+- заголовки;
+- описание;
+- теги;
+- ассеты;
+- ссылки на JSON;
+- ссылку на итоговое видео;
+- ручные заметки и следующие шаги.
+
+Настройки Obsidian находятся в блоке `obsidian` файла `config/video_style.json`.
+
+## API keys
+
+Секреты хранятся только в `.env`.
+
+Никогда не коммить:
+
+- `.env`;
+- API-ключи;
+- `venv/`;
+- mp4/mp3/mov/wav;
+- большие ассеты.
+
+Пример переменных лежит в `.env.example`.
+
+Возможные ключи:
+
+- `OPENAI_API_KEY`
+- `PEXELS_API_KEY`
+- `PIXABAY_API_KEY`
+
+## Документация
+
+Подробное объяснение проекта:
+
+```text
+docs/project_explanation.md
+```
+
+Отчет по чистке:
+
+```text
+docs/cleanup_report.md
+```
+
+## Безопасные проверки
+
+```bash
+python -m compileall pipeline.py src
+python pipeline.py --dev
+```
+
+Полный `--prod` не считается безопасной быстрой проверкой, потому что может запускать долгий render.
+
+## Статус проекта
+
+Текущий проект - рабочая основа для дальнейшего развития:
+
+- нужно вынести контент из Python-кода в knowledge base или data-файлы;
+- нужно определить политику хранения JSON outputs;
+- нужно почистить старые MVP-скрипты после подтверждения;
+- нужно развить связку Obsidian -> pipeline -> Obsidian;
+- нужно добавить аккуратную систему шаблонов для разных типов роликов.
+
