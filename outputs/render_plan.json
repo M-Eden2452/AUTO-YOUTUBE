@@ -1,16 +1,16 @@
 {
-  "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview.mp4",
-  "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.mp4",
-  "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.partial.mp4",
+  "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_video.mp4",
+  "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_video_silent.mp4",
+  "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_video_silent.partial.mp4",
   "temp_dir": "G:\\Projects\\AI-YouTube\\outputs\\render_temp",
   "stage_log_path": "G:\\Projects\\AI-YouTube\\outputs\\render_stage.json",
   "resolution": [
-    1280,
-    720
+    1920,
+    1080
   ],
   "fps": 24,
-  "duration": 48.0,
-  "scene_count": 5,
+  "duration": 240.0,
+  "scene_count": 26,
   "layout": "cinematic_documentary_text_over_broll",
   "animation": "slow_zoom",
   "music": {

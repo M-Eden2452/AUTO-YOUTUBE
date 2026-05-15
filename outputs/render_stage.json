@@ -2,18 +2,18 @@
   "ok": true,
   "current_stage": "add_music_done",
   "render_plan": {
-    "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview.mp4",
-    "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.mp4",
-    "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.partial.mp4",
+    "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_video.mp4",
+    "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_video_silent.mp4",
+    "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_video_silent.partial.mp4",
     "temp_dir": "G:\\Projects\\AI-YouTube\\outputs\\render_temp",
     "stage_log_path": "G:\\Projects\\AI-YouTube\\outputs\\render_stage.json",
     "resolution": [
-      1280,
-      720
+      1920,
+      1080
     ],
     "fps": 24,
-    "duration": 48.0,
-    "scene_count": 5,
+    "duration": 240.0,
+    "scene_count": 26,
     "layout": "cinematic_documentary_text_over_broll",
     "animation": "slow_zoom",
     "music": {
@@ -42,32 +42,32 @@
     {
       "stage": "render_silent_started",
       "message": "Начат рендер silent video по сценам.",
-      "timestamp": "2026-05-15T20:13:56"
+      "timestamp": "2026-05-15T20:20:14"
     },
     {
       "stage": "render_silent_done",
-      "message": "Silent partial создан: G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.partial.mp4",
-      "timestamp": "2026-05-15T20:17:02"
+      "message": "Silent partial создан: G:\\Projects\\AI-YouTube\\outputs\\final_video_silent.partial.mp4",
+      "timestamp": "2026-05-15T20:48:12"
     },
     {
       "stage": "validate_silent_started",
       "message": "Проверка silent partial.",
-      "timestamp": "2026-05-15T20:17:02"
+      "timestamp": "2026-05-15T20:48:12"
     },
     {
       "stage": "validate_silent_done",
-      "message": "Silent video валиден: G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.mp4",
-      "timestamp": "2026-05-15T20:17:02"
+      "message": "Silent video валиден: G:\\Projects\\AI-YouTube\\outputs\\final_video_silent.mp4",
+      "timestamp": "2026-05-15T20:48:12"
     },
     {
       "stage": "add_music_started",
       "message": "Добавление музыки: G:\\Projects\\AI-YouTube\\music\\background.mp3",
-      "timestamp": "2026-05-15T20:17:02"
+      "timestamp": "2026-05-15T20:48:12"
     },
     {
       "stage": "add_music_done",
-      "message": "Финальное видео создано: G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview.mp4",
-      "timestamp": "2026-05-15T20:17:12"
+      "message": "Финальное видео создано: G:\\Projects\\AI-YouTube\\outputs\\final_video.mp4",
+      "timestamp": "2026-05-15T20:49:30"
     }
   ]
 }
