@@ -1,30 +1,50 @@
 {
   "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview.mp4",
   "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.mp4",
+  "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.partial.mp4",
+  "temp_dir": "G:\\Projects\\AI-YouTube\\outputs\\render_temp",
+  "stage_log_path": "G:\\Projects\\AI-YouTube\\outputs\\render_stage.json",
   "resolution": [
     1280,
     720
   ],
   "fps": 15,
   "duration": 7.0,
-  "layout": "portrait_left_quote_right",
+  "scene_count": 1,
+  "layout": "cinematic_documentary_text_over_broll",
   "animation": "slow_zoom",
   "music": {
+    "enabled": true,
+    "provider": "локальный_файл",
+    "status": "найдена_локальная_музыка",
     "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
-    "status": "найдено",
-    "volume": 0.18
+    "volume": 0.16,
+    "queries": [
+      "dark cinematic ambient",
+      "documentary piano",
+      "emotional background music",
+      "slow dramatic piano",
+      "intellectual ambient",
+      "atmospheric documentary music",
+      "deep motivational ambient",
+      "noir piano background"
+    ],
+    "warnings": [],
+    "recommendations": []
   },
+  "render_strategy": "single_scene_temp_clip",
+  "preset": "medium",
   "intro": {
-    "enabled": false,
-    "style": "минималистичная кинематографичная заставка, готовая к будущей генерации через OpenAI",
-    "future_provider": "генерация изображений через OpenAI",
-    "settings": {
+    "enabled": true,
+    "title": "Мысли Jordan Peterson, которые тяжело принять",
+    "subtitle": "Психология ответственности, правды и внутреннего порядка",
+    "duration": 0,
+    "style": "темное кинематографичное раскрытие заголовка, slow zoom, интеллектуальный портретный вайб",
+    "generation": {
+      "provider": "openai_image_later",
       "enabled": false,
-      "model": "gpt-image-1",
-      "size": "1536x864",
-      "quality": "medium",
-      "style_prompt": "темное кинематографичное интеллектуальное редакционное изображение"
+      "style_prompt": "dark cinematic intellectual portrait, noir documentary, dramatic lighting"
     },
-    "note": "MVP пропускает рендер интро, но сохраняет эту границу для будущих production-видео."
+    "note": "Сейчас intro рендерится локально. Поле generation оставлено для будущей OpenAI image generation."
   }
 }

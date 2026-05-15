@@ -6,6 +6,7 @@ outputs/*.wav
 outputs/*.mp3
 outputs/*.txt
 outputs/*TEMP*
+outputs/render_temp/
 assets/*
 music/*
 subtitles/

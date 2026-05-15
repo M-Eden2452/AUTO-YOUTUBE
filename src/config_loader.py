@@ -32,6 +32,7 @@ def _apply_dev_defaults(config: dict[str, Any]) -> dict[str, Any]:
     updated = deepcopy(config)
     updated["scene_duration"] = min(float(updated.get("scene_duration", 7)), 10.0)
     updated["fps"] = min(int(updated.get("fps", 15)), 24)
+    updated["output_filename"] = "outputs/final_preview.mp4"
     return updated
 
 
@@ -43,4 +44,8 @@ def _apply_prod_defaults(config: dict[str, Any]) -> dict[str, Any]:
         updated["fps"] = updated["prod_fps"]
     if "prod_scene_duration" in updated:
         updated["scene_duration"] = updated["prod_scene_duration"]
+    if "prod_output_filename" in updated:
+        updated["output_filename"] = updated["prod_output_filename"]
+    if "prod_font_size" in updated:
+        updated["font_size"] = updated["prod_font_size"]
     return updated

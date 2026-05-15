@@ -5,6 +5,7 @@
     "status": "создана_placeholder_картинка",
     "query": "портрет Jordan Peterson"
   },
+  "scene_assets": [],
   "music": {
     "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
     "status": "найдено",
@@ -14,5 +15,6 @@
   "intro_image": {
     "enabled": false,
     "status": "зарезервировано_для_будущей_openai_генерации_изображений"
-  }
+  },
+  "warnings": []
 }

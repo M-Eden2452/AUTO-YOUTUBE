@@ -14,47 +14,78 @@ def generate_youtube_metadata(
     scene_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     quote_plan = quote_plan or read_json(config["plans"]["quote_plan"])
-    scene_plan = scene_plan or read_json(config["plans"]["scene_plan"])
-
-    scene = scene_plan["scenes"][0]
-    quote = quote_plan["quotes"][0]
-    person = scene.get("person") or config.get("person", "")
+    person = config.get("person", "Jordan Peterson")
     topic = config.get("topic", person)
-    style = config.get("visual_style", "")
+    disclaimer = quote_plan.get(
+        "disclaimer",
+        "Некоторые формулировки являются пересказом идей Jordan Peterson, а не дословными цитатами.",
+    )
+
+    title_variants = [
+        "Мысли Jordan Peterson, которые тяжело принять",
+        "Jordan Peterson сказал то, что люди боятся признать",
+        "Слова Jordan Peterson, которые заставляют посмотреть на себя иначе",
+        "10 мыслей, после которых трудно остаться прежним",
+        "Фразы Jordan Peterson, которые бьют точно",
+        "Почему правда Peterson звучит так неудобно",
+        "Jordan Peterson: жесткие мысли о жизни, ответственности и хаосе",
+        "Эти идеи Jordan Peterson могут изменить твой взгляд на себя",
+        "Когда порядок начинается с честности: мысли Jordan Peterson",
+        "То, что Peterson говорит о слабости, ответственности и правде",
+    ]
+    chosen_title = title_variants[0]
+
+    source_notes = [
+        item.get("source_note", "")
+        for item in quote_plan.get("items", [])
+        if item.get("source_note")
+    ]
 
     return {
-        "title_variants": [
-            f"{person}: фраза, которая бьет точно",
-            f"Мысль {person}, которая меняет взгляд",
-            f"Сильная цитата {person}",
-            f"Фраза {person}, которая остается в голове",
-            f"Сильная мысль: {person}"
-        ],
+        "title_variants": title_variants,
+        "chosen_title": chosen_title,
         "description": (
-            f"Короткое кинематографичное видео с цитатой на тему: {topic}. "
-            f"Текст: {quote.get('quote_ru') or quote.get('quote', scene.get('quote', ''))}"
+            f"{chosen_title}\n\n"
+            "Кинематографичное интеллектуальное видео на русском языке о мыслях Jordan Peterson: "
+            "ответственность, правда, порядок, хаос, дисциплина и взросление.\n\n"
+            f"{disclaimer}\n\n"
+            "Видео создано как production-style preview без озвучки, с расчетом на будущий voice-over."
         ),
         "tags": [
-            person,
-            "цитаты",
-            "мотивация",
+            "Jordan Peterson",
+            "Джордан Питерсон",
             "психология",
             "философия",
-            "сильные мысли"
+            "ответственность",
+            "дисциплина",
+            "мотивация без кринжа",
+            "сильные мысли",
+            "цитаты",
+            "саморазвитие",
         ],
         "keywords": [
             topic,
-            f"цитаты {person}",
-            "сильные мысли",
-            "фразы которые остаются в голове",
-            style
+            "мысли Jordan Peterson",
+            "цитаты Джордана Питерсона",
+            "ответственность и дисциплина",
+            "порядок и хаос",
+            "психологическое документальное видео",
+            "dark cinematic intellectual",
         ],
         "thumbnail_idea": (
-            f"Темный кинематографичный портрет {person} слева, крупный текст цитаты справа, "
-            "теплая золотая акцентная линия, интеллектуальное настроение."
+            "Темный портретный силуэт, дождь или библиотека на фоне, крупный заголовок: "
+            "«Тяжело принять», золотой акцент, минимальный premium documentary стиль."
         ),
-        "shorts_hook": f"Одна мысль {person}, которая звучит сильнее, чем кажется сначала.",
-        "community_post": f"Что думаешь об этой фразе {person}?\n\n{quote.get('quote_ru') or quote.get('quote', scene.get('quote', ''))}"
+        "thumbnail_prompt": (
+            "dark cinematic intellectual documentary thumbnail, Jordan Peterson inspired portrait silhouette, "
+            "rainy window, library shadows, gold accent, serious psychological mood, premium YouTube documentary"
+        ),
+        "shorts_hook": "Одна из самых неудобных мыслей Peterson: порядок начинается с того, что ты перестаешь себе лгать.",
+        "community_post": (
+            "Какая мысль Jordan Peterson звучит для тебя тяжелее всего: про ответственность, правду или дисциплину?"
+        ),
+        "source_notes": source_notes,
+        "disclaimer": disclaimer,
     }
 
 
@@ -75,15 +106,19 @@ def load_youtube_metadata(path: str = DEFAULT_METADATA_PATH) -> dict[str, Any]:
         return read_json(target)
     return {
         "title_variants": [],
+        "chosen_title": "",
         "description": "",
         "tags": [],
         "keywords": [],
         "thumbnail_idea": "",
+        "thumbnail_prompt": "",
         "shorts_hook": "",
-        "community_post": ""
+        "community_post": "",
+        "source_notes": [],
+        "disclaimer": "",
     }
 
 
 def generate_with_ai_later() -> None:
     """Точка расширения для будущей AI-генерации метаданных."""
-    raise NotImplementedError("AI-генерация метаданных намеренно не подключена в MVP.")
+    raise NotImplementedError("AI-генерация метаданных намеренно не подключена в этом production MVP.")

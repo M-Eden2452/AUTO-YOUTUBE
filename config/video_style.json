@@ -1,23 +1,25 @@
 {
-  "video_type": "quotes",
-  "topic": "Цитаты Jordan Peterson",
+  "video_type": "quotes_documentary",
+  "topic": "Мысли и идеи Jordan Peterson, которые тяжело принять",
   "person": "Jordan Peterson",
   "franchise": null,
   "language": "ru",
-  "quote_source": "curated_test_quote",
-  "visual_style": "темный кинематографичный интеллектуальный стиль",
-  "image_style": "драматичный редакционный портрет, чистые тени, легкое пленочное зерно",
-  "intro_style": "минималистичная кинематографичная заставка, готовая к будущей генерации через OpenAI",
-  "layout": "portrait_left_quote_right",
+  "quote_source": "curated_peterson_ideas_ru",
+  "visual_style": "темный кинематографичный интеллектуальный психологический документальный стиль",
+  "image_style": "noir documentary, dramatic shadows, library, rain, lonely walk, intellectual portrait",
+  "intro_style": "темное кинематографичное раскрытие заголовка, slow zoom, интеллектуальный портретный вайб",
+  "layout": "cinematic_documentary_text_over_broll",
   "resolution": [1280, 720],
   "prod_resolution": [1920, 1080],
   "fps": 15,
   "prod_fps": 24,
   "dev_mode": true,
   "scene_duration": 7,
-  "prod_scene_duration": 18,
+  "prod_scene_duration": 8,
+  "prod_total_duration": 240,
   "font_path": "C:/Windows/Fonts/arial.ttf",
   "font_size": 42,
+  "prod_font_size": 58,
   "author_font_size": 24,
   "text_color": "#F4EFE7",
   "muted_text_color": "#B7AA98",
@@ -28,16 +30,23 @@
   "transition_type": "fade",
   "animation_type": "slow_zoom",
   "output_filename": "outputs/final_preview.mp4",
+  "prod_output_filename": "outputs/final_video.mp4",
   "plans": {
     "quote_plan": "outputs/quote_plan.json",
     "scene_plan": "outputs/scene_plan.json",
     "asset_plan": "outputs/asset_plan.json",
-    "render_plan": "outputs/render_plan.json"
+    "render_plan": "outputs/render_plan.json",
+    "music_plan": "outputs/music_plan.json"
   },
   "api_models": {
     "script_llm": "gpt-5.4-mini",
     "planner_llm": "gpt-5.4-mini",
     "image_generation": "gpt-image-1"
+  },
+  "intro_generation": {
+    "provider": "openai_image_later",
+    "enabled": false,
+    "style_prompt": "dark cinematic intellectual portrait, noir documentary, dramatic lighting"
   },
   "openai_image_generation": {
     "enabled": false,
@@ -47,16 +56,60 @@
     "style_prompt": "темное кинематографичное интеллектуальное редакционное изображение"
   },
   "pexels_search": {
-    "enabled": false,
-    "query": "портрет Jordan Peterson",
+    "enabled": true,
     "orientation": "landscape",
-    "per_page": 5
+    "per_page": 8,
+    "max_downloads": 14,
+    "queries": [
+      "dark library",
+      "man thinking dark room",
+      "night city rain",
+      "lonely walk silhouette",
+      "books philosophy",
+      "dark office window",
+      "discipline responsibility",
+      "order chaos abstract"
+    ]
+  },
+  "pixabay_search": {
+    "enabled": true,
+    "image_type": "photo",
+    "orientation": "horizontal",
+    "per_page": 12,
+    "max_downloads": 12,
+    "queries": [
+      "dark library",
+      "rain window",
+      "night city",
+      "man silhouette",
+      "books",
+      "psychology",
+      "philosophy",
+      "abstract dark"
+    ]
+  },
+  "music_search": {
+    "enabled": true,
+    "provider": "pixabay",
+    "fallback_path": "music/background.mp3",
+    "auto_download": true,
+    "queries": [
+      "dark cinematic ambient",
+      "documentary piano",
+      "emotional background music",
+      "slow dramatic piano",
+      "intellectual ambient",
+      "atmospheric documentary music",
+      "deep motivational ambient",
+      "noir piano background"
+    ],
+    "volume": 0.16
   },
   "fallback_behavior": {
     "missing_image": "создать_placeholder",
     "missing_music": "рендерить_без_звука",
     "missing_font": "использовать_стандартный_шрифт_pillow",
-    "openai_disabled": "использовать_подготовленную_цитату"
+    "openai_disabled": "использовать_редакционный_план"
   },
   "obsidian": {
     "enabled": true,

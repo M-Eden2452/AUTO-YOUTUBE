@@ -14,6 +14,7 @@ PLAN_KEYS = {
     "scene_plan": "outputs/scene_plan.json",
     "asset_plan": "outputs/asset_plan.json",
     "render_plan": "outputs/render_plan.json",
+    "music_plan": "outputs/music_plan.json",
     "self_eval": "outputs/self_eval.json",
 }
 
@@ -23,9 +24,10 @@ def export_obsidian_note(config: dict[str, Any]) -> Path:
     scene_plan = _read_plan(config["plans"].get("scene_plan", PLAN_KEYS["scene_plan"]))
     asset_plan = _read_plan(config["plans"].get("asset_plan", PLAN_KEYS["asset_plan"]))
     render_plan = _read_plan(config["plans"].get("render_plan", PLAN_KEYS["render_plan"]))
+    music_plan = _read_plan(config["plans"].get("music_plan", PLAN_KEYS["music_plan"]))
     self_eval = _read_plan(PLAN_KEYS["self_eval"])
     metadata = load_youtube_metadata()
-    output_video = _find_output_video()
+    output_video = _find_output_video(config)
 
     markdown = build_obsidian_markdown(
         config=config,
@@ -33,6 +35,7 @@ def export_obsidian_note(config: dict[str, Any]) -> Path:
         scene_plan=scene_plan,
         asset_plan=asset_plan,
         render_plan=render_plan,
+        music_plan=music_plan,
         self_eval=self_eval,
         metadata=metadata,
         output_video=output_video,
@@ -49,18 +52,13 @@ def build_obsidian_markdown(
     scene_plan: dict[str, Any],
     asset_plan: dict[str, Any],
     render_plan: dict[str, Any],
+    music_plan: dict[str, Any],
     self_eval: dict[str, Any],
     metadata: dict[str, Any],
     output_video: Path | None,
 ) -> str:
-    scene = _first(scene_plan.get("scenes", []), {})
-    quote = _first(quote_plan.get("quotes", []), {})
-    title = _first(metadata.get("title_variants", []), f"{config.get('person', 'Видео с цитатой')} Превью")
-    duration = scene.get("duration") or render_plan.get("duration") or config.get("scene_duration", "")
-
-    image = asset_plan.get("image", {})
-    music = asset_plan.get("music", {})
-    broll = asset_plan.get("broll", [])
+    title = metadata.get("chosen_title") or _first(metadata.get("title_variants", []), config.get("topic", "Видео"))
+    scenes = scene_plan.get("scenes", [])
     final_video = output_video or Path(render_plan.get("output_path", config.get("output_filename", "")))
     write_json_links = config.get("obsidian", {}).get("write_json_links", True)
 
@@ -69,61 +67,67 @@ def build_obsidian_markdown(
             f"# {title}",
             "",
             "## Статус",
-            "Превью",
+            "Production preview",
             "",
             "## Основа",
-            f"- Формат: {config.get('video_type', '')}",
             f"- Тема: {config.get('topic', '')}",
-            f"- Персона / источник: {scene.get('person') or config.get('person', '')}",
+            f"- Формат: {config.get('video_type', '')}",
+            f"- Персона / источник: {config.get('person', '')}",
             f"- Язык: {config.get('language', '')}",
             f"- Стиль: {config.get('visual_style', '')}",
-            f"- Длительность: {duration} сек.",
+            f"- Сцен: {len(scenes)}",
+            f"- Длительность: {render_plan.get('duration', '')} сек.",
             f"- Итоговое видео: {_path_text(final_video)}",
             "",
-            "## Цитата / текст",
-            quote.get("quote_ru") or quote.get("quote", scene.get("quote", "")),
+            "## Описание",
+            metadata.get("description", ""),
+            "",
+            "## Теги",
+            _bullet_list(metadata.get("tags", [])),
+            "",
+            "## Ключевые слова",
+            _bullet_list(metadata.get("keywords", [])),
             "",
             "## Идеи заголовков",
-            _bullet_list(metadata.get("title_variants", [])),
+            _title_list(metadata),
             "",
-            "## Метаданные YouTube",
-            f"- Описание: {metadata.get('description', '')}",
-            f"- Теги: {', '.join(metadata.get('tags', []))}",
-            f"- Ключевые слова: {', '.join(metadata.get('keywords', []))}",
-            f"- Идея обложки: {metadata.get('thumbnail_idea', '')}",
+            "## Thumbnail",
+            f"- Идея: {metadata.get('thumbnail_idea', '')}",
+            f"- Prompt: {metadata.get('thumbnail_prompt', '')}",
             "",
-            "## Визуальный стиль",
-            f"- Общий стиль: {config.get('visual_style', '')}",
-            f"- Стиль изображения: {config.get('image_style', '')}",
-            f"- Стиль интро: {config.get('intro_style', '')}",
-            f"- Макет: {config.get('layout', '')}",
-            f"- Шрифт: {config.get('font_path', '')}",
-            f"- Музыка: {_path_text(music.get('path', ''))}",
+            "## Список сцен",
+            _scene_list(scenes),
+            "",
+            "## Цитаты / идеи",
+            _quote_list(quote_plan.get("items", [])),
             "",
             "## Ассеты",
-            f"- Изображения: {_path_text(image.get('path', ''))}",
-            f"- B-roll: {_asset_list(broll)}",
-            f"- Музыка: {_path_text(music.get('path', ''))}",
-            f"- Финальное видео: {_path_text(final_video)}",
+            _asset_list(asset_plan),
+            "",
+            "## Музыка",
+            f"- Статус: {music_plan.get('status', '')}",
+            f"- Файл: {music_plan.get('path', '')}",
+            f"- Громкость: {music_plan.get('volume', '')}",
+            f"- Рекомендации: {', '.join(music_plan.get('recommendations', []))}",
             "",
             "## Production-планы",
             _plan_links(write_json_links),
             "",
-            "## Следующие действия",
-            "- улучшить цитаты",
-            "- подобрать картинки",
-            "- добавить интро",
-            "- добавить voice-over",
-            "- сделать production render",
+            "## Предупреждения self-eval",
+            _bullet_list(self_eval.get("warnings", [])),
             "",
-            "## Заметки",
-            "",
-            "",
-            "## Self-eval",
+            "## Проверки self-eval",
             _bullet_list(self_eval.get("checks", [])),
             "",
-            "## Предупреждения",
-            _bullet_list(self_eval.get("warnings", [])),
+            "## Следующие действия",
+            "- добавить озвучку",
+            "- проверить цитаты",
+            "- проверить авторские права",
+            "- сделать thumbnail",
+            "- загрузить на YouTube",
+            "",
+            "## Notes",
+            "",
             "",
         ]
     )
@@ -134,7 +138,7 @@ def _resolve_note_path(config: dict[str, Any], metadata: dict[str, Any], scene_p
     vault_path = Path(obsidian.get("vault_path", ""))
     folder = obsidian.get("folder", "YouTube/Цитаты")
     fallback_to_outputs = obsidian.get("fallback_to_outputs", True)
-    title = _first(metadata.get("title_variants", []), scene_plan.get("topic", "quote video"))
+    title = metadata.get("chosen_title") or scene_plan.get("topic", "video")
     filename = f"{datetime.now().strftime('%Y-%m-%d')} - {_slugify(title)}.md"
 
     if vault_path.exists() and vault_path.is_dir():
@@ -144,8 +148,11 @@ def _resolve_note_path(config: dict[str, Any], metadata: dict[str, Any], scene_p
     return PROJECT_ROOT / filename
 
 
-def _find_output_video() -> Path | None:
-    for candidate in ("outputs/final_preview.mp4", "outputs/final_video.mp4"):
+def _find_output_video(config: dict[str, Any]) -> Path | None:
+    candidates = [config.get("output_filename", ""), "outputs/final_video.mp4", "outputs/final_preview.mp4"]
+    for candidate in candidates:
+        if not candidate:
+            continue
         path = project_path(candidate)
         if path.exists():
             return path
@@ -160,9 +167,7 @@ def _read_plan(path: str | Path) -> dict[str, Any]:
 
 
 def _path_text(value: str | Path) -> str:
-    if not value:
-        return ""
-    return str(value)
+    return str(value) if value else ""
 
 
 def _bullet_list(items: list[Any]) -> str:
@@ -171,15 +176,46 @@ def _bullet_list(items: list[Any]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
-def _asset_list(items: list[Any]) -> str:
-    if not items:
-        return "Пока нет"
-    return ", ".join(str(item) for item in items)
+def _title_list(metadata: dict[str, Any]) -> str:
+    chosen = metadata.get("chosen_title")
+    lines = []
+    for title in metadata.get("title_variants", []):
+        prefix = "выбранный" if title == chosen else "вариант"
+        lines.append(f"- {prefix}: {title}")
+    return "\n".join(lines) if lines else "- "
+
+
+def _scene_list(scenes: list[dict[str, Any]]) -> str:
+    lines = []
+    for scene in scenes:
+        lines.append(
+            f"- {scene.get('scene_number')}. {scene.get('scene_type')} / {scene.get('content_type')} / "
+            f"{scene.get('duration')} сек. — {scene.get('screen_text') or scene.get('title', '')}"
+        )
+    return "\n".join(lines) if lines else "- "
+
+
+def _quote_list(items: list[dict[str, Any]]) -> str:
+    lines = []
+    for index, item in enumerate(items, start=1):
+        lines.append(f"- {index}. [{item.get('content_type')}] {item.get('text')} — {item.get('source_note')}")
+    return "\n".join(lines) if lines else "- "
+
+
+def _asset_list(asset_plan: dict[str, Any]) -> str:
+    lines = []
+    for asset in asset_plan.get("scene_assets", []):
+        lines.append(
+            f"- Сцена {asset.get('scene_number')}: {asset.get('provider')} / {asset.get('status')} / {asset.get('path')}"
+        )
+    if not lines:
+        lines.append(f"- Изображение: {asset_plan.get('image', {}).get('path', '')}")
+    return "\n".join(lines)
 
 
 def _plan_links(enabled: bool) -> str:
     lines = []
-    for label, path in PLAN_KEYS.items():
+    for _, path in PLAN_KEYS.items():
         text = str(project_path(path)) if enabled else path
         lines.append(f"- {Path(path).name}: {text}")
     return "\n".join(lines)
@@ -192,4 +228,4 @@ def _first(items: list[Any], fallback: Any) -> Any:
 def _slugify(value: str) -> str:
     value = re.sub(r"[^\w\s.-]", "", value, flags=re.UNICODE).strip()
     value = re.sub(r"\s+", " ", value)
-    return value[:90] or "quote-video"
+    return value[:90] or "video"

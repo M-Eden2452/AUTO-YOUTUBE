@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "current_stage": "add_music_done",
+  "render_plan": {
+    "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview.mp4",
+    "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.mp4",
+    "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.partial.mp4",
+    "temp_dir": "G:\\Projects\\AI-YouTube\\outputs\\render_temp",
+    "stage_log_path": "G:\\Projects\\AI-YouTube\\outputs\\render_stage.json",
+    "resolution": [
+      1280,
+      720
+    ],
+    "fps": 15,
+    "duration": 7.0,
+    "scene_count": 1,
+    "layout": "cinematic_documentary_text_over_broll",
+    "animation": "slow_zoom",
+    "music": {
+      "enabled": true,
+      "provider": "локальный_файл",
+      "status": "найдена_локальная_музыка",
+      "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
+      "volume": 0.16,
+      "queries": [
+        "dark cinematic ambient",
+        "documentary piano",
+        "emotional background music",
+        "slow dramatic piano",
+        "intellectual ambient",
+        "atmospheric documentary music",
+        "deep motivational ambient",
+        "noir piano background"
+      ],
+      "warnings": [],
+      "recommendations": []
+    },
+    "render_strategy": "single_scene_temp_clip",
+    "preset": "medium"
+  },
+  "events": [
+    {
+      "stage": "render_silent_started",
+      "message": "Начат рендер silent video по сценам.",
+      "timestamp": "2026-05-15T19:50:00"
+    },
+    {
+      "stage": "render_silent_done",
+      "message": "Silent partial создан: G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.partial.mp4",
+      "timestamp": "2026-05-15T19:50:15"
+    },
+    {
+      "stage": "validate_silent_started",
+      "message": "Проверка silent partial.",
+      "timestamp": "2026-05-15T19:50:15"
+    },
+    {
+      "stage": "validate_silent_done",
+      "message": "Silent video валиден: G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.mp4",
+      "timestamp": "2026-05-15T19:50:15"
+    },
+    {
+      "stage": "add_music_started",
+      "message": "Добавление музыки: G:\\Projects\\AI-YouTube\\music\\background.mp3",
+      "timestamp": "2026-05-15T19:50:15"
+    },
+    {
+      "stage": "add_music_done",
+      "message": "Финальное видео создано: G:\\Projects\\AI-YouTube\\outputs\\final_preview.mp4",
+      "timestamp": "2026-05-15T19:50:16"
+    }
+  ]
+}
