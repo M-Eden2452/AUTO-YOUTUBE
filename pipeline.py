@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import Any
 
 from src.asset_finder import build_asset_plan
 from src.config_loader import load_config
@@ -27,6 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="config/video_style.json", help="Путь к конфигу стиля видео.")
     parser.add_argument("--dev", action="store_true", help="Собрать короткое быстрое превью.")
     parser.add_argument("--prod", action="store_true", help="Использовать production-настройки рендера.")
+    parser.add_argument("--prod-preview", action="store_true", help="Прогнать production pipeline на первых 3-5 сценах.")
     parser.add_argument("--export-obsidian", action="store_true", help="Только экспортировать Obsidian-заметку из готовых outputs.")
     parser.add_argument("--no-obsidian", action="store_true", help="Отключить Obsidian-экспорт для этого запуска.")
     parser.add_argument("--skip-render", action="store_true", help="Пропустить рендер и обновить только metadata/Obsidian.")
@@ -42,8 +44,8 @@ def main() -> None:
     ensure_dir("assets/images")
     ensure_dir("assets/images/generated")
 
-    config = load_config(args.config, dev=args.dev, prod=args.prod)
-    print(f"[config] Загружен {args.config} | dev_mode={config['dev_mode']}")
+    config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview)
+    print(f"[config] Загружен {args.config} | dev_mode={config['dev_mode']} | prod_preview={config.get('prod_preview', False)}")
 
     if args.find_music:
         music_plan = build_music_plan(config)
@@ -58,6 +60,8 @@ def main() -> None:
     quote_plan = build_quote_plan(config)
     metadata = write_youtube_metadata(config, quote_plan)
     scene_plan = build_scene_plan(config, quote_plan, metadata)
+    if args.prod_preview:
+        scene_plan = limit_scene_plan(scene_plan, int(config.get("prod_preview_scene_count", 5)))
     intro_plan = build_intro_plan(config, metadata)
     music_plan = build_music_plan(config)
     asset_plan = build_asset_plan(config, scene_plan, refresh=args.refresh_assets)
@@ -118,6 +122,15 @@ def main() -> None:
             print(f"[self-eval] Заметка: {item}")
 
     print(f"[metadata] Создан outputs/youtube_metadata.json, выбранный заголовок: {metadata.get('chosen_title')}")
+
+
+def limit_scene_plan(scene_plan: dict[str, Any], max_scenes: int) -> dict[str, Any]:
+    limited = {**scene_plan}
+    scenes = list(scene_plan.get("scenes", []))[:max_scenes]
+    limited["scenes"] = scenes
+    limited["target_duration"] = sum(float(scene.get("duration", 0)) for scene in scenes)
+    limited["preview_mode"] = "prod_preview"
+    return limited
 
 
 if __name__ == "__main__":

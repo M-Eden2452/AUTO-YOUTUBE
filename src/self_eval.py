@@ -43,7 +43,12 @@ def evaluate_render(
     scenes = (scene_plan or {}).get("scenes", [])
     if scenes:
         checks.append(f"Количество сцен: {len(scenes)}.")
-        if not config.get("dev_mode", False) and not (22 <= len(scenes) <= 32):
+        if config.get("prod_preview", False):
+            if 3 <= len(scenes) <= 5:
+                checks.append("Prod-preview использует ожидаемые 3-5 сцен.")
+            else:
+                warnings.append(f"Количество prod-preview сцен вне ожидаемого диапазона: {len(scenes)}.")
+        elif not config.get("dev_mode", False) and not (22 <= len(scenes) <= 32):
             warnings.append(f"Количество production-сцен вне ожидаемого диапазона: {len(scenes)}.")
         overflow = [scene["scene_number"] for scene in scenes if len(scene.get("screen_text", "")) > 135]
         if overflow:

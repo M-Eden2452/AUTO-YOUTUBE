@@ -1,16 +1,16 @@
 {
-  "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview.mp4",
-  "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.mp4",
-  "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.partial.mp4",
+  "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview.mp4",
+  "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.mp4",
+  "partial_silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_prod_preview_silent.partial.mp4",
   "temp_dir": "G:\\Projects\\AI-YouTube\\outputs\\render_temp",
   "stage_log_path": "G:\\Projects\\AI-YouTube\\outputs\\render_stage.json",
   "resolution": [
     1280,
     720
   ],
-  "fps": 15,
-  "duration": 7.0,
-  "scene_count": 1,
+  "fps": 24,
+  "duration": 48.0,
+  "scene_count": 5,
   "layout": "cinematic_documentary_text_over_broll",
   "animation": "slow_zoom",
   "music": {
@@ -32,13 +32,13 @@
     "warnings": [],
     "recommendations": []
   },
-  "render_strategy": "single_scene_temp_clip",
-  "preset": "medium",
+  "render_strategy": "scene_temp_clips_concat",
+  "preset": "ultrafast",
   "intro": {
     "enabled": true,
     "title": "Мысли Jordan Peterson, которые тяжело принять",
     "subtitle": "Психология ответственности, правды и внутреннего порядка",
-    "duration": 0,
+    "duration": 12,
     "style": "темное кинематографичное раскрытие заголовка, slow zoom, интеллектуальный портретный вайб",
     "generation": {
       "provider": "openai_image_later",

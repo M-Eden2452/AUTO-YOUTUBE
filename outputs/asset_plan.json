@@ -5,13 +5,95 @@
     "status": "создана_placeholder_картинка",
     "query": "портрет Jordan Peterson"
   },
-  "scene_assets": [],
+  "scene_assets": [
+    {
+      "scene_number": 1,
+      "query": "dark intellectual portrait library",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_01_pexels_27471477.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 2,
+      "query": "dark library",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_02_pexels_18713701.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 3,
+      "query": "man thinking dark room",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_03_pexels_7063750.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 4,
+      "query": "night city rain",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_04_pexels_28993162.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 5,
+      "query": "lonely walk silhouette",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_05_pexels_35330033.jpg",
+      "source_url": ""
+    }
+  ],
   "music": {
     "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
     "status": "найдено",
     "volume": 0.18
   },
-  "broll": [],
+  "broll": [
+    {
+      "scene_number": 1,
+      "query": "dark intellectual portrait library",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_01_pexels_27471477.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 2,
+      "query": "dark library",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_02_pexels_18713701.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 3,
+      "query": "man thinking dark room",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_03_pexels_7063750.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 4,
+      "query": "night city rain",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_04_pexels_28993162.jpg",
+      "source_url": ""
+    },
+    {
+      "scene_number": 5,
+      "query": "lonely walk silhouette",
+      "provider": "локальный_кэш",
+      "status": "найдено",
+      "path": "G:\\Projects\\AI-YouTube\\assets\\images\\generated\\scene_05_pexels_35330033.jpg",
+      "source_url": ""
+    }
+  ],
   "intro_image": {
     "enabled": false,
     "status": "зарезервировано_для_будущей_openai_генерации_изображений"
