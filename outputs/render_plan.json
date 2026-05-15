@@ -11,20 +11,20 @@
   "animation": "slow_zoom",
   "music": {
     "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
-    "status": "found",
+    "status": "найдено",
     "volume": 0.18
   },
   "intro": {
     "enabled": false,
-    "style": "minimal cinematic title card, future OpenAI image generation ready",
-    "future_provider": "OpenAI image generation",
+    "style": "минималистичная кинематографичная заставка, готовая к будущей генерации через OpenAI",
+    "future_provider": "генерация изображений через OpenAI",
     "settings": {
       "enabled": false,
       "model": "gpt-image-1",
       "size": "1536x864",
       "quality": "medium",
-      "style_prompt": "dark cinematic intellectual editorial image"
+      "style_prompt": "темное кинематографичное интеллектуальное редакционное изображение"
     },
-    "note": "MVP skips intro rendering but keeps this plan boundary for production videos."
+    "note": "MVP пропускает рендер интро, но сохраняет эту границу для будущих production-видео."
   }
 }

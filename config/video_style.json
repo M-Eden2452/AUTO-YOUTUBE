@@ -1,13 +1,13 @@
 {
   "video_type": "quotes",
-  "topic": "Jordan Peterson quotes",
+  "topic": "Цитаты Jordan Peterson",
   "person": "Jordan Peterson",
   "franchise": null,
   "language": "ru",
   "quote_source": "curated_test_quote",
-  "visual_style": "dark cinematic intellectual",
-  "image_style": "dramatic editorial portrait, clean shadows, subtle film grain",
-  "intro_style": "minimal cinematic title card, future OpenAI image generation ready",
+  "visual_style": "темный кинематографичный интеллектуальный стиль",
+  "image_style": "драматичный редакционный портрет, чистые тени, легкое пленочное зерно",
+  "intro_style": "минималистичная кинематографичная заставка, готовая к будущей генерации через OpenAI",
   "layout": "portrait_left_quote_right",
   "resolution": [1280, 720],
   "prod_resolution": [1920, 1080],
@@ -44,24 +44,24 @@
     "model": "gpt-image-1",
     "size": "1536x864",
     "quality": "medium",
-    "style_prompt": "dark cinematic intellectual editorial image"
+    "style_prompt": "темное кинематографичное интеллектуальное редакционное изображение"
   },
   "pexels_search": {
     "enabled": false,
-    "query": "Jordan Peterson portrait",
+    "query": "портрет Jordan Peterson",
     "orientation": "landscape",
     "per_page": 5
   },
   "fallback_behavior": {
-    "missing_image": "create_placeholder",
-    "missing_music": "render_silent_video",
-    "missing_font": "use_pillow_default",
-    "openai_disabled": "use_curated_quote"
+    "missing_image": "создать_placeholder",
+    "missing_music": "рендерить_без_звука",
+    "missing_font": "использовать_стандартный_шрифт_pillow",
+    "openai_disabled": "использовать_подготовленную_цитату"
   },
   "obsidian": {
     "enabled": true,
     "vault_path": "G:\\ObsidianBase\\ObsidianBase",
-    "folder": "YouTube/Quotes",
+    "folder": "YouTube/Цитаты",
     "note_template": "quote_video",
     "write_json_links": true,
     "write_asset_links": true,

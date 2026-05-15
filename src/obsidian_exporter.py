@@ -55,7 +55,7 @@ def build_obsidian_markdown(
 ) -> str:
     scene = _first(scene_plan.get("scenes", []), {})
     quote = _first(quote_plan.get("quotes", []), {})
-    title = _first(metadata.get("title_variants", []), f"{config.get('person', 'Quote Video')} Preview")
+    title = _first(metadata.get("title_variants", []), f"{config.get('person', 'Видео с цитатой')} Превью")
     duration = scene.get("duration") or render_plan.get("duration") or config.get("scene_duration", "")
 
     image = asset_plan.get("image", {})
@@ -68,63 +68,61 @@ def build_obsidian_markdown(
         [
             f"# {title}",
             "",
-            "## Status",
-            "Preview",
+            "## Статус",
+            "Превью",
             "",
-            "## Core",
-            f"- Format: {config.get('video_type', '')}",
-            f"- Topic: {config.get('topic', '')}",
-            f"- Person / Source: {scene.get('person') or config.get('person', '')}",
-            f"- Language: {config.get('language', '')}",
-            f"- Style: {config.get('visual_style', '')}",
-            f"- Duration: {duration}s",
-            f"- Output video: {_path_text(final_video)}",
+            "## Основа",
+            f"- Формат: {config.get('video_type', '')}",
+            f"- Тема: {config.get('topic', '')}",
+            f"- Персона / источник: {scene.get('person') or config.get('person', '')}",
+            f"- Язык: {config.get('language', '')}",
+            f"- Стиль: {config.get('visual_style', '')}",
+            f"- Длительность: {duration} сек.",
+            f"- Итоговое видео: {_path_text(final_video)}",
             "",
-            "## Quote / Text",
-            quote.get("quote", scene.get("quote", "")),
+            "## Цитата / текст",
+            quote.get("quote_ru") or quote.get("quote", scene.get("quote", "")),
             "",
-            quote.get("quote_ru", scene.get("quote_ru", "")),
-            "",
-            "## Title Ideas",
+            "## Идеи заголовков",
             _bullet_list(metadata.get("title_variants", [])),
             "",
-            "## YouTube Metadata",
-            f"- Description: {metadata.get('description', '')}",
-            f"- Tags: {', '.join(metadata.get('tags', []))}",
-            f"- Keywords: {', '.join(metadata.get('keywords', []))}",
-            f"- Thumbnail idea: {metadata.get('thumbnail_idea', '')}",
+            "## Метаданные YouTube",
+            f"- Описание: {metadata.get('description', '')}",
+            f"- Теги: {', '.join(metadata.get('tags', []))}",
+            f"- Ключевые слова: {', '.join(metadata.get('keywords', []))}",
+            f"- Идея обложки: {metadata.get('thumbnail_idea', '')}",
             "",
-            "## Visual Style",
-            f"- Visual style: {config.get('visual_style', '')}",
-            f"- Image style: {config.get('image_style', '')}",
-            f"- Intro style: {config.get('intro_style', '')}",
-            f"- Layout: {config.get('layout', '')}",
-            f"- Font: {config.get('font_path', '')}",
-            f"- Music: {_path_text(music.get('path', ''))}",
+            "## Визуальный стиль",
+            f"- Общий стиль: {config.get('visual_style', '')}",
+            f"- Стиль изображения: {config.get('image_style', '')}",
+            f"- Стиль интро: {config.get('intro_style', '')}",
+            f"- Макет: {config.get('layout', '')}",
+            f"- Шрифт: {config.get('font_path', '')}",
+            f"- Музыка: {_path_text(music.get('path', ''))}",
             "",
-            "## Assets",
-            f"- Images: {_path_text(image.get('path', ''))}",
+            "## Ассеты",
+            f"- Изображения: {_path_text(image.get('path', ''))}",
             f"- B-roll: {_asset_list(broll)}",
-            f"- Music: {_path_text(music.get('path', ''))}",
-            f"- Final video: {_path_text(final_video)}",
+            f"- Музыка: {_path_text(music.get('path', ''))}",
+            f"- Финальное видео: {_path_text(final_video)}",
             "",
-            "## Production Plans",
+            "## Production-планы",
             _plan_links(write_json_links),
             "",
-            "## Next Actions",
+            "## Следующие действия",
             "- улучшить цитаты",
             "- подобрать картинки",
             "- добавить интро",
             "- добавить voice-over",
             "- сделать production render",
             "",
-            "## Notes",
+            "## Заметки",
             "",
             "",
-            "## Self Eval",
+            "## Self-eval",
             _bullet_list(self_eval.get("checks", [])),
             "",
-            "## Warnings",
+            "## Предупреждения",
             _bullet_list(self_eval.get("warnings", [])),
             "",
         ]
@@ -134,7 +132,7 @@ def build_obsidian_markdown(
 def _resolve_note_path(config: dict[str, Any], metadata: dict[str, Any], scene_plan: dict[str, Any]) -> Path:
     obsidian = config.get("obsidian", {})
     vault_path = Path(obsidian.get("vault_path", ""))
-    folder = obsidian.get("folder", "YouTube/Quotes")
+    folder = obsidian.get("folder", "YouTube/Цитаты")
     fallback_to_outputs = obsidian.get("fallback_to_outputs", True)
     title = _first(metadata.get("title_variants", []), scene_plan.get("topic", "quote video"))
     filename = f"{datetime.now().strftime('%Y-%m-%d')} - {_slugify(title)}.md"
@@ -175,7 +173,7 @@ def _bullet_list(items: list[Any]) -> str:
 
 def _asset_list(items: list[Any]) -> str:
     if not items:
-        return "None yet"
+        return "Пока нет"
     return ", ".join(str(item) for item in items)
 
 

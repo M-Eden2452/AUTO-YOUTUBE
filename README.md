@@ -1,8 +1,8 @@
 # AI-YouTube
 
-Local MVP pipeline for structured YouTube video production. The current project renders a short Jordan Peterson quote preview, stores the video data as JSON plans, generates YouTube metadata, and exports a Markdown note for Obsidian.
+Локальный MVP-pipeline для структурированного производства YouTube-видео. Сейчас проект собирает короткое превью с цитатой Jordan Peterson, сохраняет данные ролика в JSON-планы, генерирует YouTube-метаданные и экспортирует Markdown-заметку в Obsidian.
 
-## Install
+## Установка
 
 ```bash
 python -m venv venv
@@ -11,19 +11,19 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-PowerShell activation:
+Активация в PowerShell:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-## Dev Preview
+## Dev-превью
 
 ```bash
 python pipeline.py --dev
 ```
 
-Expected outputs:
+Ожидаемые результаты:
 
 - `outputs/final_preview.mp4`
 - `outputs/quote_plan.json`
@@ -32,33 +32,33 @@ Expected outputs:
 - `outputs/render_plan.json`
 - `outputs/self_eval.json`
 - `outputs/youtube_metadata.json`
-- `outputs/obsidian_note_preview.md` or an Obsidian vault note
+- заметка в Obsidian или резервный файл `outputs/obsidian_note_preview.md`
 
-Dev mode is intentionally short and fast: 7 seconds, 1280x720, 15 fps by default.
+Режим разработки специально короткий и быстрый: по умолчанию 7 секунд, 1280x720, 15 fps.
 
-## Production Mode
+## Production-режим
 
 ```bash
 python pipeline.py --prod
 ```
 
-Production mode uses `prod_resolution`, `prod_fps`, and `prod_scene_duration` from `config/video_style.json`. It is a foundation for longer 4-10 minute renders, multiple scenes, intros, transitions, B-roll, and future voice-over.
+Продакшен-режим использует поля `prod_resolution`, `prod_fps` и `prod_scene_duration` из `config/video_style.json`. Это фундамент для будущих роликов на 4-10 минут: несколько сцен, интро, переходы, B-roll и voice-over.
 
-## Obsidian Export
+## Экспорт в Obsidian
 
-Obsidian export is configured in:
+Настройки Obsidian находятся в:
 
 ```text
 config/video_style.json
 ```
 
-Current block:
+Текущий блок:
 
 ```json
 "obsidian": {
   "enabled": true,
   "vault_path": "G:\\ObsidianBase\\ObsidianBase",
-  "folder": "YouTube/Quotes",
+  "folder": "YouTube/Цитаты",
   "note_template": "quote_video",
   "write_json_links": true,
   "write_asset_links": true,
@@ -66,61 +66,61 @@ Current block:
 }
 ```
 
-If `vault_path` exists, the note is saved to:
+Если `vault_path` существует, заметка сохраняется сюда:
 
 ```text
-G:\ObsidianBase\ObsidianBase\YouTube\Quotes
+G:\ObsidianBase\ObsidianBase\YouTube\Цитаты
 ```
 
-If the vault path does not exist, the pipeline does not fail. It writes:
+Если путь к vault не найден, pipeline не падает. Вместо этого создается:
 
 ```text
 outputs/obsidian_note_preview.md
 ```
 
-Run only the export step from existing outputs:
+Запустить только экспорт заметки из уже готовых outputs:
 
 ```bash
 python pipeline.py --export-obsidian
 ```
 
-Disable Obsidian export for one run:
+Отключить экспорт в Obsidian для одного запуска:
 
 ```bash
 python pipeline.py --dev --no-obsidian
 ```
 
-Skip rendering and update metadata plus Obsidian:
+Пропустить рендер и обновить только metadata/Obsidian:
 
 ```bash
 python pipeline.py --dev --skip-render
 ```
 
-## What Goes Into Obsidian
+## Что сохраняется в Obsidian
 
-The Markdown note includes:
+Markdown-заметка содержит:
 
-- Status
-- Core video data
-- Quote text
-- Title ideas
-- YouTube description, tags, keywords, thumbnail idea
-- Visual style settings
-- Assets
-- Links to production JSON plans
-- Next actions
-- Manual notes block
-- Self-eval checks and warnings
+- статус ролика
+- базовые данные видео
+- цитату или основной текст
+- идеи заголовков
+- описание, теги, ключевые слова и идею обложки для YouTube
+- визуальный стиль
+- ассеты
+- ссылки на production JSON-планы
+- следующие действия
+- блок для ручных заметок
+- self-eval проверки и предупреждения
 
-## Config
+## Конфиг
 
-Change styles and paths in:
+Стили и пути меняются здесь:
 
 ```text
 config/video_style.json
 ```
 
-Important fields:
+Важные поля:
 
 - `visual_style`
 - `image_style`
@@ -138,58 +138,58 @@ Important fields:
 - `animation_type`
 - `transition_type`
 
-For Cyrillic text, keep a full Windows font path:
+Для кириллицы оставляй полный путь к Windows-шрифту:
 
 ```json
 "font_path": "C:/Windows/Fonts/arial.ttf"
 ```
 
-## Assets
+## Ассеты
 
-Music goes here:
+Музыка кладется сюда:
 
 ```text
 music/background.mp3
 ```
 
-If music is missing, the pipeline renders a silent fallback.
+Если музыки нет, pipeline соберет видео без музыки и не упадет.
 
-Images go here:
+Изображения кладутся сюда:
 
 ```text
 assets/images/
 ```
 
-Example:
+Пример:
 
 ```text
 assets/images/jordan_peterson.jpg
 ```
 
-If no image is found, the pipeline creates a dark placeholder and continues.
+Если изображение не найдено, pipeline создаст темную placeholder-картинку и продолжит работу.
 
-## API Keys
+## API-ключи
 
-The MVP does not require API keys. Later stages may use:
+MVP не требует API-ключей. На следующих этапах могут понадобиться:
 
-- `OPENAI_API_KEY` for scripts, structured plans, and intro image generation
-- `PEXELS_API_KEY` for asset search
-- `ELEVENLABS_API_KEY` for voice-over
+- `OPENAI_API_KEY` для сценариев, структурных планов и генерации intro-изображений
+- `PEXELS_API_KEY` для поиска ассетов
+- `ELEVENLABS_API_KEY` для озвучки
 
-Create `.env` from `.env.example`. Never commit `.env`.
+Создай `.env` на основе `.env.example`. Никогда не коммить `.env`.
 
-## GSD/Superpowers Workflow
+## GSD/Superpowers-процесс
 
-The intended implementation loop is:
+Рекомендуемый цикл работы:
 
-1. Check `git status`.
-2. Commit the known-working state before risky changes.
-3. Make a small architectural change.
-4. Run `python pipeline.py --dev`.
-5. Verify outputs and self-eval.
-6. Commit only safe source/config/docs/JSON/Markdown files.
+1. Проверить `git status`.
+2. Закоммитить рабочее состояние перед рискованными изменениями.
+3. Сделать небольшой архитектурный шаг.
+4. Запустить `python pipeline.py --dev`.
+5. Проверить outputs и self-eval.
+6. Коммитить только безопасные исходники, конфиг, документацию, JSON и Markdown.
 
-The pipeline favors structured intermediate representations:
+Pipeline использует промежуточные структуры:
 
 - quote plan
 - scene plan
@@ -198,9 +198,9 @@ The pipeline favors structured intermediate representations:
 - YouTube metadata
 - Obsidian note
 
-This keeps the system debuggable and makes it easier to expand from previews to production videos.
+Так систему проще дебажить и расширять от коротких preview до production-видео.
 
-## Safe Commit Before Large Changes
+## Безопасный commit перед крупными изменениями
 
 ```bash
 git status
@@ -209,7 +209,7 @@ git status --short
 git commit -m "working MVP before large change"
 ```
 
-Before committing, confirm these are not staged:
+Перед commit проверь, что не staged:
 
 - `.env`
 - `venv/`
@@ -220,12 +220,12 @@ Before committing, confirm these are not staged:
 - `assets/broll/`
 - `music/*.mp3`
 
-## Rollback
+## Откат
 
-If you need to throw away local changes and return to the last commit:
+Если нужно удалить локальные изменения и вернуться к последнему commit:
 
 ```bash
 git reset --hard HEAD
 ```
 
-Use this carefully. It deletes uncommitted changes.
+Используй это осторожно: команда удаляет незакоммиченные изменения.

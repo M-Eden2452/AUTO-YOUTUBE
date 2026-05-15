@@ -1,12 +1,12 @@
 {
   "video_type": "quotes",
   "topic": "Jordan Peterson",
-  "style": "dark cinematic intellectual",
+  "style": "темный кинематографичный интеллектуальный стиль",
   "hard_rules": [
-    "Render must not fail when optional assets are missing.",
-    "Cyrillic text must use an explicit Windows font path.",
-    "Dev preview must stay short.",
-    "All style decisions should come from config."
+    "Рендер не должен падать, если необязательные ассеты отсутствуют.",
+    "Кириллица должна рендериться через явный путь к Windows-шрифту.",
+    "Превью в режиме разработки должно оставаться коротким.",
+    "Все стилевые решения должны идти из конфига."
   ],
   "scenes": [
     {
@@ -14,11 +14,11 @@
       "duration": 7.0,
       "layout": "portrait_left_quote_right",
       "person": "Jordan Peterson",
-      "quote": "Compare yourself to who you were yesterday, not to who someone else is today.",
+      "quote": "Сравнивай себя с тем, кем ты был вчера, а не с тем, кем кто-то другой является сегодня.",
       "quote_ru": "Сравнивай себя с тем, кем ты был вчера, а не с тем, кем кто-то другой является сегодня.",
       "author": "Jordan Peterson",
-      "image_query": "Jordan Peterson portrait",
-      "background_mood": "dark cinematic intellectual",
+      "image_query": "портрет Jordan Peterson",
+      "background_mood": "темный кинематографичный интеллектуальный стиль",
       "animation": "slow_zoom",
       "transition": "fade"
     }

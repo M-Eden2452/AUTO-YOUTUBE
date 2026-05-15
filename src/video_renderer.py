@@ -45,7 +45,7 @@ def render_video(config: dict[str, Any], scene_plan: dict[str, Any], asset_plan:
     clip.close()
 
     music = asset_plan["music"]
-    if music["status"] == "found":
+    if music["status"] == "найдено":
         added = add_background_music(silent_path, music["path"], output_path, float(music["volume"]))
         if added:
             return output_path

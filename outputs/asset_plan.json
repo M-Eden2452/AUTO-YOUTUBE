@@ -2,17 +2,17 @@
   "person": "Jordan Peterson",
   "image": {
     "path": "G:\\Projects\\AI-YouTube\\assets\\images\\jordan_peterson_placeholder.jpg",
-    "status": "found_local",
-    "query": "Jordan Peterson portrait"
+    "status": "создана_placeholder_картинка",
+    "query": "портрет Jordan Peterson"
   },
   "music": {
     "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
-    "status": "found",
+    "status": "найдено",
     "volume": 0.18
   },
   "broll": [],
   "intro_image": {
     "enabled": false,
-    "status": "reserved_for_future_openai_image_generation"
+    "status": "зарезервировано_для_будущей_openai_генерации_изображений"
   }
 }

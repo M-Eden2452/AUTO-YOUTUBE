@@ -1,1 +1,1 @@
-"""AI-YouTube MVP package."""
+"""Пакет MVP для AI-YouTube."""

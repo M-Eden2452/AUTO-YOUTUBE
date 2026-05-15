@@ -41,7 +41,7 @@ def create_person_placeholder(person: str, output_path: str | Path, config: dict
     title_font = load_font(config["font_path"], 58)
     subtitle_font = load_font(config["font_path"], 26)
     _center_text(draw, (0, 875, width, 950), person, title_font, "#F4EFE7")
-    _center_text(draw, (0, 954, width, 1005), "portrait placeholder", subtitle_font, "#B7AA98")
+    _center_text(draw, (0, 954, width, 1005), "временный портрет", subtitle_font, "#B7AA98")
 
     image.convert("RGB").save(target, quality=94)
     return target

@@ -24,37 +24,37 @@ def generate_youtube_metadata(
 
     return {
         "title_variants": [
-            f"{person}: Words That Hit Hard",
-            f"{person} Quote That Changes Your Perspective",
-            f"Powerful Thought from {person}",
+            f"{person}: фраза, которая бьет точно",
+            f"Мысль {person}, которая меняет взгляд",
+            f"Сильная цитата {person}",
             f"Фраза {person}, которая остается в голове",
             f"Сильная мысль: {person}"
         ],
         "description": (
-            f"A short cinematic quote video about {topic}. "
-            f"Quote: {quote.get('quote', scene.get('quote', ''))}"
+            f"Короткое кинематографичное видео с цитатой на тему: {topic}. "
+            f"Текст: {quote.get('quote_ru') or quote.get('quote', scene.get('quote', ''))}"
         ),
         "tags": [
             person,
-            "quotes",
-            "motivation",
-            "psychology",
-            "philosophy",
-            "cinematic quotes"
+            "цитаты",
+            "мотивация",
+            "психология",
+            "философия",
+            "сильные мысли"
         ],
         "keywords": [
             topic,
-            f"{person} quotes",
-            "powerful thoughts",
-            "words that hit hard",
+            f"цитаты {person}",
+            "сильные мысли",
+            "фразы которые остаются в голове",
             style
         ],
         "thumbnail_idea": (
-            f"Dark cinematic portrait of {person} on the left, large quote text on the right, "
-            "warm gold accent line, intellectual mood."
+            f"Темный кинематографичный портрет {person} слева, крупный текст цитаты справа, "
+            "теплая золотая акцентная линия, интеллектуальное настроение."
         ),
-        "shorts_hook": f"One thought from {person} that hits harder than expected.",
-        "community_post": f"What do you think about this line from {person}?\n\n{quote.get('quote', scene.get('quote', ''))}"
+        "shorts_hook": f"Одна мысль {person}, которая звучит сильнее, чем кажется сначала.",
+        "community_post": f"Что думаешь об этой фразе {person}?\n\n{quote.get('quote_ru') or quote.get('quote', scene.get('quote', ''))}"
     }
 
 
@@ -85,5 +85,5 @@ def load_youtube_metadata(path: str = DEFAULT_METADATA_PATH) -> dict[str, Any]:
 
 
 def generate_with_ai_later() -> None:
-    """Reserved seam for future OpenAI-powered metadata generation."""
-    raise NotImplementedError("AI metadata generation is intentionally not connected in the MVP.")
+    """Точка расширения для будущей AI-генерации метаданных."""
+    raise NotImplementedError("AI-генерация метаданных намеренно не подключена в MVP.")

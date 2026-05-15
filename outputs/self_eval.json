@@ -1,9 +1,11 @@
 {
   "ok": true,
   "checks": [
-    "Output video exists and is not empty.",
-    "Duration is close to target: 7.00s.",
-    "Resolution matches config: 1280x720."
+    "Итоговое видео существует и не пустое.",
+    "Длительность близка к целевой: 7.00 сек.",
+    "Разрешение совпадает с конфигом: 1280x720."
   ],
-  "warnings": []
+  "warnings": [
+    "Использована placeholder-картинка, потому что локальный портрет Jordan Peterson не найден."
+  ]
 }
