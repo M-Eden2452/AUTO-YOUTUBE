@@ -10,9 +10,19 @@ from .utils import read_json
 DEFAULT_CONFIG_PATH = Path("config/video_style.json")
 
 
-def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH, dev: bool = False) -> dict[str, Any]:
+def load_config(
+    config_path: str | Path = DEFAULT_CONFIG_PATH,
+    dev: bool = False,
+    prod: bool = False,
+) -> dict[str, Any]:
     config = read_json(config_path)
-    config["dev_mode"] = bool(dev or config.get("dev_mode", False))
+    if prod:
+        config["dev_mode"] = False
+    elif dev:
+        config["dev_mode"] = True
+    else:
+        config["dev_mode"] = bool(config.get("dev_mode", False))
+
     if config["dev_mode"]:
         return _apply_dev_defaults(config)
     return _apply_prod_defaults(config)

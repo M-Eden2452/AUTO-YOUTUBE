@@ -1,0 +1,30 @@
+{
+  "output_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview.mp4",
+  "silent_video_path": "G:\\Projects\\AI-YouTube\\outputs\\final_preview_silent.mp4",
+  "resolution": [
+    1280,
+    720
+  ],
+  "fps": 15,
+  "duration": 7.0,
+  "layout": "portrait_left_quote_right",
+  "animation": "slow_zoom",
+  "music": {
+    "path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
+    "status": "found",
+    "volume": 0.18
+  },
+  "intro": {
+    "enabled": false,
+    "style": "minimal cinematic title card, future OpenAI image generation ready",
+    "future_provider": "OpenAI image generation",
+    "settings": {
+      "enabled": false,
+      "model": "gpt-image-1",
+      "size": "1536x864",
+      "quality": "medium",
+      "style_prompt": "dark cinematic intellectual editorial image"
+    },
+    "note": "MVP skips intro rendering but keeps this plan boundary for production videos."
+  }
+}

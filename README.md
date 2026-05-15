@@ -1,19 +1,8 @@
 # AI-YouTube
 
-Локальный MVP-пайплайн для автоматизированного производства YouTube-видео. Сейчас проект рендерит короткий dev preview с цитатой Jordan Peterson, но структура уже разделяет настройки, планы, ассеты и рендер так, чтобы позже расшириться до 4-10 минутных роликов.
+Local MVP pipeline for structured YouTube video production. The current project renders a short Jordan Peterson quote preview, stores the video data as JSON plans, generates YouTube metadata, and exports a Markdown note for Obsidian.
 
-## Что уже есть
-
-- `config/video_style.json` - главный файл настроек стиля и пайплайна.
-- `pipeline.py` - единая точка запуска.
-- `src/` - модули пайплайна.
-- `outputs/quote_plan.json` - промежуточный план цитат.
-- `outputs/scene_plan.json` - структурный план сцен.
-- `outputs/asset_plan.json` - найденные ассеты и fallback-решения.
-- `outputs/render_plan.json` - параметры рендера.
-- `outputs/self_eval.json` - простая проверка результата после рендера.
-
-## Установка
+## Install
 
 ```bash
 python -m venv venv
@@ -22,41 +11,116 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Для Git Bash на Windows:
-
-```bash
-source venv/Scripts/activate
-```
-
-Для PowerShell:
+PowerShell activation:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-## Запуск dev preview
+## Dev Preview
 
 ```bash
 python pipeline.py --dev
 ```
 
-Результат:
+Expected outputs:
 
-```text
-outputs/final_preview.mp4
+- `outputs/final_preview.mp4`
+- `outputs/quote_plan.json`
+- `outputs/scene_plan.json`
+- `outputs/asset_plan.json`
+- `outputs/render_plan.json`
+- `outputs/self_eval.json`
+- `outputs/youtube_metadata.json`
+- `outputs/obsidian_note_preview.md` or an Obsidian vault note
+
+Dev mode is intentionally short and fast: 7 seconds, 1280x720, 15 fps by default.
+
+## Production Mode
+
+```bash
+python pipeline.py --prod
 ```
 
-Dev mode короткий и быстрый: по умолчанию 7 секунд, 1280x720, 15 fps.
+Production mode uses `prod_resolution`, `prod_fps`, and `prod_scene_duration` from `config/video_style.json`. It is a foundation for longer 4-10 minute renders, multiple scenes, intros, transitions, B-roll, and future voice-over.
 
-## Где менять стиль
+## Obsidian Export
 
-Меняй настройки в:
+Obsidian export is configured in:
 
 ```text
 config/video_style.json
 ```
 
-Ключевые поля:
+Current block:
+
+```json
+"obsidian": {
+  "enabled": true,
+  "vault_path": "G:\\ObsidianBase\\ObsidianBase",
+  "folder": "YouTube/Quotes",
+  "note_template": "quote_video",
+  "write_json_links": true,
+  "write_asset_links": true,
+  "fallback_to_outputs": true
+}
+```
+
+If `vault_path` exists, the note is saved to:
+
+```text
+G:\ObsidianBase\ObsidianBase\YouTube\Quotes
+```
+
+If the vault path does not exist, the pipeline does not fail. It writes:
+
+```text
+outputs/obsidian_note_preview.md
+```
+
+Run only the export step from existing outputs:
+
+```bash
+python pipeline.py --export-obsidian
+```
+
+Disable Obsidian export for one run:
+
+```bash
+python pipeline.py --dev --no-obsidian
+```
+
+Skip rendering and update metadata plus Obsidian:
+
+```bash
+python pipeline.py --dev --skip-render
+```
+
+## What Goes Into Obsidian
+
+The Markdown note includes:
+
+- Status
+- Core video data
+- Quote text
+- Title ideas
+- YouTube description, tags, keywords, thumbnail idea
+- Visual style settings
+- Assets
+- Links to production JSON plans
+- Next actions
+- Manual notes block
+- Self-eval checks and warnings
+
+## Config
+
+Change styles and paths in:
+
+```text
+config/video_style.json
+```
+
+Important fields:
 
 - `visual_style`
 - `image_style`
@@ -74,55 +138,94 @@ config/video_style.json
 - `animation_type`
 - `transition_type`
 
-Для кириллицы важно использовать полный путь к Windows-шрифту, например:
+For Cyrillic text, keep a full Windows font path:
 
 ```json
 "font_path": "C:/Windows/Fonts/arial.ttf"
 ```
 
-## Куда класть музыку
+## Assets
 
-Положи фон в:
+Music goes here:
 
 ```text
 music/background.mp3
 ```
 
-Если файла нет, пайплайн не падает и рендерит видео без музыки.
+If music is missing, the pipeline renders a silent fallback.
 
-## Куда класть картинки
-
-Положи портрет Jordan Peterson в:
+Images go here:
 
 ```text
 assets/images/
 ```
 
-Лучше назвать файл понятно, например:
+Example:
 
 ```text
 assets/images/jordan_peterson.jpg
 ```
 
-Если картинки нет, пайплайн создаст аккуратную темную заглушку.
+If no image is found, the pipeline creates a dark placeholder and continues.
 
-## API ключи
+## API Keys
 
-Сейчас MVP не требует API ключей. На следующих этапах могут понадобиться:
+The MVP does not require API keys. Later stages may use:
 
-- `OPENAI_API_KEY` - генерация интро-картинок, сценариев, планов сцен.
-- `PEXELS_API_KEY` - поиск B-roll или изображений.
-- `ELEVENLABS_API_KEY` - озвучка, но она намеренно не подключена в MVP.
+- `OPENAI_API_KEY` for scripts, structured plans, and intro image generation
+- `PEXELS_API_KEY` for asset search
+- `ELEVENLABS_API_KEY` for voice-over
 
-Создай `.env` на основе `.env.example`. Не коммить `.env`.
+Create `.env` from `.env.example`. Never commit `.env`.
 
-## Архитектурный принцип
+## GSD/Superpowers Workflow
 
-Пайплайн не пытается сразу “AI делает видео”. Он сначала создает промежуточные структуры:
+The intended implementation loop is:
+
+1. Check `git status`.
+2. Commit the known-working state before risky changes.
+3. Make a small architectural change.
+4. Run `python pipeline.py --dev`.
+5. Verify outputs and self-eval.
+6. Commit only safe source/config/docs/JSON/Markdown files.
+
+The pipeline favors structured intermediate representations:
 
 - quote plan
 - scene plan
 - asset plan
 - render plan
+- YouTube metadata
+- Obsidian note
 
-Это упрощает дебаг, повторяемость, self-eval и будущие production renders.
+This keeps the system debuggable and makes it easier to expand from previews to production videos.
+
+## Safe Commit Before Large Changes
+
+```bash
+git status
+git add .
+git status --short
+git commit -m "working MVP before large change"
+```
+
+Before committing, confirm these are not staged:
+
+- `.env`
+- `venv/`
+- `outputs/*.mp4`
+- `outputs/*.mov`
+- `outputs/*.wav`
+- `outputs/*.mp3`
+- `assets/broll/`
+- `music/*.mp3`
+
+## Rollback
+
+If you need to throw away local changes and return to the last commit:
+
+```bash
+git reset --hard HEAD
+```
+
+Use this carefully. It deletes uncommitted changes.

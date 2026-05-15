@@ -57,5 +57,14 @@
     "missing_music": "render_silent_video",
     "missing_font": "use_pillow_default",
     "openai_disabled": "use_curated_quote"
+  },
+  "obsidian": {
+    "enabled": true,
+    "vault_path": "G:\\ObsidianBase\\ObsidianBase",
+    "folder": "YouTube/Quotes",
+    "note_template": "quote_video",
+    "write_json_links": true,
+    "write_asset_links": true,
+    "fallback_to_outputs": true
   }
 }

@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "checks": [
+    "Output video exists and is not empty.",
+    "Duration is close to target: 7.00s.",
+    "Resolution matches config: 1280x720."
+  ],
+  "warnings": []
+}

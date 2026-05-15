@@ -1,0 +1,15 @@
+{
+  "video_type": "quotes",
+  "topic": "Jordan Peterson quotes",
+  "person": "Jordan Peterson",
+  "language": "ru",
+  "source": "curated_test_quote",
+  "quotes": [
+    {
+      "quote": "Compare yourself to who you were yesterday, not to who someone else is today.",
+      "quote_ru": "Сравнивай себя с тем, кем ты был вчера, а не с тем, кем кто-то другой является сегодня.",
+      "author": "Jordan Peterson",
+      "source_note": "Curated test quote for MVP rendering."
+    }
+  ]
+}
