@@ -1,11 +1,11 @@
 {
-  "visual_style": "cinematic survival documentary",
-  "image_style": "forest, rain, fire, gear, cold weather, documentary",
-  "intro_style": "slow rugged title reveal",
-  "text_style": "clear practical text",
-  "music_mood": "dark ambient documentary",
+  "visual_style": "dark realistic survival documentary, tense, cinematic, natural, grounded",
+  "image_style": "realistic, documentary, wilderness, storm, isolation, danger, survival",
+  "intro_style": "cold open, real event setup, dark cinematic map/location mood",
+  "text_style": "large readable Russian subtitles, minimal but dramatic, documentary captions",
+  "music_mood": "dark ambient tension, survival documentary, slow suspense, emotional but not epic cringe",
   "transitions": ["fade", "crossfade"],
   "animations": ["slow_zoom", "subtle_pan"],
-  "colors": ["black", "forest green", "gray", "cold white"],
-  "avoid": ["meme style", "flashy TikTok transitions", "bright colors"]
+  "colors": ["black", "deep green", "dark blue", "gray", "cold white"],
+  "avoid": ["meme style", "bright motivational style", "fake drama", "overly fast TikTok editing"]
 }

@@ -13,6 +13,7 @@ from src.obsidian_exporter import export_obsidian_note
 from src.quote_generator import build_quote_plan
 from src.scene_planner import build_scene_plan
 from src.self_eval import evaluate_render
+from src.thumbnail_generator import create_thumbnail
 from src.utils import ensure_dir, write_json
 from src.video_renderer import RenderStageError, build_render_plan, render_video
 from src.youtube_metadata import write_youtube_metadata
@@ -78,6 +79,11 @@ def main() -> None:
     music_plan = build_music_plan(config)
     asset_plan = build_asset_plan(config, scene_plan, refresh=args.refresh_assets)
     render_plan = build_render_plan(config, scene_plan, asset_plan, music_plan)
+    thumbnail_path = None
+    if config.get("video_task"):
+        thumbnail_path = create_thumbnail(config, asset_plan)
+        metadata["thumbnail_path"] = str(thumbnail_path)
+        write_json(plans.get("youtube_metadata", "outputs/youtube_metadata.json"), metadata)
 
     write_json(plans["quote_plan"], quote_plan)
     write_json(plans["scene_plan"], scene_plan)

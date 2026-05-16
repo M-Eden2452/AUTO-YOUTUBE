@@ -30,6 +30,7 @@ def export_obsidian_note(config: dict[str, Any]) -> Path:
     metadata = load_youtube_metadata(config["plans"].get("youtube_metadata", "outputs/youtube_metadata.json"))
     output_video = _find_output_video(config)
     copied_video = _copy_video_to_obsidian(config, output_video)
+    copied_thumbnail = _copy_thumbnail_to_obsidian(config, metadata)
 
     markdown = build_obsidian_markdown(
         config=config,
@@ -41,6 +42,7 @@ def export_obsidian_note(config: dict[str, Any]) -> Path:
         self_eval=self_eval,
         metadata=metadata,
         output_video=copied_video or output_video,
+        thumbnail_path=copied_thumbnail,
     )
     target = _resolve_note_path(config, metadata, scene_plan)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -58,12 +60,14 @@ def build_obsidian_markdown(
     self_eval: dict[str, Any],
     metadata: dict[str, Any],
     output_video: Path | None,
+    thumbnail_path: Path | None = None,
 ) -> str:
     title = metadata.get("chosen_title") or _first(metadata.get("title_variants", []), config.get("topic", "Видео"))
     scenes = scene_plan.get("scenes", [])
     final_video = output_video or Path(render_plan.get("output_path", config.get("output_filename", "")))
     write_json_links = config.get("obsidian", {}).get("write_json_links", True)
     video_block = _video_block(config, final_video)
+    thumbnail_block = _thumbnail_block(config, thumbnail_path)
 
     return "\n".join(
         [
@@ -98,8 +102,18 @@ def build_obsidian_markdown(
             _title_list(metadata),
             "",
             "## Thumbnail",
+            thumbnail_block,
             f"- Идея: {metadata.get('thumbnail_idea', '')}",
             f"- Prompt: {metadata.get('thumbnail_prompt', '')}",
+            f"- Файл: {_path_text(thumbnail_path) if thumbnail_path else metadata.get('thumbnail_path', '')}",
+            "",
+            "## SEO",
+            f"- Pinned comment: {metadata.get('pinned_comment', '')}",
+            "- Shorts hooks:",
+            _bullet_list(metadata.get("shorts_hooks", [])),
+            "",
+            "## Source notes",
+            _bullet_list(metadata.get("source_notes", [])),
             "",
             "## Список сцен",
             _scene_list(scenes),
@@ -126,11 +140,11 @@ def build_obsidian_markdown(
             _bullet_list(self_eval.get("checks", [])),
             "",
             "## Следующие действия",
-            "- добавить озвучку",
-            "- проверить цитаты",
-            "- проверить авторские права",
-            "- сделать thumbnail",
-            "- загрузить на YouTube",
+            "- добавить voice-over",
+            "- проверить факты",
+            "- проверить музыку",
+            "- сделать final production render",
+            "- подготовить YouTube upload",
             "",
             "## Notes",
             "",
@@ -182,6 +196,24 @@ def _copy_video_to_obsidian(config: dict[str, Any], output_video: Path | None) -
     return target
 
 
+def _copy_thumbnail_to_obsidian(config: dict[str, Any], metadata: dict[str, Any]) -> Path | None:
+    source = metadata.get("thumbnail_path") or config.get("thumbnail_path", "")
+    if not source:
+        return None
+    source_path = project_path(source)
+    if not source_path.exists():
+        return None
+    obsidian = config.get("obsidian", {})
+    note_dir = Path(obsidian.get("video_note_dir", ""))
+    vault_path = Path(obsidian.get("vault_path", ""))
+    if not vault_path.exists() or not vault_path.is_dir():
+        return None
+    note_dir.mkdir(parents=True, exist_ok=True)
+    target = note_dir / source_path.name
+    shutil.copy2(source_path, target)
+    return target
+
+
 def _ensure_obsidian_structure(vault_path: Path) -> None:
     youtube = vault_path / "YouTube"
     folders = [
@@ -189,7 +221,9 @@ def _ensure_obsidian_structure(vault_path: Path) -> None:
         youtube / "01 Каналы" / "Цитаты и мысли",
         youtube / "01 Каналы" / "Психология",
         youtube / "01 Каналы" / "Выживание",
+        youtube / "01 Каналы" / "Истории выживания",
         youtube / "02 Видео" / "Цитаты и мысли",
+        youtube / "02 Видео" / "Истории выживания",
         youtube / "03 Шаблоны",
         youtube / "04 Источники" / "Авторы",
         youtube / "04 Источники" / "Фильмы",
@@ -221,6 +255,15 @@ def _video_block(config: dict[str, Any], final_video: Path) -> str:
     if final_video:
         return f"[{final_video.name}]({final_video})"
     return "- "
+
+
+def _thumbnail_block(config: dict[str, Any], thumbnail_path: Path | None) -> str:
+    if not thumbnail_path:
+        return "- "
+    note_dir = Path(config.get("obsidian", {}).get("video_note_dir", ""))
+    if note_dir and thumbnail_path.parent == note_dir:
+        return f"![[{thumbnail_path.name}]]"
+    return f"[{thumbnail_path.name}]({thumbnail_path})"
 
 
 def _bullet_list(items: list[Any]) -> str:

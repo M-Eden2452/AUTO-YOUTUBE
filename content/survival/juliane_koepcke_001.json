@@ -1,0 +1,182 @@
+{
+  "channel": "survival",
+  "video_id": "juliane_koepcke_001",
+  "video_type": "real_survival_story",
+  "language": "ru",
+  "target_duration_seconds": 210,
+  "chosen_title": "Она упала с неба и 11 дней выживала в Амазонии",
+  "title_variants": [
+    "Она упала с неба и 11 дней выживала в Амазонии",
+    "17-летняя девушка выжила там, где не должен был выжить никто",
+    "Её самолет исчез над Амазонией. Через 11 дней она вышла из джунглей",
+    "История девушки, которая выжила после падения с неба",
+    "Одна в Амазонии: реальная история Джулианы Кёпке"
+  ],
+  "thumbnail_text": "11 ДНЕЙ В АМАЗОНИИ",
+  "thumbnail_idea": "Темные джунгли, дождь, силуэт девушки, разбитый самолет или намек на падение, тревожный документальный стиль.",
+  "visual_direction": "dark realistic survival documentary",
+  "music_direction": "dark ambient survival tension, slow documentary suspense",
+  "description": "История Джулианы Кёпке, 17-летней девушки, которая стала единственной выжившей после авиакатастрофы над перуанской Амазонией и 11 дней выбиралась через джунгли.",
+  "disclaimer": "Видео основано на открытых источниках. Некоторые формулировки являются художественным пересказом событий для документального YouTube-формата.",
+  "source_notes": [
+    "LANSA Flight 508 crash, Peru, 1971",
+    "Juliane Koepcke, sole survivor",
+    "11 days in the Amazon rainforest"
+  ],
+  "scenes": [
+    {
+      "scene_id": "intro_001",
+      "type": "intro",
+      "duration": 16,
+      "screen_text": "24 декабря 1971 года.\nСамолет исчезает над Амазонией.\nНа борту 92 человека.",
+      "subtitle_text": "Это должна была быть обычная поездка домой на Рождество. Но через несколько минут небо над Перу превратилось в кошмар.",
+      "mood": "cold open, disaster",
+      "visual_keywords": ["storm clouds airplane", "dark rainforest aerial", "lightning storm", "amazon jungle rain"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_002",
+      "type": "story",
+      "duration": 14,
+      "screen_text": "Ей было всего 17.",
+      "subtitle_text": "Джулиана Кёпке летела вместе с матерью. Она не была искателем приключений. Она просто возвращалась домой.",
+      "mood": "human setup",
+      "visual_keywords": ["teen girl silhouette window", "airport 1970s mood", "girl looking out window"],
+      "transition": "crossfade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_003",
+      "type": "story",
+      "duration": 16,
+      "screen_text": "Самолет попал в грозу.",
+      "subtitle_text": "Молния ударила в самолет. Машина начала разрушаться в воздухе. Через мгновение Джулиана уже падала вниз, пристегнутая к своему сиденью.",
+      "mood": "shock",
+      "visual_keywords": ["lightning storm", "airplane turbulence", "dark clouds", "rain window"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_004",
+      "type": "story",
+      "duration": 14,
+      "screen_text": "Она очнулась под кронами деревьев.",
+      "subtitle_text": "Когда она пришла в себя, над ней были не облака, а густая зелень Амазонии.",
+      "mood": "disorientation",
+      "visual_keywords": ["rainforest canopy", "jungle floor", "green leaves dark", "alone in jungle"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_005",
+      "type": "story",
+      "duration": 14,
+      "screen_text": "Вокруг не было никого.",
+      "subtitle_text": "Ни голосов. Ни спасателей. Ни понятного направления. Только джунгли, боль и тишина.",
+      "mood": "isolation",
+      "visual_keywords": ["empty jungle", "dark rainforest path", "lonely forest", "rain dripping leaves"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_006",
+      "type": "survival_lesson",
+      "duration": 16,
+      "screen_text": "Она знала главное:\nвода ведет к людям.",
+      "subtitle_text": "Отец-биолог учил ее: если потерялся в джунглях, ищи ручей. Ручей ведет к реке. А река может привести к людям.",
+      "mood": "survival logic",
+      "visual_keywords": ["jungle stream", "river rainforest", "water in forest", "survival walking"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_007",
+      "type": "story",
+      "duration": 14,
+      "screen_text": "Она пошла вдоль воды.",
+      "subtitle_text": "Каждый шаг давался тяжело. На ней была только одна обувь. Тело болело. Но стоять на месте было опаснее.",
+      "mood": "endurance",
+      "visual_keywords": ["feet walking mud", "jungle river walk", "rainforest survival"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_008",
+      "type": "story",
+      "duration": 15,
+      "screen_text": "Джунгли не были пустыми.\nОни были живыми.",
+      "subtitle_text": "Насекомые, жара, влажность, раны, страх. В Амазонии даже тишина может звучать как угроза.",
+      "mood": "environment danger",
+      "visual_keywords": ["macro insects rainforest", "dark jungle night", "mosquitoes forest", "humid rainforest"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_009",
+      "type": "story",
+      "duration": 14,
+      "screen_text": "Проходили дни.",
+      "subtitle_text": "Она не знала, ищут ли ее. Не знала, остался ли кто-то еще жив. Но продолжала идти.",
+      "mood": "time passing",
+      "visual_keywords": ["sun through jungle", "rainforest river", "dark forest walking"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_010",
+      "type": "story",
+      "duration": 16,
+      "screen_text": "На девятый день она увидела хижину.",
+      "subtitle_text": "После дней одиночества она нашла место, где могли быть люди. Это был первый настоящий шанс.",
+      "mood": "hope",
+      "visual_keywords": ["small hut jungle", "river camp rainforest", "wooden shelter forest"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_011",
+      "type": "story",
+      "duration": 14,
+      "screen_text": "Помощь пришла не сразу.",
+      "subtitle_text": "Она ждала. Истощенная, раненая, почти без сил. Но теперь она уже была не просто потерянной.",
+      "mood": "waiting",
+      "visual_keywords": ["empty wooden hut", "river silence", "dark camp"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_012",
+      "type": "story",
+      "duration": 15,
+      "screen_text": "Ее нашли местные рабочие.",
+      "subtitle_text": "Они помогли ей выбраться. После 11 дней в Амазонии Джулиана снова оказалась среди людей.",
+      "mood": "rescue",
+      "visual_keywords": ["canoe river jungle", "people river rescue", "rainforest boat"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_013",
+      "type": "reflection",
+      "duration": 16,
+      "screen_text": "Выживание иногда начинается\nне с силы.\nА с одного правильного решения.",
+      "subtitle_text": "Она не победила джунгли. Она просто не позволила страху остановить следующий шаг.",
+      "mood": "reflection",
+      "visual_keywords": ["river sunset jungle", "survivor silhouette", "forest light"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "outro_001",
+      "type": "outro",
+      "duration": 16,
+      "screen_text": "Она упала с неба.\nНо выбралась сама.",
+      "subtitle_text": "История Джулианы Кёпке остается одной из самых невероятных историй выживания в дикой природе.",
+      "mood": "closing impact",
+      "visual_keywords": ["amazon river aerial", "jungle sunset", "dark cinematic forest"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    }
+  ]
+}

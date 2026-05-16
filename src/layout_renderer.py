@@ -90,7 +90,14 @@ def _draw_intro(draw: ImageDraw.ImageDraw, config: dict[str, Any], scene: dict[s
     draw.line((left, top - 36, left + int(width * 0.18), top - 36), fill=_rgba(accent, alpha), width=3)
     title = "\n".join(textwrap.wrap(scene.get("title") or scene.get("screen_text", ""), width=28))
     draw.multiline_text((left, top), title, font=title_font, fill=_rgba(config["text_color"], alpha), spacing=12)
-    draw.text((left, top + int(height * 0.25)), scene.get("subtitle", ""), font=subtitle_font, fill=_rgba(config["muted_text_color"], alpha))
+    subtitle = scene.get("subtitle_text") or scene.get("subtitle", "")
+    draw.multiline_text(
+        (left, top + int(height * 0.25)),
+        "\n".join(textwrap.wrap(subtitle, width=76, break_long_words=False)),
+        font=subtitle_font,
+        fill=_rgba(config["muted_text_color"], alpha),
+        spacing=7,
+    )
 
 
 def _draw_thought(draw: ImageDraw.ImageDraw, config: dict[str, Any], scene: dict[str, Any], width: int, height: int, progress: float) -> None:
@@ -111,8 +118,12 @@ def _draw_thought(draw: ImageDraw.ImageDraw, config: dict[str, Any], scene: dict
     draw.multiline_text((left, top), lines, font=text_font, fill=_rgba(config["text_color"], alpha), spacing=13)
 
     source_y = int(height * 0.78)
-    draw.text((left, source_y), scene.get("person", "Jordan Peterson"), font=meta_font, fill=_rgba(config["muted_text_color"], alpha))
-    draw.text((left, source_y + 42), scene.get("source_note", ""), font=small_font, fill=_rgba("#8D8373", min(alpha, 175)))
+    subtitle = scene.get("subtitle_text", "")
+    if subtitle:
+        _draw_subtitle(draw, config, subtitle, left, int(height * 0.70), width, alpha)
+    else:
+        draw.text((left, source_y), scene.get("person", "Jordan Peterson"), font=meta_font, fill=_rgba(config["muted_text_color"], alpha))
+        draw.text((left, source_y + 42), scene.get("source_note", ""), font=small_font, fill=_rgba("#8D8373", min(alpha, 175)))
 
 
 def _draw_final(draw: ImageDraw.ImageDraw, config: dict[str, Any], scene: dict[str, Any], width: int, height: int, progress: float) -> None:
@@ -124,9 +135,35 @@ def _draw_final(draw: ImageDraw.ImageDraw, config: dict[str, Any], scene: dict[s
     x = (width - (bbox[2] - bbox[0])) / 2
     y = height * 0.37
     draw.multiline_text((x, y), text, font=text_font, fill=_rgba(config["text_color"], alpha), spacing=12, align="center")
-    footer = "Проверить цитаты. Проверить авторские права. Добавить озвучку."
+    footer = scene.get("subtitle_text") or "Проверить цитаты. Проверить авторские права. Добавить озвучку."
     footer_bbox = draw.textbbox((0, 0), footer, font=small_font)
-    draw.text(((width - (footer_bbox[2] - footer_bbox[0])) / 2, height * 0.76), footer, font=small_font, fill=_rgba(config["muted_text_color"], alpha))
+    if scene.get("subtitle_text"):
+        wrapped = "\n".join(textwrap.wrap(footer, width=86, break_long_words=False))
+        footer_bbox = draw.multiline_textbbox((0, 0), wrapped, font=small_font, spacing=7)
+        draw.multiline_text(
+            ((width - (footer_bbox[2] - footer_bbox[0])) / 2, height * 0.72),
+            wrapped,
+            font=small_font,
+            fill=_rgba(config["muted_text_color"], alpha),
+            spacing=7,
+            align="center",
+        )
+    else:
+        draw.text(((width - (footer_bbox[2] - footer_bbox[0])) / 2, height * 0.76), footer, font=small_font, fill=_rgba(config["muted_text_color"], alpha))
+
+
+def _draw_subtitle(draw: ImageDraw.ImageDraw, config: dict[str, Any], subtitle: str, left: int, top: int, width: int, alpha: int) -> None:
+    subtitle_font = load_font(config["font_path"], max(24, int(width * 0.020)))
+    wrapped = "\n".join(textwrap.wrap(subtitle, width=72 if width >= 1600 else 58, break_long_words=False))
+    bbox = draw.multiline_textbbox((0, 0), wrapped, font=subtitle_font, spacing=7)
+    pad_x = 18
+    pad_y = 12
+    draw.rounded_rectangle(
+        (left - pad_x, top - pad_y, left + (bbox[2] - bbox[0]) + pad_x, top + (bbox[3] - bbox[1]) + pad_y),
+        radius=8,
+        fill=(0, 0, 0, min(alpha, 132)),
+    )
+    draw.multiline_text((left, top), wrapped, font=subtitle_font, fill=_rgba(config["text_color"], alpha), spacing=7)
 
 
 def _draw_film_layers(draw: ImageDraw.ImageDraw, width: int, height: int) -> None:

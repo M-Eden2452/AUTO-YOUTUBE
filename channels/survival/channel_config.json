@@ -1,9 +1,9 @@
 {
   "channel_id": "survival",
-  "channel_name": "Выживание",
-  "obsidian_folder": "YouTube/01 Каналы/Выживание",
-  "default_style_profile": "survival_default",
+  "channel_name": "Истории выживания",
+  "obsidian_folder": "YouTube/01 Каналы/Истории выживания",
+  "default_style_profile": "dark_real_survival_documentary",
   "default_language": "ru",
-  "video_format": "cinematic_survival",
-  "description": "Канал для survival-видео, практических идей и атмосферных историй о выживании."
+  "video_format": "real_survival_story",
+  "description": "Канал с атмосферными историями выживания в дикой природе, основанными на реальных событиях."
 }

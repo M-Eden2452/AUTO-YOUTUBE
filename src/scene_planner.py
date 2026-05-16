@@ -73,6 +73,7 @@ def _build_video_task_scene_plan(config: dict[str, Any], metadata: dict[str, Any
                 "quote": scene.get("screen_text", ""),
                 "quote_ru": scene.get("screen_text", ""),
                 "screen_text": scene.get("screen_text", ""),
+                "subtitle_text": scene.get("subtitle_text", ""),
                 "author": scene.get("author", ""),
                 "image_query": visual_keywords[0] if visual_keywords else task.get("visual_direction", config.get("image_style", "")),
                 "visual_keywords": visual_keywords,

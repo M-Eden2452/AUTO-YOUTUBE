@@ -107,35 +107,138 @@ def _generate_video_task_metadata(config: dict[str, Any], quote_plan: dict[str, 
     task = config["video_task"]
     quote_plan = quote_plan or {"items": []}
     title_variants = task.get("title_variants", [task["chosen_title"]])
-    source_notes = [
+    source_notes = task.get("source_notes") or [
         item.get("source_note", "")
         for item in quote_plan.get("items", [])
         if item.get("source_note")
     ]
+    chapters = _build_chapters(task.get("scenes", []))
+    tags = _video_task_tags(config, task)
+    keywords = _video_task_keywords(task)
+    description = _video_task_description(task, chapters)
     return {
         "title_variants": title_variants,
         "chosen_title": task["chosen_title"],
-        "description": task.get("description", ""),
-        "tags": [
-            config.get("channel_id", ""),
-            task.get("video_type", ""),
-            "цитаты",
-            "мысли",
-            "cinematic",
-        ],
-        "keywords": [
-            task["chosen_title"],
-            task.get("visual_direction", ""),
-            task.get("music_direction", ""),
-        ],
+        "description": description,
+        "tags": tags,
+        "keywords": keywords,
         "thumbnail_text": task.get("thumbnail_text", ""),
         "thumbnail_idea": task.get("thumbnail_idea", ""),
-        "thumbnail_prompt": task.get("thumbnail_idea", ""),
+        "thumbnail_prompt": _thumbnail_prompt(task),
+        "chapters": chapters,
+        "pinned_comment": _pinned_comment(task),
+        "shorts_hooks": _shorts_hooks(task),
+        "upload_ready_fields": {
+            "title": task["chosen_title"],
+            "description": description,
+            "tags": tags,
+            "category_suggestion": "Education",
+            "language": task.get("language", config.get("language", "ru")),
+            "visibility_default": "private",
+            "made_for_kids": False,
+            "disclaimer": task.get("disclaimer", ""),
+            "source_notes": source_notes,
+        },
         "shorts_hook": "",
         "community_post": "",
         "source_notes": source_notes,
         "disclaimer": task.get("disclaimer", ""),
     }
+
+
+def _build_chapters(scenes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    chapters: list[dict[str, Any]] = []
+    current = 0
+    for scene in scenes:
+        chapters.append(
+            {
+                "time": _format_time(current),
+                "title": scene.get("screen_text", "").splitlines()[0] or scene.get("scene_id", "Scene"),
+                "scene_id": scene.get("scene_id", ""),
+            }
+        )
+        current += int(scene.get("duration", 0))
+    return chapters
+
+
+def _format_time(seconds: int) -> str:
+    minutes, sec = divmod(seconds, 60)
+    return f"{minutes:02d}:{sec:02d}"
+
+
+def _video_task_tags(config: dict[str, Any], task: dict[str, Any]) -> list[str]:
+    if config.get("channel_id") == "survival":
+        return [
+            "Джулиана Кёпке",
+            "Juliane Koepcke",
+            "LANSA Flight 508",
+            "выживание",
+            "реальная история",
+            "Амазония",
+            "Перу",
+            "авиакатастрофа",
+            "истории выживания",
+            "документальная история",
+            "survival story",
+            "Amazon rainforest",
+        ]
+    return [
+        config.get("channel_id", ""),
+        task.get("video_type", ""),
+        "цитаты",
+        "мысли",
+        "cinematic",
+    ]
+
+
+def _video_task_keywords(task: dict[str, Any]) -> list[str]:
+    keywords = [
+        task["chosen_title"],
+        task.get("visual_direction", ""),
+        task.get("music_direction", ""),
+    ]
+    keywords.extend(task.get("source_notes", []))
+    return [item for item in keywords if item]
+
+
+def _video_task_description(task: dict[str, Any], chapters: list[dict[str, Any]]) -> str:
+    chapter_lines = "\n".join(f"{chapter['time']} {chapter['title']}" for chapter in chapters)
+    source_lines = "\n".join(f"- {item}" for item in task.get("source_notes", []))
+    return "\n\n".join(
+        part
+        for part in [
+            task.get("description", ""),
+            task.get("disclaimer", ""),
+            f"Главы:\n{chapter_lines}" if chapter_lines else "",
+            f"Source notes:\n{source_lines}" if source_lines else "",
+        ]
+        if part
+    )
+
+
+def _thumbnail_prompt(task: dict[str, Any]) -> str:
+    return (
+        f"{task.get('thumbnail_idea', '')} "
+        f"Крупный текст: {task.get('thumbnail_text', '')}. "
+        "Cinematic documentary YouTube thumbnail, high contrast, readable Russian text."
+    ).strip()
+
+
+def _pinned_comment(task: dict[str, Any]) -> str:
+    if task.get("source_notes"):
+        return "Видео основано на открытых источниках. Если хотите, следующим шагом можно разобрать факты и источники подробнее."
+    return "Какой момент этой истории зацепил вас сильнее всего?"
+
+
+def _shorts_hooks(task: dict[str, Any]) -> list[str]:
+    title = task.get("chosen_title", "")
+    if task.get("channel") == "survival":
+        return [
+            "17-летняя девушка пережила авиакатастрофу и осталась одна в Амазонии.",
+            "Она упала с неба и 11 дней шла через джунгли.",
+            title,
+        ]
+    return [title] if title else []
 
 
 def load_youtube_metadata(path: str = DEFAULT_METADATA_PATH) -> dict[str, Any]:

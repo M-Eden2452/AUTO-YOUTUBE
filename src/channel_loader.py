@@ -42,6 +42,7 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
             "output_dir": str(output_dir),
             "output_filename": str(output_dir / ("final_preview.mp4" if updated.get("dev_mode", False) else "final_video.mp4")),
             "prod_output_filename": str(output_dir / "final_video.mp4"),
+            "thumbnail_path": str(output_dir / "thumbnail.png"),
             "plans": {
                 "quote_plan": str(output_dir / "quote_plan.json"),
                 "scene_plan": str(output_dir / "scene_plan.json"),

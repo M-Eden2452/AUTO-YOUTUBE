@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from src.config_loader import load_config
 from src.quote_generator import build_quote_plan
@@ -55,6 +56,41 @@ class ChannelProfileTests(unittest.TestCase):
         self.assertEqual(scene_plan["scenes"][0]["screen_text"], config["video_task"]["scenes"][0]["screen_text"])
         self.assertEqual(scene_plan["scenes"][14]["scene_type"], "outro")
         self.assertEqual(scene_plan["target_duration"], 143.0)
+
+    def test_survival_video_task_builds_story_metadata_and_paths(self) -> None:
+        from src.channel_loader import load_channel_video_config
+
+        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001")
+        quote_plan = build_quote_plan(config)
+        metadata = generate_youtube_metadata(config, quote_plan)
+        scene_plan = build_scene_plan(config, quote_plan, metadata)
+
+        self.assertEqual(config["channel_id"], "survival")
+        self.assertEqual(config["person"], "Истории выживания")
+        self.assertEqual(config["video_type"], "real_survival_story")
+        self.assertEqual(Path(config["output_filename"]), Path("outputs/survival/juliane_koepcke_001/final_preview.mp4"))
+        self.assertEqual(Path(config["thumbnail_path"]), Path("outputs/survival/juliane_koepcke_001/thumbnail.png"))
+        self.assertEqual(config["obsidian"]["video_note_dir"], "G:/ObsidianBase/ObsidianBase/YouTube/02 Видео/Истории выживания/juliane_koepcke_001")
+        self.assertEqual(metadata["chosen_title"], "Она упала с неба и 11 дней выживала в Амазонии")
+        self.assertIn("LANSA Flight 508 crash, Peru, 1971", metadata["source_notes"])
+        self.assertIn("chapters", metadata)
+        self.assertIn("upload_ready_fields", metadata)
+        self.assertFalse(metadata["upload_ready_fields"]["made_for_kids"])
+        self.assertEqual(scene_plan["scenes"][0]["subtitle_text"], config["video_task"]["scenes"][0]["subtitle_text"])
+        self.assertGreaterEqual(scene_plan["target_duration"], 180.0)
+
+    def test_thumbnail_generator_creates_png_for_video_task(self) -> None:
+        from src.channel_loader import load_channel_video_config
+        from src.thumbnail_generator import create_thumbnail
+
+        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001")
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "thumbnail.png"
+            created = create_thumbnail(config, {}, target)
+
+            self.assertEqual(created, target)
+            self.assertTrue(target.exists())
+            self.assertGreater(target.stat().st_size, 1000)
 
 
 if __name__ == "__main__":
