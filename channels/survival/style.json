@@ -1,0 +1,11 @@
+{
+  "visual_style": "cinematic survival documentary",
+  "image_style": "forest, rain, fire, gear, cold weather, documentary",
+  "intro_style": "slow rugged title reveal",
+  "text_style": "clear practical text",
+  "music_mood": "dark ambient documentary",
+  "transitions": ["fade", "crossfade"],
+  "animations": ["slow_zoom", "subtle_pan"],
+  "colors": ["black", "forest green", "gray", "cold white"],
+  "avoid": ["meme style", "flashy TikTok transitions", "bright colors"]
+}

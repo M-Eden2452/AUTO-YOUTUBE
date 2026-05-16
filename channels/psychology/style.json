@@ -1,0 +1,11 @@
+{
+  "visual_style": "cinematic psychological documentary",
+  "image_style": "quiet, human, reflective, documentary",
+  "intro_style": "slow emotional title reveal",
+  "text_style": "clean readable white text",
+  "music_mood": "soft ambient piano",
+  "transitions": ["fade", "crossfade"],
+  "animations": ["slow_zoom", "subtle_pan"],
+  "colors": ["black", "gray", "cold white"],
+  "avoid": ["meme style", "flashy TikTok transitions", "bright colors"]
+}

@@ -1,0 +1,11 @@
+{
+  "visual_style": "dark cinematic existential noir documentary",
+  "image_style": "dark, minimal, atmospheric, reflective, cinematic",
+  "intro_style": "slow fade in, dark background, minimal title reveal",
+  "text_style": "large, minimal, white text, few lines per scene",
+  "music_mood": "dark ambient piano, slow cinematic documentary",
+  "transitions": ["fade", "crossfade"],
+  "animations": ["slow_zoom", "subtle_pan"],
+  "colors": ["black", "dark blue", "gray", "cold white"],
+  "avoid": ["meme style", "flashy TikTok transitions", "motivational cringe", "bright colors"]
+}

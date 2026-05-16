@@ -2,28 +2,36 @@
 
 AI-YouTube - локальная система для создания русскоязычных cinematic quote/thought videos для YouTube.
 
-Проект начинался как MVP для мотивационных и психологических видео, но текущий фокус шире: интеллектуальные ролики с цитатами, сильными фразами, идеями из книг, фразами из фильмов, аниме, мультфильмов, а также мыслями актеров, философов и публичных деятелей.
+Текущая архитектура:
 
-Текущий рабочий пример все еще использует тему Jordan Peterson, но архитектура проекта рассчитана на более общий формат.
+```text
+одно приложение
++ много channel profiles
++ много video tasks
++ Obsidian как human knowledge base
++ JSON как machine runtime state
+```
 
-## Что делает проект
+Проект больше не должен быть привязан к одному каналу или одной теме. Один и тот же `pipeline.py` может собирать ролики для `quotes`, `psychology`, `survival`, `anime_quotes`, `movie_quotes`, `philosophy` и других ниш.
 
-Pipeline собирает ролик по шагам:
+## Быстрый запуск
 
-- создает план цитат и мыслей;
-- создает план сцен;
-- подбирает или создает визуальные ассеты;
-- готовит план музыки;
-- строит render plan;
-- рендерит preview или production-видео;
-- создает YouTube-метаданные;
-- пишет self-eval;
-- экспортирует Markdown-заметку в Obsidian или в `outputs/obsidian_note_preview.md`.
-
-Главная точка входа:
+Старый dev-режим без channel profile остается рабочим:
 
 ```bash
-python pipeline.py
+python pipeline.py --dev
+```
+
+Новый запуск через channel profile и video task:
+
+```bash
+python pipeline.py --channel quotes --video thoughts_too_late_001 --dev
+```
+
+Production-рендер запускай только явно:
+
+```bash
+python pipeline.py --channel quotes --video thoughts_too_late_001 --prod
 ```
 
 ## Установка
@@ -41,189 +49,209 @@ PowerShell:
 .\venv\Scripts\Activate.ps1
 ```
 
-## Конфиг
-
-Основные настройки находятся здесь:
-
-```text
-config/video_style.json
-```
-
-Там задаются:
-
-- тема ролика;
-- персона или источник;
-- язык;
-- визуальный стиль;
-- размеры и fps;
-- длительность сцен;
-- путь к музыке;
-- настройки Pexels/Pixabay;
-- пути к JSON-планам;
-- настройки Obsidian.
-
-## Dev preview
-
-```bash
-python pipeline.py --dev
-```
-
-Dev-режим делает короткий безопасный preview-рендер:
-
-- `outputs/final_preview.mp4`
-- `outputs/quote_plan.json`
-- `outputs/scene_plan.json`
-- `outputs/asset_plan.json`
-- `outputs/render_plan.json`
-- `outputs/music_plan.json`
-- `outputs/youtube_metadata.json`
-- `outputs/self_eval.json`
-- `outputs/render_stage.json`
-
-## Production
-
-```bash
-python pipeline.py --prod
-```
-
-Production-режим использует `prod_resolution`, `prod_fps`, `prod_scene_duration`, `prod_font_size` и `prod_output_filename` из `config/video_style.json`.
-
-Он может быть долгим, поэтому не запускай его как обычную проверку.
-
-## Полезные режимы
-
-Пропустить рендер и обновить только планы/metadata/Obsidian:
-
-```bash
-python pipeline.py --dev --skip-render
-```
-
-Только экспортировать Obsidian-заметку из готовых outputs:
-
-```bash
-python pipeline.py --export-obsidian
-```
-
-Запустить без экспорта в Obsidian:
-
-```bash
-python pipeline.py --dev --no-obsidian
-```
-
-Production-preview на первых сценах:
-
-```bash
-python pipeline.py --prod-preview
-```
-
-Обновить только music plan:
-
-```bash
-python pipeline.py --find-music
-```
-
-Повторно искать ассеты:
-
-```bash
-python pipeline.py --prod --refresh-assets
-```
-
-## Архитектура
+## Структура проекта
 
 ```text
 pipeline.py
 src/
-  config_loader.py
-  quote_generator.py
-  youtube_metadata.py
-  scene_planner.py
-  intro_generator.py
-  music_finder.py
-  asset_finder.py
-  image_tools.py
-  layout_renderer.py
-  video_renderer.py
-  music_tools.py
-  self_eval.py
-  obsidian_exporter.py
-  utils.py
 config/
-  video_style.json
+channels/
+  quotes/
+    channel_config.json
+    style.json
+    prompts/
+    templates/
+  psychology/
+  survival/
+content/
+  quotes/
+    thoughts_too_late_001.json
 outputs/
+  quotes/
+    thoughts_too_late_001/
 assets/
 music/
 docs/
+legacy/
 ```
 
-`pipeline.py` связывает шаги вместе. Реальная логика живет в `src/`.
+`src/` - общий движок.  
+`channels/` - настройки каналов.  
+`content/` - конкретные video tasks.  
+`outputs/` - машинные JSON-планы и локальные результаты запусков.  
+`legacy/` - старые MVP-скрипты, которые больше не являются частью текущего pipeline.
+
+## Channel Profiles
+
+Channel profile задает стиль и контекст канала.
+
+Пример:
+
+```text
+channels/quotes/channel_config.json
+channels/quotes/style.json
+```
+
+`channel_config.json` хранит:
+
+- `channel_id`;
+- название канала;
+- папку Obsidian;
+- формат видео;
+- язык по умолчанию;
+- описание канала.
+
+`style.json` хранит:
+
+- visual style;
+- image style;
+- intro style;
+- text style;
+- music mood;
+- transitions;
+- animations;
+- colors;
+- avoid list.
+
+## Video Tasks
+
+Video task задает конкретный ролик. Это главный вход для креатива.
+
+Пример:
+
+```text
+content/quotes/thoughts_too_late_001.json
+```
+
+В нем лежат:
+
+- `video_id`;
+- `chosen_title`;
+- `title_variants`;
+- `thumbnail_text`;
+- `thumbnail_idea`;
+- `description`;
+- `disclaimer`;
+- готовый список сцен;
+- тексты на экране;
+- авторы;
+- длительности;
+- mood;
+- visual keywords;
+- transitions;
+- animations.
+
+Codex/pipeline не должен придумывать новый креатив, если video task уже подготовлен. Он только превращает task JSON в runtime-планы, видео и Obsidian-заметку.
 
 ## Outputs
 
-Рабочие JSON-файлы:
+Для channel/video запуска файлы создаются здесь:
 
-- `quote_plan.json` - цитаты, мысли и карточки текста;
-- `scene_plan.json` - сцены ролика;
-- `asset_plan.json` - изображения, placeholder, b-roll и музыка;
-- `render_plan.json` - технический план рендера;
-- `music_plan.json` - план музыки;
-- `youtube_metadata.json` - заголовки, описание, теги, thumbnail idea;
-- `self_eval.json` - самопроверка;
-- `render_stage.json` - журнал стадий рендера.
+```text
+outputs/quotes/thoughts_too_late_001/
+```
 
-Видео и большие ассеты не нужно коммитить.
+Основные runtime-файлы:
+
+- `quote_plan.json`;
+- `scene_plan.json`;
+- `asset_plan.json`;
+- `render_plan.json`;
+- `music_plan.json`;
+- `youtube_metadata.json`;
+- `self_eval.json`;
+- `render_stage.json`;
+- `final_preview.mp4` в dev;
+- `final_video.mp4` в prod.
+
+Видео, музыка, временные render-файлы и большие ассеты не коммитятся.
 
 ## Obsidian
 
-Obsidian используется как человеческая база знаний для production-процесса.
-
-Заметка может содержать:
-
-- тему;
-- статус;
-- цитаты и идеи;
-- сцены;
-- заголовки;
-- описание;
-- теги;
-- ассеты;
-- ссылки на JSON;
-- ссылку на итоговое видео;
-- ручные заметки и следующие шаги.
-
-Настройки Obsidian находятся в блоке `obsidian` файла `config/video_style.json`.
-
-## API keys
-
-Секреты хранятся только в `.env`.
-
-Никогда не коммить:
-
-- `.env`;
-- API-ключи;
-- `venv/`;
-- mp4/mp3/mov/wav;
-- большие ассеты.
-
-Пример переменных лежит в `.env.example`.
-
-Возможные ключи:
-
-- `OPENAI_API_KEY`
-- `PEXELS_API_KEY`
-- `PIXABAY_API_KEY`
-
-## Документация
-
-Подробное объяснение проекта:
+Если vault существует по пути:
 
 ```text
-docs/project_explanation.md
+G:/ObsidianBase/ObsidianBase/YouTube
 ```
 
-Отчет по чистке:
+pipeline создает базовую структуру:
 
 ```text
-docs/cleanup_report.md
+YouTube/
+  00 Dashboard/
+  01 Каналы/
+    Цитаты и мысли/
+    Психология/
+    Выживание/
+  02 Видео/
+    Цитаты и мысли/
+      thoughts_too_late_001/
+  03 Шаблоны/
+  04 Источники/
+    Авторы/
+    Фильмы/
+    Аниме/
+    Книги/
+  05 Стили/
+  06 Готовые ролики/
+```
+
+Для первого quotes video заметка создается здесь:
+
+```text
+G:/ObsidianBase/ObsidianBase/YouTube/02 Видео/Цитаты и мысли/thoughts_too_late_001/Некоторые мысли приходят слишком поздно.md
+```
+
+После dev-рендера `final_preview.mp4` копируется рядом с заметкой, а в заметке используется Obsidian-вставка:
+
+```text
+![[final_preview.mp4]]
+```
+
+Для production используется `final_video.mp4`.
+
+## Как создать следующее видео в этом же канале
+
+1. Создай новый файл:
+
+```text
+content/quotes/new_video_id.json
+```
+
+2. Заполни его по структуре существующего task.
+3. Запусти:
+
+```bash
+python pipeline.py --channel quotes --video new_video_id --dev
+```
+
+## Как создать другой канал
+
+1. Создай папку:
+
+```text
+channels/new_channel/
+```
+
+2. Добавь:
+
+```text
+channels/new_channel/channel_config.json
+channels/new_channel/style.json
+channels/new_channel/prompts/
+channels/new_channel/templates/
+```
+
+3. Создай content task:
+
+```text
+content/new_channel/video_id.json
+```
+
+4. Запусти:
+
+```bash
+python pipeline.py --channel new_channel --video video_id --dev
 ```
 
 ## Безопасные проверки
@@ -231,17 +259,21 @@ docs/cleanup_report.md
 ```bash
 python -m compileall pipeline.py src
 python pipeline.py --dev
+python pipeline.py --channel quotes --video thoughts_too_late_001 --dev
 ```
 
-Полный `--prod` не считается безопасной быстрой проверкой, потому что может запускать долгий render.
+Полный `--prod` не запускается как обычная проверка.
 
-## Статус проекта
+## Секреты и Git
 
-Текущий проект - рабочая основа для дальнейшего развития:
+Не коммитить:
 
-- нужно вынести контент из Python-кода в knowledge base или data-файлы;
-- нужно определить политику хранения JSON outputs;
-- нужно почистить старые MVP-скрипты после подтверждения;
-- нужно развить связку Obsidian -> pipeline -> Obsidian;
-- нужно добавить аккуратную систему шаблонов для разных типов роликов.
+- `.env`;
+- `venv/`;
+- mp4/mp3/mov/wav;
+- большие ассеты;
+- `assets/broll/`;
+- временные render-файлы.
+
+`.env.example` можно хранить в Git. `.env` нельзя читать, выводить или коммитить.
 

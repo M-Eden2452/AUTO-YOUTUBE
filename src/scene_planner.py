@@ -20,6 +20,8 @@ BROLL_QUERIES = [
 
 
 def build_scene_plan(config: dict[str, Any], quote_plan: dict[str, Any], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    if config.get("video_task"):
+        return _build_video_task_scene_plan(config, metadata or {})
     if config.get("dev_mode", False):
         return _build_dev_scene_plan(config, quote_plan)
     return _build_prod_scene_plan(config, quote_plan, metadata or {})
@@ -51,6 +53,44 @@ def _build_dev_scene_plan(config: dict[str, Any], quote_plan: dict[str, Any]) ->
                 "source_note": quote["source_note"],
             }
         ],
+    }
+
+
+def _build_video_task_scene_plan(config: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+    task = config["video_task"]
+    scenes: list[dict[str, Any]] = []
+    for index, scene in enumerate(task.get("scenes", []), start=1):
+        visual_keywords = scene.get("visual_keywords", [])
+        scenes.append(
+            {
+                "scene_number": index,
+                "scene_id": scene.get("scene_id", f"scene_{index:03d}"),
+                "scene_type": scene.get("type", "thought"),
+                "content_type": scene.get("content_type", scene.get("type", "idea")),
+                "duration": float(scene.get("duration", config.get("scene_duration", 8))),
+                "layout": config["layout"],
+                "person": config.get("person", ""),
+                "quote": scene.get("screen_text", ""),
+                "quote_ru": scene.get("screen_text", ""),
+                "screen_text": scene.get("screen_text", ""),
+                "author": scene.get("author", ""),
+                "image_query": visual_keywords[0] if visual_keywords else task.get("visual_direction", config.get("image_style", "")),
+                "visual_keywords": visual_keywords,
+                "background_mood": scene.get("mood", task.get("visual_direction", config["visual_style"])),
+                "animation": scene.get("animation", config["animation_type"]),
+                "transition": scene.get("transition", config["transition_type"]),
+                "source_note": task.get("disclaimer", ""),
+            }
+        )
+
+    return {
+        "video_type": task.get("video_type", config["video_type"]),
+        "topic": task["chosen_title"],
+        "style": config["visual_style"],
+        "chosen_title": metadata.get("chosen_title", task["chosen_title"]),
+        "target_duration": sum(scene["duration"] for scene in scenes),
+        "hard_rules": _hard_rules(),
+        "scenes": scenes,
     }
 
 

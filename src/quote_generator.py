@@ -128,6 +128,9 @@ PRODUCTION_ITEMS = [
 
 
 def build_quote_plan(config: dict[str, Any]) -> dict[str, Any]:
+    if config.get("video_task"):
+        return _build_video_task_quote_plan(config)
+
     if config.get("dev_mode", False):
         items = PRODUCTION_ITEMS[:1]
     else:
@@ -148,6 +151,45 @@ def build_quote_plan(config: dict[str, Any]) -> dict[str, Any]:
                 "author": config["person"],
                 "content_type": item["content_type"],
                 "source_note": item["source_note"],
+            }
+            for item in items
+        ],
+    }
+
+
+def _build_video_task_quote_plan(config: dict[str, Any]) -> dict[str, Any]:
+    task = config["video_task"]
+    items = [
+        {
+            "content_type": scene.get("content_type", scene.get("type", "idea")),
+            "text": scene.get("screen_text", ""),
+            "author": scene.get("author", ""),
+            "source_note": task.get("disclaimer", ""),
+            "scene_id": scene.get("scene_id", ""),
+            "mood": scene.get("mood", ""),
+            "visual_keywords": scene.get("visual_keywords", []),
+        }
+        for scene in task.get("scenes", [])
+    ]
+
+    return {
+        "video_type": task.get("video_type", config["video_type"]),
+        "topic": task["chosen_title"],
+        "person": config.get("person", ""),
+        "language": task.get("language", config.get("language", "ru")),
+        "source": config.get("quote_source", ""),
+        "disclaimer": task.get("disclaimer", ""),
+        "items": items,
+        "quotes": [
+            {
+                "quote": item["text"],
+                "quote_ru": item["text"],
+                "author": item.get("author", ""),
+                "content_type": item["content_type"],
+                "source_note": item["source_note"],
+                "scene_id": item.get("scene_id", ""),
+                "mood": item.get("mood", ""),
+                "visual_keywords": item.get("visual_keywords", []),
             }
             for item in items
         ],

@@ -5,6 +5,7 @@ import sys
 from typing import Any
 
 from src.asset_finder import build_asset_plan
+from src.channel_loader import load_channel_video_config
 from src.config_loader import load_config
 from src.intro_generator import build_intro_plan
 from src.music_finder import build_music_plan
@@ -24,16 +25,18 @@ def configure_console_encoding() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Структурный pipeline AI-YouTube")
-    parser.add_argument("--config", default="config/video_style.json", help="Путь к конфигу стиля видео.")
-    parser.add_argument("--dev", action="store_true", help="Собрать короткое быстрое превью.")
-    parser.add_argument("--prod", action="store_true", help="Использовать production-настройки рендера.")
-    parser.add_argument("--prod-preview", action="store_true", help="Прогнать production pipeline на первых 3-5 сценах.")
-    parser.add_argument("--export-obsidian", action="store_true", help="Только экспортировать Obsidian-заметку из готовых outputs.")
-    parser.add_argument("--no-obsidian", action="store_true", help="Отключить Obsidian-экспорт для этого запуска.")
-    parser.add_argument("--skip-render", action="store_true", help="Пропустить рендер и обновить только metadata/Obsidian.")
-    parser.add_argument("--find-music", action="store_true", help="Обновить только music_plan.json.")
-    parser.add_argument("--refresh-assets", action="store_true", help="Повторно искать и скачивать ассеты для сцен.")
+    parser = argparse.ArgumentParser(description="Structured AI-YouTube pipeline")
+    parser.add_argument("--config", default="config/video_style.json", help="Path to base video style config.")
+    parser.add_argument("--channel", help="Channel profile id, for example quotes.")
+    parser.add_argument("--video", help="Video task id, for example thoughts_too_late_001.")
+    parser.add_argument("--dev", action="store_true", help="Build a fast preview render.")
+    parser.add_argument("--prod", action="store_true", help="Use production render settings.")
+    parser.add_argument("--prod-preview", action="store_true", help="Run production settings on the first scenes.")
+    parser.add_argument("--export-obsidian", action="store_true", help="Only export an Obsidian note from existing outputs.")
+    parser.add_argument("--no-obsidian", action="store_true", help="Disable Obsidian export for this run.")
+    parser.add_argument("--skip-render", action="store_true", help="Skip render and update only plans/metadata/Obsidian.")
+    parser.add_argument("--find-music", action="store_true", help="Update only music_plan.json.")
+    parser.add_argument("--refresh-assets", action="store_true", help="Search/download assets again.")
     return parser.parse_args()
 
 
@@ -45,20 +48,29 @@ def main() -> None:
     ensure_dir("assets/images/generated")
 
     config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview)
-    print(f"[config] Загружен {args.config} | dev_mode={config['dev_mode']} | prod_preview={config.get('prod_preview', False)}")
+    if args.channel or args.video:
+        if not args.channel or not args.video:
+            raise SystemExit("--channel and --video must be passed together.")
+        config = load_channel_video_config(config, args.channel, args.video)
+    plans = config["plans"]
+    print(
+        f"[config] Loaded {args.config} | channel={config.get('channel_id', 'default')} "
+        f"| video={config.get('video_id', 'default')} | dev_mode={config['dev_mode']} "
+        f"| prod_preview={config.get('prod_preview', False)}"
+    )
 
     if args.find_music:
         music_plan = build_music_plan(config)
-        print(f"[music] План музыки обновлен: {music_plan.get('status')}")
+        print(f"[music] Music plan updated: {music_plan.get('status')}")
         return
 
     if args.export_obsidian:
         note_path = export_obsidian_note(config)
-        print(f"[obsidian] Заметка экспортирована: {note_path}")
+        print(f"[obsidian] Note exported: {note_path}")
         return
 
     quote_plan = build_quote_plan(config)
-    metadata = write_youtube_metadata(config, quote_plan)
+    metadata = write_youtube_metadata(config, quote_plan, output_path=plans.get("youtube_metadata", "outputs/youtube_metadata.json"))
     scene_plan = build_scene_plan(config, quote_plan, metadata)
     if args.prod_preview:
         scene_plan = limit_scene_plan(scene_plan, int(config.get("prod_preview_scene_count", 5)))
@@ -67,61 +79,60 @@ def main() -> None:
     asset_plan = build_asset_plan(config, scene_plan, refresh=args.refresh_assets)
     render_plan = build_render_plan(config, scene_plan, asset_plan, music_plan)
 
-    plans = config["plans"]
     write_json(plans["quote_plan"], quote_plan)
     write_json(plans["scene_plan"], scene_plan)
     write_json(plans["asset_plan"], asset_plan)
     write_json(plans["render_plan"], {**render_plan, "intro": intro_plan})
     write_json(plans.get("music_plan", "outputs/music_plan.json"), music_plan)
-    print("[plans] Созданы quote_plan, scene_plan, asset_plan, render_plan, music_plan")
+    print("[plans] Created quote_plan, scene_plan, asset_plan, render_plan, music_plan")
 
     output_path = render_plan["output_path"]
     if args.skip_render:
         eval_result = {
             "ok": True,
-            "checks": ["Рендер пропущен через --skip-render."],
+            "checks": ["Render skipped via --skip-render."],
             "warnings": [],
         }
-        write_json("outputs/self_eval.json", eval_result)
-        print("[render] Пропущен через --skip-render")
+        write_json(plans.get("self_eval", "outputs/self_eval.json"), eval_result)
+        print("[render] Skipped via --skip-render")
     else:
         try:
             output_path = render_video(config, scene_plan, asset_plan, render_plan, music_plan)
             eval_result = evaluate_render(output_path, config, asset_plan, scene_plan, music_plan, metadata)
-            write_json("outputs/self_eval.json", eval_result)
-            print(f"[render] Итоговый файл: {output_path}")
+            write_json(plans.get("self_eval", "outputs/self_eval.json"), eval_result)
+            print(f"[render] Output file: {output_path}")
         except RenderStageError as exc:
             eval_result = {
                 "ok": False,
                 "checks": [],
                 "warnings": [
-                    f"Рендер остановлен на этапе {exc.stage}: {exc.message}",
-                    "Музыка не добавлялась, потому что silent video не прошел полный безопасный render/validate pipeline.",
+                    f"Render stopped at stage {exc.stage}: {exc.message}",
+                    "Music was not added because silent video did not pass the safe render/validate pipeline.",
                 ],
             }
-            write_json("outputs/self_eval.json", eval_result)
-            print(f"[render] Ошибка этапа {exc.stage}: {exc.message}")
+            write_json(plans.get("self_eval", "outputs/self_eval.json"), eval_result)
+            print(f"[render] Stage error {exc.stage}: {exc.message}")
             return
 
     note_path = None
     obsidian_enabled = config.get("obsidian", {}).get("enabled", False)
     if obsidian_enabled and not args.no_obsidian:
         note_path = export_obsidian_note(config)
-        print(f"[obsidian] Заметка экспортирована: {note_path}")
+        print(f"[obsidian] Note exported: {note_path}")
     elif args.no_obsidian:
-        print("[obsidian] Пропущено через --no-obsidian")
+        print("[obsidian] Skipped via --no-obsidian")
 
     if not args.skip_render:
         eval_result = evaluate_render(output_path, config, asset_plan, scene_plan, music_plan, metadata, note_path)
-        write_json("outputs/self_eval.json", eval_result)
+        write_json(plans.get("self_eval", "outputs/self_eval.json"), eval_result)
         if note_path:
             export_obsidian_note(config)
         for item in eval_result["checks"]:
             print(f"[self-eval] OK: {item}")
         for item in eval_result["warnings"]:
-            print(f"[self-eval] Заметка: {item}")
+            print(f"[self-eval] Note: {item}")
 
-    print(f"[metadata] Создан outputs/youtube_metadata.json, выбранный заголовок: {metadata.get('chosen_title')}")
+    print(f"[metadata] Created {plans.get('youtube_metadata', 'outputs/youtube_metadata.json')}, chosen title: {metadata.get('chosen_title')}")
 
 
 def limit_scene_plan(scene_plan: dict[str, Any], max_scenes: int) -> dict[str, Any]:

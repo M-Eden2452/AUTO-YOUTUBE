@@ -384,3 +384,143 @@ Pipeline может работать так:
 
 Сначала нужен отчет и подтверждение.
 
+## 13. Multi-channel architecture
+
+Проект теперь развивается как одно приложение для многих каналов и ниш.
+
+Новая модель:
+
+```text
+одно приложение
++ много channel profiles
++ много video tasks
++ Obsidian как human knowledge base
++ JSON как machine runtime state
+```
+
+`pipeline.py` остается общей точкой входа. Логика в `src/` остается общим движком. Разные каналы отличаются не отдельным кодом, а файлами в `channels/` и `content/`.
+
+Channel profile хранит стиль канала:
+
+```text
+channels/quotes/channel_config.json
+channels/quotes/style.json
+```
+
+Video task хранит конкретный ролик:
+
+```text
+content/quotes/thoughts_too_late_001.json
+```
+
+Запуск:
+
+```bash
+python pipeline.py --channel quotes --video thoughts_too_late_001 --dev
+```
+
+Старый режим без `--channel` остается рабочим:
+
+```bash
+python pipeline.py --dev
+```
+
+## 14. Content / video tasks
+
+`content/` - это место, где лежит подготовленный креатив для конкретных роликов.
+
+Video task должен хранить:
+
+- channel id;
+- video id;
+- формат видео;
+- язык;
+- выбранный заголовок;
+- варианты заголовков;
+- thumbnail text;
+- thumbnail idea;
+- описание;
+- disclaimer;
+- список сцен;
+- screen text;
+- авторов;
+- длительность сцен;
+- mood;
+- visual keywords;
+- transitions;
+- animations.
+
+Важно: если video task уже подготовлен, pipeline не должен придумывать новый креатив. Он только превращает готовую структуру в JSON-планы, видео и Obsidian-заметку.
+
+## 15. Outputs по каналам
+
+Для нового multi-channel режима outputs создаются внутри папки канала и video id:
+
+```text
+outputs/quotes/thoughts_too_late_001/
+```
+
+Внутри создаются:
+
+- `quote_plan.json`;
+- `scene_plan.json`;
+- `asset_plan.json`;
+- `render_plan.json`;
+- `music_plan.json`;
+- `youtube_metadata.json`;
+- `self_eval.json`;
+- `render_stage.json`;
+- `final_preview.mp4` для dev;
+- `final_video.mp4` для prod.
+
+Так проще держать рядом runtime state одного ролика и не смешивать разные каналы.
+
+## 16. Obsidian как production database
+
+Obsidian теперь используется как production database для человека.
+
+Если существует vault:
+
+```text
+G:/ObsidianBase/ObsidianBase/YouTube
+```
+
+pipeline создает структуру:
+
+```text
+YouTube/
+  00 Dashboard/
+  01 Каналы/
+    Цитаты и мысли/
+    Психология/
+    Выживание/
+  02 Видео/
+    Цитаты и мысли/
+      thoughts_too_late_001/
+  03 Шаблоны/
+  04 Источники/
+    Авторы/
+    Фильмы/
+    Аниме/
+    Книги/
+  05 Стили/
+  06 Готовые ролики/
+```
+
+Для ролика `thoughts_too_late_001` заметка создается здесь:
+
+```text
+G:/ObsidianBase/ObsidianBase/YouTube/02 Видео/Цитаты и мысли/thoughts_too_late_001/Некоторые мысли приходят слишком поздно.md
+```
+
+После dev-рендера `final_preview.mp4` копируется рядом с заметкой, и заметка содержит:
+
+```text
+![[final_preview.mp4]]
+```
+
+Для production рядом с заметкой должен лежать `final_video.mp4`, а вставка должна быть:
+
+```text
+![[final_video.mp4]]
+```

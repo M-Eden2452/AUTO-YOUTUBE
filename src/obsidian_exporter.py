@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -25,9 +26,10 @@ def export_obsidian_note(config: dict[str, Any]) -> Path:
     asset_plan = _read_plan(config["plans"].get("asset_plan", PLAN_KEYS["asset_plan"]))
     render_plan = _read_plan(config["plans"].get("render_plan", PLAN_KEYS["render_plan"]))
     music_plan = _read_plan(config["plans"].get("music_plan", PLAN_KEYS["music_plan"]))
-    self_eval = _read_plan(PLAN_KEYS["self_eval"])
-    metadata = load_youtube_metadata()
+    self_eval = _read_plan(config["plans"].get("self_eval", PLAN_KEYS["self_eval"]))
+    metadata = load_youtube_metadata(config["plans"].get("youtube_metadata", "outputs/youtube_metadata.json"))
     output_video = _find_output_video(config)
+    copied_video = _copy_video_to_obsidian(config, output_video)
 
     markdown = build_obsidian_markdown(
         config=config,
@@ -38,7 +40,7 @@ def export_obsidian_note(config: dict[str, Any]) -> Path:
         music_plan=music_plan,
         self_eval=self_eval,
         metadata=metadata,
-        output_video=output_video,
+        output_video=copied_video or output_video,
     )
     target = _resolve_note_path(config, metadata, scene_plan)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -61,6 +63,7 @@ def build_obsidian_markdown(
     scenes = scene_plan.get("scenes", [])
     final_video = output_video or Path(render_plan.get("output_path", config.get("output_filename", "")))
     write_json_links = config.get("obsidian", {}).get("write_json_links", True)
+    video_block = _video_block(config, final_video)
 
     return "\n".join(
         [
@@ -78,6 +81,9 @@ def build_obsidian_markdown(
             f"- Сцен: {len(scenes)}",
             f"- Длительность: {render_plan.get('duration', '')} сек.",
             f"- Итоговое видео: {_path_text(final_video)}",
+            "",
+            "## Видео",
+            video_block,
             "",
             "## Описание",
             metadata.get("description", ""),
@@ -139,9 +145,10 @@ def _resolve_note_path(config: dict[str, Any], metadata: dict[str, Any], scene_p
     folder = obsidian.get("folder", "YouTube/Цитаты")
     fallback_to_outputs = obsidian.get("fallback_to_outputs", True)
     title = metadata.get("chosen_title") or scene_plan.get("topic", "video")
-    filename = f"{datetime.now().strftime('%Y-%m-%d')} - {_slugify(title)}.md"
+    filename = f"{_slugify(title)}.md" if config.get("video_task") else f"{datetime.now().strftime('%Y-%m-%d')} - {_slugify(title)}.md"
 
     if vault_path.exists() and vault_path.is_dir():
+        _ensure_obsidian_structure(vault_path)
         return vault_path / folder / filename
     if fallback_to_outputs:
         return project_path("outputs/obsidian_note_preview.md")
@@ -159,6 +166,42 @@ def _find_output_video(config: dict[str, Any]) -> Path | None:
     return None
 
 
+def _copy_video_to_obsidian(config: dict[str, Any], output_video: Path | None) -> Path | None:
+    if not output_video or not output_video.exists():
+        return None
+    obsidian = config.get("obsidian", {})
+    if not obsidian.get("video_embed", False):
+        return None
+    note_dir = Path(obsidian.get("video_note_dir", ""))
+    vault_path = Path(obsidian.get("vault_path", ""))
+    if not vault_path.exists() or not vault_path.is_dir():
+        return None
+    note_dir.mkdir(parents=True, exist_ok=True)
+    target = note_dir / output_video.name
+    shutil.copy2(output_video, target)
+    return target
+
+
+def _ensure_obsidian_structure(vault_path: Path) -> None:
+    youtube = vault_path / "YouTube"
+    folders = [
+        youtube / "00 Dashboard",
+        youtube / "01 Каналы" / "Цитаты и мысли",
+        youtube / "01 Каналы" / "Психология",
+        youtube / "01 Каналы" / "Выживание",
+        youtube / "02 Видео" / "Цитаты и мысли",
+        youtube / "03 Шаблоны",
+        youtube / "04 Источники" / "Авторы",
+        youtube / "04 Источники" / "Фильмы",
+        youtube / "04 Источники" / "Аниме",
+        youtube / "04 Источники" / "Книги",
+        youtube / "05 Стили",
+        youtube / "06 Готовые ролики",
+    ]
+    for folder in folders:
+        folder.mkdir(parents=True, exist_ok=True)
+
+
 def _read_plan(path: str | Path) -> dict[str, Any]:
     target = project_path(path)
     if not target.exists():
@@ -168,6 +211,16 @@ def _read_plan(path: str | Path) -> dict[str, Any]:
 
 def _path_text(value: str | Path) -> str:
     return str(value) if value else ""
+
+
+def _video_block(config: dict[str, Any], final_video: Path) -> str:
+    obsidian = config.get("obsidian", {})
+    note_dir = Path(obsidian.get("video_note_dir", ""))
+    if obsidian.get("video_embed", False) and note_dir and final_video.parent == note_dir:
+        return f"![[{final_video.name}]]"
+    if final_video:
+        return f"[{final_video.name}]({final_video})"
+    return "- "
 
 
 def _bullet_list(items: list[Any]) -> str:

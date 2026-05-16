@@ -13,6 +13,9 @@ def generate_youtube_metadata(
     quote_plan: dict[str, Any] | None = None,
     scene_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if config.get("video_task"):
+        return _generate_video_task_metadata(config, quote_plan)
+
     quote_plan = quote_plan or read_json(config["plans"]["quote_plan"])
     person = config.get("person", "Jordan Peterson")
     topic = config.get("topic", person)
@@ -98,6 +101,41 @@ def write_youtube_metadata(
     metadata = generate_youtube_metadata(config, quote_plan, scene_plan)
     write_json(output_path, metadata)
     return metadata
+
+
+def _generate_video_task_metadata(config: dict[str, Any], quote_plan: dict[str, Any] | None = None) -> dict[str, Any]:
+    task = config["video_task"]
+    quote_plan = quote_plan or {"items": []}
+    title_variants = task.get("title_variants", [task["chosen_title"]])
+    source_notes = [
+        item.get("source_note", "")
+        for item in quote_plan.get("items", [])
+        if item.get("source_note")
+    ]
+    return {
+        "title_variants": title_variants,
+        "chosen_title": task["chosen_title"],
+        "description": task.get("description", ""),
+        "tags": [
+            config.get("channel_id", ""),
+            task.get("video_type", ""),
+            "цитаты",
+            "мысли",
+            "cinematic",
+        ],
+        "keywords": [
+            task["chosen_title"],
+            task.get("visual_direction", ""),
+            task.get("music_direction", ""),
+        ],
+        "thumbnail_text": task.get("thumbnail_text", ""),
+        "thumbnail_idea": task.get("thumbnail_idea", ""),
+        "thumbnail_prompt": task.get("thumbnail_idea", ""),
+        "shorts_hook": "",
+        "community_post": "",
+        "source_notes": source_notes,
+        "disclaimer": task.get("disclaimer", ""),
+    }
 
 
 def load_youtube_metadata(path: str = DEFAULT_METADATA_PATH) -> dict[str, Any]:

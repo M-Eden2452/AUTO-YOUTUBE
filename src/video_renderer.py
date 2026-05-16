@@ -36,7 +36,7 @@ def build_render_plan(
         "silent_video_path": str(silent_path),
         "partial_silent_video_path": str(partial_path),
         "temp_dir": str(temp_dir),
-        "stage_log_path": str(project_path("outputs/render_stage.json")),
+        "stage_log_path": str(output_path.parent / "render_stage.json"),
         "resolution": config["resolution"],
         "fps": int(config["fps"]),
         "duration": total_duration,
