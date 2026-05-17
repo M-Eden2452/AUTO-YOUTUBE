@@ -14,6 +14,7 @@ def evaluate_render(
     music_plan: dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     obsidian_note_path: str | Path | None = None,
+    render_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     path = Path(output_path)
     checks: list[str] = []
@@ -60,6 +61,9 @@ def evaluate_render(
         warnings.extend(asset_plan["warnings"])
     if asset_plan.get("engine") == "documentary_visual_engine_v2":
         _evaluate_documentary_assets(asset_plan, checks, warnings)
+        quality = evaluate_documentary_quality_rules(asset_plan, render_plan or {})
+        checks.extend(quality["checks"])
+        warnings.extend(quality["warnings"])
     missing_assets = [
         asset.get("scene_number")
         for asset in asset_plan.get("scene_assets", [])
@@ -148,3 +152,75 @@ def _evaluate_documentary_assets(asset_plan: dict[str, Any], checks: list[str], 
         warnings.append("No downloaded video b-roll was available; generated motion fallbacks were used.")
 
     checks.append("Subtitle-safe lower area is enabled in the montage renderer.")
+
+
+def evaluate_documentary_quality_rules(asset_plan: dict[str, Any], render_plan: dict[str, Any] | None = None) -> dict[str, list[str]]:
+    render_plan = render_plan or {}
+    checks: list[str] = []
+    warnings: list[str] = []
+    visual_rules = render_plan.get("visual_rules", {})
+    subtitle_style = render_plan.get("subtitle_style", {})
+    montage = render_plan.get("montage", {})
+
+    if visual_rules.get("no_scene_labels"):
+        checks.append("No scene labels configured for documentary render.")
+    else:
+        warnings.append("Documentary render should disable scene labels and card headings.")
+
+    if visual_rules.get("fullscreen_footage"):
+        checks.append("Fullscreen footage rule is enabled.")
+    else:
+        warnings.append("Fullscreen footage rule is not enabled.")
+
+    if subtitle_style.get("name") == "cinematic_documentary_v2":
+        checks.append("Cinematic documentary subtitle style v2 is configured.")
+    else:
+        warnings.append("Subtitle style v2 is not configured.")
+
+    target_seconds = montage.get("target_clip_seconds", [])
+    if len(target_seconds) == 2 and float(target_seconds[0]) >= 3.0 and float(target_seconds[1]) <= 6.0:
+        checks.append("Montage pacing target is documentary 3-6 seconds per clip.")
+    else:
+        warnings.append("Montage pacing target should stay around 3-6 seconds per clip.")
+
+    clips = [clip for asset in asset_plan.get("scene_assets", []) for clip in asset.get("clips", [])]
+    if not clips:
+        warnings.append("No clips available for documentary quality checks.")
+        return {"checks": checks, "warnings": warnings}
+
+    static_like = [clip for clip in clips if clip.get("type") in {"image", "generated_motion"} and not clip.get("motion", clip.get("type") == "generated_motion")]
+    if static_like:
+        warnings.append(f"Static-feeling image clips detected: {len(static_like)}.")
+    else:
+        checks.append("No static image clips detected in documentary montage.")
+
+    placeholder = [clip for clip in clips if clip.get("provider") == "placeholder" or clip.get("fallback")]
+    if placeholder:
+        warnings.append(f"Placeholder or fallback clips detected: {len(placeholder)}.")
+    else:
+        checks.append("No placeholder usage detected.")
+
+    unique_sources = {clip.get("path") or clip.get("query") for clip in clips}
+    scene_count = max(1, len(asset_plan.get("scene_assets", [])))
+    diversity_target = max(scene_count, len(clips) // 5)
+    if len(unique_sources) >= diversity_target:
+        checks.append("Montage source diversity is acceptable.")
+    else:
+        warnings.append(f"Montage source diversity is low: {len(unique_sources)} unique sources, target {diversity_target}.")
+
+    nature_terms = ("jungle", "rainforest", "amazon", "river", "rain", "storm", "mud", "forest", "canopy", "insect")
+    nature_count = sum(1 for clip in clips if any(term in str(clip.get("query", "")).lower() or term in str(clip.get("path", "")).lower() for term in nature_terms))
+    nature_ratio = nature_count / max(len(clips), 1)
+    if nature_ratio >= 0.55:
+        checks.append(f"Nature footage percentage is strong: {nature_ratio:.0%}.")
+    else:
+        warnings.append(f"Nature footage percentage is low: {nature_ratio:.0%}.")
+
+    weak_terms = ("business", "office", "city", "terminal", "airport")
+    weak_count = sum(1 for clip in clips if any(term in str(clip.get("query", "")).lower() for term in weak_terms))
+    if weak_count:
+        warnings.append(f"Potentially weak generic footage clips detected: {weak_count}.")
+    else:
+        checks.append("No obvious business/city generic footage selected.")
+
+    return {"checks": checks, "warnings": warnings}

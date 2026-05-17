@@ -38,6 +38,9 @@ def build_render_plan(
     if documentary_montage and config.get("dev_mode", False):
         fps = min(fps, 10)
     preset = "ultrafast" if documentary_montage or not config.get("dev_mode", False) else "medium"
+    active_music = dict(music_plan or asset_plan["music"])
+    if documentary_montage and active_music:
+        active_music["volume"] = min(float(active_music.get("volume", 0.16)), float(config.get("documentary_music_volume", 0.12)))
     return {
         "output_path": str(output_path),
         "silent_video_path": str(silent_path),
@@ -50,15 +53,31 @@ def build_render_plan(
         "scene_count": len(scene_plan.get("scenes", [])),
         "layout": config["layout"],
         "animation": config["animation_type"],
-        "music": music_plan or asset_plan["music"],
+        "music": active_music,
         "render_strategy": "documentary_scene_montage"
         if documentary_montage
         else ("scene_temp_clips_concat" if not config.get("dev_mode", False) else "single_scene_temp_clip"),
         "subtitle_safe_area": True,
+        "visual_rules": {
+            "no_scene_labels": documentary_montage,
+            "fullscreen_footage": documentary_montage,
+            "subtitles_only": documentary_montage and config.get("channel_id") == "survival",
+            "image_motion_required": documentary_montage,
+            "avoid_ui_blocks": documentary_montage,
+        },
+        "subtitle_style": {
+            "name": "cinematic_documentary_v2" if documentary_montage else "classic_quote_card",
+            "background_alpha": 118,
+            "y_ratio": 0.765,
+            "padding": [18, 10],
+            "rounded_radius": 9,
+        },
         "montage": {
             "enabled": documentary_montage,
             "transition": config.get("transition_type", "crossfade"),
             "clip_count": sum(int(scene.get("clip_count", len(scene.get("clips", [])))) for scene in asset_plan.get("scene_assets", [])),
+            "target_clip_seconds": [3.0, 6.0],
+            "color_grading": "subtle_dark_green_blue_documentary",
         },
         "preset": preset,
     }
@@ -102,6 +121,8 @@ def render_video(
         _stage(stage_log_path, "validate_silent_done", f"Silent video валиден: {silent_path}")
 
         active_music = music_plan or render_plan.get("music") or {}
+        if asset_plan.get("engine") == "documentary_visual_engine_v2" and active_music:
+            active_music = {**active_music, "volume": min(float(active_music.get("volume", 0.16)), float(config.get("documentary_music_volume", 0.12)))}
         music_path = active_music.get("path") or asset_plan.get("music", {}).get("path", "")
         music_status = active_music.get("status") or asset_plan.get("music", {}).get("status")
         if music_path and music_status in {"найдено", "найдена_локальная_музыка", "found"}:
@@ -226,7 +247,8 @@ def _render_scene_with_ffmpeg_overlay(
         label = f"v{index}"
         filters.append(
             f"[{index}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
-            f"crop={width}:{height},setsar=1,fps={fps},format=rgba[{label}]"
+            f"crop={width}:{height},eq=contrast=1.08:brightness=-0.055:saturation=0.86,"
+            f"colorchannelmixer=rr=0.94:gg=1.03:bb=1.06,setsar=1,fps={fps},format=rgba[{label}]"
         )
         labels.append(f"[{label}]")
     overlay_index = len(clips)

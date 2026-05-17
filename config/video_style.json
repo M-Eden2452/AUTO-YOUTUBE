@@ -111,8 +111,9 @@
     "min_local_score": 4,
     "download_if_not_enough": true,
     "create_thumbnails": true,
-    "max_new_downloads_per_scene": 3,
-    "max_local_assets_per_scene": 4,
+    "max_new_downloads_per_scene": 2,
+    "max_local_assets_per_scene": 6,
+    "min_local_diversity_per_scene": 7,
     "providers": ["pexels", "pixabay", "unsplash"]
   },
   "fallback_behavior": {

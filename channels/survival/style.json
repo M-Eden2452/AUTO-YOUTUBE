@@ -1,11 +1,24 @@
 {
-  "visual_style": "dark realistic survival documentary, tense, cinematic, natural, grounded",
-  "image_style": "realistic, documentary, wilderness, storm, isolation, danger, survival",
+  "visual_style": "immersive dark rainforest survival documentary, cinematic, atmospheric, realistic, grounded",
+  "image_style": "fullscreen realistic rainforest documentary footage, jungle, rain, river, mud, insects, storm, survival atmosphere",
   "intro_style": "cold open, real event setup, dark cinematic map/location mood",
-  "text_style": "large readable Russian subtitles, minimal but dramatic, documentary captions",
+  "text_style": "cinematic documentary subtitles only, subtle dark translucent caption background, no cards, no scene labels",
   "music_mood": "dark ambient tension, survival documentary, slow suspense, emotional but not epic cringe",
   "transitions": ["fade", "crossfade"],
   "animations": ["slow_zoom", "subtle_pan"],
   "colors": ["black", "deep green", "dark blue", "gray", "cold white"],
-  "avoid": ["meme style", "bright motivational style", "fake drama", "overly fast TikTok editing"]
+  "avoid": ["meme style", "bright motivational style", "fake drama", "overly fast TikTok editing", "quote-channel cards", "presentation UI", "scene labels"],
+  "documentary_subtitles_only": true,
+  "documentary_music_volume": 0.11,
+  "subtitle_style": {
+    "name": "cinematic_documentary_v2",
+    "font_size": 32,
+    "wrap_chars": 54,
+    "spacing": 8,
+    "padding_x": 18,
+    "padding_y": 10,
+    "radius": 9,
+    "background_alpha": 112,
+    "y_ratio": 0.765
+  }
 }

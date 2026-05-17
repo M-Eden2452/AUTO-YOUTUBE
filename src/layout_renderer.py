@@ -23,13 +23,18 @@ def render_documentary_frame(
     frame = _cinematic_background(width, height, config, image_path, local_progress, scene.get("animation", "slow_zoom"), background_frame)
     draw = ImageDraw.Draw(frame, "RGBA")
 
-    scene_type = scene.get("scene_type", "thought")
-    if scene_type == "intro":
-        _draw_intro(draw, config, scene, width, height, local_progress)
-    elif scene_type == "final":
-        _draw_final(draw, config, scene, width, height, local_progress)
+    if _subtitles_only(config):
+        subtitle = scene.get("subtitle_text") or scene.get("subtitle", "")
+        if subtitle:
+            _draw_subtitle_v2(draw, config, subtitle, width, height, _fade_alpha(local_progress))
     else:
-        _draw_thought(draw, config, scene, width, height, local_progress)
+        scene_type = scene.get("scene_type", "thought")
+        if scene_type == "intro":
+            _draw_intro(draw, config, scene, width, height, local_progress)
+        elif scene_type == "final":
+            _draw_final(draw, config, scene, width, height, local_progress)
+        else:
+            _draw_thought(draw, config, scene, width, height, local_progress)
 
     _draw_film_layers(draw, width, height)
     return np.array(frame.convert("RGB"))
@@ -48,19 +53,28 @@ def render_quote_frame(
 
 def render_text_overlay(config: dict[str, Any], scene: dict[str, Any], width: int, height: int) -> Image.Image:
     frame = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    shade = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    shade_draw = ImageDraw.Draw(shade, "RGBA")
-    shade_draw.rectangle((0, 0, int(width * 0.60), height), fill=(0, 0, 0, 84))
-    shade_draw.rectangle((0, int(height * 0.64), width, height), fill=(0, 0, 0, 84))
-    frame = Image.alpha_composite(frame, shade)
     draw = ImageDraw.Draw(frame, "RGBA")
-    scene_type = scene.get("scene_type", "thought")
-    if scene_type == "intro":
-        _draw_intro(draw, config, scene, width, height, 0.55)
-    elif scene_type == "final":
-        _draw_final(draw, config, scene, width, height, 0.55)
+    if _subtitles_only(config):
+        _draw_subtle_readability_gradient(draw, width, height)
+        subtitle = scene.get("subtitle_text") or scene.get("subtitle", "")
+        if subtitle:
+            _draw_subtitle_v2(draw, config, subtitle, width, height, 238)
+        frame.info["subtitle_style"] = "cinematic_documentary_v2"
+        frame.info["scene_labels"] = "disabled"
     else:
-        _draw_thought(draw, config, scene, width, height, 0.55)
+        shade = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        shade_draw = ImageDraw.Draw(shade, "RGBA")
+        shade_draw.rectangle((0, 0, int(width * 0.60), height), fill=(0, 0, 0, 84))
+        shade_draw.rectangle((0, int(height * 0.64), width, height), fill=(0, 0, 0, 84))
+        frame = Image.alpha_composite(frame, shade)
+        draw = ImageDraw.Draw(frame, "RGBA")
+        scene_type = scene.get("scene_type", "thought")
+        if scene_type == "intro":
+            _draw_intro(draw, config, scene, width, height, 0.55)
+        elif scene_type == "final":
+            _draw_final(draw, config, scene, width, height, 0.55)
+        else:
+            _draw_thought(draw, config, scene, width, height, 0.55)
     _draw_film_layers(draw, width, height)
     return frame
 
@@ -77,9 +91,7 @@ def _cinematic_background(
     if background_frame is not None:
         image = Image.fromarray(background_frame).convert("RGB")
         bg = fit_cover(image, (width, height)).resize((width, height), Image.Resampling.LANCZOS)
-        bg = ImageEnhance.Color(bg).enhance(0.72)
-        bg = ImageEnhance.Contrast(bg).enhance(1.12)
-        bg = ImageEnhance.Brightness(bg).enhance(0.56)
+        bg = _documentary_grade(bg)
     elif image_path and Path(image_path).exists():
         image = _load_image(str(image_path))
         zoom = 1.0 + 0.055 * progress
@@ -87,21 +99,26 @@ def _cinematic_background(
             zoom = 1.05
         crop = fit_cover(image, (int(width / zoom), int(height / zoom)))
         bg = crop.resize((width, height), Image.Resampling.LANCZOS)
-        bg = ImageEnhance.Color(bg).enhance(0.62)
-        bg = ImageEnhance.Contrast(bg).enhance(1.15)
-        bg = ImageEnhance.Brightness(bg).enhance(0.48)
+        bg = _documentary_grade(bg)
     else:
         bg = Image.new("RGB", (width, height), config.get("background_color", "#090B10"))
 
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     for y in range(height):
-        alpha = int(95 + 105 * (y / max(height - 1, 1)))
+        alpha = int(18 + 66 * (y / max(height - 1, 1)))
         draw.line((0, y, width, y), fill=(4, 6, 10, alpha))
-    draw.rectangle((0, 0, int(width * 0.58), height), fill=(0, 0, 0, 72))
-    draw.ellipse((-width * 0.22, -height * 0.35, width * 0.8, height * 1.2), fill=(130, 98, 45, 32))
-    overlay = overlay.filter(ImageFilter.GaussianBlur(12))
+    draw.rectangle((0, 0, width, height), outline=(0, 0, 0, 42), width=max(8, int(width * 0.010)))
+    overlay = overlay.filter(ImageFilter.GaussianBlur(8))
     return Image.alpha_composite(bg.convert("RGBA"), overlay)
+
+
+def _documentary_grade(image: Image.Image) -> Image.Image:
+    graded = ImageEnhance.Color(image).enhance(0.84)
+    graded = ImageEnhance.Contrast(graded).enhance(1.10)
+    graded = ImageEnhance.Brightness(graded).enhance(0.78)
+    tone = Image.new("RGBA", graded.size, (8, 32, 34, 26))
+    return Image.alpha_composite(graded.convert("RGBA"), tone).convert("RGB")
 
 
 def _draw_intro(draw: ImageDraw.ImageDraw, config: dict[str, Any], scene: dict[str, Any], width: int, height: int, progress: float) -> None:
@@ -193,11 +210,41 @@ def _draw_subtitle(draw: ImageDraw.ImageDraw, config: dict[str, Any], subtitle: 
     draw.multiline_text((left, top), wrapped, font=subtitle_font, fill=_rgba(config["text_color"], alpha), spacing=7)
 
 
+def _draw_subtitle_v2(draw: ImageDraw.ImageDraw, config: dict[str, Any], subtitle: str, width: int, height: int, alpha: int) -> None:
+    subtitle_cfg = config.get("subtitle_style", {})
+    font_size = int(subtitle_cfg.get("font_size", max(28, min(38, width * 0.028))))
+    subtitle_font = load_font(config["font_path"], font_size)
+    wrap_chars = int(subtitle_cfg.get("wrap_chars", 54 if width < 1600 else 68))
+    wrapped = "\n".join(textwrap.wrap(subtitle, width=wrap_chars, break_long_words=False))
+    spacing = int(subtitle_cfg.get("spacing", 8))
+    bbox = draw.multiline_textbbox((0, 0), wrapped, font=subtitle_font, spacing=spacing)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    pad_x = int(subtitle_cfg.get("padding_x", 18))
+    pad_y = int(subtitle_cfg.get("padding_y", 10))
+    x = int((width - text_w) / 2)
+    y = int(height * float(subtitle_cfg.get("y_ratio", 0.765)))
+    draw.rounded_rectangle(
+        (x - pad_x, y - pad_y, x + text_w + pad_x, y + text_h + pad_y),
+        radius=int(subtitle_cfg.get("radius", 9)),
+        fill=(0, 0, 0, min(alpha, int(subtitle_cfg.get("background_alpha", 118)))),
+    )
+    draw.multiline_text((x + 1, y + 1), wrapped, font=subtitle_font, fill=(0, 0, 0, min(alpha, 160)), spacing=spacing, align="center")
+    draw.multiline_text((x, y), wrapped, font=subtitle_font, fill=_rgba(config.get("text_color", "#F4EFE7"), alpha), spacing=spacing, align="center")
+
+
+def _draw_subtle_readability_gradient(draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
+    top = int(height * 0.58)
+    for y in range(top, height):
+        alpha = int(8 + 58 * ((y - top) / max(height - top, 1)))
+        draw.line((0, y, width, y), fill=(0, 0, 0, alpha))
+
+
 def _draw_film_layers(draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
-    bar_h = int(height * 0.065)
-    draw.rectangle((0, 0, width, bar_h), fill=(0, 0, 0, 150))
-    draw.rectangle((0, height - bar_h, width, height), fill=(0, 0, 0, 150))
-    draw.rectangle((0, 0, width, height), outline=(0, 0, 0, 120), width=int(width * 0.015))
+    bar_h = int(height * 0.045)
+    draw.rectangle((0, 0, width, bar_h), fill=(0, 0, 0, 92))
+    draw.rectangle((0, height - bar_h, width, height), fill=(0, 0, 0, 92))
+    draw.rectangle((0, 0, width, height), outline=(0, 0, 0, 58), width=max(5, int(width * 0.006)))
 
 
 def _fade_alpha(progress: float) -> int:
@@ -218,6 +265,10 @@ def _content_label(content_type: str) -> str:
 def _rgba(value: str, alpha: int) -> tuple[int, int, int, int]:
     value = value.lstrip("#")
     return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16), alpha
+
+
+def _subtitles_only(config: dict[str, Any]) -> bool:
+    return bool(config.get("documentary_subtitles_only") or config.get("channel_id") == "survival")
 
 
 @lru_cache(maxsize=64)

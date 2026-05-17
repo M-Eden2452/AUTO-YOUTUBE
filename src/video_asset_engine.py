@@ -31,6 +31,25 @@ REQUEST_TIMEOUT = 24
 MIN_VIDEO_WIDTH = 960
 MIN_VIDEO_HEIGHT = 540
 MAX_VIDEO_WIDTH = 2560
+SURVIVAL_POSITIVE_TERMS = {
+    "amazon",
+    "rainforest",
+    "jungle",
+    "rain",
+    "river",
+    "stream",
+    "mud",
+    "storm",
+    "lightning",
+    "canopy",
+    "forest",
+    "insects",
+    "mosquito",
+    "aerial",
+    "survival",
+    "tropical",
+}
+SURVIVAL_NEGATIVE_TERMS = {"city", "business", "office", "airport", "terminal", "street", "meeting", "urban"}
 
 
 def build_documentary_asset_plan(config: dict[str, Any], scene_plan: dict[str, Any], refresh: bool = False) -> dict[str, Any]:
@@ -68,20 +87,26 @@ def build_documentary_asset_plan(config: dict[str, Any], scene_plan: dict[str, A
                 min_score=int(library_config["min_local_score"]),
                 limit=int(library_config["max_local_assets_per_scene"]),
             )
+            if config.get("channel_id") == "survival":
+                local_matches = _rank_survival_local_matches(local_matches, scene, str(config.get("channel_id", "")))
 
-        selected = _clips_from_local_matches(local_matches, scene_number, target_count)
-        for match in local_matches[:target_count]:
+        min_diversity = int(library_config.get("min_local_diversity_per_scene", target_count))
+        local_diversity_gap = max(0, min_diversity - len({match["asset"].get("local_path", "") for match in local_matches}))
+        reserved_download_slots = min(local_diversity_gap, int(library_config["max_new_downloads_per_scene"]), target_count - 1)
+        local_take = max(0, target_count - reserved_download_slots)
+        selected = _clips_from_local_matches(local_matches, scene_number, local_take)
+        for match in local_matches[:local_take]:
             mark_asset_used_in_video(media_index, str(match["asset"].get("id", "")), _video_usage_id(config))
-        needs_download = len(selected) < target_count and library_config["download_if_not_enough"]
+        needs_download = (len(selected) < target_count or local_diversity_gap > 0) and library_config["download_if_not_enough"]
 
         if search_enabled and needs_download:
             for query in queries[:4]:
                 if pexels_key and config.get("pexels_search", {}).get("enabled", True):
-                    found, bad = _search_pexels_videos(pexels_key, query)
+                    found, bad = _search_pexels_videos(pexels_key, query, scene, config)
                     candidates.extend(found)
                     rejected.extend(bad)
                 if pixabay_key and config.get("pixabay_search", {}).get("enabled", True):
-                    found, bad = _search_pixabay_videos(pixabay_key, query)
+                    found, bad = _search_pixabay_videos(pixabay_key, query, scene, config)
                     candidates.extend(found)
                     rejected.extend(bad)
                 if len(candidates) >= target_count * 3:
@@ -100,6 +125,7 @@ def build_documentary_asset_plan(config: dict[str, Any], scene_plan: dict[str, A
                 scene,
                 library_root,
                 bool(library_config["create_thumbnails"]),
+                local_diversity_gap > 0,
             )
         )
         fallback_used = len(selected) < target_count
@@ -180,6 +206,11 @@ def build_query_variants(scene: dict[str, Any], config: dict[str, Any] | None = 
     if channel == "survival":
         variants.extend(
             [
+                "amazon jungle rain",
+                "dark rainforest river",
+                "aerial rainforest canopy",
+                "rainforest mud trail",
+                "macro insects rainforest",
                 "amazon rainforest",
                 "tropical jungle rain",
                 "jungle river documentary",
@@ -188,6 +219,30 @@ def build_query_variants(scene: dict[str, Any], config: dict[str, Any] | None = 
             ]
         )
     return _unique(variants)[:12]
+
+
+def score_survival_relevance(candidate: dict[str, Any], scene: dict[str, Any], channel: str = "") -> float:
+    score = float(candidate.get("score", 0))
+    if channel != "survival":
+        return score
+    text = " ".join(
+        [
+            str(candidate.get("query", "")),
+            str(candidate.get("source_url", "")),
+            " ".join(str(item) for item in scene.get("visual_keywords", [])),
+            str(scene.get("mood", "")),
+            str(scene.get("scene_type", "")),
+        ]
+    ).lower()
+    positive_hits = {term for term in SURVIVAL_POSITIVE_TERMS if term in text}
+    negative_hits = {term for term in SURVIVAL_NEGATIVE_TERMS if term in text}
+    score += len(positive_hits) * 7
+    score -= len(negative_hits) * 10
+    if {"rainforest", "jungle", "amazon"} & positive_hits and {"river", "rain", "storm", "mud"} & positive_hits:
+        score += 12
+    if "airport" in negative_hits and not {"airplane", "storm", "lightning"} & positive_hits:
+        score -= 12
+    return score
 
 
 def _library_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -200,6 +255,7 @@ def _library_config(config: dict[str, Any]) -> dict[str, Any]:
         "create_thumbnails": True,
         "max_new_downloads_per_scene": 3,
         "max_local_assets_per_scene": 4,
+        "min_local_diversity_per_scene": 4,
         "providers": ["pexels", "pixabay", "unsplash"],
     }
     return {**defaults, **config.get("asset_library", {})}
@@ -233,7 +289,21 @@ def _clips_from_local_matches(matches: list[dict[str, Any]], scene_number: int, 
     return clips
 
 
-def _search_pexels_videos(api_key: str, query: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _rank_survival_local_matches(matches: list[dict[str, Any]], scene: dict[str, Any], channel: str) -> list[dict[str, Any]]:
+    ranked: list[dict[str, Any]] = []
+    for match in matches:
+        asset = match["asset"]
+        candidate = {
+            "query": " ".join([asset.get("original_query", ""), " ".join(asset.get("keywords", []))]),
+            "source_url": asset.get("source_url", ""),
+            "score": match["score"],
+        }
+        updated = {**match, "score": score_survival_relevance(candidate, scene, channel)}
+        ranked.append(updated)
+    return sorted(ranked, key=lambda item: item["score"], reverse=True)
+
+
+def _search_pexels_videos(api_key: str, query: str, scene: dict[str, Any] | None = None, config: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     headers = {"Authorization": api_key}
     params = {"query": query, "orientation": "landscape", "per_page": 10}
     try:
@@ -255,8 +325,7 @@ def _search_pexels_videos(api_key: str, query: str) -> tuple[list[dict[str, Any]
         if not _passes_video_filter(width, height, duration):
             rejected.append({"provider": "pexels", "query": query, "id": video.get("id"), "reason": "filtered_resolution_or_duration"})
             continue
-        selected.append(
-            {
+        candidate = {
                 "provider": "pexels",
                 "query": query,
                 "source_id": str(video.get("id", "")),
@@ -267,11 +336,12 @@ def _search_pexels_videos(api_key: str, query: str) -> tuple[list[dict[str, Any]
                 "source_duration": duration,
                 "score": _score_candidate(width, height, duration),
             }
-        )
+        candidate["score"] = score_survival_relevance(candidate, scene or {}, str((config or {}).get("channel_id", "")))
+        selected.append(candidate)
     return selected, rejected
 
 
-def _search_pixabay_videos(api_key: str, query: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _search_pixabay_videos(api_key: str, query: str, scene: dict[str, Any] | None = None, config: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     params = {"key": api_key, "q": query, "video_type": "film", "safesearch": "true", "per_page": 10}
     try:
         response = requests.get("https://pixabay.com/api/videos/", params=params, timeout=REQUEST_TIMEOUT)
@@ -292,8 +362,7 @@ def _search_pixabay_videos(api_key: str, query: str) -> tuple[list[dict[str, Any
         if not _passes_video_filter(width, height, duration):
             rejected.append({"provider": "pixabay", "query": query, "id": hit.get("id"), "reason": "filtered_resolution_or_duration"})
             continue
-        selected.append(
-            {
+        candidate = {
                 "provider": "pixabay",
                 "query": query,
                 "source_id": str(hit.get("id", "")),
@@ -304,7 +373,8 @@ def _search_pixabay_videos(api_key: str, query: str) -> tuple[list[dict[str, Any
                 "source_duration": duration,
                 "score": _score_candidate(width, height, duration),
             }
-        )
+        candidate["score"] = score_survival_relevance(candidate, scene or {}, str((config or {}).get("channel_id", "")))
+        selected.append(candidate)
     return selected, rejected
 
 
@@ -344,6 +414,7 @@ def _select_and_cache_clips(
     scene: dict[str, Any],
     library_root: Path,
     create_thumbnails: bool,
+    skip_existing_duplicates: bool = False,
 ) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -355,6 +426,8 @@ def _select_and_cache_clips(
             continue
         seen.add(download_url)
         duplicate = avoid_duplicate_downloads(media_index, source_url=candidate.get("source_url", ""), download_url=download_url)
+        if duplicate and skip_existing_duplicates:
+            continue
         if duplicate:
             local_path = project_path(duplicate.get("local_path", ""))
         else:
@@ -489,7 +562,7 @@ def _fit_clip_durations(clips: list[dict[str, Any]], scene_duration: float) -> l
 
 
 def _target_clip_count(duration: float) -> int:
-    return max(3, min(6, math.ceil(duration / 4.0)))
+    return max(4, min(6, math.ceil(duration / 3.4)))
 
 
 def _score_candidate(width: int, height: int, duration: float) -> float:

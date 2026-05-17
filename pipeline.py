@@ -122,7 +122,7 @@ def main() -> None:
     else:
         try:
             output_path = render_video(config, scene_plan, asset_plan, render_plan, music_plan)
-            eval_result = evaluate_render(output_path, config, asset_plan, scene_plan, music_plan, metadata)
+            eval_result = evaluate_render(output_path, config, asset_plan, scene_plan, music_plan, metadata, render_plan=render_plan)
             write_json(plans.get("self_eval", "outputs/self_eval.json"), eval_result)
             print(f"[render] Output file: {output_path}")
         except RenderStageError as exc:
@@ -147,7 +147,7 @@ def main() -> None:
         print("[obsidian] Skipped via --no-obsidian")
 
     if not args.skip_render:
-        eval_result = evaluate_render(output_path, config, asset_plan, scene_plan, music_plan, metadata, note_path)
+        eval_result = evaluate_render(output_path, config, asset_plan, scene_plan, music_plan, metadata, note_path, render_plan=render_plan)
         write_json(plans.get("self_eval", "outputs/self_eval.json"), eval_result)
         if note_path:
             export_obsidian_note(config)

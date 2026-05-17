@@ -35,7 +35,8 @@ def build_music_plan_v2(config: dict[str, Any], scene_plan: dict[str, Any] | Non
     media_index = load_media_index(media_index_path)
     cache_dir = library_root / "music"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    volume = min(float(search_config.get("volume", config.get("music_volume", 0.14))), 0.16)
+    max_volume = float(config.get("documentary_music_volume", 0.12))
+    volume = min(float(search_config.get("volume", config.get("music_volume", 0.14))), max_volume)
     queries = _music_queries(config, scene_plan)
     fallback_path = project_path(search_config.get("fallback_path", config.get("music_path", "music/background.mp3")))
 

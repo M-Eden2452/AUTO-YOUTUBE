@@ -73,6 +73,83 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
         self.assertTrue(render_plan["subtitle_safe_area"])
         self.assertLessEqual(render_plan["fps"], 10)
         self.assertEqual(render_plan["preset"], "ultrafast")
+        self.assertTrue(render_plan["visual_rules"]["no_scene_labels"])
+        self.assertEqual(render_plan["subtitle_style"]["name"], "cinematic_documentary_v2")
+        self.assertLessEqual(render_plan["music"]["volume"], 0.12)
+        self.assertLessEqual(render_plan["montage"]["target_clip_seconds"][1], 6.0)
+
+    def test_survival_overlay_is_subtitles_only(self) -> None:
+        from src.layout_renderer import render_text_overlay
+
+        config, scene_plan = self._survival_scene_plan()
+        scene = scene_plan["scenes"][0]
+        overlay = render_text_overlay(config, scene, 1280, 720)
+
+        self.assertEqual(overlay.getbbox(), (0, 0, 1280, 720))
+        self.assertEqual(overlay.info.get("subtitle_style"), "cinematic_documentary_v2")
+        self.assertEqual(overlay.info.get("scene_labels"), "disabled")
+
+    def test_survival_relevance_boost_prefers_rainforest_over_generic_city(self) -> None:
+        from src.video_asset_engine import score_survival_relevance
+
+        scene = {
+            "visual_keywords": ["amazon jungle rain", "river survival"],
+            "mood": "dark rainforest",
+            "scene_type": "story",
+        }
+
+        jungle_score = score_survival_relevance(
+            {
+                "query": "tropical jungle rain",
+                "provider": "pexels",
+                "width": 1920,
+                "height": 1080,
+                "source_duration": 9,
+            },
+            scene,
+            "survival",
+        )
+        city_score = score_survival_relevance(
+            {
+                "query": "business city airport terminal",
+                "provider": "pexels",
+                "width": 1920,
+                "height": 1080,
+                "source_duration": 9,
+            },
+            scene,
+            "survival",
+        )
+
+        self.assertGreaterEqual(jungle_score - city_score, 25)
+
+    def test_self_eval_checks_documentary_quality_rules(self) -> None:
+        from src.self_eval import evaluate_documentary_quality_rules
+
+        asset_plan = {
+            "engine": "documentary_visual_engine_v2",
+            "scene_assets": [
+                {
+                    "scene_number": 1,
+                    "clips": [
+                        {"type": "video", "provider": "pexels", "query": "amazon rainforest rain", "path": "a.mp4", "duration": 3.5},
+                        {"type": "video", "provider": "pexels", "query": "jungle river", "path": "b.mp4", "duration": 4.0},
+                        {"type": "video", "provider": "pexels", "query": "rainforest canopy", "path": "c.mp4", "duration": 3.0},
+                    ],
+                    "clip_count": 3,
+                }
+            ],
+        }
+        render_plan = {
+            "visual_rules": {"no_scene_labels": True, "fullscreen_footage": True},
+            "subtitle_style": {"name": "cinematic_documentary_v2"},
+            "montage": {"target_clip_seconds": [3.0, 6.0]},
+        }
+
+        result = evaluate_documentary_quality_rules(asset_plan, render_plan)
+
+        self.assertFalse(result["warnings"])
+        self.assertIn("No scene labels configured for documentary render.", result["checks"])
 
 
 if __name__ == "__main__":
