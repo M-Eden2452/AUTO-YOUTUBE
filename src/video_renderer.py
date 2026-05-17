@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Any
 
 import imageio_ffmpeg
+import numpy as np
+from PIL import Image, ImageDraw, ImageEnhance
 from moviepy import VideoClip, VideoFileClip
 
-from .layout_renderer import render_documentary_frame
+from .layout_renderer import render_documentary_frame, render_text_overlay
 from .music_tools import add_background_music
 from .utils import project_path, write_json
 
@@ -31,6 +33,11 @@ def build_render_plan(
     partial_path = output_path.with_name(output_path.stem + "_silent.partial.mp4")
     temp_dir = output_path.parent / "render_temp"
     total_duration = sum(float(scene["duration"]) for scene in scene_plan.get("scenes", []))
+    documentary_montage = asset_plan.get("engine") == "documentary_visual_engine_v2"
+    fps = int(config["fps"])
+    if documentary_montage and config.get("dev_mode", False):
+        fps = min(fps, 10)
+    preset = "ultrafast" if documentary_montage or not config.get("dev_mode", False) else "medium"
     return {
         "output_path": str(output_path),
         "silent_video_path": str(silent_path),
@@ -38,14 +45,22 @@ def build_render_plan(
         "temp_dir": str(temp_dir),
         "stage_log_path": str(output_path.parent / "render_stage.json"),
         "resolution": config["resolution"],
-        "fps": int(config["fps"]),
+        "fps": fps,
         "duration": total_duration,
         "scene_count": len(scene_plan.get("scenes", [])),
         "layout": config["layout"],
         "animation": config["animation_type"],
         "music": music_plan or asset_plan["music"],
-        "render_strategy": "scene_temp_clips_concat" if not config.get("dev_mode", False) else "single_scene_temp_clip",
-        "preset": "ultrafast" if not config.get("dev_mode", False) else "medium",
+        "render_strategy": "documentary_scene_montage"
+        if documentary_montage
+        else ("scene_temp_clips_concat" if not config.get("dev_mode", False) else "single_scene_temp_clip"),
+        "subtitle_safe_area": True,
+        "montage": {
+            "enabled": documentary_montage,
+            "transition": config.get("transition_type", "crossfade"),
+            "clip_count": sum(int(scene.get("clip_count", len(scene.get("clips", [])))) for scene in asset_plan.get("scene_assets", [])),
+        },
+        "preset": preset,
     }
 
 
@@ -89,7 +104,7 @@ def render_video(
         active_music = music_plan or render_plan.get("music") or {}
         music_path = active_music.get("path") or asset_plan.get("music", {}).get("path", "")
         music_status = active_music.get("status") or asset_plan.get("music", {}).get("status")
-        if music_path and music_status in {"найдено", "найдена_локальная_музыка"}:
+        if music_path and music_status in {"найдено", "найдена_локальная_музыка", "found"}:
             _stage(stage_log_path, "add_music_started", f"Добавление музыки: {music_path}")
             added = add_background_music(silent_path, music_path, output_path, float(active_music.get("volume", 0.16)))
             if not added:
@@ -133,7 +148,7 @@ def validate_video_file(path: str | Path, expected_duration: float, tolerance: f
 def _render_scene_clips(
     config: dict[str, Any],
     scene_plan: dict[str, Any],
-    scene_assets: dict[int, str],
+    scene_assets: dict[int, Any],
     fallback_image: str | None,
     temp_dir: Path,
     fps: int,
@@ -143,22 +158,99 @@ def _render_scene_clips(
     for scene in scene_plan.get("scenes", []):
         scene_number = int(scene.get("scene_number", len(scene_files) + 1))
         scene_path = temp_dir / f"scene_{scene_number:03d}.mp4"
-        image_path = scene_assets.get(scene_number, fallback_image)
+        scene_asset = scene_assets.get(scene_number, fallback_image)
         duration = float(scene["duration"])
+        if _can_fast_render_scene(scene_asset):
+            _render_scene_with_ffmpeg_overlay(config, scene, scene_asset, scene_path, temp_dir, fps, preset)
+            validation = validate_video_file(scene_path, expected_duration=duration, tolerance=1.0)
+            if not validation["ok"]:
+                raise RenderStageError("render_scene_failed", f"Сцена {scene_number}: {'; '.join(validation['errors'])}")
+            scene_files.append(scene_path)
+            continue
 
-        def make_frame(t: float, current_scene=scene, current_image=image_path, current_duration=duration):
+        montage_clips = _prepare_montage_clips(scene_asset)
+
+        def make_frame(t: float, current_scene=scene, current_asset=scene_asset, current_duration=duration, current_montage=montage_clips):
             progress = t / max(current_duration, 0.001)
-            return render_documentary_frame(config, current_scene, current_image, min(progress, 1.0))
+            background_frame = _montage_frame(current_scene, current_montage, t, config)
+            current_image = current_asset if isinstance(current_asset, str) else None
+            return render_documentary_frame(config, current_scene, current_image, min(progress, 1.0), background_frame=background_frame)
 
-        clip = VideoClip(frame_function=make_frame, duration=duration)
-        clip.write_videofile(str(scene_path), fps=fps, codec="libx264", audio=False, preset=preset, logger=None)
-        clip.close()
+        clip = None
+        try:
+            clip = VideoClip(frame_function=make_frame, duration=duration)
+            clip.write_videofile(str(scene_path), fps=fps, codec="libx264", audio=False, preset=preset, logger=None)
+        finally:
+            if clip:
+                clip.close()
+            _close_montage_clips(montage_clips)
 
         validation = validate_video_file(scene_path, expected_duration=duration, tolerance=1.0)
         if not validation["ok"]:
             raise RenderStageError("render_scene_failed", f"Сцена {scene_number}: {'; '.join(validation['errors'])}")
         scene_files.append(scene_path)
     return scene_files
+
+
+def _can_fast_render_scene(scene_asset: Any) -> bool:
+    if not isinstance(scene_asset, dict):
+        return False
+    clips = scene_asset.get("clips", [])
+    return bool(clips) and all(clip.get("type") == "video" and clip.get("path") and Path(clip["path"]).exists() for clip in clips)
+
+
+def _render_scene_with_ffmpeg_overlay(
+    config: dict[str, Any],
+    scene: dict[str, Any],
+    scene_asset: dict[str, Any],
+    scene_path: Path,
+    temp_dir: Path,
+    fps: int,
+    preset: str,
+) -> None:
+    width, height = [int(v) for v in config["resolution"]]
+    scene_number = int(scene.get("scene_number", 0))
+    overlay_path = temp_dir / f"scene_{scene_number:03d}_overlay.png"
+    render_text_overlay(config, scene, width, height).save(overlay_path, "PNG")
+
+    command = [imageio_ffmpeg.get_ffmpeg_exe(), "-y"]
+    clips = scene_asset.get("clips", [])
+    total_duration = sum(float(clip.get("duration", 0)) for clip in clips)
+    for clip in clips:
+        command.extend(["-ss", str(float(clip.get("start_offset", 0))), "-t", f"{float(clip.get('duration', 0)):.3f}", "-i", str(Path(clip["path"]))])
+    command.extend(["-loop", "1", "-t", f"{total_duration:.3f}", "-i", str(overlay_path)])
+
+    filters: list[str] = []
+    labels: list[str] = []
+    for index, _clip in enumerate(clips):
+        label = f"v{index}"
+        filters.append(
+            f"[{index}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},setsar=1,fps={fps},format=rgba[{label}]"
+        )
+        labels.append(f"[{label}]")
+    overlay_index = len(clips)
+    filters.append(f"{''.join(labels)}concat=n={len(clips)}:v=1:a=0[vcat]")
+    filters.append(f"[vcat][{overlay_index}:v]overlay=0:0:shortest=1,format=yuv420p[vout]")
+    command.extend(
+        [
+            "-filter_complex",
+            ";".join(filters),
+            "-map",
+            "[vout]",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-preset",
+            preset,
+            "-r",
+            str(fps),
+            str(scene_path),
+        ]
+    )
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RenderStageError("render_scene_failed", f"ffmpeg return code {result.returncode}: {result.stderr[-4000:]}")
 
 
 def _concat_scene_clips(scene_files: list[Path], output_path: Path, temp_dir: Path) -> None:
@@ -186,12 +278,110 @@ def _concat_scene_clips(scene_files: list[Path], output_path: Path, temp_dir: Pa
         raise RenderStageError("concat_failed", result.stderr[-2000:])
 
 
-def _scene_asset_map(asset_plan: dict[str, Any]) -> dict[int, str]:
-    return {
-        int(asset["scene_number"]): asset["path"]
-        for asset in asset_plan.get("scene_assets", [])
-        if asset.get("path")
-    }
+def _scene_asset_map(asset_plan: dict[str, Any]) -> dict[int, Any]:
+    mapped: dict[int, Any] = {}
+    for asset in asset_plan.get("scene_assets", []):
+        scene_number = int(asset["scene_number"])
+        if asset.get("clips"):
+            mapped[scene_number] = asset
+        elif asset.get("path"):
+            mapped[scene_number] = asset["path"]
+    return mapped
+
+
+def _prepare_montage_clips(scene_asset: Any) -> list[dict[str, Any]]:
+    if not isinstance(scene_asset, dict):
+        return []
+    prepared: list[dict[str, Any]] = []
+    cursor = 0.0
+    for item in scene_asset.get("clips", []):
+        clip = {**item, "timeline_start": cursor}
+        cursor += float(item.get("duration", 0))
+        path = item.get("path", "")
+        if item.get("type") == "video" and path and Path(path).exists():
+            try:
+                clip["video_clip"] = VideoFileClip(path)
+            except Exception:
+                clip["type"] = "generated_motion"
+                clip["video_clip"] = None
+        prepared.append(clip)
+    return prepared
+
+
+def _close_montage_clips(clips: list[dict[str, Any]]) -> None:
+    for item in clips:
+        video = item.get("video_clip")
+        if video is not None:
+            video.close()
+
+
+def _montage_frame(scene: dict[str, Any], clips: list[dict[str, Any]], t: float, config: dict[str, Any]) -> np.ndarray | None:
+    if not clips:
+        return None
+    active = clips[-1]
+    for item in clips:
+        start = float(item.get("timeline_start", 0))
+        end = start + float(item.get("duration", 0))
+        if start <= t < end:
+            active = item
+            break
+
+    local_t = max(0.0, t - float(active.get("timeline_start", 0)))
+    video = active.get("video_clip")
+    if video is not None:
+        source_duration = max(float(video.duration or 0), 0.001)
+        sample_t = min(source_duration - 0.05, local_t + float(active.get("start_offset", 0)))
+        frame = video.get_frame(max(0.0, sample_t))
+        return _mild_motion_frame(frame, local_t, float(active.get("duration", 1)), config)
+    return _generated_motion_frame(scene, active, local_t, float(active.get("duration", 1)), config)
+
+
+def _mild_motion_frame(frame: np.ndarray, t: float, duration: float, config: dict[str, Any]) -> np.ndarray:
+    image = Image.fromarray(frame).convert("RGB")
+    progress = t / max(duration, 0.001)
+    zoom = 1.0 + 0.018 * progress
+    width, height = image.size
+    crop_w = max(1, int(width / zoom))
+    crop_h = max(1, int(height / zoom))
+    left = int((width - crop_w) * 0.5)
+    top = int((height - crop_h) * 0.5)
+    image = image.crop((left, top, left + crop_w, top + crop_h)).resize((width, height), Image.Resampling.LANCZOS)
+    return np.array(image)
+
+
+def _generated_motion_frame(scene: dict[str, Any], clip: dict[str, Any], t: float, duration: float, config: dict[str, Any]) -> np.ndarray:
+    width, height = [int(v) for v in config["resolution"]]
+    seed = int(hash(str(scene.get("scene_id", "")) + str(clip.get("query", ""))) & 0xFFFFFFFF)
+    rng = np.random.default_rng(seed)
+    base = Image.new("RGB", (width, height), _scene_color(scene))
+    draw = ImageDraw.Draw(base, "RGBA")
+    progress = t / max(duration, 0.001)
+    for layer in range(9):
+        x = int((rng.integers(-width // 2, width) + progress * width * (0.08 + layer * 0.01)) % int(width * 1.5) - width * 0.25)
+        y = int(rng.integers(0, height))
+        radius = int(rng.integers(height // 9, height // 3))
+        color = (20 + layer * 4, 45 + layer * 5, 38 + layer * 3, 28)
+        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
+    if "storm" in " ".join(scene.get("visual_keywords", [])).lower() or "lightning" in str(clip.get("query", "")).lower():
+        draw.line((int(width * 0.68), 0, int(width * 0.57), int(height * 0.32), int(width * 0.62), int(height * 0.55)), fill=(210, 220, 235, 105), width=4)
+    for _ in range(120):
+        x = int(rng.integers(0, width))
+        y = int((rng.integers(-height, height) + progress * height * 1.8) % height)
+        draw.line((x, y, x - 5, y + 18), fill=(160, 180, 190, 42), width=1)
+    base = ImageEnhance.Contrast(base).enhance(1.25)
+    base = ImageEnhance.Brightness(base).enhance(0.82)
+    return np.array(base)
+
+
+def _scene_color(scene: dict[str, Any]) -> tuple[int, int, int]:
+    text = " ".join(scene.get("visual_keywords", [])).lower()
+    if "river" in text or "water" in text:
+        return (8, 24, 30)
+    if "storm" in text or "rain" in text:
+        return (9, 12, 18)
+    if "hut" in text or "camp" in text:
+        return (24, 20, 14)
+    return (8, 22, 16)
 
 
 def _start_stage_log(path: Path, render_plan: dict[str, Any]) -> None:

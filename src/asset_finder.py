@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from .image_tools import create_person_placeholder
 from .utils import project_path
+from .video_asset_engine import build_documentary_asset_plan
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -17,6 +18,9 @@ REQUEST_TIMEOUT = 20
 
 
 def build_asset_plan(config: dict[str, Any], scene_plan: dict[str, Any], refresh: bool = False) -> dict[str, Any]:
+    if config.get("video_task"):
+        return build_documentary_asset_plan(config, scene_plan, refresh=refresh)
+
     load_dotenv()
     image_assets = _collect_scene_assets(config, scene_plan, refresh=refresh)
     person_image_path, person_image_status = find_person_image(config["person"], config)

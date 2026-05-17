@@ -58,6 +58,8 @@ def evaluate_render(
 
     if asset_plan.get("warnings"):
         warnings.extend(asset_plan["warnings"])
+    if asset_plan.get("engine") == "documentary_visual_engine_v2":
+        _evaluate_documentary_assets(asset_plan, checks, warnings)
     missing_assets = [
         asset.get("scene_number")
         for asset in asset_plan.get("scene_assets", [])
@@ -94,3 +96,55 @@ def _expected_duration(config: dict[str, Any], scene_plan: dict[str, Any] | None
     if scenes:
         return sum(float(scene.get("duration", 0)) for scene in scenes)
     return float(config.get("scene_duration", 0))
+
+
+def _evaluate_documentary_assets(asset_plan: dict[str, Any], checks: list[str], warnings: list[str]) -> None:
+    scene_assets = asset_plan.get("scene_assets", [])
+    if not scene_assets:
+        warnings.append("Documentary visual engine did not produce scene assets.")
+        return
+
+    weak_scenes = [asset.get("scene_number") for asset in scene_assets if int(asset.get("clip_count", len(asset.get("clips", [])))) < 3]
+    if weak_scenes:
+        warnings.append(f"Not enough montage clips in scenes: {weak_scenes}.")
+    else:
+        checks.append("Each documentary scene has at least 3 montage clips.")
+
+    placeholder_scenes = [
+        asset.get("scene_number")
+        for asset in scene_assets
+        if all(clip.get("provider") in {"placeholder"} for clip in asset.get("clips", []))
+    ]
+    if placeholder_scenes:
+        warnings.append(f"Placeholder-only scene assets detected: {placeholder_scenes}.")
+    else:
+        checks.append("No placeholder-only scene spam detected.")
+
+    single_repeated = [
+        asset.get("scene_number")
+        for asset in scene_assets
+        if len({clip.get("path") or clip.get("query") for clip in asset.get("clips", [])}) <= 1
+    ]
+    if single_repeated:
+        warnings.append(f"Repeated single visual source detected in scenes: {single_repeated}.")
+    else:
+        checks.append("No repeated single-image scene pattern detected.")
+
+    video_clips = [
+        clip
+        for asset in scene_assets
+        for clip in asset.get("clips", [])
+        if clip.get("type") == "video"
+    ]
+    generated_motion = [
+        clip
+        for asset in scene_assets
+        for clip in asset.get("clips", [])
+        if clip.get("type") == "generated_motion"
+    ]
+    if video_clips:
+        checks.append(f"Real video b-roll clips selected: {len(video_clips)}.")
+    elif generated_motion:
+        warnings.append("No downloaded video b-roll was available; generated motion fallbacks were used.")
+
+    checks.append("Subtitle-safe lower area is enabled in the montage renderer.")

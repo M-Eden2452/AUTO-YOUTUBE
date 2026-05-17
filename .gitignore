@@ -17,6 +17,15 @@ outputs/**/*TEMP*
 outputs/render_temp/
 outputs/**/render_temp/
 assets/*
+!assets/library/
+assets/library/videos/
+assets/library/images/
+assets/library/music/
+assets/library/thumbnails/
+assets/library/metadata/media_index.json
+!assets/library/metadata/
+!assets/library/metadata/media_index.example.json
+assets/cache/
 music/*
 subtitles/
 __pycache__/

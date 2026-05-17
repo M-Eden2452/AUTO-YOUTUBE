@@ -17,6 +17,7 @@ from src.thumbnail_generator import create_thumbnail
 from src.utils import ensure_dir, write_json
 from src.video_renderer import RenderStageError, build_render_plan, render_video
 from src.youtube_metadata import write_youtube_metadata
+from src.media_library import clean_temp_files, create_asset_report, ensure_media_library, index_existing_assets
 
 
 def configure_console_encoding() -> None:
@@ -38,6 +39,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-render", action="store_true", help="Skip render and update only plans/metadata/Obsidian.")
     parser.add_argument("--find-music", action="store_true", help="Update only music_plan.json.")
     parser.add_argument("--refresh-assets", action="store_true", help="Search/download assets again.")
+    parser.add_argument("--index-assets", action="store_true", help="Scan assets/library and update media_index.json.")
+    parser.add_argument("--clean-temp", action="store_true", help="Remove render_temp and partial temporary files.")
+    parser.add_argument("--asset-report", action="store_true", help="Create outputs/asset_library_report.md.")
     return parser.parse_args()
 
 
@@ -47,6 +51,20 @@ def main() -> None:
     ensure_dir("outputs")
     ensure_dir("assets/images")
     ensure_dir("assets/images/generated")
+    ensure_media_library()
+
+    if args.index_assets:
+        index = index_existing_assets()
+        print(f"[assets] Indexed media library items: {len(index.get('items', []))}")
+        return
+    if args.clean_temp:
+        removed = clean_temp_files()
+        print(f"[cleanup] Removed temp paths: {len(removed)}")
+        return
+    if args.asset_report:
+        report_path = create_asset_report()
+        print(f"[assets] Report created: {report_path}")
+        return
 
     config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview)
     if args.channel or args.video:
@@ -76,7 +94,7 @@ def main() -> None:
     if args.prod_preview:
         scene_plan = limit_scene_plan(scene_plan, int(config.get("prod_preview_scene_count", 5)))
     intro_plan = build_intro_plan(config, metadata)
-    music_plan = build_music_plan(config)
+    music_plan = build_music_plan(config, scene_plan)
     asset_plan = build_asset_plan(config, scene_plan, refresh=args.refresh_assets)
     render_plan = build_render_plan(config, scene_plan, asset_plan, music_plan)
     thumbnail_path = None

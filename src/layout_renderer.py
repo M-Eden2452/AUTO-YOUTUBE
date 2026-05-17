@@ -17,9 +17,10 @@ def render_documentary_frame(
     scene: dict[str, Any],
     image_path: str | Path | None,
     local_progress: float,
+    background_frame: np.ndarray | None = None,
 ) -> np.ndarray:
     width, height = [int(v) for v in config["resolution"]]
-    frame = _cinematic_background(width, height, config, image_path, local_progress, scene.get("animation", "slow_zoom"))
+    frame = _cinematic_background(width, height, config, image_path, local_progress, scene.get("animation", "slow_zoom"), background_frame)
     draw = ImageDraw.Draw(frame, "RGBA")
 
     scene_type = scene.get("scene_type", "thought")
@@ -45,6 +46,25 @@ def render_quote_frame(
     return render_documentary_frame(config, scene, image_path, progress)
 
 
+def render_text_overlay(config: dict[str, Any], scene: dict[str, Any], width: int, height: int) -> Image.Image:
+    frame = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    shade = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    shade_draw = ImageDraw.Draw(shade, "RGBA")
+    shade_draw.rectangle((0, 0, int(width * 0.60), height), fill=(0, 0, 0, 84))
+    shade_draw.rectangle((0, int(height * 0.64), width, height), fill=(0, 0, 0, 84))
+    frame = Image.alpha_composite(frame, shade)
+    draw = ImageDraw.Draw(frame, "RGBA")
+    scene_type = scene.get("scene_type", "thought")
+    if scene_type == "intro":
+        _draw_intro(draw, config, scene, width, height, 0.55)
+    elif scene_type == "final":
+        _draw_final(draw, config, scene, width, height, 0.55)
+    else:
+        _draw_thought(draw, config, scene, width, height, 0.55)
+    _draw_film_layers(draw, width, height)
+    return frame
+
+
 def _cinematic_background(
     width: int,
     height: int,
@@ -52,8 +72,15 @@ def _cinematic_background(
     image_path: str | Path | None,
     progress: float,
     animation: str,
+    background_frame: np.ndarray | None = None,
 ) -> Image.Image:
-    if image_path and Path(image_path).exists():
+    if background_frame is not None:
+        image = Image.fromarray(background_frame).convert("RGB")
+        bg = fit_cover(image, (width, height)).resize((width, height), Image.Resampling.LANCZOS)
+        bg = ImageEnhance.Color(bg).enhance(0.72)
+        bg = ImageEnhance.Contrast(bg).enhance(1.12)
+        bg = ImageEnhance.Brightness(bg).enhance(0.56)
+    elif image_path and Path(image_path).exists():
         image = _load_image(str(image_path))
         zoom = 1.0 + 0.055 * progress
         if animation == "subtle_pan":

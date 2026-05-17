@@ -105,6 +105,16 @@
     ],
     "volume": 0.16
   },
+  "asset_library": {
+    "enabled": true,
+    "search_local_first": true,
+    "min_local_score": 4,
+    "download_if_not_enough": true,
+    "create_thumbnails": true,
+    "max_new_downloads_per_scene": 3,
+    "max_local_assets_per_scene": 4,
+    "providers": ["pexels", "pixabay", "unsplash"]
+  },
   "fallback_behavior": {
     "missing_image": "создать_placeholder",
     "missing_music": "рендерить_без_звука",

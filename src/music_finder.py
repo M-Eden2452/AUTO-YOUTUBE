@@ -6,10 +6,14 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from .music_engine import build_music_plan_v2
 from .utils import project_path, write_json
 
 
-def build_music_plan(config: dict[str, Any]) -> dict[str, Any]:
+def build_music_plan(config: dict[str, Any], scene_plan: dict[str, Any] | None = None) -> dict[str, Any]:
+    if config.get("video_task"):
+        return build_music_plan_v2(config, scene_plan)
+
     load_dotenv()
     search_config = config.get("music_search", {})
     fallback_path = project_path(search_config.get("fallback_path", config.get("music_path", "music/background.mp3")))

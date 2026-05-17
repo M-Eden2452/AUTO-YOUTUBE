@@ -51,6 +51,7 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
                 "music_plan": str(output_dir / "music_plan.json"),
                 "youtube_metadata": str(output_dir / "youtube_metadata.json"),
                 "self_eval": str(output_dir / "self_eval.json"),
+                "visual_debug": str(output_dir / "visual_debug.json"),
             },
         }
     )

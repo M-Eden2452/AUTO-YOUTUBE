@@ -4,26 +4,23 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
+from moviepy import VideoFileClip
 
 from .image_tools import fit_cover, load_font
-from .thumbnail_engine import create_documentary_thumbnail
 from .utils import project_path
 
 
-def create_thumbnail(config: dict[str, Any], asset_plan: dict[str, Any], output_path: str | Path | None = None) -> Path:
-    if asset_plan.get("engine") == "documentary_visual_engine_v2":
-        return create_documentary_thumbnail(config, asset_plan, output_path)
-
+def create_documentary_thumbnail(config: dict[str, Any], asset_plan: dict[str, Any], output_path: str | Path | None = None) -> Path:
     target = project_path(output_path or config.get("thumbnail_path", "outputs/thumbnail.png"))
     target.parent.mkdir(parents=True, exist_ok=True)
 
     width, height = 1280, 720
-    background = _load_background(asset_plan, width, height)
+    background = _load_documentary_background(asset_plan, width, height)
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay, "RGBA")
-    draw.rectangle((0, 0, width, height), fill=(0, 0, 0, 108))
-    draw.rectangle((0, 0, int(width * 0.62), height), fill=(0, 0, 0, 126))
-    draw.rectangle((0, int(height * 0.74), width, height), fill=(0, 0, 0, 156))
+    draw.rectangle((0, 0, width, height), fill=(0, 0, 0, 96))
+    draw.rectangle((0, 0, int(width * 0.64), height), fill=(0, 0, 0, 142))
+    draw.rectangle((0, int(height * 0.74), width, height), fill=(0, 0, 0, 166))
     background = Image.alpha_composite(background.convert("RGBA"), overlay)
 
     draw = ImageDraw.Draw(background, "RGBA")
@@ -40,34 +37,52 @@ def create_thumbnail(config: dict[str, Any], asset_plan: dict[str, Any], output_
     draw.text((left, top - 70), small_text, font=small_font, fill=(224, 232, 226, 242))
     draw.line((left, top - 22, left + 390, top - 22), fill=(180, 210, 186, 232), width=5)
 
-    lines = _wrap_thumbnail_text(main_text)
     y = top
-    for line in lines:
-        stroke = 4
-        draw.text((left, y), line, font=main_font, fill=(246, 247, 242, 255), stroke_width=stroke, stroke_fill=(0, 0, 0, 215))
+    for line in _wrap_thumbnail_text(main_text):
+        draw.text((left, y), line, font=main_font, fill=(246, 247, 242, 255), stroke_width=4, stroke_fill=(0, 0, 0, 215))
         y += 88
 
-    draw.text((left, height - 84), "LANSA FLIGHT 508  |  AMAZON RAINFOREST", font=accent_font, fill=(192, 205, 198, 218))
+    footer = "LANSA FLIGHT 508  |  AMAZON RAINFOREST" if config.get("channel_id") == "survival" else "CINEMATIC DOCUMENTARY"
+    draw.text((left, height - 84), footer, font=accent_font, fill=(192, 205, 198, 218))
     draw.rectangle((0, 0, width, height), outline=(0, 0, 0, 210), width=18)
     background.convert("RGB").save(target, "PNG")
     return target
 
 
-def _load_background(asset_plan: dict[str, Any], width: int, height: int) -> Image.Image:
-    candidates = [
-        asset.get("path", "")
-        for asset in asset_plan.get("scene_assets", [])
-        if asset.get("path")
-    ]
-    image_path = next((project_path(path) for path in candidates if project_path(path).exists()), None)
-    if image_path:
-        image = Image.open(image_path).convert("RGB")
-        image = fit_cover(image, (width, height))
-        image = ImageEnhance.Color(image).enhance(0.58)
-        image = ImageEnhance.Contrast(image).enhance(1.25)
-        image = ImageEnhance.Brightness(image).enhance(0.62)
-        return image.filter(ImageFilter.GaussianBlur(1.2))
+def _load_documentary_background(asset_plan: dict[str, Any], width: int, height: int) -> Image.Image:
+    for scene_asset in asset_plan.get("scene_assets", []):
+        for clip in scene_asset.get("clips", []):
+            path = clip.get("path", "")
+            if path and Path(path).exists() and clip.get("type") == "video":
+                frame = _video_frame(Path(path))
+                if frame:
+                    return _grade_background(fit_cover(frame, (width, height)))
+            if path and Path(path).exists():
+                return _grade_background(fit_cover(Image.open(path).convert("RGB"), (width, height)))
+    return _fallback_rainforest_background(width, height)
 
+
+def _video_frame(path: Path) -> Image.Image | None:
+    video = None
+    try:
+        video = VideoFileClip(str(path))
+        frame = video.get_frame(min(max(float(video.duration or 1) * 0.35, 0), max(float(video.duration or 1) - 0.05, 0)))
+        return Image.fromarray(frame).convert("RGB")
+    except Exception:
+        return None
+    finally:
+        if video:
+            video.close()
+
+
+def _grade_background(image: Image.Image) -> Image.Image:
+    image = ImageEnhance.Color(image).enhance(0.58)
+    image = ImageEnhance.Contrast(image).enhance(1.25)
+    image = ImageEnhance.Brightness(image).enhance(0.62)
+    return image.filter(ImageFilter.GaussianBlur(1.2))
+
+
+def _fallback_rainforest_background(width: int, height: int) -> Image.Image:
     image = Image.new("RGB", (width, height), "#07100C")
     draw = ImageDraw.Draw(image)
     for y in range(height):
