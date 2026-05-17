@@ -15,9 +15,10 @@ def load_config(
     dev: bool = False,
     prod: bool = False,
     prod_preview: bool = False,
+    cinematic_preview: bool = False,
 ) -> dict[str, Any]:
     config = read_json(config_path)
-    if prod or prod_preview:
+    if prod or prod_preview or cinematic_preview:
         config["dev_mode"] = False
     elif dev:
         config["dev_mode"] = True
@@ -34,6 +35,13 @@ def load_config(
         updated["font_size"] = min(int(updated.get("font_size", 58)), 44)
         updated["prod_preview"] = True
         updated["prod_preview_scene_count"] = 5
+    if cinematic_preview:
+        updated["cinematic_preview"] = True
+        updated["dev_mode"] = False
+        updated["resolution"] = [1280, 720]
+        updated["fps"] = int(updated.get("cinematic_preview_fps", 24))
+        updated["output_filename"] = "outputs/final_preview.mp4"
+        updated["font_size"] = min(int(updated.get("font_size", 58)), 44)
     return updated
 
 

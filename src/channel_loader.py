@@ -22,8 +22,9 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
     if video_task.get("video_id") != video:
         raise ValueError(f"Video task {content_path} has video_id {video_task.get('video_id')!r}, not {video!r}.")
 
-    output_dir = Path("outputs") / channel / video
     updated = deepcopy(base_config)
+    output_dir = Path("outputs") / channel / video
+    preview_output = bool(updated.get("dev_mode", False) or updated.get("cinematic_preview", False))
     updated.update(
         {
             "channel_id": channel,
@@ -43,8 +44,9 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
             "documentary_subtitles_only": bool(style.get("documentary_subtitles_only", updated.get("documentary_subtitles_only", False))),
             "documentary_music_volume": style.get("documentary_music_volume", updated.get("documentary_music_volume", 0.12)),
             "subtitle_style": style.get("subtitle_style", updated.get("subtitle_style", {})),
+            "voice": style.get("voice", updated.get("voice", {})),
             "output_dir": str(output_dir),
-            "output_filename": str(output_dir / ("final_preview.mp4" if updated.get("dev_mode", False) else "final_video.mp4")),
+            "output_filename": str(output_dir / ("final_preview.mp4" if preview_output else "final_video.mp4")),
             "prod_output_filename": str(output_dir / "final_video.mp4"),
             "thumbnail_path": str(output_dir / "thumbnail.png"),
             "plans": {
@@ -53,6 +55,7 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
                 "asset_plan": str(output_dir / "asset_plan.json"),
                 "render_plan": str(output_dir / "render_plan.json"),
                 "music_plan": str(output_dir / "music_plan.json"),
+                "voice_manifest": str(output_dir / "voice_manifest.json"),
                 "youtube_metadata": str(output_dir / "youtube_metadata.json"),
                 "self_eval": str(output_dir / "self_eval.json"),
                 "visual_debug": str(output_dir / "visual_debug.json"),

@@ -10,6 +10,16 @@
   "avoid": ["meme style", "bright motivational style", "fake drama", "overly fast TikTok editing", "quote-channel cards", "presentation UI", "scene labels"],
   "documentary_subtitles_only": true,
   "documentary_music_volume": 0.11,
+  "voice": {
+    "enabled": true,
+    "provider": "elevenlabs",
+    "voice_id": "EXAVITQu4vr4xnSDxMaL",
+    "model_id": "eleven_multilingual_v2",
+    "stability": 0.58,
+    "similarity_boost": 0.72,
+    "style": "calm grounded cinematic survival documentary",
+    "post_scene_pause": 0.8
+  },
   "subtitle_style": {
     "name": "cinematic_documentary_v2",
     "font_size": 32,

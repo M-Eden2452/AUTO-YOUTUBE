@@ -73,7 +73,7 @@ def build_documentary_asset_plan(config: dict[str, Any], scene_plan: dict[str, A
         scene_number = int(scene.get("scene_number", len(scene_assets) + 1))
         queries = build_query_variants(scene, config)
         scene_duration = float(scene.get("duration", 0))
-        target_count = _target_clip_count(scene_duration)
+        target_count = target_clip_count_for_scene(scene)
         candidates: list[dict[str, Any]] = []
         rejected: list[dict[str, Any]] = []
         local_matches: list[dict[str, Any]] = []
@@ -132,7 +132,7 @@ def build_documentary_asset_plan(config: dict[str, Any], scene_plan: dict[str, A
         if fallback_used:
             selected.extend(_generated_motion_clips(scene, target_count - len(selected)))
 
-        selected = _fit_clip_durations(selected[:target_count], scene_duration)
+        selected = _fit_clip_durations(selected[:target_count], scene_duration, scene)
         entry = {
             "scene_number": scene_number,
             "scene_id": scene.get("scene_id", ""),
@@ -542,15 +542,18 @@ def _generated_motion_clips(scene: dict[str, Any], count: int) -> list[dict[str,
     return clips
 
 
-def _fit_clip_durations(clips: list[dict[str, Any]], scene_duration: float) -> list[dict[str, Any]]:
+def _fit_clip_durations(clips: list[dict[str, Any]], scene_duration: float, scene: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     if not clips:
         return clips
+    target = adaptive_shot_duration(scene or {"duration": scene_duration})
+    desired_count = max(1, min(len(clips), math.ceil(scene_duration / target)))
+    clips = clips[:desired_count]
     base = scene_duration / len(clips)
     durations: list[float] = []
     for clip in clips:
         source_duration = float(clip.get("source_duration") or 0)
-        max_duration = max(2.0, source_duration - 0.15) if source_duration else 5.5
-        durations.append(max(2.0, min(5.5, base, max_duration)))
+        max_duration = max(4.0, source_duration - 0.15) if source_duration else 12.0
+        durations.append(max(4.0, min(30.0, base, max_duration)))
     scale = scene_duration / sum(durations)
     fitted: list[dict[str, Any]] = []
     for clip, duration in zip(clips, durations):
@@ -562,7 +565,33 @@ def _fit_clip_durations(clips: list[dict[str, Any]], scene_duration: float) -> l
 
 
 def _target_clip_count(duration: float) -> int:
-    return max(4, min(6, math.ceil(duration / 3.4)))
+    return max(1, min(5, math.ceil(duration / 8.0)))
+
+
+def adaptive_shot_duration(scene: dict[str, Any]) -> float:
+    mood = str(scene.get("mood", "")).lower()
+    scene_type = str(scene.get("scene_type") or scene.get("type") or "").lower()
+    duration = float(scene.get("duration", 0) or 0)
+    voice_duration = float(scene.get("voice_duration", 0) or 0)
+    if any(term in mood for term in ("shock", "storm", "tension", "disaster", "danger")):
+        target = 6.0
+    elif any(term in mood for term in ("rescue", "discovery", "hope")):
+        target = 7.5
+    elif "reflection" in mood or "reflection" in scene_type or "closing" in mood:
+        target = 13.0
+    else:
+        target = 11.0
+    if voice_duration >= 12:
+        target += 2.0
+    if duration and duration < target:
+        target = max(4.0, duration)
+    return round(max(4.0, min(30.0, target)), 3)
+
+
+def target_clip_count_for_scene(scene: dict[str, Any]) -> int:
+    duration = float(scene.get("duration", 0) or 0)
+    shot_duration = adaptive_shot_duration(scene)
+    return max(1, min(5, math.ceil(duration / max(shot_duration, 0.001))))
 
 
 def _score_candidate(width: int, height: int, duration: float) -> float:

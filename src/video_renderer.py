@@ -35,12 +35,18 @@ def build_render_plan(
     total_duration = sum(float(scene["duration"]) for scene in scene_plan.get("scenes", []))
     documentary_montage = asset_plan.get("engine") == "documentary_visual_engine_v2"
     fps = int(config["fps"])
-    if documentary_montage and config.get("dev_mode", False):
+    if documentary_montage and config.get("cinematic_preview", False):
+        fps = int(config.get("cinematic_preview_fps", 24))
+    elif documentary_montage and config.get("dev_mode", False):
         fps = min(fps, 10)
-    preset = "ultrafast" if documentary_montage or not config.get("dev_mode", False) else "medium"
+    if documentary_montage and config.get("cinematic_preview", False):
+        preset = str(config.get("cinematic_preview_preset", "medium"))
+    else:
+        preset = "ultrafast" if documentary_montage or not config.get("dev_mode", False) else "medium"
     active_music = dict(music_plan or asset_plan["music"])
     if documentary_montage and active_music:
         active_music["volume"] = min(float(active_music.get("volume", 0.16)), float(config.get("documentary_music_volume", 0.12)))
+        active_music["ducking"] = True
     return {
         "output_path": str(output_path),
         "silent_video_path": str(silent_path),
@@ -58,6 +64,12 @@ def build_render_plan(
         if documentary_montage
         else ("scene_temp_clips_concat" if not config.get("dev_mode", False) else "single_scene_temp_clip"),
         "subtitle_safe_area": True,
+        "render_profile": "cinematic_preview" if config.get("cinematic_preview", False) else ("documentary_dev" if documentary_montage else "standard"),
+        "encoding": {
+            "crf": int(config.get("cinematic_preview_crf", 18 if config.get("cinematic_preview", False) else 23)),
+            "audio_bitrate": config.get("audio_bitrate", "160k"),
+        },
+        "voice": config.get("voice_manifest", {}),
         "visual_rules": {
             "no_scene_labels": documentary_montage,
             "fullscreen_footage": documentary_montage,
@@ -76,8 +88,10 @@ def build_render_plan(
             "enabled": documentary_montage,
             "transition": config.get("transition_type", "crossfade"),
             "clip_count": sum(int(scene.get("clip_count", len(scene.get("clips", [])))) for scene in asset_plan.get("scene_assets", [])),
-            "target_clip_seconds": [3.0, 6.0],
+            "target_clip_seconds": [4.0, 30.0],
+            "average_shot_seconds": _average_shot_seconds(asset_plan),
             "color_grading": "subtle_dark_green_blue_documentary",
+            "pacing": "adaptive_cinematic",
         },
         "preset": preset,
     }
@@ -109,7 +123,7 @@ def render_video(
 
     try:
         _stage(stage_log_path, "render_silent_started", "Начат рендер silent video по сценам.")
-        scene_files = _render_scene_clips(config, scene_plan, scene_assets, fallback_image, temp_dir, fps, render_plan["preset"])
+        scene_files = _render_scene_clips(config, scene_plan, scene_assets, fallback_image, temp_dir, fps, render_plan["preset"], render_plan.get("encoding", {}))
         _concat_scene_clips(scene_files, partial_path, temp_dir)
         _stage(stage_log_path, "render_silent_done", f"Silent partial создан: {partial_path}")
 
@@ -127,7 +141,14 @@ def render_video(
         music_status = active_music.get("status") or asset_plan.get("music", {}).get("status")
         if music_path and music_status in {"найдено", "найдена_локальная_музыка", "found"}:
             _stage(stage_log_path, "add_music_started", f"Добавление музыки: {music_path}")
-            added = add_background_music(silent_path, music_path, output_path, float(active_music.get("volume", 0.16)))
+            added = add_background_music(
+                silent_path,
+                music_path,
+                output_path,
+                float(active_music.get("volume", 0.16)),
+                voice_manifest=render_plan.get("voice") or config.get("voice_manifest"),
+                duck_music=bool((render_plan.get("music") or {}).get("ducking", True)),
+            )
             if not added:
                 raise RenderStageError("add_music_failed", "Музыкальный файл не найден или не был добавлен.")
             _stage(stage_log_path, "add_music_done", f"Финальное видео создано: {output_path}")
@@ -174,6 +195,7 @@ def _render_scene_clips(
     temp_dir: Path,
     fps: int,
     preset: str,
+    encoding: dict[str, Any] | None = None,
 ) -> list[Path]:
     scene_files: list[Path] = []
     for scene in scene_plan.get("scenes", []):
@@ -182,7 +204,7 @@ def _render_scene_clips(
         scene_asset = scene_assets.get(scene_number, fallback_image)
         duration = float(scene["duration"])
         if _can_fast_render_scene(scene_asset):
-            _render_scene_with_ffmpeg_overlay(config, scene, scene_asset, scene_path, temp_dir, fps, preset)
+            _render_scene_with_ffmpeg_overlay(config, scene, scene_asset, scene_path, temp_dir, fps, preset, encoding or {})
             validation = validate_video_file(scene_path, expected_duration=duration, tolerance=1.0)
             if not validation["ok"]:
                 raise RenderStageError("render_scene_failed", f"Сцена {scene_number}: {'; '.join(validation['errors'])}")
@@ -228,6 +250,7 @@ def _render_scene_with_ffmpeg_overlay(
     temp_dir: Path,
     fps: int,
     preset: str,
+    encoding: dict[str, Any] | None = None,
 ) -> None:
     width, height = [int(v) for v in config["resolution"]]
     scene_number = int(scene.get("scene_number", 0))
@@ -265,6 +288,8 @@ def _render_scene_with_ffmpeg_overlay(
             "libx264",
             "-preset",
             preset,
+            "-crf",
+            str((encoding or {}).get("crf", 23)),
             "-r",
             str(fps),
             str(scene_path),
@@ -309,6 +334,16 @@ def _scene_asset_map(asset_plan: dict[str, Any]) -> dict[int, Any]:
         elif asset.get("path"):
             mapped[scene_number] = asset["path"]
     return mapped
+
+
+def _average_shot_seconds(asset_plan: dict[str, Any]) -> float:
+    durations = [
+        float(clip.get("duration", 0))
+        for asset in asset_plan.get("scene_assets", [])
+        for clip in asset.get("clips", [])
+        if float(clip.get("duration", 0) or 0) > 0
+    ]
+    return round(sum(durations) / len(durations), 3) if durations else 0.0
 
 
 def _prepare_montage_clips(scene_asset: Any) -> list[dict[str, Any]]:

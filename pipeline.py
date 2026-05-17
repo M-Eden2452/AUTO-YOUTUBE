@@ -16,6 +16,7 @@ from src.self_eval import evaluate_render
 from src.thumbnail_generator import create_thumbnail
 from src.utils import ensure_dir, write_json
 from src.video_renderer import RenderStageError, build_render_plan, render_video
+from src.voice_engine import align_voice_manifest_to_scene_plan, apply_voice_timing_to_scene_plan, build_voice_manifest
 from src.youtube_metadata import write_youtube_metadata
 from src.media_library import clean_temp_files, create_asset_report, ensure_media_library, index_existing_assets
 
@@ -34,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dev", action="store_true", help="Build a fast preview render.")
     parser.add_argument("--prod", action="store_true", help="Use production render settings.")
     parser.add_argument("--prod-preview", action="store_true", help="Run production settings on the first scenes.")
+    parser.add_argument("--cinematic-preview", action="store_true", help="Render a higher-quality cinematic documentary preview.")
     parser.add_argument("--export-obsidian", action="store_true", help="Only export an Obsidian note from existing outputs.")
     parser.add_argument("--no-obsidian", action="store_true", help="Disable Obsidian export for this run.")
     parser.add_argument("--skip-render", action="store_true", help="Skip render and update only plans/metadata/Obsidian.")
@@ -42,6 +44,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index-assets", action="store_true", help="Scan assets/library and update media_index.json.")
     parser.add_argument("--clean-temp", action="store_true", help="Remove render_temp and partial temporary files.")
     parser.add_argument("--asset-report", action="store_true", help="Create outputs/asset_library_report.md.")
+    parser.add_argument("--reuse-voice", action="store_true", default=True, help="Reuse cached scene voice files when text/settings match.")
+    parser.add_argument("--skip-voice", action="store_true", help="Skip voice generation and render with music/subtitles only.")
     return parser.parse_args()
 
 
@@ -66,7 +70,7 @@ def main() -> None:
         print(f"[assets] Report created: {report_path}")
         return
 
-    config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview)
+    config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview, cinematic_preview=args.cinematic_preview)
     if args.channel or args.video:
         if not args.channel or not args.video:
             raise SystemExit("--channel and --video must be passed together.")
@@ -75,7 +79,7 @@ def main() -> None:
     print(
         f"[config] Loaded {args.config} | channel={config.get('channel_id', 'default')} "
         f"| video={config.get('video_id', 'default')} | dev_mode={config['dev_mode']} "
-        f"| prod_preview={config.get('prod_preview', False)}"
+        f"| prod_preview={config.get('prod_preview', False)} | cinematic_preview={config.get('cinematic_preview', False)}"
     )
 
     if args.find_music:
@@ -93,6 +97,11 @@ def main() -> None:
     scene_plan = build_scene_plan(config, quote_plan, metadata)
     if args.prod_preview:
         scene_plan = limit_scene_plan(scene_plan, int(config.get("prod_preview_scene_count", 5)))
+    voice_manifest = build_voice_manifest(config, scene_plan, reuse_voice=args.reuse_voice, skip_voice=args.skip_voice)
+    config["voice_manifest"] = voice_manifest
+    scene_plan = apply_voice_timing_to_scene_plan(scene_plan, voice_manifest, cinematic_preview=bool(config.get("cinematic_preview", False)))
+    voice_manifest = align_voice_manifest_to_scene_plan(voice_manifest, scene_plan)
+    config["voice_manifest"] = voice_manifest
     intro_plan = build_intro_plan(config, metadata)
     music_plan = build_music_plan(config, scene_plan)
     asset_plan = build_asset_plan(config, scene_plan, refresh=args.refresh_assets)
@@ -108,6 +117,7 @@ def main() -> None:
     write_json(plans["asset_plan"], asset_plan)
     write_json(plans["render_plan"], {**render_plan, "intro": intro_plan})
     write_json(plans.get("music_plan", "outputs/music_plan.json"), music_plan)
+    write_json(plans.get("voice_manifest", "outputs/voice_manifest.json"), voice_manifest)
     print("[plans] Created quote_plan, scene_plan, asset_plan, render_plan, music_plan")
 
     output_path = render_plan["output_path"]

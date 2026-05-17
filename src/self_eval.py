@@ -49,7 +49,7 @@ def evaluate_render(
                 checks.append("Prod-preview использует ожидаемые 3-5 сцен.")
             else:
                 warnings.append(f"Количество prod-preview сцен вне ожидаемого диапазона: {len(scenes)}.")
-        elif not config.get("dev_mode", False) and not (22 <= len(scenes) <= 32):
+        elif not config.get("dev_mode", False) and not config.get("cinematic_preview", False) and not (22 <= len(scenes) <= 32):
             warnings.append(f"Количество production-сцен вне ожидаемого диапазона: {len(scenes)}.")
         overflow = [scene["scene_number"] for scene in scenes if len(scene.get("screen_text", "")) > 135]
         if overflow:
@@ -108,11 +108,11 @@ def _evaluate_documentary_assets(asset_plan: dict[str, Any], checks: list[str], 
         warnings.append("Documentary visual engine did not produce scene assets.")
         return
 
-    weak_scenes = [asset.get("scene_number") for asset in scene_assets if int(asset.get("clip_count", len(asset.get("clips", [])))) < 3]
+    weak_scenes = [asset.get("scene_number") for asset in scene_assets if int(asset.get("clip_count", len(asset.get("clips", [])))) < 1]
     if weak_scenes:
         warnings.append(f"Not enough montage clips in scenes: {weak_scenes}.")
     else:
-        checks.append("Each documentary scene has at least 3 montage clips.")
+        checks.append("Each documentary scene has at least one cinematic montage shot.")
 
     placeholder_scenes = [
         asset.get("scene_number")
@@ -178,10 +178,27 @@ def evaluate_documentary_quality_rules(asset_plan: dict[str, Any], render_plan: 
         warnings.append("Subtitle style v2 is not configured.")
 
     target_seconds = montage.get("target_clip_seconds", [])
-    if len(target_seconds) == 2 and float(target_seconds[0]) >= 3.0 and float(target_seconds[1]) <= 6.0:
-        checks.append("Montage pacing target is documentary 3-6 seconds per clip.")
+    if len(target_seconds) == 2 and float(target_seconds[0]) >= 4.0 and float(target_seconds[1]) <= 30.0:
+        checks.append("Montage pacing target is adaptive cinematic 4-30 seconds per shot.")
     else:
-        warnings.append("Montage pacing target should stay around 3-6 seconds per clip.")
+        warnings.append("Montage pacing target should stay in the cinematic 4-30 second range.")
+    if int(render_plan.get("fps", 0) or 0) >= 24:
+        checks.append("FPS is high enough to avoid low-fps preview feeling.")
+    else:
+        warnings.append("FPS is low enough to feel like a prototype preview.")
+    average_shot = float(montage.get("average_shot_seconds", 0) or 0)
+    if average_shot >= 4.0:
+        checks.append(f"Average shot duration avoids TikTok pacing: {average_shot:.1f}s.")
+    elif average_shot:
+        warnings.append(f"Average shot duration is too fast for documentary pacing: {average_shot:.1f}s.")
+    if (render_plan.get("voice") or {}).get("enabled"):
+        checks.append("Voice pipeline is enabled for documentary render.")
+    else:
+        warnings.append("Voice pipeline is not enabled.")
+    if (render_plan.get("music") or {}).get("ducking"):
+        checks.append("Music ducking is enabled for voice-safe mixing.")
+    else:
+        warnings.append("Music ducking is not enabled.")
 
     clips = [clip for asset in asset_plan.get("scene_assets", []) for clip in asset.get("clips", [])]
     if not clips:

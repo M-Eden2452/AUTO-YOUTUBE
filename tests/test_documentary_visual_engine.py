@@ -33,7 +33,8 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
         first_scene = asset_plan["scene_assets"][0]
         self.assertEqual(asset_plan["engine"], "documentary_visual_engine_v2")
         self.assertGreaterEqual(len(first_scene["queries"]), 3)
-        self.assertGreaterEqual(len(first_scene["clips"]), 3)
+        self.assertGreaterEqual(len(first_scene["clips"]), 1)
+        self.assertLessEqual(len(first_scene["clips"]), 4)
         self.assertAlmostEqual(sum(float(clip["duration"]) for clip in first_scene["clips"]), float(scene_plan["scenes"][0]["duration"]), delta=0.2)
         self.assertIn("visual_debug_path", asset_plan)
         self.assertIn("rejected_clips", asset_plan["visual_debug"][0])
@@ -71,12 +72,66 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
 
         self.assertEqual(render_plan["render_strategy"], "documentary_scene_montage")
         self.assertTrue(render_plan["subtitle_safe_area"])
-        self.assertLessEqual(render_plan["fps"], 10)
-        self.assertEqual(render_plan["preset"], "ultrafast")
+        self.assertLessEqual(render_plan["fps"], 24)
         self.assertTrue(render_plan["visual_rules"]["no_scene_labels"])
         self.assertEqual(render_plan["subtitle_style"]["name"], "cinematic_documentary_v2")
         self.assertLessEqual(render_plan["music"]["volume"], 0.12)
-        self.assertLessEqual(render_plan["montage"]["target_clip_seconds"][1], 6.0)
+        self.assertEqual(render_plan["montage"]["target_clip_seconds"], [4.0, 30.0])
+
+    def test_cinematic_preview_profile_prefers_quality_over_speed(self) -> None:
+        from src.config_loader import load_config
+        from src.channel_loader import load_channel_video_config
+        from src.video_renderer import build_render_plan
+
+        config = load_channel_video_config(load_config("config/video_style.json", cinematic_preview=True), "survival", "juliane_koepcke_001")
+        scene_plan = {"scenes": [{"scene_number": 1, "duration": 12, "scene_type": "story"}]}
+        asset_plan = {"engine": "documentary_visual_engine_v2", "scene_assets": [{"scene_number": 1, "clips": []}], "music": {"path": "", "volume": 0.11}}
+
+        render_plan = build_render_plan(config, scene_plan, asset_plan, asset_plan["music"])
+
+        self.assertTrue(config["cinematic_preview"])
+        self.assertEqual(render_plan["fps"], 24)
+        self.assertIn(render_plan["preset"], {"medium", "slow"})
+        self.assertLessEqual(render_plan["encoding"]["crf"], 20)
+        self.assertEqual(render_plan["render_profile"], "cinematic_preview")
+
+    def test_adaptive_pacing_uses_scene_mood_and_voice_duration(self) -> None:
+        from src.video_asset_engine import adaptive_shot_duration, target_clip_count_for_scene
+
+        calm = {"duration": 18, "mood": "calm jungle atmosphere", "scene_type": "story", "voice_duration": 13}
+        storm = {"duration": 16, "mood": "shock storm tension", "scene_type": "story", "voice_duration": 10}
+        reflection = {"duration": 20, "mood": "emotional reflection", "scene_type": "reflection", "voice_duration": 14}
+
+        self.assertGreaterEqual(adaptive_shot_duration(calm), 8)
+        self.assertLessEqual(adaptive_shot_duration(storm), 8)
+        self.assertGreaterEqual(adaptive_shot_duration(reflection), 10)
+        self.assertLess(target_clip_count_for_scene(calm), target_clip_count_for_scene(storm))
+
+    def test_voice_engine_builds_scene_manifest_and_reuses_cache(self) -> None:
+        from src.voice_engine import build_voice_manifest
+
+        scene_plan = {
+            "scenes": [
+                {"scene_number": 1, "scene_id": "intro", "subtitle_text": "Тихий дождь над джунглями.", "duration": 8},
+                {"scene_number": 2, "scene_id": "storm", "subtitle_text": "Гроза стала сильнее.", "duration": 7},
+            ]
+        }
+        with TemporaryDirectory() as tmp:
+            config = {
+                "channel_id": "survival",
+                "video_id": "voice_test",
+                "output_dir": tmp,
+                "plans": {"voice_manifest": str(Path(tmp) / "voice_manifest.json")},
+                "voice": {"enabled": True, "provider": "local_stub", "cache_dir": str(Path(tmp) / "voice_cache")},
+            }
+            first = build_voice_manifest(config, scene_plan, reuse_voice=True, skip_voice=False)
+            second = build_voice_manifest(config, scene_plan, reuse_voice=True, skip_voice=False)
+
+            self.assertEqual(first["engine"], "voice_engine_v1")
+            self.assertEqual(len(first["scenes"]), 2)
+            self.assertTrue(all(Path(item["path"]).exists() for item in first["scenes"]))
+            self.assertTrue(all(item["cache_status"] == "reused" for item in second["scenes"]))
+            self.assertGreater(first["total_voice_duration"], 0)
 
     def test_survival_overlay_is_subtitles_only(self) -> None:
         from src.layout_renderer import render_text_overlay
@@ -143,7 +198,10 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
         render_plan = {
             "visual_rules": {"no_scene_labels": True, "fullscreen_footage": True},
             "subtitle_style": {"name": "cinematic_documentary_v2"},
-            "montage": {"target_clip_seconds": [3.0, 6.0]},
+            "montage": {"target_clip_seconds": [4.0, 30.0], "average_shot_seconds": 9.0},
+            "fps": 24,
+            "voice": {"enabled": True},
+            "music": {"ducking": True},
         }
 
         result = evaluate_documentary_quality_rules(asset_plan, render_plan)
