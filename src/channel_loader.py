@@ -12,7 +12,7 @@ OBSIDIAN_VAULT_PATH = "G:/ObsidianBase/ObsidianBase"
 
 def load_channel_video_config(base_config: dict[str, Any], channel: str, video: str) -> dict[str, Any]:
     channel_dir = Path("channels") / channel
-    content_path = Path("content") / channel / f"{video}.json"
+    content_path = _content_task_path(channel, video)
     channel_config = read_json(channel_dir / "channel_config.json")
     style = read_json(channel_dir / "style.json")
     video_task = read_json(content_path)
@@ -41,10 +41,31 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
             "image_style": style.get("image_style", updated.get("image_style", "")),
             "intro_style": style.get("intro_style", updated.get("intro_style", "")),
             "text_style": style.get("text_style", updated.get("text_style", "")),
-            "documentary_subtitles_only": bool(style.get("documentary_subtitles_only", updated.get("documentary_subtitles_only", False))),
-            "documentary_music_volume": style.get("documentary_music_volume", updated.get("documentary_music_volume", 0.12)),
-            "subtitle_style": style.get("subtitle_style", updated.get("subtitle_style", {})),
-            "voice": style.get("voice", updated.get("voice", {})),
+            "documentary_subtitles_only": bool(
+                video_task.get(
+                    "documentary_subtitles_only",
+                    style.get("documentary_subtitles_only", updated.get("documentary_subtitles_only", False)),
+                )
+            ),
+            "documentary_music_volume": video_task.get(
+                "documentary_music_volume",
+                style.get("documentary_music_volume", updated.get("documentary_music_volume", 0.12)),
+            ),
+            "subtitle_style": {
+                **updated.get("subtitle_style", {}),
+                **style.get("subtitle_style", {}),
+                **video_task.get("subtitle_style", {}),
+            },
+            "voice": {
+                **updated.get("voice", {}),
+                **style.get("voice", {}),
+                **video_task.get("voice", {}),
+            },
+            "music_search": {
+                **updated.get("music_search", {}),
+                **style.get("music_search", {}),
+                **video_task.get("music_search", {}),
+            },
             "output_dir": str(output_dir),
             "output_filename": str(output_dir / ("final_preview.mp4" if preview_output else "final_video.mp4")),
             "prod_output_filename": str(output_dir / "final_video.mp4"),
@@ -78,3 +99,15 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
     )
     updated["obsidian"] = obsidian
     return updated
+
+
+def _content_task_path(channel: str, video: str) -> Path:
+    legacy_path = Path("content") / channel / f"{video}.json"
+    if legacy_path.exists():
+        return legacy_path
+
+    package_path = Path("content") / channel / video / "scene_notes.json"
+    if package_path.exists():
+        return package_path
+
+    raise FileNotFoundError(f"Video task not found: {legacy_path} or {package_path}")

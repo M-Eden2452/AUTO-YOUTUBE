@@ -1,0 +1,265 @@
+{
+  "channel": "psychology",
+  "video_id": "overloaded_mind_001",
+  "video_type": "atmospheric_psychology_documentary",
+  "language": "ru",
+  "target_duration_seconds": 230,
+  "chosen_title": "Ты не ленивый. Ты перегружен.",
+  "title_variants": [
+    "Ты не ленивый. Ты перегружен.",
+    "Почему ты ничего не делаешь, хотя очень стараешься",
+    "Это не лень. Это перегрузка.",
+    "Когда мозг больше не может начинать",
+    "Тихая правда о прокрастинации и перегрузке"
+  ],
+  "thumbnail_text": "ТЫ НЕ ЛЕНИВЫЙ",
+  "thumbnail_idea": "Night city rain, a tired person lit by screen glow, quiet documentary psychology mood.",
+  "visual_direction": "atmospheric psychology, cinematic loneliness, urban exhaustion, calm intelligence, modern emotional burnout",
+  "music_direction": "ambient slow piano, night rain, psychological atmosphere, quiet voice-first mix",
+  "description": "Атмосферное психологическое видео о перегрузке, прокрастинации, внутреннем шуме и том, почему состояние истощения часто ошибочно называют ленью.",
+  "disclaimer": "Редакционный психологический материал. Не является медицинской диагностикой или заменой профессиональной помощи.",
+  "voice": {
+    "enabled": true,
+    "provider": "elevenlabs",
+    "voice_id": "gJEfHTTiifXEDmO687lC",
+    "model_id": "eleven_multilingual_v2",
+    "stability": 0.68,
+    "similarity_boost": 0.78,
+    "speaker_boost": true,
+    "style": "calm cinematic psychological documentary, slow pacing, atmospheric, grounded",
+    "post_scene_pause": 1.15
+  },
+  "documentary_subtitles_only": true,
+  "subtitle_style": {
+    "name": "cinematic_documentary_v2",
+    "font_size": 31,
+    "wrap_chars": 58,
+    "spacing": 8,
+    "padding_x": 18,
+    "padding_y": 9,
+    "radius": 7,
+    "background_alpha": 92,
+    "y_ratio": 0.765
+  },
+  "documentary_music_volume": 0.105,
+  "music_search": {
+    "enabled": true,
+    "provider": "pixabay",
+    "fallback_path": "music/background.mp3",
+    "auto_download": true,
+    "queries": [
+      "ambient slow piano night rain",
+      "atmospheric psychology documentary",
+      "quiet cinematic piano",
+      "soft dark ambient documentary",
+      "reflective urban rain music",
+      "minimal piano texture"
+    ],
+    "volume": 0.105
+  },
+  "visual_rules": {
+    "avoid": [
+      "motivational editing",
+      "TikTok pacing",
+      "sigma aesthetics",
+      "huge black subtitle rectangles"
+    ],
+    "shot_duration": {
+      "minimum_seconds": 5,
+      "average_seconds": "8-15",
+      "emotional_seconds": "20-25"
+    }
+  },
+  "infographics": [
+    {
+      "id": "diagram_01",
+      "status": "temporary_placeholder",
+      "placeholder_path": "content/psychology/overloaded_mind_001/diagram_01_placeholder.txt",
+      "todo": "Create final infographic asset for visible task vs hidden cognitive load."
+    },
+    {
+      "id": "diagram_02",
+      "status": "temporary_placeholder",
+      "placeholder_path": "content/psychology/overloaded_mind_001/diagram_02_placeholder.txt",
+      "todo": "Create final infographic asset for laziness vs overload distinction."
+    },
+    {
+      "id": "diagram_03",
+      "status": "temporary_placeholder",
+      "placeholder_path": "content/psychology/overloaded_mind_001/diagram_03_placeholder.txt",
+      "todo": "Create final infographic asset for overload reduction path."
+    }
+  ],
+  "source_notes": [
+    "Cognitive load framing",
+    "Decision fatigue and open-loop attention load",
+    "Burnout-like exhaustion and recovery-first pacing"
+  ],
+  "scenes": [
+    {
+      "scene_id": "intro_001",
+      "type": "intro",
+      "duration": 18,
+      "screen_text": "Ты не ленивый.",
+      "subtitle_text": "Ты не ленивый. Скорее всего, ты просто слишком долго жил в режиме внутренней перегрузки.",
+      "mood": "quiet cold open, urban loneliness",
+      "visual_keywords": ["night city rain", "lonely apartment window", "empty street reflections", "cinematic loneliness"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_002",
+      "type": "psychology_explainer",
+      "duration": 17,
+      "screen_text": "Это не отсутствие желания. Это избыток внутреннего шума.",
+      "subtitle_text": "Есть состояние, которое легко спутать с ленью. Ты смотришь на задачу, понимаешь, что она не такая уж сложная, и всё равно не можешь начать.",
+      "mood": "screen glow exhaustion",
+      "visual_keywords": ["screen glow tired person", "late night laptop", "open browser tabs", "quiet room at night"],
+      "transition": "crossfade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_003",
+      "type": "psychology_explainer",
+      "duration": 15,
+      "screen_text": "Мозг не отказывается работать. Он пытается защитить энергию.",
+      "subtitle_text": "Не потому что тебе всё равно. А потому что внутри уже слишком шумно. Мозг не отказывается работать. Он пытается защитить остатки энергии.",
+      "mood": "protective shutdown",
+      "visual_keywords": ["person alone desk night", "hands still keyboard", "dark office window rain", "modern exhaustion"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_004",
+      "type": "psychology_explainer",
+      "duration": 18,
+      "screen_text": "Слишком много решений превращает простое действие в груз.",
+      "subtitle_text": "Когда на человеке долго лежит слишком много решений, ожиданий, сообщений и тревог, даже простое действие начинает ощущаться как ещё один груз.",
+      "mood": "decision fatigue",
+      "visual_keywords": ["empty subway tired commuter", "city train reflection", "people alone commute", "urban exhaustion"],
+      "transition": "crossfade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "diagram_01",
+      "type": "infographic",
+      "duration": 16,
+      "screen_text": "Маленькая задача. Большая скрытая нагрузка.",
+      "subtitle_text": "Снаружи задача может выглядеть маленькой. Но внутри к ней уже прикреплены десятки невидимых требований.",
+      "mood": "calm analytic infographic",
+      "visual_keywords": ["diagram_01 cognitive load infographic", "minimal psychology diagram", "dark transparent interface", "visible task hidden load"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_006",
+      "type": "psychology_explainer",
+      "duration": 18,
+      "screen_text": "Перегрузка редко выглядит как катастрофа.",
+      "subtitle_text": "Внешне это выглядит спокойно. Человек сидит в комнате. Телефон светится рядом. На экране нет драмы. Но внутри идёт постоянная работа.",
+      "mood": "quiet invisible struggle",
+      "visual_keywords": ["phone screen glow face", "lonely room night", "unanswered messages", "rain window reflection"],
+      "transition": "crossfade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_007",
+      "type": "psychology_explainer",
+      "duration": 17,
+      "screen_text": "Лень говорит: я не хочу. Перегрузка говорит: я не могу выбрать.",
+      "subtitle_text": "Лень говорит: я не хочу. Перегрузка говорит: я хочу, но не могу выбрать, с чего начать.",
+      "mood": "distinction, grounded clarity",
+      "visual_keywords": ["lonely urban scenes", "person sitting edge bed", "night reflections", "quiet mental pressure"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "diagram_02",
+      "type": "infographic",
+      "duration": 16,
+      "screen_text": "Не хочу. Или не могу организовать следующий шаг.",
+      "subtitle_text": "Это разные состояния. И если назвать их одним словом, человек получает не ясность, а стыд.",
+      "mood": "calm contrast infographic",
+      "visual_keywords": ["diagram_02 laziness overload distinction", "minimal documentary infographic", "psychology comparison diagram"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_009",
+      "type": "psychology_explainer",
+      "duration": 20,
+      "screen_text": "Открытые циклы продолжают занимать внимание.",
+      "subtitle_text": "Незавершённые разговоры. Финансовые мысли. Чужие ожидания. Новости. Сравнение. Будущее. Ошибки прошлого. Сознание не создано для бесконечного списка открытых вкладок.",
+      "mood": "open loops, mental tabs",
+      "visual_keywords": ["many browser tabs dark", "calendar notifications", "notes desk night", "screen glow modern exhaustion"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_010",
+      "type": "psychology_explainer",
+      "duration": 18,
+      "screen_text": "Когда нагрузка хроническая, внимание сужается.",
+      "subtitle_text": "Человек хуже запоминает, медленнее отвечает, чаще замирает. Не потому что стал слабым. А потому что система слишком долго работала без восстановления.",
+      "mood": "fog, attention narrowing",
+      "visual_keywords": ["fog city morning", "slow train window", "empty platform night", "lonely silhouette fog"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_011",
+      "type": "reframe",
+      "duration": 18,
+      "screen_text": "Назвать состояние точнее: я перегружен.",
+      "subtitle_text": "И иногда самое честное, что можно сделать, это перестать называть себя ленивым. Назвать состояние точнее: я перегружен.",
+      "mood": "naming without shame",
+      "visual_keywords": ["quiet notebook rain", "person writing at night", "closing laptop slowly", "calm intelligence"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "diagram_03",
+      "type": "infographic",
+      "duration": 18,
+      "screen_text": "Не вся жизнь сразу. Один следующий шаг.",
+      "subtitle_text": "Мне нужно не давление. Мне нужна ясность. Мне нужен не новый рывок. Мне нужен один маленький следующий шаг.",
+      "mood": "gentle reduction infographic",
+      "visual_keywords": ["diagram_03 overload reduction path", "minimal psychology flow diagram", "calm documentary infographic"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "scene_013",
+      "type": "recovery",
+      "duration": 20,
+      "screen_text": "Усталость не всегда лечится мотивацией.",
+      "subtitle_text": "Закрыть лишние вкладки. Выписать всё из головы. Оставить три пункта. Убрать один источник шума. Признать, что усталость не всегда лечится мотивацией.",
+      "mood": "quiet practical recovery",
+      "visual_keywords": ["closing browser tabs", "slow handwriting journal", "rain on window", "minimal desk night"],
+      "transition": "fade",
+      "animation": "subtle_pan"
+    },
+    {
+      "scene_id": "scene_014",
+      "type": "recovery",
+      "duration": 18,
+      "screen_text": "Иногда она лечится тишиной.",
+      "subtitle_text": "Иногда она лечится тишиной. Иногда - границами. Иногда - тем, что ты перестаёшь требовать от себя скорости человека, который не несёт твою нагрузку.",
+      "mood": "silence, boundaries",
+      "visual_keywords": ["atmospheric nature fog", "quiet lake fog", "city park morning silence", "soft rain nature"],
+      "transition": "crossfade",
+      "animation": "slow_zoom"
+    },
+    {
+      "scene_id": "outro_001",
+      "type": "outro",
+      "duration": 19,
+      "screen_text": "Ты не ленивый. Ты перегружен.",
+      "subtitle_text": "Перегруженный разум не нуждается в крике. Он нуждается в тишине, порядке и добром возвращении к одному простому движению. Ты не ленивый. Ты перегружен. И это можно распутать.",
+      "mood": "quiet closing clarity",
+      "visual_keywords": ["morning grey city", "lonely person walking slowly", "rain stops street", "calm urban dawn"],
+      "transition": "fade",
+      "animation": "slow_zoom"
+    }
+  ]
+}

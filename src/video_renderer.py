@@ -34,6 +34,9 @@ def build_render_plan(
     temp_dir = output_path.parent / "render_temp"
     total_duration = sum(float(scene["duration"]) for scene in scene_plan.get("scenes", []))
     documentary_montage = asset_plan.get("engine") == "documentary_visual_engine_v2"
+    visual_rules_config = config.get("video_task", {}).get("visual_rules", {})
+    shot_duration_config = visual_rules_config.get("shot_duration", {}) if isinstance(visual_rules_config, dict) else {}
+    min_shot_seconds = float(shot_duration_config.get("minimum_seconds", 4.0))
     fps = int(config["fps"])
     if documentary_montage and config.get("cinematic_preview", False):
         fps = int(config.get("cinematic_preview_fps", 24))
@@ -73,7 +76,7 @@ def build_render_plan(
         "visual_rules": {
             "no_scene_labels": documentary_montage,
             "fullscreen_footage": documentary_montage,
-            "subtitles_only": documentary_montage and config.get("channel_id") == "survival",
+            "subtitles_only": documentary_montage and bool(config.get("documentary_subtitles_only") or config.get("channel_id") == "survival"),
             "image_motion_required": documentary_montage,
             "avoid_ui_blocks": documentary_montage,
         },
@@ -88,7 +91,7 @@ def build_render_plan(
             "enabled": documentary_montage,
             "transition": config.get("transition_type", "crossfade"),
             "clip_count": sum(int(scene.get("clip_count", len(scene.get("clips", [])))) for scene in asset_plan.get("scene_assets", [])),
-            "target_clip_seconds": [4.0, 30.0],
+            "target_clip_seconds": [min_shot_seconds, 30.0],
             "average_shot_seconds": _average_shot_seconds(asset_plan),
             "color_grading": "subtle_dark_green_blue_documentary",
             "pacing": "adaptive_cinematic",
@@ -148,6 +151,9 @@ def render_video(
                 float(active_music.get("volume", 0.16)),
                 voice_manifest=render_plan.get("voice") or config.get("voice_manifest"),
                 duck_music=bool((render_plan.get("music") or {}).get("ducking", True)),
+                preset=str(render_plan.get("preset", "medium")),
+                crf=int(render_plan.get("encoding", {}).get("crf", 18)),
+                audio_bitrate=str(render_plan.get("encoding", {}).get("audio_bitrate", "192k")),
             )
             if not added:
                 raise RenderStageError("add_music_failed", "Музыкальный файл не найден или не был добавлен.")

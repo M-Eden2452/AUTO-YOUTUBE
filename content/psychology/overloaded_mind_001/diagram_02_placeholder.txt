@@ -1,0 +1,9 @@
+TODO: Create final infographic asset `diagram_02`.
+
+Concept:
+Differentiate laziness from overload without moral judgment.
+
+Suggested visual:
+Two-column quiet documentary card:
+Left: "I don't want to."
+Right: "I want to, but my system is saturated."

@@ -40,6 +40,10 @@ def load_config(
         updated["dev_mode"] = False
         updated["resolution"] = [1280, 720]
         updated["fps"] = int(updated.get("cinematic_preview_fps", 24))
+        updated["cinematic_preview_fps"] = int(updated.get("cinematic_preview_fps", 24))
+        updated["cinematic_preview_crf"] = int(updated.get("cinematic_preview_crf", 17))
+        updated["cinematic_preview_preset"] = str(updated.get("cinematic_preview_preset", "slow"))
+        updated["audio_bitrate"] = str(updated.get("audio_bitrate", "192k"))
         updated["output_filename"] = "outputs/final_preview.mp4"
         updated["font_size"] = min(int(updated.get("font_size", 58)), 44)
     return updated

@@ -1,0 +1,7 @@
+TODO: Create final infographic asset `diagram_01`.
+
+Concept:
+Visible task looks small, hidden cognitive load is large.
+
+Suggested visual:
+Minimal two-layer diagram. Top: "Task" as a small clean line. Under it: a deep stack labeled decisions, expectations, messages, anxiety, unfinished loops.

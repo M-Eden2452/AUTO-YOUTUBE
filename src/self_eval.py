@@ -61,7 +61,7 @@ def evaluate_render(
         warnings.extend(asset_plan["warnings"])
     if asset_plan.get("engine") == "documentary_visual_engine_v2":
         _evaluate_documentary_assets(asset_plan, checks, warnings)
-        quality = evaluate_documentary_quality_rules(asset_plan, render_plan or {})
+        quality = evaluate_documentary_quality_rules(asset_plan, render_plan or {}, config)
         checks.extend(quality["checks"])
         warnings.extend(quality["warnings"])
     missing_assets = [
@@ -154,8 +154,13 @@ def _evaluate_documentary_assets(asset_plan: dict[str, Any], checks: list[str], 
     checks.append("Subtitle-safe lower area is enabled in the montage renderer.")
 
 
-def evaluate_documentary_quality_rules(asset_plan: dict[str, Any], render_plan: dict[str, Any] | None = None) -> dict[str, list[str]]:
+def evaluate_documentary_quality_rules(
+    asset_plan: dict[str, Any],
+    render_plan: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, list[str]]:
     render_plan = render_plan or {}
+    config = config or {}
     checks: list[str] = []
     warnings: list[str] = []
     visual_rules = render_plan.get("visual_rules", {})
@@ -179,7 +184,7 @@ def evaluate_documentary_quality_rules(asset_plan: dict[str, Any], render_plan: 
 
     target_seconds = montage.get("target_clip_seconds", [])
     if len(target_seconds) == 2 and float(target_seconds[0]) >= 4.0 and float(target_seconds[1]) <= 30.0:
-        checks.append("Montage pacing target is adaptive cinematic 4-30 seconds per shot.")
+        checks.append(f"Montage pacing target is adaptive cinematic {float(target_seconds[0]):.0f}-30 seconds per shot.")
     else:
         warnings.append("Montage pacing target should stay in the cinematic 4-30 second range.")
     if int(render_plan.get("fps", 0) or 0) >= 24:
@@ -225,15 +230,27 @@ def evaluate_documentary_quality_rules(asset_plan: dict[str, Any], render_plan: 
     else:
         warnings.append(f"Montage source diversity is low: {len(unique_sources)} unique sources, target {diversity_target}.")
 
-    nature_terms = ("jungle", "rainforest", "amazon", "river", "rain", "storm", "mud", "forest", "canopy", "insect")
-    nature_count = sum(1 for clip in clips if any(term in str(clip.get("query", "")).lower() or term in str(clip.get("path", "")).lower() for term in nature_terms))
-    nature_ratio = nature_count / max(len(clips), 1)
-    if nature_ratio >= 0.55:
-        checks.append(f"Nature footage percentage is strong: {nature_ratio:.0%}.")
+    channel = str(config.get("channel_id", ""))
+    if channel == "survival":
+        nature_terms = ("jungle", "rainforest", "amazon", "river", "rain", "storm", "mud", "forest", "canopy", "insect")
+        nature_count = sum(1 for clip in clips if any(term in str(clip.get("query", "")).lower() or term in str(clip.get("path", "")).lower() for term in nature_terms))
+        nature_ratio = nature_count / max(len(clips), 1)
+        if nature_ratio >= 0.55:
+            checks.append(f"Nature footage percentage is strong: {nature_ratio:.0%}.")
+        else:
+            warnings.append(f"Nature footage percentage is low: {nature_ratio:.0%}.")
+    elif channel == "psychology":
+        psychology_terms = ("rain", "city", "urban", "alone", "lonely", "screen", "subway", "fog", "reflection", "exhaustion", "night")
+        psychology_count = sum(1 for clip in clips if any(term in str(clip.get("query", "")).lower() or term in str(clip.get("path", "")).lower() for term in psychology_terms))
+        psychology_ratio = psychology_count / max(len(clips), 1)
+        if psychology_ratio >= 0.45:
+            checks.append(f"Atmospheric psychology footage percentage is acceptable: {psychology_ratio:.0%}.")
+        else:
+            warnings.append(f"Atmospheric psychology footage percentage is low: {psychology_ratio:.0%}.")
     else:
-        warnings.append(f"Nature footage percentage is low: {nature_ratio:.0%}.")
+        checks.append("Channel-specific footage mix check skipped.")
 
-    weak_terms = ("business", "office", "city", "terminal", "airport")
+    weak_terms = ("business", "office", "terminal", "airport") if channel == "psychology" else ("business", "office", "city", "terminal", "airport")
     weak_count = sum(1 for clip in clips if any(term in str(clip.get("query", "")).lower() for term in weak_terms))
     if weak_count:
         warnings.append(f"Potentially weak generic footage clips detected: {weak_count}.")

@@ -1,0 +1,8 @@
+TODO: Create final infographic asset `diagram_03`.
+
+Concept:
+Path from overload to one next step.
+
+Suggested visual:
+Noise -> externalize -> reduce -> choose one step.
+Use muted lines, soft translucent background, no motivational arrows.

@@ -15,6 +15,9 @@ def add_background_music(
     volume: float,
     voice_manifest: dict[str, Any] | None = None,
     duck_music: bool = True,
+    preset: str = "medium",
+    crf: int = 18,
+    audio_bitrate: str = "192k",
 ) -> bool:
     music_file = Path(music_path)
     if not music_file.exists():
@@ -46,7 +49,15 @@ def add_background_music(
             audio_layers.append(voice_clip)
         final_audio = CompositeAudioClip(audio_layers)
         final = video.with_audio(final_audio)
-        final.write_videofile(str(output_path), fps=video.fps, codec="libx264", audio_codec="aac", preset="medium")
+        final.write_videofile(
+            str(output_path),
+            fps=video.fps,
+            codec="libx264",
+            audio_codec="aac",
+            audio_bitrate=audio_bitrate,
+            preset=preset,
+            ffmpeg_params=["-crf", str(crf)],
+        )
     finally:
         for clip in (final, final_audio, final_music, looped_music, source_music, *voice_clips, video):
             if clip is not None:
