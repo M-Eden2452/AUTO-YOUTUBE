@@ -1,0 +1,21 @@
+{
+  "channel": "size_comparison",
+  "video_id": "sea_monsters_001",
+  "video_type": "cinematic_size_comparison",
+  "chosen_title": "Legendary Sea Monsters Size Comparison",
+  "language": "en",
+  "content_dir": "content/size_comparison/sea_monsters_001",
+  "target_duration_seconds": 216,
+  "manual_assets": {
+    "base_path": "manual_assets/size_comparison/sea_monsters_001"
+  },
+  "size_comparison": {
+    "preview_resolution": [1280, 720],
+    "production_resolution": [1920, 1080],
+    "fps": 24,
+    "duration_seconds": 216,
+    "style": "cinematic ocean atmosphere, adaptive scale reveal, dark abyss mood",
+    "audio": "generated dark ambient ocean ambience for first test, no voice-over"
+  },
+  "disclaimer": "Mythical creatures are shown as estimated fictional or mythological interpretations, not scientific facts."
+}

@@ -46,3 +46,15 @@ assets/broll/
 !music/
 music/*.mp3
 !music/.gitkeep
+manual_assets/**/*.mp4
+manual_assets/**/*.mov
+manual_assets/**/*.wav
+manual_assets/**/*.mp3
+manual_assets/**/*.m4a
+manual_assets/**/*.aac
+manual_assets/**/*.png
+manual_assets/**/*.jpg
+manual_assets/**/*.jpeg
+manual_assets/**/*.webp
+!manual_assets/**/*.svg
+!manual_assets/**/.gitkeep

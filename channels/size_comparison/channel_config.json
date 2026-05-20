@@ -1,0 +1,12 @@
+{
+  "channel_id": "size_comparison",
+  "channel_name": "Size Comparison",
+  "obsidian_folder": "YouTube/01 Каналы/Size Comparison",
+  "default_language": "en",
+  "video_format": "cinematic_size_comparison",
+  "content_rules": [
+    "Use cinematic documentary pacing.",
+    "Use adaptive scale stages instead of one linear full-frame scale.",
+    "Mark mythical creature measurements as fictional or mythological interpretations."
+  ]
+}

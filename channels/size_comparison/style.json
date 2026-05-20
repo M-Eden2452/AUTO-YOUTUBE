@@ -1,0 +1,27 @@
+{
+  "visual_style": "dark ocean cinematic documentary size comparison, deep sea atmosphere, storm fog, underwater darkness",
+  "image_style": "clean side-view silhouettes, subtle blue glow, abyss mood, documentary labels",
+  "intro_style": "slow title reveal over dark ocean ambience",
+  "text_style": "minimal documentary labels with subtle glow",
+  "documentary_subtitles_only": true,
+  "subtitle_style": {
+    "background_alpha": 90,
+    "y_ratio": 0.78
+  },
+  "music_search": {
+    "enabled": false,
+    "queries": [
+      "dark ambient ocean",
+      "deep sea cinematic tension",
+      "mysterious underwater ambience"
+    ],
+    "volume": 0.12
+  },
+  "manual_assets": {
+    "base_path": "manual_assets/size_comparison/sea_monsters_001"
+  },
+  "asset_library": {
+    "enabled": false,
+    "search_local_first": true
+  }
+}

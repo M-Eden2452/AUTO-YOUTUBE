@@ -1,0 +1,10 @@
+name,size_meters,category,source_note,visual_priority
+Human,1.8,reference,Average adult human reference,1
+Great White Shark,6,real animal,Estimated large specimen,2
+Orca,9,real animal,Adult orca average,2
+Giant Squid,13,real animal,Estimated total length,3
+Mosasaurus,17,prehistoric,Estimated adult size from paleontological interpretation,4
+Megalodon,18,prehistoric,Scientific estimate range simplified for comparison,5
+Kraken,100,mythical,Fictional mythological interpretation,6
+Leviathan,300,mythical,Fictional mythological interpretation,7
+Jormungandr,1000,mythical,Norse mythology fictional approximation,8

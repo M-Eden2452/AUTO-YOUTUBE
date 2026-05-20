@@ -13,6 +13,7 @@ from src.obsidian_exporter import export_obsidian_note
 from src.quote_generator import build_quote_plan
 from src.scene_planner import build_scene_plan
 from src.self_eval import evaluate_render
+from src.size_comparison_engine import run_size_comparison_pipeline
 from src.thumbnail_generator import create_thumbnail
 from src.tts_providers.moss_tts_provider import MossTtsProviderError, run_test_synthesis
 from src.utils import ensure_dir, write_json
@@ -91,6 +92,21 @@ def main() -> None:
         f"| video={config.get('video_id', 'default')} | dev_mode={config['dev_mode']} "
         f"| prod_preview={config.get('prod_preview', False)} | cinematic_preview={config.get('cinematic_preview', False)}"
     )
+
+    if config.get("video_type") == "cinematic_size_comparison":
+        config["obsidian"] = {
+            **config.get("obsidian", {}),
+            "folder": f"YouTube/02 Видео/Size Comparison/{config.get('video_id', 'sea_monsters_001')}",
+            "video_note_dir": f"{config.get('obsidian', {}).get('vault_path', 'G:/ObsidianBase/ObsidianBase')}/YouTube/02 Видео/Size Comparison/{config.get('video_id', 'sea_monsters_001')}",
+        }
+        result = run_size_comparison_pipeline(config, skip_render=args.skip_render)
+        print(f"[size-comparison] Output file: {result['output_path']}")
+        print(f"[size-comparison] Obsidian note: {result['obsidian_note']}")
+        for item in result["self_eval"].get("checks", []):
+            print(f"[self-eval] OK: {item}")
+        for item in result["self_eval"].get("warnings", []):
+            print(f"[self-eval] Note: {item}")
+        return
 
     if args.find_music:
         music_plan = build_music_plan(config)
