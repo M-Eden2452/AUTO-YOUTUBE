@@ -14,6 +14,7 @@ from src.quote_generator import build_quote_plan
 from src.scene_planner import build_scene_plan
 from src.self_eval import evaluate_render
 from src.thumbnail_generator import create_thumbnail
+from src.tts_providers.moss_tts_provider import MossTtsProviderError, run_test_synthesis
 from src.utils import ensure_dir, write_json
 from src.video_renderer import RenderStageError, build_render_plan, render_video
 from src.voice_engine import align_voice_manifest_to_scene_plan, apply_voice_timing_to_scene_plan, build_voice_manifest
@@ -44,6 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index-assets", action="store_true", help="Scan assets/library and update media_index.json.")
     parser.add_argument("--clean-temp", action="store_true", help="Remove render_temp and partial temporary files.")
     parser.add_argument("--asset-report", action="store_true", help="Create outputs/asset_library_report.md.")
+    parser.add_argument("--test-moss-tts", action="store_true", help="Generate a short Russian audio sample with MOSS-TTS-Nano.")
     parser.add_argument("--reuse-voice", action="store_true", default=True, help="Reuse cached scene voice files when text/settings match.")
     parser.add_argument("--skip-voice", action="store_true", help="Skip voice generation and render with music/subtitles only.")
     return parser.parse_args()
@@ -68,6 +70,14 @@ def main() -> None:
     if args.asset_report:
         report_path = create_asset_report()
         print(f"[assets] Report created: {report_path}")
+        return
+    if args.test_moss_tts:
+        config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview, cinematic_preview=args.cinematic_preview)
+        try:
+            output_path = run_test_synthesis(config)
+        except MossTtsProviderError as exc:
+            raise SystemExit(f"[moss-tts] {exc}") from exc
+        print(f"[moss-tts] Test audio created: {output_path}")
         return
 
     config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview, cinematic_preview=args.cinematic_preview)

@@ -49,6 +49,62 @@ PowerShell:
 .\venv\Scripts\Activate.ps1
 ```
 
+## Experimental MOSS-TTS-Nano
+
+MOSS-TTS-Nano is wired as an experimental local TTS provider for short test narration. It is separate from the existing ElevenLabs integration: ElevenLabs remains the default cloud voice path in `src/voice_engine.py`, while MOSS is a local subprocess provider in `src/tts_providers/moss_tts_provider.py`.
+
+The local checkout lives at:
+
+```text
+G:/Projects/AI-YouTube/MOSS_TTS_Nano
+```
+
+It uses its own virtual environment:
+
+```text
+G:/Projects/AI-YouTube/MOSS_TTS_Nano/.venv
+```
+
+The separate venv keeps PyTorch, ONNX Runtime, Transformers, and MOSS-specific packages out of the main AI-YouTube `venv`. This matters because MOSS has ML dependencies that are larger and more fragile than the normal pipeline requirements.
+
+Setup used for the local provider:
+
+```powershell
+cd G:/Projects/AI-YouTube/MOSS_TTS_Nano
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -e .
+```
+
+On Windows/Python 3.13, `WeTextProcessing` may fail because its `pynini` dependency tries to build from source and requires Microsoft C++ Build Tools. The current test path uses the ONNX backend without WeText normalization, so basic local generation can still work after installing the rest of the dependencies and `pip install -e .`.
+
+Run the smoke test from the main project:
+
+```powershell
+python pipeline.py --test-moss-tts
+```
+
+The test writes:
+
+```text
+outputs/tts_tests/moss_tts_test.wav
+```
+
+MOSS config is intentionally disabled by default:
+
+```json
+"tts": {
+  "provider": "moss_tts_nano",
+  "moss_tts_path": "G:/Projects/AI-YouTube/MOSS_TTS_Nano",
+  "enabled": false,
+  "voice_clone_enabled": false,
+  "prompt_audio_path": ""
+}
+```
+
+MOSS is local and experimental, useful for offline testing and avoiding per-request cloud voice costs. ElevenLabs is still the production-oriented remote integration with the existing voice cache and API behavior. Voice cloning is not enabled for MOSS yet; the smoke test uses a built-in ONNX voice and does not require prompt audio.
+
 ## Структура проекта
 
 ```text
@@ -270,10 +326,10 @@ python pipeline.py --channel quotes --video thoughts_too_late_001 --dev
 
 - `.env`;
 - `venv/`;
+- `MOSS_TTS_Nano/`;
 - mp4/mp3/mov/wav;
 - большие ассеты;
 - `assets/broll/`;
 - временные render-файлы.
 
 `.env.example` можно хранить в Git. `.env` нельзя читать, выводить или коммитить.
-

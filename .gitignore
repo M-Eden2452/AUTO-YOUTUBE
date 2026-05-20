@@ -1,4 +1,5 @@
 venv/
+MOSS_TTS_Nano/
 .env
 outputs/*.mp4
 outputs/**/*.mp4

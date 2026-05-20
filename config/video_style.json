@@ -105,6 +105,13 @@
     ],
     "volume": 0.16
   },
+  "tts": {
+    "provider": "moss_tts_nano",
+    "moss_tts_path": "G:/Projects/AI-YouTube/MOSS_TTS_Nano",
+    "enabled": false,
+    "voice_clone_enabled": false,
+    "prompt_audio_path": ""
+  },
   "asset_library": {
     "enabled": true,
     "search_local_first": true,
