@@ -64,6 +64,9 @@ def evaluate_render(
         quality = evaluate_documentary_quality_rules(asset_plan, render_plan or {}, config)
         checks.extend(quality["checks"])
         warnings.extend(quality["warnings"])
+    voice_manifest = (render_plan or {}).get("voice") or config.get("voice_manifest") or {}
+    if voice_manifest.get("warnings"):
+        warnings.extend(_summarize_voice_warnings(voice_manifest.get("warnings", [])))
     missing_assets = [
         asset.get("scene_number")
         for asset in asset_plan.get("scene_assets", [])
@@ -93,6 +96,23 @@ def evaluate_render(
         warnings.append("Obsidian-заметка не подтверждена self-eval.")
 
     return {"ok": path.exists(), "checks": checks, "warnings": warnings}
+
+
+def _summarize_voice_warnings(items: list[str]) -> list[str]:
+    if len(items) <= 8:
+        return items
+    eleven_failures = [item for item in items if item.startswith("ElevenLabs voice request failed")]
+    moss_fallbacks = [item for item in items if item.startswith("MOSS-TTS-Nano fallback used")]
+    other = [item for item in items if item not in eleven_failures and item not in moss_fallbacks]
+    summary: list[str] = []
+    if eleven_failures:
+        summary.append(f"ElevenLabs voice request failed for {len(eleven_failures)} scenes; see voice_manifest.json for per-scene details.")
+    if moss_fallbacks:
+        summary.append(f"MOSS-TTS-Nano fallback used for {len(moss_fallbacks)} scenes.")
+    summary.extend(other[:8])
+    if len(other) > 8:
+        summary.append(f"Additional voice warnings omitted from self_eval summary: {len(other) - 8}.")
+    return summary
 
 
 def _expected_duration(config: dict[str, Any], scene_plan: dict[str, Any] | None) -> float:

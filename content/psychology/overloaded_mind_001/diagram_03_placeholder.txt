@@ -1,8 +1,6 @@
-TODO: Create final infographic asset `diagram_03`.
+diagram_03: Фрагментация внимания.
 
-Concept:
-Path from overload to one next step.
+Мозг/силуэт человека, разбитый на уведомления, вкладки, сообщения, видео, рекламу и постоянное переключение.
 
-Suggested visual:
-Noise -> externalize -> reduce -> choose one step.
-Use muted lines, soft translucent background, no motivational arrows.
+Asset:
+manual_assets/psychology/overloaded_mind_001/diagrams/diagram_03_attention_fragmentation.svg

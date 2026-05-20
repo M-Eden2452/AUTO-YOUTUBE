@@ -1,7 +1,7 @@
-TODO: Create final infographic asset `diagram_01`.
+diagram_01: Информационный шум.
 
-Concept:
-Visible task looks small, hidden cognitive load is large.
+1995 -> 2010 -> 2026.
+От книги/ТВ/радио к уведомлениям, reels, doomscrolling, вкладкам и бесконечным лентам.
 
-Suggested visual:
-Minimal two-layer diagram. Top: "Task" as a small clean line. Under it: a deep stack labeled decisions, expectations, messages, anxiety, unfinished loops.
+Asset:
+manual_assets/psychology/overloaded_mind_001/diagrams/diagram_01_information_noise.svg

@@ -1,32 +1,27 @@
 # Research Notes
 
-This video is an editorial psychology explainer, not medical advice.
+This video is an editorial psychological reflection, not a clinical diagnosis or medical recommendation.
 
-## Framing
+Core framing:
 
-- "Laziness" is often a moral label applied to states that may involve cognitive overload, chronic stress, decision fatigue, low recovery, or emotional burnout.
-- The script should avoid diagnosis. Use grounded language: "can feel like", "often", "may", "state", "overload".
-- The key distinction is not motivation hype. It is accuracy: naming overload makes the next step smaller and less shame-based.
+- Modern attention is exposed to more frequent context switching than quiet reflective life usually requires.
+- What people call laziness can sometimes be cognitive overload, fragmented attention, depleted recovery, or emotional exhaustion.
+- Passive content consumption can feel like rest while still adding stimulation.
+- Silence, boredom, and low-input recovery can matter because they give attention room to reorganize.
 
-## Psychological Concepts Used
+Useful concepts:
 
-- Cognitive load: working memory has limits, especially under stress.
-- Decision fatigue: repeated decisions reduce available self-regulation and clarity.
-- Open loops: unfinished tasks and unresolved concerns continue to occupy attention.
-- Burnout-like exhaustion: chronic demand without adequate recovery can create avoidance, numbness, and difficulty initiating.
-- Nervous system protection: freezing or procrastination can be a protective response to perceived overload.
+- cognitive load
+- attentional fragmentation
+- open loops
+- stimulus overload
+- recovery vs. stimulation switching
+- shame spiral around procrastination
 
-## Editorial Guardrails
+Editorial line:
 
-- Do not promise a cure.
-- Do not imply that all procrastination is overload.
-- Do not attack discipline; reframe discipline as possible only after reducing noise.
-- Keep the tone calm, documentary, intimate, and non-performative.
+The video should not claim that all procrastination is overload. It should gently suggest that the viewer may be mislabeling overload as laziness, and that a lower-noise recovery period can be more useful than another productivity system.
 
-## Self-Eval Checklist
+Safety:
 
-- Does the video avoid motivational intensity?
-- Are shots long enough to breathe?
-- Does the pacing follow narration and pauses?
-- Are subtitles readable without feeling like social media captions?
-- Does the final message feel grounded rather than inspirational?
+Include the disclaimer in metadata and Obsidian note: this is not medical advice or a diagnosis.

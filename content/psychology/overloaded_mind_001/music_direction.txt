@@ -1,26 +1,28 @@
-Style:
-ambient, slow piano, night rain, psychological atmosphere
-
-Mixing:
-voice-first. Music must remain quiet and supportive.
-
 Mood:
-late-night urban, soft pressure, emotional fatigue, gentle clarity.
 
-Search/recommendation terms:
-- ambient slow piano night rain
-- atmospheric psychology documentary
-- quiet cinematic piano
-- soft dark ambient documentary
-- reflective urban rain music
-- minimal piano texture
+- ambient
+- slow piano
+- rain
+- urban melancholy
+- documentary atmosphere
+- soft cinematic tension
 
-Avoid:
-- motivational trailer build
-- loud drums
-- cinematic hits
-- corporate inspirational music
-- social media tension risers
+Mix:
 
-Target volume:
-0.08-0.11 before ducking. Duck under narration.
+- voice-first
+- music under narration
+- ducking enabled when voice-over is present
+- avoid motivational drums, trailer risers, bright corporate piano, and high-energy rhythm
+
+Search queries:
+
+- ambient slow piano rain
+- urban melancholy ambient
+- soft cinematic tension documentary
+- dark calm piano atmosphere
+- rainy night ambient piano
+- minimal documentary piano
+
+Fallback:
+
+Use `music/background.mp3` only when no better local/library/API music is available.

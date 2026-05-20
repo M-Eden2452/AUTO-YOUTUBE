@@ -81,7 +81,7 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
     def test_cinematic_preview_profile_prefers_quality_over_speed(self) -> None:
         from src.config_loader import load_config
         from src.channel_loader import load_channel_video_config
-        from src.video_renderer import build_render_plan
+        from src.video_renderer import build_render_plan, validation_tolerance_for_duration
 
         config = load_channel_video_config(load_config("config/video_style.json", cinematic_preview=True), "survival", "juliane_koepcke_001")
         scene_plan = {"scenes": [{"scene_number": 1, "duration": 12, "scene_type": "story"}]}
@@ -94,6 +94,7 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
         self.assertIn(render_plan["preset"], {"medium", "slow"})
         self.assertLessEqual(render_plan["encoding"]["crf"], 20)
         self.assertEqual(render_plan["render_profile"], "cinematic_preview")
+        self.assertGreaterEqual(validation_tolerance_for_duration(660), 4.0)
 
     def test_adaptive_pacing_uses_scene_mood_and_voice_duration(self) -> None:
         from src.video_asset_engine import adaptive_shot_duration, target_clip_count_for_scene
@@ -132,6 +133,86 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
             self.assertTrue(all(Path(item["path"]).exists() for item in first["scenes"]))
             self.assertTrue(all(item["cache_status"] == "reused" for item in second["scenes"]))
             self.assertGreater(first["total_voice_duration"], 0)
+
+    def test_voice_engine_falls_back_to_moss_when_elevenlabs_fails(self) -> None:
+        from unittest.mock import patch
+
+        from src.voice_engine import build_voice_manifest
+
+        scene_plan = {
+            "scenes": [
+                {"scene_number": 1, "scene_id": "intro", "subtitle_text": "Тестовая русская фраза.", "duration": 8},
+            ]
+        }
+        with TemporaryDirectory() as tmp:
+            config = {
+                "channel_id": "psychology",
+                "video_id": "voice_test",
+                "output_dir": tmp,
+                "plans": {"voice_manifest": str(Path(tmp) / "voice_manifest.json")},
+                "voice": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "voice_id": "voice",
+                    "cache_dir": str(Path(tmp) / "voice_cache"),
+                    "fallback_provider": "moss_tts_nano",
+                    "moss_tts_path": "G:/Projects/AI-YouTube/MOSS_TTS_Nano",
+                },
+            }
+
+            def fake_moss(text, output_path, moss_config):
+                target = Path(output_path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(b"RIFFfake-wave")
+                return target
+
+            with patch.dict("os.environ", {"ELEVENLABS_API_KEY": "test-key"}), patch(
+                "src.voice_engine._generate_elevenlabs_voice",
+                side_effect=RuntimeError("eleven down"),
+            ), patch("src.voice_engine._generate_moss_voice", side_effect=fake_moss):
+                manifest = build_voice_manifest(config, scene_plan, reuse_voice=False, skip_voice=False)
+
+            self.assertEqual(manifest["scenes"][0]["provider"], "moss_tts_nano")
+            self.assertTrue(Path(manifest["scenes"][0]["path"]).exists())
+            self.assertTrue(any("ElevenLabs voice request failed" in item for item in manifest["warnings"]))
+            self.assertTrue(any("MOSS-TTS-Nano fallback used" in item for item in manifest["warnings"]))
+
+    def test_manual_video_assets_are_used_before_library_and_api(self) -> None:
+        from src.video_asset_engine import build_documentary_asset_plan
+
+        scene_plan = {
+            "scenes": [
+                {
+                    "scene_number": 1,
+                    "scene_id": "intro",
+                    "scene_type": "intro",
+                    "duration": 12,
+                    "visual_keywords": ["rain apartment window"],
+                    "mood": "night rain",
+                }
+            ]
+        }
+        with TemporaryDirectory() as tmp:
+            manual_root = Path(tmp) / "manual_assets" / "psychology" / "overloaded_mind_001"
+            video_path = manual_root / "video" / "rain_window.mp4"
+            video_path.parent.mkdir(parents=True)
+            video_path.write_bytes(b"manual-video-placeholder")
+            config = {
+                "channel_id": "psychology",
+                "video_id": "overloaded_mind_001",
+                "output_filename": str(Path(tmp) / "final_preview.mp4"),
+                "asset_library": {"root": str(Path(tmp) / "library"), "download_if_not_enough": False},
+                "manual_assets": {"root": str(manual_root)},
+                "documentary_asset_search": {"enabled": False},
+                "plans": {"visual_debug": str(Path(tmp) / "visual_debug.json")},
+            }
+
+            asset_plan = build_documentary_asset_plan(config, scene_plan, refresh=False)
+
+        first = asset_plan["scene_assets"][0]
+        self.assertEqual(first["provider"], "manual_asset")
+        self.assertEqual(first["asset_source"], "manual_assets")
+        self.assertEqual(first["clips"][0]["path"], str(video_path))
 
     def test_survival_overlay_is_subtitles_only(self) -> None:
         from src.layout_renderer import render_text_overlay

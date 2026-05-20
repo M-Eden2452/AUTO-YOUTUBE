@@ -12,6 +12,7 @@ import requests
 from dotenv import load_dotenv
 from moviepy import AudioFileClip
 
+from .tts_providers.moss_tts_provider import MossTtsProviderError, synthesize_text
 from .utils import project_path, write_json
 
 
@@ -55,25 +56,54 @@ def build_voice_manifest(
         text = _scene_voice_text(scene)
         scene_number = int(scene.get("scene_number", len(manifest["scenes"]) + 1))
         cache_key = _cache_key(text, voice_config)
-        target = cache_dir / f"scene_{scene_number:03d}_{cache_key[:10]}.mp3"
+        target = _voice_target_path(cache_dir, scene_number, cache_key, provider)
         cache_status = "reused" if reuse_voice and target.exists() and target.stat().st_size > 0 else "generated"
+        scene_provider = provider
         if cache_status != "reused":
             if provider == "local_stub" or not api_key:
-                _create_stub_voice_mp3(target, _estimate_voice_duration(text))
-                if provider != "local_stub" and not api_key:
+                if provider != "local_stub" and _moss_fallback_enabled(voice_config):
+                    try:
+                        target = _moss_target_path(cache_dir, scene_number, cache_key)
+                        _generate_moss_voice(text, target, voice_config)
+                        scene_provider = "moss_tts_nano"
+                        manifest["warnings"].append(f"MOSS-TTS-Nano fallback used for scene {scene_number}.")
+                    except Exception as exc:
+                        target = _voice_target_path(cache_dir, scene_number, cache_key, "local_stub")
+                        _create_stub_voice_mp3(target, _estimate_voice_duration(text))
+                        scene_provider = "local_stub"
+                        manifest["warnings"].append(f"MOSS-TTS-Nano fallback failed for scene {scene_number}: {exc.__class__.__name__}.")
+                else:
+                    _create_stub_voice_mp3(target, _estimate_voice_duration(text))
+                    scene_provider = "local_stub"
+                if provider != "local_stub" and not api_key and scene_provider == "local_stub":
                     manifest["warnings"].append("ELEVENLABS_API_KEY unavailable; local placeholder voice was generated.")
             else:
                 try:
                     _generate_elevenlabs_voice(api_key, voice_config, text, target)
-                except requests.RequestException as exc:
-                    _create_stub_voice_mp3(target, _estimate_voice_duration(text))
+                    scene_provider = "elevenlabs"
+                except Exception as exc:
                     manifest["warnings"].append(f"ElevenLabs voice request failed for scene {scene_number}: {exc.__class__.__name__}.")
+                    if _moss_fallback_enabled(voice_config):
+                        try:
+                            target = _moss_target_path(cache_dir, scene_number, cache_key)
+                            _generate_moss_voice(text, target, voice_config)
+                            scene_provider = "moss_tts_nano"
+                            manifest["warnings"].append(f"MOSS-TTS-Nano fallback used for scene {scene_number}.")
+                        except Exception as moss_exc:
+                            target = _voice_target_path(cache_dir, scene_number, cache_key, "local_stub")
+                            _create_stub_voice_mp3(target, _estimate_voice_duration(text))
+                            scene_provider = "local_stub"
+                            manifest["warnings"].append(f"MOSS-TTS-Nano fallback failed for scene {scene_number}: {moss_exc.__class__.__name__}.")
+                    else:
+                        _create_stub_voice_mp3(target, _estimate_voice_duration(text))
+                        scene_provider = "local_stub"
         duration = _audio_duration(target) or _estimate_voice_duration(text)
         item = {
             "scene_number": scene_number,
             "scene_id": scene.get("scene_id", ""),
             "text_hash": cache_key,
             "path": str(target),
+            "provider": scene_provider,
             "text": text,
             "duration": round(duration, 3),
             "start": round(cursor, 3),
@@ -134,6 +164,35 @@ def _voice_config(config: dict[str, Any]) -> dict[str, Any]:
         "post_scene_pause": 0.8,
     }
     return {**defaults, **config.get("voice", {})}
+
+
+def _voice_target_path(cache_dir: Path, scene_number: int, cache_key: str, provider: str) -> Path:
+    suffix = ".wav" if provider == "moss_tts_nano" else ".mp3"
+    return cache_dir / f"scene_{scene_number:03d}_{cache_key[:10]}{suffix}"
+
+
+def _moss_target_path(cache_dir: Path, scene_number: int, cache_key: str) -> Path:
+    return _voice_target_path(cache_dir, scene_number, cache_key, "moss_tts_nano")
+
+
+def _moss_fallback_enabled(voice_config: dict[str, Any]) -> bool:
+    return str(voice_config.get("fallback_provider", "")).lower() == "moss_tts_nano" or bool(voice_config.get("moss_tts_enabled"))
+
+
+def _generate_moss_voice(text: str, target: Path, voice_config: dict[str, Any]) -> Path:
+    moss_config = {
+        "moss_tts_path": voice_config.get("moss_tts_path", "MOSS_TTS_Nano"),
+        "voice_clone_enabled": voice_config.get("voice_clone_enabled", False),
+        "prompt_audio_path": voice_config.get("prompt_audio_path", ""),
+        "backend": voice_config.get("moss_backend", "onnx"),
+        "voice": voice_config.get("moss_voice", "Junhao"),
+        "max_new_frames": voice_config.get("moss_max_new_frames", 240),
+        "execution_provider": voice_config.get("moss_execution_provider", "cpu"),
+    }
+    try:
+        return synthesize_text(text, target, moss_config)
+    except MossTtsProviderError:
+        raise
 
 
 def _generate_elevenlabs_voice(api_key: str, voice_config: dict[str, Any], text: str, target: Path) -> None:

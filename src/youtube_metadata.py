@@ -167,6 +167,8 @@ def _format_time(seconds: int) -> str:
 
 
 def _video_task_tags(config: dict[str, Any], task: dict[str, Any]) -> list[str]:
+    if task.get("tags"):
+        return [str(item) for item in task.get("tags", []) if str(item).strip()]
     if config.get("channel_id") == "survival":
         return [
             "Джулиана Кёпке",

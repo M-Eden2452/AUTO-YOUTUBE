@@ -131,7 +131,11 @@ def render_video(
         _stage(stage_log_path, "render_silent_done", f"Silent partial создан: {partial_path}")
 
         _stage(stage_log_path, "validate_silent_started", "Проверка silent partial.")
-        validation = validate_video_file(partial_path, expected_duration=float(render_plan["duration"]))
+        validation = validate_video_file(
+            partial_path,
+            expected_duration=float(render_plan["duration"]),
+            tolerance=validation_tolerance_for_duration(float(render_plan["duration"])),
+        )
         if not validation["ok"]:
             raise RenderStageError("validate_silent_failed", "; ".join(validation["errors"]))
         _replace_file(partial_path, silent_path)
@@ -191,6 +195,10 @@ def validate_video_file(path: str | Path, expected_duration: float, tolerance: f
         if clip:
             clip.close()
     return {"ok": not errors, "errors": errors}
+
+
+def validation_tolerance_for_duration(duration: float) -> float:
+    return max(2.0, min(8.0, float(duration) * 0.008))
 
 
 def _render_scene_clips(

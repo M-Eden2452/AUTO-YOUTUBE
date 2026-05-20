@@ -68,12 +68,47 @@ def build_documentary_asset_plan(config: dict[str, Any], scene_plan: dict[str, A
     pixabay_key = os.getenv("PIXABAY_API_KEY")
     scene_assets: list[dict[str, Any]] = []
     visual_debug: list[dict[str, Any]] = []
+    manual_videos = _manual_video_assets(config)
 
     for scene in scene_plan.get("scenes", []):
         scene_number = int(scene.get("scene_number", len(scene_assets) + 1))
         queries = build_query_variants(scene, config)
         scene_duration = float(scene.get("duration", 0))
         target_count = target_clip_count_for_scene(scene)
+        manual_clip = _manual_clip_for_scene(manual_videos, scene, scene_number)
+        if manual_clip:
+            selected = _fit_clip_durations([manual_clip], scene_duration, scene)
+            entry = {
+                "scene_number": scene_number,
+                "scene_id": scene.get("scene_id", ""),
+                "scene_type": scene.get("scene_type", scene.get("type", "story")),
+                "mood": scene.get("mood", ""),
+                "visual_keywords": scene.get("visual_keywords", []),
+                "queries": queries,
+                "provider": "manual_asset",
+                "query": queries[0] if queries else "",
+                "asset_source": "manual_assets",
+                "local_matches": [],
+                "clips": selected,
+                "clip_count": len(selected),
+                "confidence": 0.98,
+                "fallback_used": False,
+                "fallback_reason": "",
+                "path": selected[0].get("path", "") if selected else "",
+            }
+            scene_assets.append(entry)
+            visual_debug.append(
+                {
+                    "scene_number": scene_number,
+                    "scene_id": scene.get("scene_id", ""),
+                    "queries": queries,
+                    "selected_clips": selected,
+                    "rejected_clips": [],
+                    "fallback_used": False,
+                    "manual_asset_used": True,
+                }
+            )
+            continue
         candidates: list[dict[str, Any]] = []
         rejected: list[dict[str, Any]] = []
         local_matches: list[dict[str, Any]] = []
@@ -219,6 +254,60 @@ def build_query_variants(scene: dict[str, Any], config: dict[str, Any] | None = 
             ]
         )
     return _unique(variants)[:12]
+
+
+def _manual_video_assets(config: dict[str, Any]) -> list[Path]:
+    configured = config.get("manual_assets", {})
+    root = configured.get("root") if isinstance(configured, dict) else ""
+    if not root:
+        channel = str(config.get("channel_id", "")).strip()
+        video = str(config.get("video_id", "")).strip()
+        root = Path("manual_assets") / channel / video if channel and video else ""
+    if not root:
+        return []
+    video_dir = project_path(root) / "video"
+    if not video_dir.exists():
+        return []
+    extensions = {".mp4", ".mov", ".m4v"}
+    return [path for path in sorted(video_dir.iterdir()) if path.is_file() and path.suffix.lower() in extensions]
+
+
+def _manual_clip_for_scene(paths: list[Path], scene: dict[str, Any], scene_number: int) -> dict[str, Any] | None:
+    if not paths:
+        return None
+    scene_id = str(scene.get("scene_id", "")).lower()
+    keywords = " ".join(str(item).lower() for item in scene.get("visual_keywords", []))
+    numbered = f"scene_{scene_number:03d}"
+    candidates = []
+    for path in paths:
+        stem = path.stem.lower()
+        score = 0
+        if numbered in stem or f"{scene_number:03d}" in stem:
+            score += 20
+        if scene_id and scene_id in stem:
+            score += 16
+        for token in stem.replace("-", "_").split("_"):
+            if len(token) >= 4 and token in keywords:
+                score += 3
+        candidates.append((score, path))
+    selected = sorted(candidates, key=lambda item: item[0], reverse=True)[0][1]
+    return {
+        "type": "video",
+        "provider": "manual_asset",
+        "query": keywords,
+        "path": str(selected),
+        "local_cache_path": str(selected),
+        "source_url": "",
+        "source_duration": 0,
+        "width": 0,
+        "height": 0,
+        "score": 100,
+        "asset_source": "manual_assets",
+        "thumbnail_path": "",
+        "scene_number": scene_number,
+        "fallback_reason": "",
+        "confidence": 0.98,
+    }
 
 
 def score_survival_relevance(candidate: dict[str, Any], scene: dict[str, Any], channel: str = "") -> float:

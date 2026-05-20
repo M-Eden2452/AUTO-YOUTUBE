@@ -66,6 +66,16 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
                 **style.get("music_search", {}),
                 **video_task.get("music_search", {}),
             },
+            "asset_library": {
+                **updated.get("asset_library", {}),
+                **style.get("asset_library", {}),
+                **video_task.get("asset_library", {}),
+            },
+            "manual_assets": {
+                **updated.get("manual_assets", {}),
+                **style.get("manual_assets", {}),
+                **video_task.get("manual_assets", {}),
+            },
             "output_dir": str(output_dir),
             "output_filename": str(output_dir / ("final_preview.mp4" if preview_output else "final_video.mp4")),
             "prod_output_filename": str(output_dir / "final_video.mp4"),

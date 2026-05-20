@@ -1,9 +1,6 @@
-TODO: Create final infographic asset `diagram_02`.
+diagram_02: Дофаминовая петля.
 
-Concept:
-Differentiate laziness from overload without moral judgment.
+усталость -> контент -> облегчение -> истощение -> ещё больше контента.
 
-Suggested visual:
-Two-column quiet documentary card:
-Left: "I don't want to."
-Right: "I want to, but my system is saturated."
+Asset:
+manual_assets/psychology/overloaded_mind_001/diagrams/diagram_02_dopamine_loop.svg
