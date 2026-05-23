@@ -105,6 +105,76 @@ MOSS config is intentionally disabled by default:
 
 MOSS is local and experimental, useful for offline testing and avoiding per-request cloud voice costs. ElevenLabs is still the production-oriented remote integration with the existing voice cache and API behavior. Voice cloning is not enabled for MOSS yet; the smoke test uses a built-in ONNX voice and does not require prompt audio.
 
+### MOSS voice sample tester
+
+MOSS voices are not selected like ElevenLabs voices. ElevenLabs uses remote voice IDs. MOSS-TTS-Nano voice cloning needs a short local reference audio sample.
+
+Primary local workflow:
+
+```text
+assets/voice_samples/
+```
+
+The tester also checks:
+
+```text
+G:/Projects/AI-YouTube/MOSS_TTS_Nano/assets/voice_samples/
+```
+
+Reference samples should be short clean clips: 5-20 seconds, wav/mp3, one speaker, no music, no noise, no heavy reverb.
+
+Run the voice tester:
+
+```powershell
+python scripts/test_moss_voices.py
+```
+
+or through the main CLI:
+
+```powershell
+python pipeline.py --test-moss-voices
+```
+
+It generates three short tests per sample:
+
+- Russian short psychology line
+- Russian narration line
+- English short line
+
+Outputs are written to:
+
+```text
+outputs/tts_tests/moss/
+```
+
+The report is:
+
+```text
+outputs/tts_tests/moss/moss_voice_report.md
+```
+
+The report includes generation time, file size, backend, rough speed, errors, and manual quality fields:
+
+```text
+naturalness:
+similarity:
+russian_quality:
+noise:
+speed:
+usable_for_youtube: yes/no
+notes:
+```
+
+You can use Hugging Face to open a MOSS-TTS-Nano Space, try demos, download models, or inspect community examples. The project workflow still stays local: put reference voices into `assets/voice_samples/` or `MOSS_TTS_Nano/assets/voice_samples/`, then run the tester.
+
+Hardware notes:
+
+- Ryzen 5 2600 should handle MOSS CPU inference for tests.
+- RX 570 will probably not accelerate MOSS meaningfully in this setup.
+- ONNX backend is preferred for CPU inference.
+- Long texts should be split into scenes.
+- For the YouTube pipeline, use scene-based generation rather than one huge narration file.
+
 ## Структура проекта
 
 ```text

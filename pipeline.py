@@ -21,6 +21,7 @@ from src.video_renderer import RenderStageError, build_render_plan, render_video
 from src.voice_engine import align_voice_manifest_to_scene_plan, apply_voice_timing_to_scene_plan, build_voice_manifest
 from src.youtube_metadata import write_youtube_metadata
 from src.media_library import clean_temp_files, create_asset_report, ensure_media_library, index_existing_assets
+from scripts.test_moss_voices import main as run_moss_voice_tests
 
 
 def configure_console_encoding() -> None:
@@ -47,6 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--clean-temp", action="store_true", help="Remove render_temp and partial temporary files.")
     parser.add_argument("--asset-report", action="store_true", help="Create outputs/asset_library_report.md.")
     parser.add_argument("--test-moss-tts", action="store_true", help="Generate a short Russian audio sample with MOSS-TTS-Nano.")
+    parser.add_argument("--test-moss-voices", action="store_true", help="Generate MOSS-TTS-Nano voice-clone tests for local reference samples.")
     parser.add_argument("--reuse-voice", action="store_true", default=True, help="Reuse cached scene voice files when text/settings match.")
     parser.add_argument("--skip-voice", action="store_true", help="Skip voice generation and render with music/subtitles only.")
     return parser.parse_args()
@@ -80,6 +82,8 @@ def main() -> None:
             raise SystemExit(f"[moss-tts] {exc}") from exc
         print(f"[moss-tts] Test audio created: {output_path}")
         return
+    if args.test_moss_voices:
+        raise SystemExit(run_moss_voice_tests())
 
     config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview, cinematic_preview=args.cinematic_preview)
     if args.channel or args.video:

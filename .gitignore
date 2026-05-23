@@ -13,6 +13,7 @@ outputs/**/*.mp3
 outputs/*.txt
 outputs/**/*.txt
 outputs/**/*.json
+outputs/tts_tests/
 outputs/*TEMP*
 outputs/**/*TEMP*
 outputs/render_temp/
@@ -40,6 +41,9 @@ __pycache__/
 !assets/images/
 assets/images/*
 !assets/images/.gitkeep
+!assets/voice_samples/
+assets/voice_samples/*
+!assets/voice_samples/README.md
 !assets/broll/
 assets/broll/
 !assets/broll/.gitkeep

@@ -8,7 +8,7 @@ from typing import Any
 from src.utils import project_path
 
 
-DEFAULT_MOSS_TTS_TEST_TEXT = "Ты не ленивый. Ты перегружен. Иногда мозгу нужна не мотивация, а тишина."
+DEFAULT_MOSS_TTS_TEST_TEXT = "\u0422\u044b \u043d\u0435 \u043b\u0435\u043d\u0438\u0432\u044b\u0439. \u0422\u044b \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043d. \u0418\u043d\u043e\u0433\u0434\u0430 \u043c\u043e\u0437\u0433\u0443 \u043d\u0443\u0436\u043d\u0430 \u043d\u0435 \u043c\u043e\u0442\u0438\u0432\u0430\u0446\u0438\u044f, \u0430 \u0442\u0438\u0448\u0438\u043d\u0430."
 DEFAULT_MOSS_TTS_OUTPUT = Path("outputs/tts_tests/moss_tts_test.wav")
 
 
@@ -118,5 +118,5 @@ def _build_command(python_exe: Path, text: str, target: Path, config: dict[str, 
         command.extend(["--device", str(config.get("device", "auto"))])
 
     if config.get("voice_clone_enabled") and config.get("prompt_audio_path"):
-        command.extend(["--prompt-audio-path", str(project_path(config["prompt_audio_path"]))])
+        command.extend(["--mode", "voice_clone", "--prompt-audio-path", str(project_path(config["prompt_audio_path"]))])
     return command
