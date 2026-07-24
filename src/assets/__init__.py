@@ -1,0 +1,145 @@
+"""Shared asset services."""
+
+from .models import (
+    ASSET_SCHEMA_VERSION,
+    AssetCandidate,
+    AssetLicense,
+    AssetProvenance,
+    DownloadedAsset,
+    ProviderCapabilities,
+)
+from .provider_contract import (
+    AssetPreview,
+    AssetSearchRequest,
+    DownloadContext,
+    LicenseReviewRequired,
+    ProviderAuthenticationError,
+    ProviderConfigurationError,
+    ProviderDownloadError,
+    ProviderError,
+    ProviderHealth,
+    ProviderInvalidResponseError,
+    ProviderNetworkError,
+    ProviderNoResultsError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    ProviderValidationError,
+    StockProvider,
+)
+from .license_policy import (
+    LicensePolicyDecision,
+    apply_policy_to_candidate,
+    evaluate_asset_policy,
+    load_license_policy,
+    policy_status_for_provider,
+)
+from .provider_routing import route_providers
+from .attribution_export import export_asset_sources
+from .visual_preview import (
+    CandidatePreview,
+    PreviewCache,
+    PreviewCacheRecord,
+    VisualPreviewRequest,
+    compute_preview_cache_key,
+    prepare_candidate_preview_analyses,
+    prepare_visual_preview_for_project,
+)
+from .frame_sampling import SampledFrame
+from .visual_metrics import TechnicalVisualMetrics
+from .perceptual_similarity import PerceptualSignature, SimilarityResult
+from .review_bundle import SceneReviewBundle, create_scene_review_bundle, write_review_bundle
+from .semantic_visual_backend import SemanticBackendCapabilities, SemanticBackendHealth, SemanticVisualBackend
+from .semantic_visual_cache import SemanticVisualCache, compute_semantic_cache_key
+from .semantic_visual_models import (
+    AggregateSemanticScores,
+    FrameSemanticObservation,
+    SceneVisualRequirements,
+    SemanticEvidence,
+    SemanticFrameReference,
+    SemanticVisualError,
+    SemanticVisualRequest,
+    SemanticVisualResult,
+    TermSemanticCheckResult,
+)
+from .semantic_visual_mock import MockSemanticVisualBackend
+from .semantic_visual_openai import (
+    OpenAISemanticVisualBackend,
+    OpenAISemanticConfig,
+    OpenAIRequestBuilder,
+    OpenAIDetailPolicy,
+    VisionBudgetGuard,
+)
+from .semantic_visual_service import (
+    analyse_semantic_visual_for_project,
+    inspect_semantic_visual_project,
+    load_semantic_visual_config,
+)
+
+__all__ = [
+    "ASSET_SCHEMA_VERSION",
+    "AssetCandidate",
+    "AssetLicense",
+    "AssetPreview",
+    "AssetProvenance",
+    "AssetSearchRequest",
+    "DownloadContext",
+    "DownloadedAsset",
+    "LicenseReviewRequired",
+    "ProviderAuthenticationError",
+    "ProviderCapabilities",
+    "ProviderConfigurationError",
+    "ProviderDownloadError",
+    "ProviderError",
+    "ProviderHealth",
+    "ProviderInvalidResponseError",
+    "ProviderNetworkError",
+    "ProviderNoResultsError",
+    "ProviderRateLimitError",
+    "ProviderTimeoutError",
+    "ProviderValidationError",
+    "StockProvider",
+    "LicensePolicyDecision",
+    "apply_policy_to_candidate",
+    "evaluate_asset_policy",
+    "load_license_policy",
+    "policy_status_for_provider",
+    "route_providers",
+    "export_asset_sources",
+    "VisualPreviewRequest",
+    "CandidatePreview",
+    "PreviewCache",
+    "PreviewCacheRecord",
+    "SampledFrame",
+    "TechnicalVisualMetrics",
+    "PerceptualSignature",
+    "SimilarityResult",
+    "SceneReviewBundle",
+    "compute_preview_cache_key",
+    "prepare_candidate_preview_analyses",
+    "prepare_visual_preview_for_project",
+    "create_scene_review_bundle",
+    "write_review_bundle",
+    "SceneVisualRequirements",
+    "SemanticFrameReference",
+    "AggregateSemanticScores",
+    "TermSemanticCheckResult",
+    "SemanticEvidence",
+    "FrameSemanticObservation",
+    "SemanticVisualError",
+    "SemanticVisualRequest",
+    "SemanticVisualResult",
+    "SemanticBackendCapabilities",
+    "SemanticBackendHealth",
+    "SemanticVisualBackend",
+    "SemanticVisualCache",
+    "MockSemanticVisualBackend",
+    "OpenAISemanticVisualBackend",
+    "OpenAISemanticConfig",
+    "OpenAIRequestBuilder",
+    "OpenAIDetailPolicy",
+    "VisionBudgetGuard",
+    "compute_semantic_cache_key",
+    "load_semantic_visual_config",
+    "analyse_semantic_visual_for_project",
+    "inspect_semantic_visual_project",
+]

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAI Semantic Vision Live Evaluation Contact Sheet</title>
+<style>body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f6f7f9;color:#17202a}main{max-width:1180px;margin:0 auto;padding:24px}h1{font-size:24px;margin:0 0 8px;letter-spacing:0}h2{font-size:19px;margin:28px 0 12px;letter-spacing:0}h3{font-size:16px;margin:0 0 8px;letter-spacing:0}.summary{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px}.pill{border:1px solid #c8d0d9;background:#fff;padding:6px 8px;border-radius:6px;font-size:13px}.scene{border-top:2px solid #30363d;padding-top:16px;margin-top:24px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:760px){.grid{grid-template-columns:1fr}main{padding:14px}}.candidate{background:#fff;border:1px solid #d7dde4;border-radius:8px;padding:12px}.candidate.suitable{border-left:6px solid #227a45}.candidate.review{border-left:6px solid #a66f00}.candidate.unsuitable{border-left:6px solid #a32929}.meta,.truth{font-size:12px;line-height:1.45}.meta{color:#344054;margin-bottom:10px}.meta a{color:#0b5cad;word-break:break-word}.truth{background:#f3f5f7;border-radius:6px;padding:8px;margin:8px 0}.frames{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}figure{margin:0}img{display:block;width:100%;height:260px;object-fit:contain;background:#111;border-radius:6px}figcaption{font-size:12px;color:#4c5563;margin-top:4px;word-break:break-word}.req{font-size:13px;line-height:1.45;background:#eaf1f8;border:1px solid #cbd9e7;border-radius:6px;padding:10px;margin:8px 0 12px}</style></head><body><main>
+<h1>OpenAI Semantic Vision Live Evaluation Contact Sheet</h1>
+<p>Prepared still-image dataset. API payload uses only canonical frame_000; crop variants are contact-sheet-only. Prepared at 2026-07-23T12:46:43.506733+00:00.</p>
+<div class="summary">
+<span class="pill">Scenes: 3</span><span class="pill">Candidates: 6</span><span class="pill">Contact frames: 12</span><span class="pill">API images: 6</span><span class="pill">Projected calls: 6</span><span class="pill">Model: gpt-5.6-terra</span><span class="pill">Detail: low</span><span class="pill">Live calls: false</span><span class="pill">Paid calls: false</span></div>
+<section class="scene">
+<h2>scene_01_strict_saturn_v (strict)</h2>
+<div class="req">
+<strong>Subject:</strong> Saturn V rocket<br>
+<strong>Action:</strong> launching<br>
+<strong>Exact entity:</strong> Saturn V rocket<br>
+<strong>Environment:</strong> rocket launch pad, sky, smoke plume<br>
+<strong>Must-have:</strong> Saturn V rocket, rocket launch, flame or smoke plume<br>
+<strong>Negative:</strong> Space Shuttle orbiter, airplane, indoor museum display</div>
+<div class="grid">
+<article class="candidate suitable">
+<h3>Candidate A: scene01_A_saturn_v_launch</h3>
+<div class="meta">
+<strong>Expected:</strong> suitable; expected suitable candidate<br>
+<strong>Provider:</strong> wikimedia / 6739626<br>
+<strong>Media type:</strong> image; limited_temporal_evidence=true<br>
+<strong>Title:</strong> Apollo 11 Launch2.jpg<br>
+<strong>Source:</strong> <a href="https://commons.wikimedia.org/wiki/File:Apollo_11_Launch2.jpg" rel="noopener noreferrer">https://commons.wikimedia.org/wiki/File:Apollo_11_Launch2.jpg</a><br>
+<strong>Payload:</strong> frame_000 only; frame_001 is contact-sheet crop only</div>
+<div class="truth">
+subject=True, action=True, environment=True, exact_entity=True<br>
+Visible launch vehicle is the tall Saturn V/Apollo-style rocket lifting off with plume and tower context.</div>
+<div class="frames">
+<figure>
+<img src="prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_000.jpg" alt="scene01_A_saturn_v_launch frame 0">
+<figcaption>frame 0 - 576x720 - canonical_api_frame - payload=true</figcaption>
+</figure>
+<figure>
+<img src="prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_001.jpg" alt="scene01_A_saturn_v_launch frame 1">
+<figcaption>frame 1 - 640x640 - contact_sheet_crop_only - payload=false</figcaption>
+</figure>
+</div></article>
+<article class="candidate unsuitable">
+<h3>Candidate B: scene01_B_space_shuttle_launch</h3>
+<div class="meta">
+<strong>Expected:</strong> unsuitable; close but wrong candidate<br>
+<strong>Provider:</strong> wikimedia / 199486<br>
+<strong>Media type:</strong> image; limited_temporal_evidence=true<br>
+<strong>Title:</strong> Space Shuttle Columbia launching.jpg<br>
+<strong>Source:</strong> <a href="https://commons.wikimedia.org/wiki/File:Space_Shuttle_Columbia_launching.jpg" rel="noopener noreferrer">https://commons.wikimedia.org/wiki/File:Space_Shuttle_Columbia_launching.jpg</a><br>
+<strong>Payload:</strong> frame_000 only; frame_001 is contact-sheet crop only</div>
+<div class="truth">
+subject=False, action=True, environment=True, exact_entity=False<br>
+It is a real launch scene, but the vehicle is a Space Shuttle orbiter/stack rather than a Saturn V rocket.</div>
+<div class="frames">
+<figure>
+<img src="prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_000.jpg" alt="scene01_B_space_shuttle_launch frame 0">
+<figcaption>frame 0 - 720x720 - canonical_api_frame - payload=true</figcaption>
+</figure>
+<figure>
+<img src="prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_001.jpg" alt="scene01_B_space_shuttle_launch frame 1">
+<figcaption>frame 1 - 640x640 - contact_sheet_crop_only - payload=false</figcaption>
+</figure>
+</div></article>
+</div></section>
+<section class="scene">
+<h2>scene_02_balanced_bear_salmon (balanced)</h2>
+<div class="req">
+<strong>Subject:</strong> brown bear<br>
+<strong>Action:</strong> catching salmon<br>
+<strong>Exact entity:</strong> brown bear catching salmon<br>
+<strong>Environment:</strong> river, waterfall or rapids, natural habitat<br>
+<strong>Must-have:</strong> brown bear, salmon or fish, river water<br>
+<strong>Negative:</strong> bear only standing, no visible fish, zoo enclosure</div>
+<div class="grid">
+<article class="candidate suitable">
+<h3>Candidate A: scene02_A_bear_catching_salmon</h3>
+<div class="meta">
+<strong>Expected:</strong> suitable; expected suitable candidate<br>
+<strong>Provider:</strong> wikimedia / 147045132<br>
+<strong>Media type:</strong> image; limited_temporal_evidence=true<br>
+<strong>Title:</strong> Brown Bear catching Salmon.jpg<br>
+<strong>Source:</strong> <a href="https://commons.wikimedia.org/wiki/File:Brown_Bear_catching_Salmon.jpg" rel="noopener noreferrer">https://commons.wikimedia.org/wiki/File:Brown_Bear_catching_Salmon.jpg</a><br>
+<strong>Payload:</strong> frame_000 only; frame_001 is contact-sheet crop only</div>
+<div class="truth">
+subject=True, action=True, environment=True, exact_entity=True<br>
+The bear and fish are visibly connected in a river/rapids context, matching both subject and action.</div>
+<div class="frames">
+<figure>
+<img src="prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_000.jpg" alt="scene02_A_bear_catching_salmon frame 0">
+<figcaption>frame 0 - 720x405 - canonical_api_frame - payload=true</figcaption>
+</figure>
+<figure>
+<img src="prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_001.jpg" alt="scene02_A_bear_catching_salmon frame 1">
+<figcaption>frame 1 - 540x540 - contact_sheet_crop_only - payload=false</figcaption>
+</figure>
+</div></article>
+<article class="candidate review">
+<h3>Candidate B: scene02_B_bear_standing_river</h3>
+<div class="meta">
+<strong>Expected:</strong> review; close but wrong candidate<br>
+<strong>Provider:</strong> wikimedia / 159122245<br>
+<strong>Media type:</strong> image; limited_temporal_evidence=true<br>
+<strong>Title:</strong> Brown Bear standing in river (50377060656).jpg<br>
+<strong>Source:</strong> <a href="https://commons.wikimedia.org/wiki/File:Brown_Bear_standing_in_river_%2850377060656%29.jpg" rel="noopener noreferrer">https://commons.wikimedia.org/wiki/File:Brown_Bear_standing_in_river_%2850377060656%29.jpg</a><br>
+<strong>Payload:</strong> frame_000 only; frame_001 is contact-sheet crop only</div>
+<div class="truth">
+subject=True, action=False, environment=True, exact_entity=False<br>
+The subject and river environment match, but the visible action is standing/wading; no salmon catch is visible.</div>
+<div class="frames">
+<figure>
+<img src="prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_000.jpg" alt="scene02_B_bear_standing_river frame 0">
+<figcaption>frame 0 - 720x540 - canonical_api_frame - payload=true</figcaption>
+</figure>
+<figure>
+<img src="prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_001.jpg" alt="scene02_B_bear_standing_river frame 1">
+<figcaption>frame 1 - 640x640 - contact_sheet_crop_only - payload=false</figcaption>
+</figure>
+</div></article>
+</div></section>
+<section class="scene">
+<h2>scene_03_illustrative_forest_broll (illustrative)</h2>
+<div class="req">
+<strong>Subject:</strong> forest canopy<br>
+<strong>Action:</strong> not applicable<br>
+<strong>Exact entity:</strong> not applicable<br>
+<strong>Environment:</strong> green forest, mist or humid canopy, natural woodland<br>
+<strong>Must-have:</strong> trees, forest canopy, green vegetation<br>
+<strong>Negative:</strong> desert, sand dunes, urban skyline</div>
+<div class="grid">
+<article class="candidate suitable">
+<h3>Candidate A: scene03_A_misty_forest_canopy</h3>
+<div class="meta">
+<strong>Expected:</strong> suitable; expected suitable candidate<br>
+<strong>Provider:</strong> wikimedia / 193453163<br>
+<strong>Media type:</strong> image; limited_temporal_evidence=true<br>
+<strong>Title:</strong> Foggy Forest Canopy in the Anamalai Hills, Valparai 01.jpg<br>
+<strong>Source:</strong> <a href="https://commons.wikimedia.org/wiki/File:Foggy_Forest_Canopy_in_the_Anamalai_Hills%2C_Valparai_01.jpg" rel="noopener noreferrer">https://commons.wikimedia.org/wiki/File:Foggy_Forest_Canopy_in_the_Anamalai_Hills%2C_Valparai_01.jpg</a><br>
+<strong>Payload:</strong> frame_000 only; frame_001 is contact-sheet crop only</div>
+<div class="truth">
+subject=True, action=None, environment=True, exact_entity=None<br>
+The image is atmospheric green forest canopy with mist; exact action is not required for this illustrative scene.</div>
+<div class="frames">
+<figure>
+<img src="prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_000.jpg" alt="scene03_A_misty_forest_canopy frame 0">
+<figcaption>frame 0 - 405x720 - canonical_api_frame - payload=true</figcaption>
+</figure>
+<figure>
+<img src="prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_001.jpg" alt="scene03_A_misty_forest_canopy frame 1">
+<figcaption>frame 1 - 640x640 - contact_sheet_crop_only - payload=false</figcaption>
+</figure>
+</div></article>
+<article class="candidate unsuitable">
+<h3>Candidate B: scene03_B_desert_dunes</h3>
+<div class="meta">
+<strong>Expected:</strong> unsuitable; close but wrong candidate<br>
+<strong>Provider:</strong> wikimedia / 145015263<br>
+<strong>Media type:</strong> image; limited_temporal_evidence=true<br>
+<strong>Title:</strong> Utah Dunes Landscape - West Desert District.jpg<br>
+<strong>Source:</strong> <a href="https://commons.wikimedia.org/wiki/File:Utah_Dunes_Landscape_-_West_Desert_District.jpg" rel="noopener noreferrer">https://commons.wikimedia.org/wiki/File:Utah_Dunes_Landscape_-_West_Desert_District.jpg</a><br>
+<strong>Payload:</strong> frame_000 only; frame_001 is contact-sheet crop only</div>
+<div class="truth">
+subject=False, action=None, environment=False, exact_entity=None<br>
+It is natural landscape B-roll, but it visibly shows dry sand dunes rather than green forest canopy.</div>
+<div class="frames">
+<figure>
+<img src="prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_000.jpg" alt="scene03_B_desert_dunes frame 0">
+<figcaption>frame 0 - 720x473 - canonical_api_frame - payload=true</figcaption>
+</figure>
+<figure>
+<img src="prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_001.jpg" alt="scene03_B_desert_dunes frame 1">
+<figcaption>frame 1 - 631x631 - contact_sheet_crop_only - payload=false</figcaption>
+</figure>
+</div></article>
+</div></section>
+</main></body></html>

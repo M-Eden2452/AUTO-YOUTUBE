@@ -1,0 +1,158 @@
+# TEST RESULTS - OPENAI SEMANTIC BACKEND
+
+Working directory: G:\Projects\AI-YouTube
+Date: 2026-07-23
+Branch: master
+Commit before implementation: adb40fa944318646aef66102cbb1352e40b7cacc
+
+## Red TDD Check Before Implementation
+
+Command:
+python -B -m unittest tests.test_semantic_visual_openai_backend tests.test_semantic_visual_evaluation
+
+Result:
+Ran 35 tests in 2.660s
+FAILED (failures=3, errors=31)
+
+Expected reason:
+`src.assets.semantic_visual_openai`, `src.assets.semantic_visual_evaluation` and `semantic-backend` CLI did not exist yet.
+
+## New Mocked OpenAI Backend / Evaluation Tests
+
+Command:
+python -B -m unittest tests.test_semantic_visual_openai_backend tests.test_semantic_visual_evaluation
+
+Result:
+Ran 35 tests in 3.126s
+OK
+
+Covered:
+Protocol implementation, multi-frame request builder, absolute path redaction, API key redaction, base64 non-persistence, structured output mapping, invalid schema fallback, refusal, timeout, 429 retry, Retry-After, 401/403/400 no retry, 5xx limited retry, default paid-call block, zero budget block, missing confirmation block, call-limit block, model allowlist, auto/original detail block, low detail, mocked high-detail escalation, frame/candidate limits, usage metadata, cache compatibility, dataset loading, metrics, selection stability, network guard and CLI diagnostics/dry-run/mocked evaluation.
+
+## Existing Semantic Foundation Tests
+
+Command:
+python -B -m unittest tests.test_semantic_visual_foundation tests.test_semantic_visual_integration
+
+Result:
+Ran 32 tests in 2.241s
+OK
+
+## Visual Preview Tests
+
+Command:
+python -B -m unittest tests.test_visual_preview_foundation tests.test_visual_preview_integration
+
+Result:
+Ran 45 tests in 4.726s
+OK
+
+## Provider / News / Quality Tests
+
+Command:
+python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_provider_foundation_hardening tests.test_documentary_asset_providers tests.test_provider_routing tests.test_attribution_export tests.test_news_to_short_assets tests.test_news_to_short_pipeline tests.test_news_to_short_quality_check tests.test_news_to_short_renderer tests.test_news_to_short_delivery tests.test_semantic_asset_selection tests.test_test_network_guard
+
+Result:
+Ran 65 tests in 69.152s
+OK
+
+## Full Unittest Discovery
+
+Command:
+python -B -m unittest discover -s tests
+
+Result:
+Ran 246 tests in 72.969s
+OK
+
+Note:
+The known non-fatal MoviePy `FFMPEG_AudioReader.__del__` ignored exception appeared during discovery, matching prior verification noise. The unittest result was OK.
+
+## Import Checks
+
+Command:
+python -B -c "import pipeline; import src.assets.semantic_visual_models; import src.assets.semantic_visual_backend; import src.assets.semantic_visual_cache; import src.assets.semantic_visual_mock; import src.assets.semantic_visual_external; import src.assets.semantic_visual_service; import src.assets.semantic_visual_openai; import src.assets.semantic_visual_evaluation; import src.assets.review_bundle; import src.news.asset_manager; print('semantic openai imports ok')"
+
+Result:
+semantic openai imports ok
+
+## Config Validation
+
+Command:
+Get-Content -Raw config\semantic_visual.json | ConvertFrom-Json | Out-Null
+Get-Content -Raw config\semantic_visual_eval.json | ConvertFrom-Json | Out-Null
+
+Result:
+semantic openai configs json ok
+
+## Diagnostics
+
+Command:
+python -B pipeline.py semantic-backend diagnostics --backend openai
+
+Result:
+configured=True
+key_configured=False
+enabled=False
+primary_model=gpt-5.6-terra
+comparison_model=gpt-5.6-luna
+paid_calls_allowed=False
+budget_usd=0.0
+call_limit=0
+live_status=not_checked
+
+## Dry-Run Evaluation
+
+Command:
+python -B pipeline.py semantic-backend evaluate --backend openai --model gpt-5.6-terra --dry-run
+
+Result:
+dry_run=True
+dataset_cases=14
+projected_calls=14
+projected_image_count=40
+requests_built=14
+schema_valid=True
+budget_allowed=False
+live_blocked_reasons=openai_backend_disabled,allow_paid_vision_required,allow_paid_vision_cli_required,maximum_budget_usd_required,budget_usd_cli_required,maximum_calls_per_project_required,max_calls_cli_required,confirm_paid_vision_required,maximum_candidates_per_scene_exceeded
+paid_calls_performed=False
+live_vision_calls_performed=False
+
+## Mocked Evaluation
+
+Command:
+python -B pipeline.py semantic-backend evaluate --backend openai --model gpt-5.6-terra --mocked
+
+Result:
+dataset_cases=14
+projected_calls=14
+projected_image_count=40
+structured_output_validity=1.0
+subject_classification_accuracy=0.928571
+action_classification_accuracy=0.928571
+environment_accuracy=1.0
+paid_calls_performed=False
+live_vision_calls_performed=False
+
+## Secret / Base64 Scan
+
+Result:
+Diagnostics with a fake `OPENAI_API_KEY` printed only `key_configured=True` and did not print the key.
+
+## Media Index Integrity
+
+Command:
+Get-FileHash -Algorithm SHA256 assets\library\metadata\media_index.json
+
+Result:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+## Safety Confirmations
+
+- Ordinary tests remained protected by `tests.network_guard`.
+- No live Vision API calls were performed.
+- No paid API calls were performed.
+- No OpenAI live calls were performed.
+- Production selection was not changed.
+- Semantic rerank stayed disabled.
+- Real `media_index.json` was not modified.

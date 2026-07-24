@@ -1,0 +1,59 @@
+{
+  "implementation": {
+    "git_branch": "master",
+    "git_commit_before": "adb40fa944318646aef66102cbb1352e40b7cacc",
+    "started_at": "2026-07-23T12:23:39.1139242+03:00",
+    "completed_at": "2026-07-23T12:41:27.7689638+03:00"
+  },
+  "foundation": {
+    "models_implemented": true,
+    "backend_contract_implemented": true,
+    "cache_implemented": true,
+    "mock_backend_implemented": true,
+    "service_implemented": true,
+    "review_bundle_integrated": true,
+    "html_integrated": true
+  },
+  "selection": {
+    "production_selection_changed": false,
+    "semantic_rerank_enabled_by_default": false
+  },
+  "tests": {
+    "passed": 211,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "live_vision_calls_performed": false,
+  "paid_api_calls_performed": false,
+  "real_media_index_modified": false,
+  "files_created": [
+    "config/semantic_visual.json",
+    "src/assets/semantic_visual_models.py",
+    "src/assets/semantic_visual_backend.py",
+    "src/assets/semantic_visual_cache.py",
+    "src/assets/semantic_visual_mock.py",
+    "src/assets/semantic_visual_external.py",
+    "src/assets/semantic_visual_service.py",
+    "tests/test_semantic_visual_foundation.py",
+    "tests/test_semantic_visual_integration.py",
+    "docs/implementation/semantic_visual_foundation/SEMANTIC_PLAN.md",
+    "docs/implementation/semantic_visual_foundation/SEMANTIC_CHECKPOINT.json",
+    "docs/implementation/semantic_visual_foundation/SEMANTIC_REPORT.md",
+    "docs/implementation/semantic_visual_foundation/SEMANTIC_SNAPSHOT.json",
+    "docs/implementation/semantic_visual_foundation/TEST_RESULTS.txt",
+    "docs/implementation/semantic_visual_foundation/SEMANTIC_RESULT_SCHEMA.md"
+  ],
+  "files_modified": [
+    "pipeline.py",
+    "src/assets/__init__.py",
+    "src/assets/review_bundle.py",
+    "src/news/asset_manager.py"
+  ],
+  "remaining_issues": [
+    "Mock backend is deterministic fixture logic, not real Vision AI.",
+    "External backend adapter is intentionally disabled until explicit paid-backend evaluation.",
+    "Semantic rerank is a future mode and is not active in production selection."
+  ],
+  "ready_for_semantic_backend_evaluation": true
+}

@@ -1,0 +1,62 @@
+{
+  "implementation": {
+    "git_branch": "master",
+    "git_commit_before": "adb40fa944318646aef66102cbb1352e40b7cacc",
+    "started_at": "2026-07-23T12:55:55.4349862+03:00",
+    "completed_at": "2026-07-23T13:25:24.5235122+03:00"
+  },
+  "backend": {
+    "openai_adapter_implemented": true,
+    "responses_api_used": true,
+    "structured_output_implemented": true,
+    "budget_guard_implemented": true,
+    "live_enabled_by_default": false
+  },
+  "models": {
+    "primary": "gpt-5.6-terra",
+    "comparison": "gpt-5.6-luna"
+  },
+  "evaluation": {
+    "harness_implemented": true,
+    "dataset_cases": 14,
+    "mock_evaluation_passed": true
+  },
+  "selection": {
+    "production_selection_changed": false,
+    "semantic_rerank_enabled": false
+  },
+  "tests": {
+    "passed": 246,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "live_vision_calls_performed": false,
+  "paid_api_calls_performed": false,
+  "real_media_index_modified": false,
+  "ready_for_controlled_live_evaluation": true,
+  "files_created": [
+    "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_PLAN.md",
+    "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_CHECKPOINT.json",
+    "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_REPORT.md",
+    "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_SNAPSHOT.json",
+    "docs/implementation/openai_semantic_backend/TEST_RESULTS.txt",
+    "docs/implementation/openai_semantic_backend/EVALUATION_DATASET_SCHEMA.md",
+    "docs/implementation/openai_semantic_backend/LIVE_EVALUATION_READINESS.md",
+    "src/assets/semantic_visual_openai.py",
+    "src/assets/semantic_visual_evaluation.py",
+    "config/semantic_visual_eval.json",
+    "tests/test_semantic_visual_openai_backend.py",
+    "tests/test_semantic_visual_evaluation.py"
+  ],
+  "files_modified": [
+    "config/semantic_visual.json",
+    "pipeline.py",
+    "src/assets/__init__.py",
+    "src/assets/semantic_visual_service.py"
+  ],
+  "remaining_issues": [
+    "Real OpenAI model behavior, pricing and availability were not validated because live calls are prohibited in this stage.",
+    "OpenAI SDK import is lazy and only exercised by future gated live calls; mocked tests do not require network or SDK import."
+  ]
+}

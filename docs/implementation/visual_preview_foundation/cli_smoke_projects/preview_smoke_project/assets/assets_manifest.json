@@ -1,0 +1,68 @@
+{
+  "project_id": "preview_smoke_project",
+  "scenes": [
+    {
+      "scene_id": "scene_001",
+      "text": "Static HTML preview board smoke",
+      "duration_sec": 4,
+      "target_aspect_ratio": "9:16",
+      "candidates": [
+        {
+          "candidate_id": "fake_board_001",
+          "asset_id": "fake_board_001",
+          "provider": "fake",
+          "provider_asset_id": "fake_board_001",
+          "asset_type": "image",
+          "title": "Fake Board Preview",
+          "preview_url": "",
+          "local_path": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\fixtures\\fake_preview.png",
+          "source_url": "https://example.test/fake-board",
+          "author": "Fixture",
+          "license": {
+            "license_id": "cc0",
+            "label": "CC0",
+            "commercial_use": true,
+            "attribution_required": false
+          },
+          "provenance": {
+            "provider": "fake",
+            "provider_asset_id": "fake_board_001",
+            "source_url": "https://example.test/fake-board",
+            "retrieved_at": "2026-07-23T00:00:00Z"
+          },
+          "metadata_score": 0.8,
+          "total_score": 0.8,
+          "download_role": "preview_only"
+        }
+      ],
+      "selected_asset": {
+        "candidate_id": "fake_board_001",
+        "asset_id": "fake_board_001",
+        "provider": "fake",
+        "provider_asset_id": "fake_board_001",
+        "asset_type": "image",
+        "title": "Fake Board Preview",
+        "preview_url": "",
+        "local_path": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\fixtures\\fake_preview.png",
+        "source_url": "https://example.test/fake-board",
+        "author": "Fixture",
+        "license": {
+          "license_id": "cc0",
+          "label": "CC0",
+          "commercial_use": true,
+          "attribution_required": false
+        },
+        "provenance": {
+          "provider": "fake",
+          "provider_asset_id": "fake_board_001",
+          "source_url": "https://example.test/fake-board",
+          "retrieved_at": "2026-07-23T00:00:00Z"
+        },
+        "metadata_score": 0.8,
+        "total_score": 0.8,
+        "download_role": "preview_only"
+      }
+    }
+  ],
+  "missing_scenes": []
+}

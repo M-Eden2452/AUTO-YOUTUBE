@@ -1,0 +1,62 @@
+# LIVE PREVIEW DIAGNOSTICS
+started_at: 2026-07-23T09:04:22.379089+00:00
+limits: max_one_preview=5MB, max_total=20MB, timeout=12s
+rules: preview/thumbnail/derivative only; no originals/master; no paid/Vision API; Envato remote download forbidden
+
+provider: wikimedia
+  status: downloaded_preview
+  preview_url: https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Apollo_17_Blue_Marble_original_orientation_%28AS17-148-22727%29.jpg/330px-Apollo_17_Blue_Marble_original_orientation_%28AS17-148-22727%29.jpg
+  content_type: image/jpeg
+  content_length: 15714
+  downloaded_size_bytes: 15714
+  sha256: df4d1822ae877ad0bdacecc15d05dac2c4b58d32b60507dcbd55de171cb76bc1
+  validation: pillow_image_ok
+
+provider: nasa_images
+  status: downloaded_preview
+  preview_url: https://images-assets.nasa.gov/image/as17-148-22727/as17-148-22727~thumb.jpg
+  content_type: image/jpeg
+  content_length: 54586
+  downloaded_size_bytes: 54586
+  sha256: 5b62bc51015e2eaee1978518b2c7e60ec67271608c6d6a8ce2a7bdc396af476f
+  validation: pillow_image_ok
+
+provider: internet_archive
+  status: downloaded_preview
+  preview_url: https://archive.org/services/img/goodytwoshoes00newyiala
+  content_type: image/jpeg
+  content_length: 22591
+  downloaded_size_bytes: 22591
+  sha256: a2bce285bb7faf090098509c423a442df78a6141e8b9b3c53ba24c827cb6235c
+  validation: pillow_image_ok
+
+provider: pexels
+  status: skipped_missing_key
+  content_type: None
+  content_length: None
+  downloaded_size_bytes: None
+  sha256: None
+  validation: None
+  error: PEXELS_API_KEY/PEXELS_KEY not present in process environment
+
+provider: pixabay
+  status: skipped_missing_key
+  content_type: None
+  content_length: None
+  downloaded_size_bytes: None
+  sha256: None
+  validation: None
+  error: PIXABAY_API_KEY/PIXABAY_KEY not present in process environment
+
+provider: envato_manual
+  status: skipped_forbidden
+  content_type: None
+  content_length: None
+  downloaded_size_bytes: None
+  sha256: None
+  validation: None
+  error: Automated remote Envato preview download is forbidden for this stage.
+
+total_downloaded_bytes: 92891
+temporary_files_removed: yes
+completed_at: 2026-07-23T09:04:25.177255+00:00

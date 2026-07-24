@@ -1,0 +1,1163 @@
+{
+  "schema_version": "openai_live_eval_dataset.v1",
+  "prepared_at_utc": "2026-07-23T12:46:43.506733+00:00",
+  "project_id": "openai_live_eval_prepared",
+  "dataset_root": "docs/implementation/openai_live_evaluation/prepared_dataset",
+  "source_selection": {
+    "existing_visual_review_manifests_found": false,
+    "reason": "No projects/*/assets/review/visual_review_manifest.json files were present, so an isolated review-only preview dataset was prepared.",
+    "disallowed_sources_used": false,
+    "original_or_master_downloads_performed": false,
+    "envato_downloads_performed": false,
+    "youtube_or_shorts_sources_used": false
+  },
+  "constraints": {
+    "scenes": 3,
+    "candidates_per_scene": 2,
+    "maximum_frames_per_candidate": 1,
+    "maximum_future_api_calls": 6,
+    "maximum_future_images": 6,
+    "detail": "low",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "low",
+    "mode": "analyse_and_report",
+    "semantic_rerank_enabled": false,
+    "production_selection_changed": false,
+    "still_image_payload_policy": "send_only_frame_000_per_candidate"
+  },
+  "summary": {
+    "scenes": 3,
+    "candidates": 6,
+    "sampled_frames": 12,
+    "projected_calls": 6,
+    "projected_image_count": 6,
+    "maximum_candidates_per_scene": 2,
+    "maximum_frames_per_candidate": 1,
+    "model": "gpt-5.6-terra",
+    "detail": "low",
+    "reasoning_effort": "low",
+    "mode": "analyse_and_report",
+    "proposed_hard_budget_cap_usd": 0.5,
+    "live_calls_performed": false,
+    "paid_calls_performed": false,
+    "production_selection_changed": false,
+    "semantic_rerank_enabled": false,
+    "contact_sheet_frames": 12,
+    "payload_frames": 6,
+    "explicit_dataset_required": true
+  },
+  "scenes": [
+    {
+      "scene_id": "scene_01_strict_saturn_v",
+      "scene_type": "strict",
+      "requirements": {
+        "scene_id": "scene_01_strict_saturn_v",
+        "scene_text": "Strict exact-entity check: show a Saturn V rocket launch, not a Space Shuttle launch.",
+        "subject": "Saturn V rocket",
+        "secondary_subjects": [
+          "launch plume",
+          "launch tower"
+        ],
+        "action": "launching",
+        "environment": [
+          "rocket launch pad",
+          "sky",
+          "smoke plume"
+        ],
+        "location": [
+          "launch complex"
+        ],
+        "exact_entity": "Saturn V rocket",
+        "must_have": [
+          "Saturn V rocket",
+          "rocket launch",
+          "flame or smoke plume"
+        ],
+        "negative_elements": [
+          "Space Shuttle orbiter",
+          "airplane",
+          "indoor museum display"
+        ],
+        "shot_type": "wide launch shot",
+        "camera_view": "ground or telephoto launch view",
+        "mood": [
+          "historic",
+          "technical"
+        ],
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "subject/exact entity validation",
+        "acceptable_alternatives": [
+          "Apollo-era Saturn V on launch pad during liftoff"
+        ],
+        "semantic_strictness": "strict"
+      },
+      "candidates": [
+        {
+          "label": "A",
+          "candidate_id": "scene01_A_saturn_v_launch",
+          "provider": "wikimedia",
+          "provider_asset_id": "6739626",
+          "search_query": "saturn v rocket launch",
+          "expected_role": "expected suitable candidate",
+          "ground_truth": {
+            "expected_subject_match": true,
+            "expected_action_match": true,
+            "expected_environment_match": true,
+            "expected_exact_entity_match": true,
+            "expected_must_have": [
+              {
+                "term": "Saturn V rocket",
+                "present": true
+              },
+              {
+                "term": "rocket launch",
+                "present": true
+              },
+              {
+                "term": "flame or smoke plume",
+                "present": true
+              }
+            ],
+            "expected_negative_elements": [
+              {
+                "term": "Space Shuttle orbiter",
+                "present": false
+              },
+              {
+                "term": "airplane",
+                "present": false
+              },
+              {
+                "term": "indoor museum display",
+                "present": false
+              }
+            ],
+            "expected_classification": "suitable",
+            "explanation": "Visible launch vehicle is the tall Saturn V/Apollo-style rocket lifting off with plume and tower context."
+          },
+          "title": "Apollo 11 Launch2.jpg",
+          "description": "At 9:32 a.m. EDT, the swing arms move away and a plume of flame signals the liftoff of the Apollo 11 Saturn V space vehicle and astronauts Neil A. Armstrong, Michael Collins and Edwin E. Aldrin, Jr. from Kennedy Space Center Launch Complex 39A.",
+          "source_page": "https://commons.wikimedia.org/wiki/File:Apollo_11_Launch2.jpg",
+          "preview_source": {
+            "rendition": "wikimedia_thumb",
+            "content_type": "image/jpeg",
+            "bytes_downloaded": 381791,
+            "original_or_master_downloaded": false
+          },
+          "license": {
+            "license_name": "Public domain",
+            "license_url": "",
+            "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+            "rights_status": "review_required",
+            "attribution_required": true,
+            "attribution_text": "NASA; restored by Michel Vuijlsteke",
+            "policy_use": "review_only_preview_use",
+            "review_required": true
+          },
+          "preview_use": "review_only_preview_use",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_000.jpg",
+              "width": 576,
+              "height": 720,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "extraction_status": "ok",
+              "is_poster_frame": true,
+              "sha256": "91f1d314e644a47ff414caed2946f2260e75a19fba7a9fad6ab74819f0eb405b",
+              "perceptual_hash": "9c9c8c9e131b5337",
+              "technical_metrics": {
+                "width": 576,
+                "height": 720,
+                "aspect_ratio": 0.8,
+                "brightness_mean": 125.787,
+                "contrast_stddev": 68.049,
+                "edge_detail_density": 0.123982,
+                "file_size_bytes": 147255
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": true,
+              "variant_role": "canonical_api_frame"
+            },
+            {
+              "frame_index": 1,
+              "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_001.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_001.jpg",
+              "width": 640,
+              "height": 640,
+              "requested_timestamp_sec": 1.0,
+              "actual_timestamp_sec": 1.0,
+              "extraction_status": "ok",
+              "is_poster_frame": false,
+              "sha256": "eb73cf14fe5e1dafe9c9f6303146e5f5cfe45c21a1000642d0da7c292726692c",
+              "perceptual_hash": "9e9c8c9e131b1b53",
+              "technical_metrics": {
+                "width": 640,
+                "height": 640,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 131.713,
+                "contrast_stddev": 70.125,
+                "edge_detail_density": 0.123428,
+                "file_size_bytes": 144184
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": false,
+              "variant_role": "contact_sheet_crop_only"
+            }
+          ],
+          "technical_analysis": {
+            "frame_count": 2,
+            "widths": [
+              576,
+              640
+            ],
+            "heights": [
+              720,
+              640
+            ],
+            "mean_brightness": 128.75,
+            "mean_contrast": 69.087,
+            "mean_edge_detail_density": 0.123705,
+            "payload_frame_count": 1,
+            "contact_sheet_frame_count": 2,
+            "limited_temporal_evidence": true,
+            "temporal_independence": false
+          },
+          "media_type": "image",
+          "limited_temporal_evidence": true,
+          "payload_frame_policy": {
+            "maximum_api_frames": 1,
+            "canonical_frame_index": 0,
+            "contact_sheet_variants_kept": true,
+            "temporal_independence": false,
+            "notes": "frame_001 is a crop/contact-sheet variant only and is not sent to OpenAI."
+          },
+          "payload_frame_references": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_000.jpg",
+              "width": 576,
+              "height": 720,
+              "sha256": "91f1d314e644a47ff414caed2946f2260e75a19fba7a9fad6ab74819f0eb405b",
+              "is_poster_frame": true,
+              "media_type": "image",
+              "limited_temporal_evidence": true
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "candidate_id": "scene01_B_space_shuttle_launch",
+          "provider": "wikimedia",
+          "provider_asset_id": "199486",
+          "search_query": "space shuttle launch",
+          "expected_role": "close but wrong candidate",
+          "ground_truth": {
+            "expected_subject_match": false,
+            "expected_action_match": true,
+            "expected_environment_match": true,
+            "expected_exact_entity_match": false,
+            "expected_must_have": [
+              {
+                "term": "Saturn V rocket",
+                "present": false
+              },
+              {
+                "term": "rocket launch",
+                "present": true
+              },
+              {
+                "term": "flame or smoke plume",
+                "present": true
+              }
+            ],
+            "expected_negative_elements": [
+              {
+                "term": "Space Shuttle orbiter",
+                "present": true
+              },
+              {
+                "term": "airplane",
+                "present": false
+              },
+              {
+                "term": "indoor museum display",
+                "present": false
+              }
+            ],
+            "expected_classification": "unsuitable",
+            "explanation": "It is a real launch scene, but the vehicle is a Space Shuttle orbiter/stack rather than a Saturn V rocket."
+          },
+          "title": "Space Shuttle Columbia launching.jpg",
+          "description": "The April 12 launch at Pad 39A of STS-1 , just seconds past 7 a.m., carries astronauts John Young and Robert Crippen into an Earth orbital mission scheduled to last for 54 hours, ending with unpowered landing at Edwards Air Force Base in California.",
+          "source_page": "https://commons.wikimedia.org/wiki/File:Space_Shuttle_Columbia_launching.jpg",
+          "preview_source": {
+            "rendition": "wikimedia_thumb",
+            "content_type": "image/jpeg",
+            "bytes_downloaded": 169909,
+            "original_or_master_downloaded": false
+          },
+          "license": {
+            "license_name": "Public domain",
+            "license_url": "",
+            "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+            "rights_status": "review_required",
+            "attribution_required": true,
+            "attribution_text": "NASA",
+            "policy_use": "review_only_preview_use",
+            "review_required": true
+          },
+          "preview_use": "review_only_preview_use",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_000.jpg",
+              "width": 720,
+              "height": 720,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "extraction_status": "ok",
+              "is_poster_frame": true,
+              "sha256": "b3e5f72a1bba14251994e9147e2350e477abd21f9e17602d3c7b9a45515fea27",
+              "perceptual_hash": "01072dcf4e6e9d9c",
+              "technical_metrics": {
+                "width": 720,
+                "height": 720,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 112.672,
+                "contrast_stddev": 65.355,
+                "edge_detail_density": 0.050691,
+                "file_size_bytes": 99879
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": true,
+              "variant_role": "canonical_api_frame"
+            },
+            {
+              "frame_index": 1,
+              "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_001.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_001.jpg",
+              "width": 640,
+              "height": 640,
+              "requested_timestamp_sec": 1.0,
+              "actual_timestamp_sec": 1.0,
+              "extraction_status": "ok",
+              "is_poster_frame": false,
+              "sha256": "ae3391a9327cd30b35aa6a41879b1d4adc8599cc7dff50f2e67d2334f5ec3319",
+              "perceptual_hash": "01072dcf4e6e9d9c",
+              "technical_metrics": {
+                "width": 640,
+                "height": 640,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 112.67,
+                "contrast_stddev": 65.303,
+                "edge_detail_density": 0.050691,
+                "file_size_bytes": 78883
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": false,
+              "variant_role": "contact_sheet_crop_only"
+            }
+          ],
+          "technical_analysis": {
+            "frame_count": 2,
+            "widths": [
+              720,
+              640
+            ],
+            "heights": [
+              720,
+              640
+            ],
+            "mean_brightness": 112.671,
+            "mean_contrast": 65.329,
+            "mean_edge_detail_density": 0.050691,
+            "payload_frame_count": 1,
+            "contact_sheet_frame_count": 2,
+            "limited_temporal_evidence": true,
+            "temporal_independence": false
+          },
+          "media_type": "image",
+          "limited_temporal_evidence": true,
+          "payload_frame_policy": {
+            "maximum_api_frames": 1,
+            "canonical_frame_index": 0,
+            "contact_sheet_variants_kept": true,
+            "temporal_independence": false,
+            "notes": "frame_001 is a crop/contact-sheet variant only and is not sent to OpenAI."
+          },
+          "payload_frame_references": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_000.jpg",
+              "width": 720,
+              "height": 720,
+              "sha256": "b3e5f72a1bba14251994e9147e2350e477abd21f9e17602d3c7b9a45515fea27",
+              "is_poster_frame": true,
+              "media_type": "image",
+              "limited_temporal_evidence": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "scene_type": "balanced",
+      "requirements": {
+        "scene_id": "scene_02_balanced_bear_salmon",
+        "scene_text": "Balanced subject/action/environment check: show a brown bear catching a salmon in a river.",
+        "subject": "brown bear",
+        "secondary_subjects": [
+          "salmon",
+          "river"
+        ],
+        "action": "catching salmon",
+        "environment": [
+          "river",
+          "waterfall or rapids",
+          "natural habitat"
+        ],
+        "location": [
+          "river"
+        ],
+        "exact_entity": "brown bear catching salmon",
+        "must_have": [
+          "brown bear",
+          "salmon or fish",
+          "river water"
+        ],
+        "negative_elements": [
+          "bear only standing",
+          "no visible fish",
+          "zoo enclosure"
+        ],
+        "shot_type": "wildlife action shot",
+        "camera_view": "medium or telephoto wildlife view",
+        "mood": [
+          "natural",
+          "active"
+        ],
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "subject/action/environment validation",
+        "acceptable_alternatives": [
+          "bear actively fishing with fish visible"
+        ],
+        "semantic_strictness": "balanced"
+      },
+      "candidates": [
+        {
+          "label": "A",
+          "candidate_id": "scene02_A_bear_catching_salmon",
+          "provider": "wikimedia",
+          "provider_asset_id": "147045132",
+          "search_query": "brown bear catching salmon",
+          "expected_role": "expected suitable candidate",
+          "ground_truth": {
+            "expected_subject_match": true,
+            "expected_action_match": true,
+            "expected_environment_match": true,
+            "expected_exact_entity_match": true,
+            "expected_must_have": [
+              {
+                "term": "brown bear",
+                "present": true
+              },
+              {
+                "term": "salmon or fish",
+                "present": true
+              },
+              {
+                "term": "river water",
+                "present": true
+              }
+            ],
+            "expected_negative_elements": [
+              {
+                "term": "bear only standing",
+                "present": false
+              },
+              {
+                "term": "no visible fish",
+                "present": false
+              },
+              {
+                "term": "zoo enclosure",
+                "present": false
+              }
+            ],
+            "expected_classification": "suitable",
+            "explanation": "The bear and fish are visibly connected in a river/rapids context, matching both subject and action."
+          },
+          "title": "Brown Bear catching Salmon.jpg",
+          "description": "Ursus arctos in Alaska",
+          "source_page": "https://commons.wikimedia.org/wiki/File:Brown_Bear_catching_Salmon.jpg",
+          "preview_source": {
+            "rendition": "wikimedia_thumb",
+            "content_type": "image/jpeg",
+            "bytes_downloaded": 217263,
+            "original_or_master_downloaded": false
+          },
+          "license": {
+            "license_name": "CC BY-SA 2.0",
+            "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+            "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+            "rights_status": "review_required",
+            "attribution_required": true,
+            "attribution_text": "Christoph Strässler, CC BY-SA 2.0",
+            "policy_use": "review_only_preview_use",
+            "review_required": true
+          },
+          "preview_use": "review_only_preview_use",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_000.jpg",
+              "width": 720,
+              "height": 405,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "extraction_status": "ok",
+              "is_poster_frame": true,
+              "sha256": "a9ad668071904a9175665c60d0fae5d5b1c7592502776e7298f0705357ed72f4",
+              "perceptual_hash": "f5cbc3c2e1c5c662",
+              "technical_metrics": {
+                "width": 720,
+                "height": 405,
+                "aspect_ratio": 1.7778,
+                "brightness_mean": 148.48,
+                "contrast_stddev": 61.05,
+                "edge_detail_density": 0.20502,
+                "file_size_bytes": 127707
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": true,
+              "variant_role": "canonical_api_frame"
+            },
+            {
+              "frame_index": 1,
+              "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_001.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_001.jpg",
+              "width": 540,
+              "height": 540,
+              "requested_timestamp_sec": 1.0,
+              "actual_timestamp_sec": 1.0,
+              "extraction_status": "ok",
+              "is_poster_frame": false,
+              "sha256": "3295797b6d6bb002c096f6c705b16e7a094c9599415f45ae45bcce7c3204771f",
+              "perceptual_hash": "32941120a4228188",
+              "technical_metrics": {
+                "width": 540,
+                "height": 540,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 136.965,
+                "contrast_stddev": 68.615,
+                "edge_detail_density": 0.200178,
+                "file_size_bytes": 126538
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": false,
+              "variant_role": "contact_sheet_crop_only"
+            }
+          ],
+          "technical_analysis": {
+            "frame_count": 2,
+            "widths": [
+              720,
+              540
+            ],
+            "heights": [
+              405,
+              540
+            ],
+            "mean_brightness": 142.722,
+            "mean_contrast": 64.832,
+            "mean_edge_detail_density": 0.202599,
+            "payload_frame_count": 1,
+            "contact_sheet_frame_count": 2,
+            "limited_temporal_evidence": true,
+            "temporal_independence": false
+          },
+          "media_type": "image",
+          "limited_temporal_evidence": true,
+          "payload_frame_policy": {
+            "maximum_api_frames": 1,
+            "canonical_frame_index": 0,
+            "contact_sheet_variants_kept": true,
+            "temporal_independence": false,
+            "notes": "frame_001 is a crop/contact-sheet variant only and is not sent to OpenAI."
+          },
+          "payload_frame_references": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_000.jpg",
+              "width": 720,
+              "height": 405,
+              "sha256": "a9ad668071904a9175665c60d0fae5d5b1c7592502776e7298f0705357ed72f4",
+              "is_poster_frame": true,
+              "media_type": "image",
+              "limited_temporal_evidence": true
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "candidate_id": "scene02_B_bear_standing_river",
+          "provider": "wikimedia",
+          "provider_asset_id": "159122245",
+          "search_query": "brown bear standing river",
+          "expected_role": "close but wrong candidate",
+          "ground_truth": {
+            "expected_subject_match": true,
+            "expected_action_match": false,
+            "expected_environment_match": true,
+            "expected_exact_entity_match": false,
+            "expected_must_have": [
+              {
+                "term": "brown bear",
+                "present": true
+              },
+              {
+                "term": "salmon or fish",
+                "present": false
+              },
+              {
+                "term": "river water",
+                "present": true
+              }
+            ],
+            "expected_negative_elements": [
+              {
+                "term": "bear only standing",
+                "present": true
+              },
+              {
+                "term": "no visible fish",
+                "present": true
+              },
+              {
+                "term": "zoo enclosure",
+                "present": false
+              }
+            ],
+            "expected_classification": "review",
+            "explanation": "The subject and river environment match, but the visible action is standing/wading; no salmon catch is visible."
+          },
+          "title": "Brown Bear standing in river (50377060656).jpg",
+          "description": "Brown bear from a 2002 cadastral survey trip. Photo by Mike Wilson (BLM)",
+          "source_page": "https://commons.wikimedia.org/wiki/File:Brown_Bear_standing_in_river_%2850377060656%29.jpg",
+          "preview_source": {
+            "rendition": "wikimedia_thumb",
+            "content_type": "image/jpeg",
+            "bytes_downloaded": 244186,
+            "original_or_master_downloaded": false
+          },
+          "license": {
+            "license_name": "Public domain",
+            "license_url": "",
+            "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+            "rights_status": "review_required",
+            "attribution_required": true,
+            "attribution_text": "BLM Alaska",
+            "policy_use": "review_only_preview_use",
+            "review_required": true
+          },
+          "preview_use": "review_only_preview_use",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_000.jpg",
+              "width": 720,
+              "height": 540,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "extraction_status": "ok",
+              "is_poster_frame": true,
+              "sha256": "b0902fbf12517afc7b89293127fe62552c0a750a4ea43379ef36729a90fe84ba",
+              "perceptual_hash": "2b53751f16325353",
+              "technical_metrics": {
+                "width": 720,
+                "height": 540,
+                "aspect_ratio": 1.3333,
+                "brightness_mean": 90.077,
+                "contrast_stddev": 46.703,
+                "edge_detail_density": 0.159716,
+                "file_size_bytes": 153956
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": true,
+              "variant_role": "canonical_api_frame"
+            },
+            {
+              "frame_index": 1,
+              "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_001.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_001.jpg",
+              "width": 640,
+              "height": 640,
+              "requested_timestamp_sec": 1.0,
+              "actual_timestamp_sec": 1.0,
+              "extraction_status": "ok",
+              "is_poster_frame": false,
+              "sha256": "921b9d321a52e35280219f6d1117fcbcfe2ae3a93af2b4abd746f5be9066cc7e",
+              "perceptual_hash": "4d51a43632b2b3b3",
+              "technical_metrics": {
+                "width": 640,
+                "height": 640,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 93.703,
+                "contrast_stddev": 48.928,
+                "edge_detail_density": 0.143547,
+                "file_size_bytes": 152083
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": false,
+              "variant_role": "contact_sheet_crop_only"
+            }
+          ],
+          "technical_analysis": {
+            "frame_count": 2,
+            "widths": [
+              720,
+              640
+            ],
+            "heights": [
+              540,
+              640
+            ],
+            "mean_brightness": 91.89,
+            "mean_contrast": 47.816,
+            "mean_edge_detail_density": 0.151632,
+            "payload_frame_count": 1,
+            "contact_sheet_frame_count": 2,
+            "limited_temporal_evidence": true,
+            "temporal_independence": false
+          },
+          "media_type": "image",
+          "limited_temporal_evidence": true,
+          "payload_frame_policy": {
+            "maximum_api_frames": 1,
+            "canonical_frame_index": 0,
+            "contact_sheet_variants_kept": true,
+            "temporal_independence": false,
+            "notes": "frame_001 is a crop/contact-sheet variant only and is not sent to OpenAI."
+          },
+          "payload_frame_references": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_000.jpg",
+              "width": 720,
+              "height": 540,
+              "sha256": "b0902fbf12517afc7b89293127fe62552c0a750a4ea43379ef36729a90fe84ba",
+              "is_poster_frame": true,
+              "media_type": "image",
+              "limited_temporal_evidence": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "scene_type": "illustrative",
+      "requirements": {
+        "scene_id": "scene_03_illustrative_forest_broll",
+        "scene_text": "Illustrative B-roll check: atmospheric green forest canopy for a forest cooling/climate scene.",
+        "subject": "forest canopy",
+        "secondary_subjects": [
+          "trees",
+          "mist"
+        ],
+        "action": "",
+        "environment": [
+          "green forest",
+          "mist or humid canopy",
+          "natural woodland"
+        ],
+        "location": [
+          "forest"
+        ],
+        "exact_entity": "",
+        "must_have": [
+          "trees",
+          "forest canopy",
+          "green vegetation"
+        ],
+        "negative_elements": [
+          "desert",
+          "sand dunes",
+          "urban skyline"
+        ],
+        "shot_type": "atmospheric B-roll",
+        "camera_view": "wide or elevated landscape view",
+        "mood": [
+          "calm",
+          "humid",
+          "natural"
+        ],
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "illustrative environment validation",
+        "acceptable_alternatives": [
+          "misty woodland",
+          "dense green forest",
+          "rainforest canopy"
+        ],
+        "semantic_strictness": "illustrative"
+      },
+      "candidates": [
+        {
+          "label": "A",
+          "candidate_id": "scene03_A_misty_forest_canopy",
+          "provider": "wikimedia",
+          "provider_asset_id": "193453163",
+          "search_query": "misty forest canopy",
+          "expected_role": "expected suitable candidate",
+          "ground_truth": {
+            "expected_subject_match": true,
+            "expected_action_match": null,
+            "expected_environment_match": true,
+            "expected_exact_entity_match": null,
+            "expected_must_have": [
+              {
+                "term": "trees",
+                "present": true
+              },
+              {
+                "term": "forest canopy",
+                "present": true
+              },
+              {
+                "term": "green vegetation",
+                "present": true
+              }
+            ],
+            "expected_negative_elements": [
+              {
+                "term": "desert",
+                "present": false
+              },
+              {
+                "term": "sand dunes",
+                "present": false
+              },
+              {
+                "term": "urban skyline",
+                "present": false
+              }
+            ],
+            "expected_classification": "suitable",
+            "explanation": "The image is atmospheric green forest canopy with mist; exact action is not required for this illustrative scene.",
+            "not_applicable_fields": [
+              "expected_action_match",
+              "expected_exact_entity_match"
+            ]
+          },
+          "title": "Foggy Forest Canopy in the Anamalai Hills, Valparai 01.jpg",
+          "description": "Photograph of a forest canopy in Valparai, Tamil Nadu, India. The image shows tall trees and intertwined branches in misty weather, characteristic of the Western Ghats region of India.",
+          "source_page": "https://commons.wikimedia.org/wiki/File:Foggy_Forest_Canopy_in_the_Anamalai_Hills%2C_Valparai_01.jpg",
+          "preview_source": {
+            "rendition": "wikimedia_thumb",
+            "content_type": "image/jpeg",
+            "bytes_downloaded": 702324,
+            "original_or_master_downloaded": false
+          },
+          "license": {
+            "license_name": "CC0",
+            "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+            "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+            "rights_status": "licensed",
+            "attribution_required": true,
+            "attribution_text": "Natphoto",
+            "policy_use": "allowed_preview_use",
+            "review_required": false
+          },
+          "preview_use": "allowed_preview_use",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_000.jpg",
+              "width": 405,
+              "height": 720,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "extraction_status": "ok",
+              "is_poster_frame": true,
+              "sha256": "56d2930eb47a745bd2958aa875849f2984de94b0e974ae86481523b3672d1714",
+              "perceptual_hash": "6c0f100606c6be59",
+              "technical_metrics": {
+                "width": 405,
+                "height": 720,
+                "aspect_ratio": 0.5625,
+                "brightness_mean": 89.925,
+                "contrast_stddev": 61.564,
+                "edge_detail_density": 0.176524,
+                "file_size_bytes": 122934
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": true,
+              "variant_role": "canonical_api_frame"
+            },
+            {
+              "frame_index": 1,
+              "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_001.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_001.jpg",
+              "width": 640,
+              "height": 640,
+              "requested_timestamp_sec": 1.0,
+              "actual_timestamp_sec": 1.0,
+              "extraction_status": "ok",
+              "is_poster_frame": false,
+              "sha256": "43202e9dc1fd27e3881258a219f7772a5b3a20ef8995a9f4baa23f0062adf97a",
+              "perceptual_hash": "0c1012078606c7de",
+              "technical_metrics": {
+                "width": 640,
+                "height": 640,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 94.956,
+                "contrast_stddev": 64.254,
+                "edge_detail_density": 0.196954,
+                "file_size_bytes": 179144
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": false,
+              "variant_role": "contact_sheet_crop_only"
+            }
+          ],
+          "technical_analysis": {
+            "frame_count": 2,
+            "widths": [
+              405,
+              640
+            ],
+            "heights": [
+              720,
+              640
+            ],
+            "mean_brightness": 92.441,
+            "mean_contrast": 62.909,
+            "mean_edge_detail_density": 0.186739,
+            "payload_frame_count": 1,
+            "contact_sheet_frame_count": 2,
+            "limited_temporal_evidence": true,
+            "temporal_independence": false
+          },
+          "media_type": "image",
+          "limited_temporal_evidence": true,
+          "payload_frame_policy": {
+            "maximum_api_frames": 1,
+            "canonical_frame_index": 0,
+            "contact_sheet_variants_kept": true,
+            "temporal_independence": false,
+            "notes": "frame_001 is a crop/contact-sheet variant only and is not sent to OpenAI."
+          },
+          "payload_frame_references": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_000.jpg",
+              "width": 405,
+              "height": 720,
+              "sha256": "56d2930eb47a745bd2958aa875849f2984de94b0e974ae86481523b3672d1714",
+              "is_poster_frame": true,
+              "media_type": "image",
+              "limited_temporal_evidence": true
+            }
+          ]
+        },
+        {
+          "label": "B",
+          "candidate_id": "scene03_B_desert_dunes",
+          "provider": "wikimedia",
+          "provider_asset_id": "145015263",
+          "search_query": "desert dunes",
+          "expected_role": "close but wrong candidate",
+          "ground_truth": {
+            "expected_subject_match": false,
+            "expected_action_match": null,
+            "expected_environment_match": false,
+            "expected_exact_entity_match": null,
+            "expected_must_have": [
+              {
+                "term": "trees",
+                "present": false
+              },
+              {
+                "term": "forest canopy",
+                "present": false
+              },
+              {
+                "term": "green vegetation",
+                "present": false
+              }
+            ],
+            "expected_negative_elements": [
+              {
+                "term": "desert",
+                "present": true
+              },
+              {
+                "term": "sand dunes",
+                "present": true
+              },
+              {
+                "term": "urban skyline",
+                "present": false
+              }
+            ],
+            "expected_classification": "unsuitable",
+            "explanation": "It is natural landscape B-roll, but it visibly shows dry sand dunes rather than green forest canopy.",
+            "not_applicable_fields": [
+              "expected_action_match",
+              "expected_exact_entity_match"
+            ]
+          },
+          "title": "Utah Dunes Landscape - West Desert District.jpg",
+          "description": "Little Sahara Recreation Area",
+          "source_page": "https://commons.wikimedia.org/wiki/File:Utah_Dunes_Landscape_-_West_Desert_District.jpg",
+          "preview_source": {
+            "rendition": "wikimedia_thumb",
+            "content_type": "image/jpeg",
+            "bytes_downloaded": 151226,
+            "original_or_master_downloaded": false
+          },
+          "license": {
+            "license_name": "Public domain",
+            "license_url": "",
+            "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+            "rights_status": "review_required",
+            "attribution_required": true,
+            "attribution_text": "Bureau of Land Management - Utah/Bob Wick",
+            "policy_use": "review_only_preview_use",
+            "review_required": true
+          },
+          "preview_use": "review_only_preview_use",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_000.jpg",
+              "width": 720,
+              "height": 473,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "extraction_status": "ok",
+              "is_poster_frame": true,
+              "sha256": "eea52e05d2dbeefdf0f8b975b35ea1e18affb7557c97ffe1aee80c5a6f06bee7",
+              "perceptual_hash": "676e029373738019",
+              "technical_metrics": {
+                "width": 720,
+                "height": 473,
+                "aspect_ratio": 1.5222,
+                "brightness_mean": 143.432,
+                "contrast_stddev": 50.779,
+                "edge_detail_density": 0.090451,
+                "file_size_bytes": 89482
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": true,
+              "variant_role": "canonical_api_frame"
+            },
+            {
+              "frame_index": 1,
+              "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_001.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_001.jpg",
+              "width": 631,
+              "height": 631,
+              "requested_timestamp_sec": 1.0,
+              "actual_timestamp_sec": 1.0,
+              "extraction_status": "ok",
+              "is_poster_frame": false,
+              "sha256": "c3bce90fe06c23af172ac99cb6ec5a70321572505369e6a1119e9b0703977f0b",
+              "perceptual_hash": "e7ad2931fbf1031c",
+              "technical_metrics": {
+                "width": 631,
+                "height": 631,
+                "aspect_ratio": 1.0,
+                "brightness_mean": 144.625,
+                "contrast_stddev": 50.899,
+                "edge_detail_density": 0.099975,
+                "file_size_bytes": 105843
+              },
+              "media_type": "image",
+              "limited_temporal_evidence": true,
+              "temporal_independence": false,
+              "payload_included": false,
+              "variant_role": "contact_sheet_crop_only"
+            }
+          ],
+          "technical_analysis": {
+            "frame_count": 2,
+            "widths": [
+              720,
+              631
+            ],
+            "heights": [
+              473,
+              631
+            ],
+            "mean_brightness": 144.029,
+            "mean_contrast": 50.839,
+            "mean_edge_detail_density": 0.095213,
+            "payload_frame_count": 1,
+            "contact_sheet_frame_count": 2,
+            "limited_temporal_evidence": true,
+            "temporal_independence": false
+          },
+          "media_type": "image",
+          "limited_temporal_evidence": true,
+          "payload_frame_policy": {
+            "maximum_api_frames": 1,
+            "canonical_frame_index": 0,
+            "contact_sheet_variants_kept": true,
+            "temporal_independence": false,
+            "notes": "frame_001 is a crop/contact-sheet variant only and is not sent to OpenAI."
+          },
+          "payload_frame_references": [
+            {
+              "frame_index": 0,
+              "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_000.jpg",
+              "dataset_relative_path": "docs/implementation/openai_live_evaluation/prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_000.jpg",
+              "width": 720,
+              "height": 473,
+              "sha256": "eea52e05d2dbeefdf0f8b975b35ea1e18affb7557c97ffe1aee80c5a6f06bee7",
+              "is_poster_frame": true,
+              "media_type": "image",
+              "limited_temporal_evidence": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

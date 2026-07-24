@@ -1,0 +1,208 @@
+{
+  "schema_version": "semantic_visual_eval.v1",
+  "models": [
+    "mock",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna"
+  ],
+  "cases": [
+    {
+      "case_id": "case_correct",
+      "category": "correct_subject_action_environment",
+      "strictness": "balanced",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_wrong_subject",
+      "category": "wrong_subject",
+      "strictness": "strict",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "mismatch",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_wrong_action",
+      "category": "wrong_action",
+      "strictness": "strict",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "mismatch",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_wrong_location",
+      "category": "wrong_location",
+      "strictness": "balanced",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "location": "mismatch",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_exact_entity",
+      "category": "exact_entity_mismatch",
+      "strictness": "strict",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "exact_entity": "mismatch",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_missing_must",
+      "category": "missing_must_have",
+      "strictness": "strict",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": false,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_negative",
+      "category": "negative_element_present",
+      "strictness": "strict",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": true
+      }
+    },
+    {
+      "case_id": "case_generic_broll",
+      "category": "generic_acceptable_b_roll",
+      "strictness": "illustrative",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_misleading_frame",
+      "category": "one_misleading_frame",
+      "strictness": "balanced",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": true
+      }
+    },
+    {
+      "case_id": "case_poster_only",
+      "category": "poster_only_video",
+      "strictness": "balanced",
+      "frame_count": 1,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_low_confidence",
+      "category": "low_confidence",
+      "strictness": "balanced",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_strict_scene",
+      "category": "strict_scene",
+      "strictness": "strict",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_balanced_scene",
+      "category": "balanced_scene",
+      "strictness": "balanced",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    },
+    {
+      "case_id": "case_illustrative_scene",
+      "category": "illustrative_scene",
+      "strictness": "illustrative",
+      "frame_count": 3,
+      "media_type": "video",
+      "expected": {
+        "subject": "match",
+        "action": "match",
+        "environment": "match",
+        "must_have_present": true,
+        "negative_present": false
+      }
+    }
+  ]
+}

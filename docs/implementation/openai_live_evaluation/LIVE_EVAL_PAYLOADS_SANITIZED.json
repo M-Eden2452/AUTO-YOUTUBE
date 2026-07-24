@@ -1,0 +1,535 @@
+{
+  "schema_version": "openai_live_eval_payload_preview.v1",
+  "prepared_at_utc": "2026-07-23T12:46:43.506733+00:00",
+  "safety": {
+    "base64_saved": false,
+    "data_urls_saved": false,
+    "absolute_paths_saved": false,
+    "full_project_manifest_saved": false,
+    "envato_certificates_saved": false,
+    "live_calls_performed": false,
+    "paid_calls_performed": false,
+    "credential_values_saved": false
+  },
+  "dataset_path": "docs/implementation/openai_live_evaluation/LIVE_EVAL_DATASET.json",
+  "model": "gpt-5.6-terra",
+  "detail": "low",
+  "reasoning_effort": "low",
+  "mode": "analyse_and_report",
+  "projected_calls": 6,
+  "projected_image_count": 6,
+  "valid_requests": 6,
+  "invalid_requests": 0,
+  "schema_validation": {
+    "root_additional_properties_false": true,
+    "recursive_object_additional_properties_false": true,
+    "required_properties_match_properties": true,
+    "result_schema_version": "semantic_visual_result.v1"
+  },
+  "payloads": [
+    {
+      "call_index": 1,
+      "scene_id": "scene_01_strict_saturn_v",
+      "candidate_id": "scene01_A_saturn_v_launch",
+      "requirements": {
+        "scene_id": "scene_01_strict_saturn_v",
+        "scene_text": "Strict exact-entity check: show a Saturn V rocket launch, not a Space Shuttle launch.",
+        "subject": "Saturn V rocket",
+        "secondary_subjects": [
+          "launch plume",
+          "launch tower"
+        ],
+        "action": "launching",
+        "environment": [
+          "rocket launch pad",
+          "sky",
+          "smoke plume"
+        ],
+        "location": [
+          "launch complex"
+        ],
+        "exact_entity": "Saturn V rocket",
+        "must_have": [
+          "Saturn V rocket",
+          "rocket launch",
+          "flame or smoke plume"
+        ],
+        "negative_elements": [
+          "Space Shuttle orbiter",
+          "airplane",
+          "indoor museum display"
+        ],
+        "shot_type": "wide launch shot",
+        "camera_view": "ground or telephoto launch view",
+        "mood": [
+          "historic",
+          "technical"
+        ],
+        "time_period": "",
+        "weather": "",
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "subject/exact entity validation",
+        "acceptable_alternatives": [
+          "Apollo-era Saturn V on launch pad during liftoff"
+        ],
+        "semantic_strictness": "strict"
+      },
+      "provider": "wikimedia",
+      "provider_asset_id": "6739626",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Apollo_11_Launch2.jpg",
+      "media_type": "image",
+      "frame_count": 1,
+      "frame_dimensions": [
+        {
+          "frame_index": 0,
+          "width": 576,
+          "height": 720,
+          "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_A_saturn_v_launch/frame_000.jpg",
+          "is_poster_frame": true,
+          "limited_temporal_evidence": true
+        }
+      ],
+      "detail": "low",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "low",
+      "mode": "analyse_and_report",
+      "request_schema_version": "semantic_visual_request.v1",
+      "result_schema_name": "semantic_visual_result",
+      "result_schema_version": "semantic_visual_result.v1",
+      "builder_validation": {
+        "request_built": true,
+        "image_count": 1,
+        "detail_levels": [
+          "low"
+        ],
+        "text_format_type": "json_schema",
+        "text_schema_strict": true,
+        "text_schema_additional_properties_false": true,
+        "recursive_object_additional_properties_false": true,
+        "base64_saved": false,
+        "data_urls_saved": false
+      }
+    },
+    {
+      "call_index": 2,
+      "scene_id": "scene_01_strict_saturn_v",
+      "candidate_id": "scene01_B_space_shuttle_launch",
+      "requirements": {
+        "scene_id": "scene_01_strict_saturn_v",
+        "scene_text": "Strict exact-entity check: show a Saturn V rocket launch, not a Space Shuttle launch.",
+        "subject": "Saturn V rocket",
+        "secondary_subjects": [
+          "launch plume",
+          "launch tower"
+        ],
+        "action": "launching",
+        "environment": [
+          "rocket launch pad",
+          "sky",
+          "smoke plume"
+        ],
+        "location": [
+          "launch complex"
+        ],
+        "exact_entity": "Saturn V rocket",
+        "must_have": [
+          "Saturn V rocket",
+          "rocket launch",
+          "flame or smoke plume"
+        ],
+        "negative_elements": [
+          "Space Shuttle orbiter",
+          "airplane",
+          "indoor museum display"
+        ],
+        "shot_type": "wide launch shot",
+        "camera_view": "ground or telephoto launch view",
+        "mood": [
+          "historic",
+          "technical"
+        ],
+        "time_period": "",
+        "weather": "",
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "subject/exact entity validation",
+        "acceptable_alternatives": [
+          "Apollo-era Saturn V on launch pad during liftoff"
+        ],
+        "semantic_strictness": "strict"
+      },
+      "provider": "wikimedia",
+      "provider_asset_id": "199486",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Space_Shuttle_Columbia_launching.jpg",
+      "media_type": "image",
+      "frame_count": 1,
+      "frame_dimensions": [
+        {
+          "frame_index": 0,
+          "width": 720,
+          "height": 720,
+          "relative_path": "prepared_dataset/frames/scene_01_strict_saturn_v/scene01_B_space_shuttle_launch/frame_000.jpg",
+          "is_poster_frame": true,
+          "limited_temporal_evidence": true
+        }
+      ],
+      "detail": "low",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "low",
+      "mode": "analyse_and_report",
+      "request_schema_version": "semantic_visual_request.v1",
+      "result_schema_name": "semantic_visual_result",
+      "result_schema_version": "semantic_visual_result.v1",
+      "builder_validation": {
+        "request_built": true,
+        "image_count": 1,
+        "detail_levels": [
+          "low"
+        ],
+        "text_format_type": "json_schema",
+        "text_schema_strict": true,
+        "text_schema_additional_properties_false": true,
+        "recursive_object_additional_properties_false": true,
+        "base64_saved": false,
+        "data_urls_saved": false
+      }
+    },
+    {
+      "call_index": 3,
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "candidate_id": "scene02_A_bear_catching_salmon",
+      "requirements": {
+        "scene_id": "scene_02_balanced_bear_salmon",
+        "scene_text": "Balanced subject/action/environment check: show a brown bear catching a salmon in a river.",
+        "subject": "brown bear",
+        "secondary_subjects": [
+          "salmon",
+          "river"
+        ],
+        "action": "catching salmon",
+        "environment": [
+          "river",
+          "waterfall or rapids",
+          "natural habitat"
+        ],
+        "location": [
+          "river"
+        ],
+        "exact_entity": "brown bear catching salmon",
+        "must_have": [
+          "brown bear",
+          "salmon or fish",
+          "river water"
+        ],
+        "negative_elements": [
+          "bear only standing",
+          "no visible fish",
+          "zoo enclosure"
+        ],
+        "shot_type": "wildlife action shot",
+        "camera_view": "medium or telephoto wildlife view",
+        "mood": [
+          "natural",
+          "active"
+        ],
+        "time_period": "",
+        "weather": "",
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "subject/action/environment validation",
+        "acceptable_alternatives": [
+          "bear actively fishing with fish visible"
+        ],
+        "semantic_strictness": "balanced"
+      },
+      "provider": "wikimedia",
+      "provider_asset_id": "147045132",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Brown_Bear_catching_Salmon.jpg",
+      "media_type": "image",
+      "frame_count": 1,
+      "frame_dimensions": [
+        {
+          "frame_index": 0,
+          "width": 720,
+          "height": 405,
+          "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_A_bear_catching_salmon/frame_000.jpg",
+          "is_poster_frame": true,
+          "limited_temporal_evidence": true
+        }
+      ],
+      "detail": "low",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "low",
+      "mode": "analyse_and_report",
+      "request_schema_version": "semantic_visual_request.v1",
+      "result_schema_name": "semantic_visual_result",
+      "result_schema_version": "semantic_visual_result.v1",
+      "builder_validation": {
+        "request_built": true,
+        "image_count": 1,
+        "detail_levels": [
+          "low"
+        ],
+        "text_format_type": "json_schema",
+        "text_schema_strict": true,
+        "text_schema_additional_properties_false": true,
+        "recursive_object_additional_properties_false": true,
+        "base64_saved": false,
+        "data_urls_saved": false
+      }
+    },
+    {
+      "call_index": 4,
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "candidate_id": "scene02_B_bear_standing_river",
+      "requirements": {
+        "scene_id": "scene_02_balanced_bear_salmon",
+        "scene_text": "Balanced subject/action/environment check: show a brown bear catching a salmon in a river.",
+        "subject": "brown bear",
+        "secondary_subjects": [
+          "salmon",
+          "river"
+        ],
+        "action": "catching salmon",
+        "environment": [
+          "river",
+          "waterfall or rapids",
+          "natural habitat"
+        ],
+        "location": [
+          "river"
+        ],
+        "exact_entity": "brown bear catching salmon",
+        "must_have": [
+          "brown bear",
+          "salmon or fish",
+          "river water"
+        ],
+        "negative_elements": [
+          "bear only standing",
+          "no visible fish",
+          "zoo enclosure"
+        ],
+        "shot_type": "wildlife action shot",
+        "camera_view": "medium or telephoto wildlife view",
+        "mood": [
+          "natural",
+          "active"
+        ],
+        "time_period": "",
+        "weather": "",
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "subject/action/environment validation",
+        "acceptable_alternatives": [
+          "bear actively fishing with fish visible"
+        ],
+        "semantic_strictness": "balanced"
+      },
+      "provider": "wikimedia",
+      "provider_asset_id": "159122245",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Brown_Bear_standing_in_river_%2850377060656%29.jpg",
+      "media_type": "image",
+      "frame_count": 1,
+      "frame_dimensions": [
+        {
+          "frame_index": 0,
+          "width": 720,
+          "height": 540,
+          "relative_path": "prepared_dataset/frames/scene_02_balanced_bear_salmon/scene02_B_bear_standing_river/frame_000.jpg",
+          "is_poster_frame": true,
+          "limited_temporal_evidence": true
+        }
+      ],
+      "detail": "low",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "low",
+      "mode": "analyse_and_report",
+      "request_schema_version": "semantic_visual_request.v1",
+      "result_schema_name": "semantic_visual_result",
+      "result_schema_version": "semantic_visual_result.v1",
+      "builder_validation": {
+        "request_built": true,
+        "image_count": 1,
+        "detail_levels": [
+          "low"
+        ],
+        "text_format_type": "json_schema",
+        "text_schema_strict": true,
+        "text_schema_additional_properties_false": true,
+        "recursive_object_additional_properties_false": true,
+        "base64_saved": false,
+        "data_urls_saved": false
+      }
+    },
+    {
+      "call_index": 5,
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "candidate_id": "scene03_A_misty_forest_canopy",
+      "requirements": {
+        "scene_id": "scene_03_illustrative_forest_broll",
+        "scene_text": "Illustrative B-roll check: atmospheric green forest canopy for a forest cooling/climate scene.",
+        "subject": "forest canopy",
+        "secondary_subjects": [
+          "trees",
+          "mist"
+        ],
+        "action": "",
+        "environment": [
+          "green forest",
+          "mist or humid canopy",
+          "natural woodland"
+        ],
+        "location": [
+          "forest"
+        ],
+        "exact_entity": "",
+        "must_have": [
+          "trees",
+          "forest canopy",
+          "green vegetation"
+        ],
+        "negative_elements": [
+          "desert",
+          "sand dunes",
+          "urban skyline"
+        ],
+        "shot_type": "atmospheric B-roll",
+        "camera_view": "wide or elevated landscape view",
+        "mood": [
+          "calm",
+          "humid",
+          "natural"
+        ],
+        "time_period": "",
+        "weather": "",
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "illustrative environment validation",
+        "acceptable_alternatives": [
+          "misty woodland",
+          "dense green forest",
+          "rainforest canopy"
+        ],
+        "semantic_strictness": "illustrative"
+      },
+      "provider": "wikimedia",
+      "provider_asset_id": "193453163",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Foggy_Forest_Canopy_in_the_Anamalai_Hills%2C_Valparai_01.jpg",
+      "media_type": "image",
+      "frame_count": 1,
+      "frame_dimensions": [
+        {
+          "frame_index": 0,
+          "width": 405,
+          "height": 720,
+          "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_A_misty_forest_canopy/frame_000.jpg",
+          "is_poster_frame": true,
+          "limited_temporal_evidence": true
+        }
+      ],
+      "detail": "low",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "low",
+      "mode": "analyse_and_report",
+      "request_schema_version": "semantic_visual_request.v1",
+      "result_schema_name": "semantic_visual_result",
+      "result_schema_version": "semantic_visual_result.v1",
+      "builder_validation": {
+        "request_built": true,
+        "image_count": 1,
+        "detail_levels": [
+          "low"
+        ],
+        "text_format_type": "json_schema",
+        "text_schema_strict": true,
+        "text_schema_additional_properties_false": true,
+        "recursive_object_additional_properties_false": true,
+        "base64_saved": false,
+        "data_urls_saved": false
+      }
+    },
+    {
+      "call_index": 6,
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "candidate_id": "scene03_B_desert_dunes",
+      "requirements": {
+        "scene_id": "scene_03_illustrative_forest_broll",
+        "scene_text": "Illustrative B-roll check: atmospheric green forest canopy for a forest cooling/climate scene.",
+        "subject": "forest canopy",
+        "secondary_subjects": [
+          "trees",
+          "mist"
+        ],
+        "action": "",
+        "environment": [
+          "green forest",
+          "mist or humid canopy",
+          "natural woodland"
+        ],
+        "location": [
+          "forest"
+        ],
+        "exact_entity": "",
+        "must_have": [
+          "trees",
+          "forest canopy",
+          "green vegetation"
+        ],
+        "negative_elements": [
+          "desert",
+          "sand dunes",
+          "urban skyline"
+        ],
+        "shot_type": "atmospheric B-roll",
+        "camera_view": "wide or elevated landscape view",
+        "mood": [
+          "calm",
+          "humid",
+          "natural"
+        ],
+        "time_period": "",
+        "weather": "",
+        "target_aspect_ratio": "9:16",
+        "scene_purpose": "illustrative environment validation",
+        "acceptable_alternatives": [
+          "misty woodland",
+          "dense green forest",
+          "rainforest canopy"
+        ],
+        "semantic_strictness": "illustrative"
+      },
+      "provider": "wikimedia",
+      "provider_asset_id": "145015263",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Utah_Dunes_Landscape_-_West_Desert_District.jpg",
+      "media_type": "image",
+      "frame_count": 1,
+      "frame_dimensions": [
+        {
+          "frame_index": 0,
+          "width": 720,
+          "height": 473,
+          "relative_path": "prepared_dataset/frames/scene_03_illustrative_forest_broll/scene03_B_desert_dunes/frame_000.jpg",
+          "is_poster_frame": true,
+          "limited_temporal_evidence": true
+        }
+      ],
+      "detail": "low",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "low",
+      "mode": "analyse_and_report",
+      "request_schema_version": "semantic_visual_request.v1",
+      "result_schema_name": "semantic_visual_result",
+      "result_schema_version": "semantic_visual_result.v1",
+      "builder_validation": {
+        "request_built": true,
+        "image_count": 1,
+        "detail_levels": [
+          "low"
+        ],
+        "text_format_type": "json_schema",
+        "text_schema_strict": true,
+        "text_schema_additional_properties_false": true,
+        "recursive_object_additional_properties_false": true,
+        "base64_saved": false,
+        "data_urls_saved": false
+      }
+    }
+  ]
+}

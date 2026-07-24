@@ -1,0 +1,163 @@
+{
+  "schema_version": "openai_live_eval_usage.v1",
+  "summary": {
+    "calls_attempted": 6,
+    "calls_failed": 0,
+    "calls_succeeded": 6,
+    "external_http_attempts": 6,
+    "images_sent": 6,
+    "input_cost_per_1k_tokens_usd": 0.0025,
+    "output_cost_per_1k_tokens_usd": 0.015,
+    "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+    "total_cached_tokens": 0,
+    "total_calculated_cost_usd": 0.11225,
+    "total_input_tokens": 9338,
+    "total_output_tokens": 5927
+  },
+  "usage_records": [
+    {
+      "actual_calculated_cost_usd": 0.02137,
+      "cached_tokens": 0,
+      "candidate_id": "scene01_A_saturn_v_launch",
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail_levels": [
+        "low"
+      ],
+      "duration_sec": 14.139327900000353,
+      "estimated_cost_usd": 0.0,
+      "image_count": 1,
+      "input_tokens": 1582,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 1161,
+      "provider_result_status": "completed",
+      "request_id": "req_45e31fbbde6b4b3e83f08a65a48c34b7",
+      "scene_id": "scene_01_strict_saturn_v",
+      "status": "success"
+    },
+    {
+      "actual_calculated_cost_usd": 0.0199,
+      "cached_tokens": 0,
+      "candidate_id": "scene01_B_space_shuttle_launch",
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail_levels": [
+        "low"
+      ],
+      "duration_sec": 11.929317299999639,
+      "estimated_cost_usd": 0.0,
+      "image_count": 1,
+      "input_tokens": 1642,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 1053,
+      "provider_result_status": "completed",
+      "request_id": "req_c32868f85e614c00a781680aa68514ed",
+      "scene_id": "scene_01_strict_saturn_v",
+      "status": "success"
+    },
+    {
+      "actual_calculated_cost_usd": 0.017573,
+      "cached_tokens": 0,
+      "candidate_id": "scene02_A_bear_catching_salmon",
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail_levels": [
+        "low"
+      ],
+      "duration_sec": 8.968381399999998,
+      "estimated_cost_usd": 0.0,
+      "image_count": 1,
+      "input_tokens": 1497,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 922,
+      "provider_result_status": "completed",
+      "request_id": "req_43b791f57a944661a0a2811f45748bed",
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "status": "success"
+    },
+    {
+      "actual_calculated_cost_usd": 0.018545,
+      "cached_tokens": 0,
+      "candidate_id": "scene02_B_bear_standing_river",
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail_levels": [
+        "low"
+      ],
+      "duration_sec": 8.549662800000078,
+      "estimated_cost_usd": 0.0,
+      "image_count": 1,
+      "input_tokens": 1562,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 976,
+      "provider_result_status": "completed",
+      "request_id": "req_55528c7158ea4bd8bf338762afdd44d0",
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "status": "success"
+    },
+    {
+      "actual_calculated_cost_usd": 0.017827,
+      "cached_tokens": 0,
+      "candidate_id": "scene03_A_misty_forest_canopy",
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail_levels": [
+        "low"
+      ],
+      "duration_sec": 10.661110400000325,
+      "estimated_cost_usd": 0.0,
+      "image_count": 1,
+      "input_tokens": 1515,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 936,
+      "provider_result_status": "completed",
+      "request_id": "req_8c52842301c041cfab199503065db2c0",
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "status": "success"
+    },
+    {
+      "actual_calculated_cost_usd": 0.017035,
+      "cached_tokens": 0,
+      "candidate_id": "scene03_B_desert_dunes",
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail_levels": [
+        "low"
+      ],
+      "duration_sec": 8.807041799999752,
+      "estimated_cost_usd": 0.0,
+      "image_count": 1,
+      "input_tokens": 1540,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 879,
+      "provider_result_status": "completed",
+      "request_id": "req_6d1a623c2c7041708c0bd976f06e89ee",
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "status": "success"
+    }
+  ]
+}

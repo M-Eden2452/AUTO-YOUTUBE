@@ -1,0 +1,58 @@
+﻿{
+    "schema_version":  "openai_semantic_backend_checkpoint.v1",
+    "phase":  "completed",
+    "completed_phases":  [
+                             "baseline",
+                             "adapter",
+                             "request_builder",
+                             "structured_output",
+                             "budget_guard",
+                             "evaluation_harness",
+                             "cli",
+                             "tests",
+                             "reports"
+                         ],
+    "current_phase":  "completed",
+    "next_action":  "OpenAI semantic backend and evaluation harness stage is complete; future live evaluation remains gated and disabled by default.",
+    "implementation":  {
+                           "git_branch":  "master",
+                           "git_commit_before":  "adb40fa944318646aef66102cbb1352e40b7cacc",
+                           "started_at":  "2026-07-23T12:55:55.4349862+03:00",
+                           "media_index_sha256_before":  "61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385"
+                       },
+    "files_created":  [
+                          "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_PLAN.md",
+                          "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_CHECKPOINT.json",
+                          "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_REPORT.md",
+                          "docs/implementation/openai_semantic_backend/OPENAI_BACKEND_SNAPSHOT.json",
+                          "docs/implementation/openai_semantic_backend/TEST_RESULTS.txt",
+                          "docs/implementation/openai_semantic_backend/EVALUATION_DATASET_SCHEMA.md",
+                          "docs/implementation/openai_semantic_backend/LIVE_EVALUATION_READINESS.md",
+                          "src/assets/semantic_visual_openai.py",
+                          "src/assets/semantic_visual_evaluation.py",
+                          "config/semantic_visual_eval.json",
+                          "tests/test_semantic_visual_openai_backend.py",
+                          "tests/test_semantic_visual_evaluation.py"
+                      ],
+    "files_modified":  [
+                           "config/semantic_visual.json",
+                           "pipeline.py",
+                           "src/assets/__init__.py",
+                           "src/assets/semantic_visual_service.py"
+                       ],
+    "last_tests":  {
+                       "command":  "python -B -m unittest discover -s tests",
+                       "passed":  246,
+                       "failed":  0,
+                       "errors":  0,
+                       "skipped":  0
+                   },
+    "safety":  {
+                   "live_vision_calls_performed":  false,
+                   "paid_api_calls_performed":  false,
+                   "real_media_index_modified":  false,
+                   "production_selection_changed":  false,
+                   "semantic_rerank_enabled":  false
+               },
+    "safe_to_resume":  true
+}

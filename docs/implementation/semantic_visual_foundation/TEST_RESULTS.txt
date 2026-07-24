@@ -1,0 +1,130 @@
+# TEST RESULTS - SEMANTIC VISUAL FOUNDATION
+
+Working directory: G:\Projects\AI-YouTube
+Date: 2026-07-23
+Branch: master
+Commit before implementation: adb40fa944318646aef66102cbb1352e40b7cacc
+
+## Red TDD Check Before Implementation
+
+Command:
+python -B -m unittest tests.test_semantic_visual_foundation tests.test_semantic_visual_integration
+
+Result:
+Ran 32 tests in 2.128s
+FAILED (failures=1, errors=30)
+
+Expected reason:
+New semantic modules and CLI command did not exist yet.
+
+## Semantic Targeted Tests
+
+Command:
+python -B -m unittest tests.test_semantic_visual_foundation tests.test_semantic_visual_integration
+
+Result:
+Ran 32 tests in 2.196s
+OK
+
+Covered:
+SceneVisualRequirements serialization, current semantic scene adapter, request serialization path/secret redaction, result validation, score ranges, stable cache key, cache hit, corrupted cache invalidation, mock good/mismatch/negative/low-confidence/timeout/invalid fixtures, action confidence limit for one frame, multi-frame aggregation, anomalous-frame handling, paid backend block, zero budget block, Unicode paths, review enrichment, HTML section/safety, selection stability, offline cache-only mode, CLI analyse/inspect and network guard.
+
+## Preview Tests
+
+Command:
+python -B -m unittest tests.test_visual_preview_foundation tests.test_visual_preview_integration
+
+Result:
+Ran 45 tests in 4.271s
+OK
+
+## Provider / News / Quality Tests
+
+Command:
+python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_provider_foundation_hardening tests.test_documentary_asset_providers tests.test_provider_routing tests.test_attribution_export tests.test_news_to_short_assets tests.test_news_to_short_pipeline tests.test_news_to_short_quality_check tests.test_news_to_short_renderer tests.test_news_to_short_delivery tests.test_semantic_asset_selection tests.test_test_network_guard
+
+Result:
+Ran 65 tests in 69.551s
+OK
+
+## Full Unittest Discovery
+
+Command:
+python -B -m unittest discover -s tests
+
+Result:
+Ran 211 tests in 74.693s
+OK
+
+Note:
+Existing non-fatal MoviePy `FFMPEG_AudioReader.__del__` ignored exception was emitted, matching the previous preview foundation stage.
+
+## Import Checks
+
+Command:
+python -B -c "import pipeline; import src.assets.semantic_visual_models; import src.assets.semantic_visual_backend; import src.assets.semantic_visual_cache; import src.assets.semantic_visual_mock; import src.assets.semantic_visual_external; import src.assets.semantic_visual_service; import src.assets.review_bundle; import src.news.asset_manager; print('semantic imports ok')"
+
+Result:
+semantic imports ok
+
+## Config Validation
+
+Command:
+Get-Content -Raw config\semantic_visual.json | ConvertFrom-Json | Out-Null; Write-Output 'semantic config json ok'
+
+Result:
+semantic config json ok
+
+## CLI Smoke With Mock Backend
+
+Command:
+python -B pipeline.py semantic-visual analyse --projects-root <temp-root> --project-id semantic_smoke_project --scene-id scene_001 --backend mock
+python -B pipeline.py semantic-visual inspect --projects-root <temp-root> --project-id semantic_smoke_project
+
+Result:
+ANALYSE_RC 0
+status=completed
+scenes_processed=1
+candidates_processed=1
+cache_hits=0
+cache_misses=1
+backend_calls=1
+successful_analyses=1
+failed_analyses=0
+hard_rejects=0
+review_required=0
+estimated_cost=0.0
+paid_calls_performed=False
+
+INSPECT_RC 0
+scenes=1
+analysed_candidates=1
+successful=1
+failed=0
+hard_rejects=0
+review_required=0
+backend=mock
+paid_calls=0
+
+## HTML Safety Scan
+
+Result:
+Generated semantic HTML existed and did not contain the fixture secret, `api_key`, the temp project root, `G:\` or `C:\`.
+
+## Media Index Integrity
+
+Command:
+Get-FileHash -Algorithm SHA256 assets\library\metadata\media_index.json
+
+Result:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+## Safety Confirmations
+
+- Ordinary tests remained protected by `tests.network_guard`.
+- No live Vision API calls were performed.
+- No paid API calls were performed.
+- No OpenAI/Gemini/Claude live calls were performed.
+- No automated Envato download was performed.
+- Production selection was not changed by semantic analysis.
+- Real `media_index.json` was not modified.

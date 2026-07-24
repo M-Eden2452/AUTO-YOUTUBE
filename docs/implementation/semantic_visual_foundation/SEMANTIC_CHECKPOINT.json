@@ -1,0 +1,46 @@
+﻿{
+    "schema_version":  "semantic_checkpoint.v1",
+    "phase":  "completed",
+    "completed_phases":  [
+                             "baseline",
+                             "models",
+                             "backend_contract",
+                             "semantic_cache",
+                             "mock_backend",
+                             "review_bundle_integration",
+                             "cli",
+                             "tests",
+                             "reports"
+                         ],
+    "current_phase":  "completed",
+    "next_action":  "Semantic visual reranking foundation stage is complete; next stage can evaluate real semantic backends behind explicit paid-call gates.",
+    "files_created":  [
+                          "docs/implementation/semantic_visual_foundation/SEMANTIC_PLAN.md",
+                          "docs/implementation/semantic_visual_foundation/SEMANTIC_CHECKPOINT.json",
+                          "config/semantic_visual.json",
+                          "src/assets/semantic_visual_models.py",
+                          "src/assets/semantic_visual_backend.py",
+                          "src/assets/semantic_visual_cache.py",
+                          "src/assets/semantic_visual_mock.py",
+                          "src/assets/semantic_visual_external.py",
+                          "src/assets/semantic_visual_service.py",
+                          "tests/test_semantic_visual_foundation.py",
+                          "tests/test_semantic_visual_integration.py",
+                          "docs/implementation/semantic_visual_foundation/SEMANTIC_REPORT.md",
+                          "docs/implementation/semantic_visual_foundation/SEMANTIC_SNAPSHOT.json",
+                          "docs/implementation/semantic_visual_foundation/TEST_RESULTS.txt",
+                          "docs/implementation/semantic_visual_foundation/SEMANTIC_RESULT_SCHEMA.md"
+                      ],
+    "files_modified":  [
+                           "pipeline.py",
+                           "src/assets/__init__.py",
+                           "src/assets/review_bundle.py",
+                           "src/news/asset_manager.py"
+                       ],
+    "last_tests":  {
+                       "command":  "python -B -m unittest discover -s tests",
+                       "passed":  211,
+                       "failed":  0
+                   },
+    "safe_to_resume":  true
+}

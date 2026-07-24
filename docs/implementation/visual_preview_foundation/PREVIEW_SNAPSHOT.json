@@ -1,0 +1,171 @@
+{
+  "implementation": {
+    "git_branch": "master",
+    "git_commit_before": "adb40fa944318646aef66102cbb1352e40b7cacc",
+    "started_at": "2026-07-23T00:00:00+03:00",
+    "completed_at": "2026-07-23T12:08:45+03:00"
+  },
+  "preview": {
+    "service_implemented": true,
+    "cache_implemented": true,
+    "providers_supported": [
+      "pexels",
+      "pixabay",
+      "wikimedia_commons",
+      "nasa_images",
+      "internet_archive",
+      "envato_manual_local_import",
+      "local_library",
+      "fake"
+    ],
+    "originals_downloaded_for_shortlist": false
+  },
+  "frame_sampling": {
+    "implemented": true,
+    "default_positions": [
+      0.1,
+      0.3,
+      0.5,
+      0.7,
+      0.9
+    ],
+    "video_tested": true,
+    "image_tested": true
+  },
+  "technical_metrics": {
+    "implemented": true,
+    "metrics": [
+      "width",
+      "height",
+      "aspect_ratio",
+      "orientation",
+      "duration",
+      "file_size",
+      "brightness_mean",
+      "brightness_distribution",
+      "contrast",
+      "dark_frame_score",
+      "near_white_frame_score",
+      "sharpness_heuristic",
+      "detail_density",
+      "dominant_visual_activity",
+      "frozen_frame_ratio",
+      "repeated_frame_ratio",
+      "unique_frame_ratio",
+      "portrait_crop_heuristic",
+      "landscape_crop_heuristic",
+      "square_crop_heuristic",
+      "technical_quality_score"
+    ]
+  },
+  "similarity": {
+    "exact_duplicate": true,
+    "near_duplicate": true,
+    "neighbor_penalty": true,
+    "project_repetition": true
+  },
+  "crop_suitability": {
+    "portrait": true,
+    "landscape": true,
+    "square": true
+  },
+  "review_bundle": {
+    "implemented": true,
+    "html_board_generated": true
+  },
+  "reranking": {
+    "technical_rerank_implemented": true,
+    "enabled_by_default": false
+  },
+  "tests": {
+    "passed": 179,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "live_preview_checks": [
+    {
+      "provider": "wikimedia",
+      "status": "downloaded_preview",
+      "content_type": "image/jpeg",
+      "size_bytes": 15714,
+      "sha256": "df4d1822ae877ad0bdacecc15d05dac2c4b58d32b60507dcbd55de171cb76bc1",
+      "validation": "pillow_image_ok"
+    },
+    {
+      "provider": "nasa_images",
+      "status": "downloaded_preview",
+      "content_type": "image/jpeg",
+      "size_bytes": 54586,
+      "sha256": "5b62bc51015e2eaee1978518b2c7e60ec67271608c6d6a8ce2a7bdc396af476f",
+      "validation": "pillow_image_ok"
+    },
+    {
+      "provider": "internet_archive",
+      "status": "downloaded_preview",
+      "content_type": "image/jpeg",
+      "size_bytes": 22591,
+      "sha256": "a2bce285bb7faf090098509c423a442df78a6141e8b9b3c53ba24c827cb6235c",
+      "validation": "pillow_image_ok"
+    },
+    {
+      "provider": "pexels",
+      "status": "skipped_missing_key"
+    },
+    {
+      "provider": "pixabay",
+      "status": "skipped_missing_key"
+    },
+    {
+      "provider": "envato_manual",
+      "status": "skipped_forbidden"
+    }
+  ],
+  "paid_api_calls_performed": false,
+  "vision_api_calls_performed": false,
+  "envato_automated_download_performed": false,
+  "real_media_index_modified": false,
+  "files_created": [
+    "config/visual_preview.json",
+    "src/assets/visual_preview.py",
+    "src/assets/frame_sampling.py",
+    "src/assets/visual_metrics.py",
+    "src/assets/perceptual_similarity.py",
+    "src/assets/review_bundle.py",
+    "tests/test_visual_preview_foundation.py",
+    "tests/test_visual_preview_integration.py",
+    "docs/implementation/visual_preview_foundation/PREVIEW_PLAN.md",
+    "docs/implementation/visual_preview_foundation/PREVIEW_REPORT.md",
+    "docs/implementation/visual_preview_foundation/PREVIEW_SNAPSHOT.json",
+    "docs/implementation/visual_preview_foundation/TEST_RESULTS.txt",
+    "docs/implementation/visual_preview_foundation/LIVE_PREVIEW_DIAGNOSTICS.txt",
+    "docs/implementation/visual_preview_foundation/REVIEW_BUNDLE_SCHEMA.md",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/localizations/ru/visual/visual_plan.json",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/assets/assets_manifest.json",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/assets/previews/16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669/preview.jpg",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/assets/previews/16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669/preview_record.json",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/assets/review/visual_review_manifest.json",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/assets/review/visual_review_board.html",
+    "docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/fixtures/fake_preview.png"
+  ],
+  "files_modified": [
+    "pipeline.py",
+    "src/assets/__init__.py",
+    "src/assets/provider_contract.py",
+    "src/news/asset_manager.py",
+    "src/providers/pexels_provider.py",
+    "src/providers/pixabay_provider.py",
+    "src/providers/wikimedia_commons_provider.py",
+    "src/providers/nasa_images_provider.py",
+    "src/providers/internet_archive_provider.py",
+    "src/providers/envato_manual_provider.py",
+    "src/providers/local_library_provider.py",
+    "src/providers/fake_provider.py"
+  ],
+  "remaining_issues": [
+    "Technical visual analysis remains heuristic and non-semantic by design.",
+    "Pexels and Pixabay live smoke checks require keys already present in the process environment.",
+    "Existing non-fatal MoviePy cleanup warning remains unchanged."
+  ],
+  "ready_for_semantic_visual_reranking": true
+}

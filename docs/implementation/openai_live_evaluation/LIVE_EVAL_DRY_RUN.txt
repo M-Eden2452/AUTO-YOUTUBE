@@ -1,0 +1,26 @@
+[semantic-backend] status=dry_run
+[semantic-backend] backend=openai
+[semantic-backend] model=gpt-5.6-terra
+[semantic-backend] dry_run=True
+[semantic-backend] mocked=False
+[semantic-backend] dataset_path=docs\implementation\openai_live_evaluation\LIVE_EVAL_DATASET.json
+[semantic-backend] scenes=3
+[semantic-backend] candidates=6
+[semantic-backend] dataset_cases=6
+[semantic-backend] projected_calls=6
+[semantic-backend] projected_image_count=6
+[semantic-backend] requests_built=6
+[semantic-backend] valid_requests=6
+[semantic-backend] invalid_requests=0
+[semantic-backend] schema_valid=True
+[semantic-backend] runtime_authorized=True
+[semantic-backend] runtime_block_reasons=
+[semantic-backend] budget_allowed=True
+[semantic-backend] live_blocked_reasons=
+[semantic-backend] paid_calls_performed=False
+[semantic-backend] live_vision_calls_performed=False
+
+dry_run_command_executed=
+.\venv\Scripts\python.exe -B pipeline.py semantic-backend evaluate --backend openai --model gpt-5.6-terra --dataset docs/implementation/openai_live_evaluation/LIVE_EVAL_DATASET.json --dry-run --allow-paid-vision --budget-usd 0.50 --max-calls 6 --confirm-paid-vision LIVE_VISION_APPROVED
+future_cli_command_not_executed=
+.\venv\Scripts\python.exe -B pipeline.py semantic-backend evaluate --backend openai --model gpt-5.6-terra --dataset docs/implementation/openai_live_evaluation/LIVE_EVAL_DATASET.json --allow-paid-vision --budget-usd 0.50 --max-calls 6 --confirm-paid-vision LIVE_VISION_APPROVED

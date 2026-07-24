@@ -1,0 +1,11 @@
+{
+  "project_id": "preview_smoke_project",
+  "scenes": [
+    {
+      "scene_id": "scene_001",
+      "text": "Static HTML preview board smoke",
+      "duration_sec": 4,
+      "target_aspect_ratio": "9:16"
+    }
+  ]
+}

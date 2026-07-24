@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "project_id": "preview_smoke_project",
+  "scene_count": 1,
+  "scenes": [
+    {
+      "project_id": "preview_smoke_project",
+      "scene_id": "scene_001",
+      "scene_text": "",
+      "semantic_scene": {},
+      "target_duration_sec": 0.0,
+      "target_aspect_ratio": "9:16",
+      "metadata_queries": [],
+      "provider_routing": {},
+      "shortlist": [
+        {
+          "asset_id": "fake_board_001",
+          "provider": "fake",
+          "provider_asset_id": "fake_board_001",
+          "source_page_url": "https://example.test/fake-board",
+          "author_name": "Fixture",
+          "license": {},
+          "policy_status": "unknown",
+          "metadata_rank": 1,
+          "metadata_score": 0.8,
+          "technical_score": 25.702031249999997,
+          "duplicate_scores": [],
+          "crop_scores": {
+            "9:16": {
+              "target_aspect_ratio": "9:16",
+              "heuristic_crop_suitability": 33.62019687523195,
+              "estimated_detail_retention": 0.561122244488978,
+              "center_information_density": 0.015401540154015401,
+              "estimated_crop_area_retention": 0.315625,
+              "estimated_detail_loss": 0.43887775551102204,
+              "large_empty_area_score": 1.0,
+              "estimated_post_crop_resolution": {
+                "width": 202,
+                "height": 360
+              },
+              "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+            },
+            "16:9": {
+              "target_aspect_ratio": "16:9",
+              "heuristic_crop_suitability": 82.66666666666667,
+              "estimated_detail_retention": 1.0,
+              "center_information_density": 0.008663194444444444,
+              "estimated_crop_area_retention": 1.0,
+              "estimated_detail_loss": 0.0,
+              "large_empty_area_score": 1.0,
+              "estimated_post_crop_resolution": {
+                "width": 640,
+                "height": 360
+              },
+              "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+            },
+            "1:1": {
+              "target_aspect_ratio": "1:1",
+              "heuristic_crop_suitability": 52.62207748830995,
+              "estimated_detail_retention": 0.719438877755511,
+              "center_information_density": 0.011080246913580246,
+              "estimated_crop_area_retention": 0.5625,
+              "estimated_detail_loss": 0.28056112224448904,
+              "large_empty_area_score": 1.0,
+              "estimated_post_crop_resolution": {
+                "width": 360,
+                "height": 360
+              },
+              "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+            }
+          },
+          "preview_status": "passed",
+          "sampled_frames": [
+            {
+              "frame_index": 0,
+              "requested_timestamp_sec": 0.0,
+              "actual_timestamp_sec": 0.0,
+              "local_frame_path": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\assets\\previews\\16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669\\preview.jpg",
+              "width": 640,
+              "height": 360,
+              "sha256": "f79e567d753d19155c363a57ad527a9ee07c2129f1c958bdc2bfa31c7b457a97",
+              "extraction_status": "extracted",
+              "extraction_error": "",
+              "perceptual_hash": "0000000000000000",
+              "technical_metrics": {}
+            }
+          ],
+          "rejection_reasons": [],
+          "review_required_reasons": [],
+          "score_breakdown": {
+            "brightness": 13.75,
+            "contrast": 0.0,
+            "sharpness": 0.0,
+            "detail_density": 0.47647569444444443,
+            "resolution": 1.5555555555555554,
+            "activity": 0.0,
+            "crop": 9.92
+          },
+          "combined_score": 13.58420418754175
+        }
+      ],
+      "preview_status": {
+        "fake_board_001": "passed"
+      },
+      "sampled_frames": {
+        "fake_board_001": [
+          {
+            "frame_index": 0,
+            "requested_timestamp_sec": 0.0,
+            "actual_timestamp_sec": 0.0,
+            "local_frame_path": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\assets\\previews\\16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669\\preview.jpg",
+            "width": 640,
+            "height": 360,
+            "sha256": "f79e567d753d19155c363a57ad527a9ee07c2129f1c958bdc2bfa31c7b457a97",
+            "extraction_status": "extracted",
+            "extraction_error": "",
+            "perceptual_hash": "0000000000000000",
+            "technical_metrics": {}
+          }
+        ]
+      },
+      "technical_scores": {
+        "fake_board_001": 25.702031249999997
+      },
+      "duplicate_scores": {
+        "fake_board_001": []
+      },
+      "crop_scores": {
+        "fake_board_001": {
+          "9:16": {
+            "target_aspect_ratio": "9:16",
+            "heuristic_crop_suitability": 33.62019687523195,
+            "estimated_detail_retention": 0.561122244488978,
+            "center_information_density": 0.015401540154015401,
+            "estimated_crop_area_retention": 0.315625,
+            "estimated_detail_loss": 0.43887775551102204,
+            "large_empty_area_score": 1.0,
+            "estimated_post_crop_resolution": {
+              "width": 202,
+              "height": 360
+            },
+            "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+          },
+          "16:9": {
+            "target_aspect_ratio": "16:9",
+            "heuristic_crop_suitability": 82.66666666666667,
+            "estimated_detail_retention": 1.0,
+            "center_information_density": 0.008663194444444444,
+            "estimated_crop_area_retention": 1.0,
+            "estimated_detail_loss": 0.0,
+            "large_empty_area_score": 1.0,
+            "estimated_post_crop_resolution": {
+              "width": 640,
+              "height": 360
+            },
+            "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+          },
+          "1:1": {
+            "target_aspect_ratio": "1:1",
+            "heuristic_crop_suitability": 52.62207748830995,
+            "estimated_detail_retention": 0.719438877755511,
+            "center_information_density": 0.011080246913580246,
+            "estimated_crop_area_retention": 0.5625,
+            "estimated_detail_loss": 0.28056112224448904,
+            "large_empty_area_score": 1.0,
+            "estimated_post_crop_resolution": {
+              "width": 360,
+              "height": 360
+            },
+            "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+          }
+        }
+      },
+      "selected_candidate": {
+        "asset_id": "fake_board_001",
+        "provider": "fake",
+        "provider_asset_id": "fake_board_001",
+        "source_page_url": "https://example.test/fake-board",
+        "author_name": "Fixture",
+        "license": {},
+        "policy_status": "unknown",
+        "metadata_rank": 1,
+        "metadata_score": 0.8,
+        "technical_score": 25.702031249999997,
+        "duplicate_scores": [],
+        "crop_scores": {
+          "9:16": {
+            "target_aspect_ratio": "9:16",
+            "heuristic_crop_suitability": 33.62019687523195,
+            "estimated_detail_retention": 0.561122244488978,
+            "center_information_density": 0.015401540154015401,
+            "estimated_crop_area_retention": 0.315625,
+            "estimated_detail_loss": 0.43887775551102204,
+            "large_empty_area_score": 1.0,
+            "estimated_post_crop_resolution": {
+              "width": 202,
+              "height": 360
+            },
+            "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+          },
+          "16:9": {
+            "target_aspect_ratio": "16:9",
+            "heuristic_crop_suitability": 82.66666666666667,
+            "estimated_detail_retention": 1.0,
+            "center_information_density": 0.008663194444444444,
+            "estimated_crop_area_retention": 1.0,
+            "estimated_detail_loss": 0.0,
+            "large_empty_area_score": 1.0,
+            "estimated_post_crop_resolution": {
+              "width": 640,
+              "height": 360
+            },
+            "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+          },
+          "1:1": {
+            "target_aspect_ratio": "1:1",
+            "heuristic_crop_suitability": 52.62207748830995,
+            "estimated_detail_retention": 0.719438877755511,
+            "center_information_density": 0.011080246913580246,
+            "estimated_crop_area_retention": 0.5625,
+            "estimated_detail_loss": 0.28056112224448904,
+            "large_empty_area_score": 1.0,
+            "estimated_post_crop_resolution": {
+              "width": 360,
+              "height": 360
+            },
+            "explanation": "center crop heuristic based on aspect retention, local detail density and post-crop resolution"
+          }
+        },
+        "preview_status": "passed",
+        "sampled_frames": [
+          {
+            "frame_index": 0,
+            "requested_timestamp_sec": 0.0,
+            "actual_timestamp_sec": 0.0,
+            "local_frame_path": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\assets\\previews\\16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669\\preview.jpg",
+            "width": 640,
+            "height": 360,
+            "sha256": "f79e567d753d19155c363a57ad527a9ee07c2129f1c958bdc2bfa31c7b457a97",
+            "extraction_status": "extracted",
+            "extraction_error": "",
+            "perceptual_hash": "0000000000000000",
+            "technical_metrics": {}
+          }
+        ],
+        "rejection_reasons": [],
+        "review_required_reasons": [],
+        "score_breakdown": {
+          "brightness": 13.75,
+          "contrast": 0.0,
+          "sharpness": 0.0,
+          "detail_density": 0.47647569444444443,
+          "resolution": 1.5555555555555554,
+          "activity": 0.0,
+          "crop": 9.92
+        },
+        "combined_score": 13.58420418754175
+      },
+      "alternatives": [],
+      "manual_fallback_status": {
+        "status": "not_requested"
+      },
+      "reranking": {
+        "technical_rerank_enabled": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "cache_key": "16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669",
+  "local_path": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\assets\\previews\\16385b874fa6f94712adc2918cbc3e871a2cac6870d691cbdd3c761c5c731669\\preview.jpg",
+  "preview_media_type": "image",
+  "preview_source_url": "G:\\Projects\\AI-YouTube\\docs\\implementation\\visual_preview_foundation\\cli_smoke_projects\\preview_smoke_project\\fixtures\\fake_preview.png",
+  "width": 640,
+  "height": 360,
+  "duration_sec": 0.0,
+  "expected_content_type": "",
+  "expected_size_bytes": 4309,
+  "sha256": "f79e567d753d19155c363a57ad527a9ee07c2129f1c958bdc2bfa31c7b457a97",
+  "bytes": 4309,
+  "fallback_reason": "local_preview_generated",
+  "original_used": false,
+  "cache_status": "stored",
+  "created_at": "2026-07-23T09:08:11.082854+00:00"
+}

@@ -1,0 +1,856 @@
+{
+  "candidate_results": [
+    {
+      "action_match": true,
+      "cached_tokens": 0,
+      "calculated_cost_usd": 0.02137,
+      "candidate_id": "scene01_A_saturn_v_launch",
+      "confidence": 0.96,
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail": "low",
+      "duration_sec": 14.139328,
+      "environment_match": true,
+      "error": null,
+      "exact_entity_match": true,
+      "expected_classification": "suitable",
+      "expected_must_have": [
+        {
+          "present": true,
+          "term": "Saturn V rocket"
+        },
+        {
+          "present": true,
+          "term": "rocket launch"
+        },
+        {
+          "present": true,
+          "term": "flame or smoke plume"
+        }
+      ],
+      "expected_negative_elements": [
+        {
+          "present": false,
+          "term": "Space Shuttle orbiter"
+        },
+        {
+          "present": false,
+          "term": "airplane"
+        },
+        {
+          "present": false,
+          "term": "indoor museum display"
+        }
+      ],
+      "hard_reject": false,
+      "input_tokens": 1582,
+      "mismatch_reasons": [
+        "The viewpoint is elevated and relatively close/moderate rather than clearly a ground-level or telephoto wide launch shot."
+      ],
+      "model": "gpt-5.6-terra",
+      "must_have_match": true,
+      "must_have_results": [
+        {
+          "confidence": 0.95,
+          "evidence": "The visible vehicle has a tall white multi-stage configuration, tapered upper section, and clustered lower-stage form strongly consistent with a Saturn V; exact identification remains visual rather than text-confirmed.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "Saturn V rocket"
+        },
+        {
+          "confidence": 0.98,
+          "evidence": "The rocket is shown on a pad with active exhaust at its base and a large expanding plume.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "rocket launch"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "Bright flame/exhaust and dense orange-brown and white smoke are clearly visible around the lower vehicle.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "flame or smoke plume"
+        }
+      ],
+      "negative_element_match": true,
+      "negative_element_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "No winged orbiter silhouette or shuttle stack is visible; the vehicle is a vertical cylindrical multi-stage rocket.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "Space Shuttle orbiter"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No airplane is visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "airplane"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "The scene is visibly outdoors on an operational-looking launch pad with sky and exhaust plume.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "indoor museum display"
+        }
+      ],
+      "output_tokens": 1161,
+      "provider_result_status": "completed",
+      "request_id": "req_45e31fbbde6b4b3e83f08a65a48c34b7",
+      "returned_classification": "review",
+      "review_required": true,
+      "review_required_reasons": [
+        "Exact Saturn V identification is strongly supported by visible vehicle geometry but is not independently confirmed by legible markings or text in the frame.",
+        "Only one still frame is available, so temporal launch progression cannot be assessed."
+      ],
+      "scene_id": "scene_01_strict_saturn_v",
+      "score_recomputed_from_saved_component_matches": true,
+      "semantic_score": 0.74,
+      "short_evidence": "Large white launch vehicle visibly matches the characteristic overall form of a Saturn V more closely than a Space Shuttle stack.",
+      "status": "success",
+      "structured_response_valid": true,
+      "subject_match": true
+    },
+    {
+      "action_match": true,
+      "cached_tokens": 0,
+      "calculated_cost_usd": 0.0199,
+      "candidate_id": "scene01_B_space_shuttle_launch",
+      "confidence": 0.99,
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail": "low",
+      "duration_sec": 11.929317,
+      "environment_match": true,
+      "error": null,
+      "exact_entity_match": false,
+      "expected_classification": "unsuitable",
+      "expected_must_have": [
+        {
+          "present": false,
+          "term": "Saturn V rocket"
+        },
+        {
+          "present": true,
+          "term": "rocket launch"
+        },
+        {
+          "present": true,
+          "term": "flame or smoke plume"
+        }
+      ],
+      "expected_negative_elements": [
+        {
+          "present": true,
+          "term": "Space Shuttle orbiter"
+        },
+        {
+          "present": false,
+          "term": "airplane"
+        },
+        {
+          "present": false,
+          "term": "indoor museum display"
+        }
+      ],
+      "hard_reject": false,
+      "input_tokens": 1642,
+      "mismatch_reasons": [
+        "The required exact entity, a Saturn V rocket, is not visible.",
+        "The visible vehicle is a Space Shuttle launch system.",
+        "A Space Shuttle orbiter is explicitly listed as a negative element under the strict scene requirements."
+      ],
+      "model": "gpt-5.6-terra",
+      "must_have_match": true,
+      "must_have_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "The visible vehicle has the distinctive Space Shuttle orbiter, external tank, and paired solid rocket boosters rather than the cylindrical multi-stage Saturn V configuration.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "Saturn V rocket"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "An active liftoff/launch is visible at a launch pad, with the vehicle rising above the platform.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "rocket launch"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "A bright exhaust flame and extensive smoke plume are clearly visible beneath the vehicle and across the pad.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "flame or smoke plume"
+        }
+      ],
+      "negative_element_match": true,
+      "negative_element_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "A Space Shuttle orbiter is clearly visible attached to an external tank between two solid rocket boosters.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "Space Shuttle orbiter"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No airplane is visible in the frame.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "airplane"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "The scene is visibly outdoors at an active launch pad, not an indoor display.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "indoor museum display"
+        }
+      ],
+      "output_tokens": 1053,
+      "provider_result_status": "completed",
+      "request_id": "req_c32868f85e614c00a781680aa68514ed",
+      "returned_classification": "unsuitable",
+      "review_required": true,
+      "review_required_reasons": [
+        "Visible 'USA' marking on the orbiter creates text/logo review risk.",
+        "Only one still frame is available, so temporal evidence is limited."
+      ],
+      "scene_id": "scene_01_strict_saturn_v",
+      "score_recomputed_from_saved_component_matches": true,
+      "semantic_score": 0.666667,
+      "short_evidence": "Vehicle geometry visibly matches a Space Shuttle configuration—orbiter, external tank, and twin solid rocket boosters—and does not match Saturn V.",
+      "status": "success",
+      "structured_response_valid": true,
+      "subject_match": false
+    },
+    {
+      "action_match": true,
+      "cached_tokens": 0,
+      "calculated_cost_usd": 0.017573,
+      "candidate_id": "scene02_A_bear_catching_salmon",
+      "confidence": 0.98,
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail": "low",
+      "duration_sec": 8.968381,
+      "environment_match": true,
+      "error": null,
+      "exact_entity_match": true,
+      "expected_classification": "suitable",
+      "expected_must_have": [
+        {
+          "present": true,
+          "term": "brown bear"
+        },
+        {
+          "present": true,
+          "term": "salmon or fish"
+        },
+        {
+          "present": true,
+          "term": "river water"
+        }
+      ],
+      "expected_negative_elements": [
+        {
+          "present": false,
+          "term": "bear only standing"
+        },
+        {
+          "present": false,
+          "term": "no visible fish"
+        },
+        {
+          "present": false,
+          "term": "zoo enclosure"
+        }
+      ],
+      "hard_reject": false,
+      "input_tokens": 1497,
+      "mismatch_reasons": [
+        "The fish is visibly present but cannot be confirmed as salmon rather than another fish species from this image alone.",
+        "A single still frame cannot conclusively verify the complete catching sequence, though the visible composition strongly depicts an attempted catch."
+      ],
+      "model": "gpt-5.6-terra",
+      "must_have_match": true,
+      "must_have_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "A large brown-furred bear is clearly visible in frame 0.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "brown bear"
+        },
+        {
+          "confidence": 0.98,
+          "evidence": "A silvery fish is visibly jumping in front of the bear's mouth in frame 0; species-level identification as salmon is uncertain from this frame alone.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "salmon or fish"
+        },
+        {
+          "confidence": 1.0,
+          "evidence": "Rushing river water and a waterfall/rapid occupy the scene.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "river water"
+        }
+      ],
+      "negative_element_match": true,
+      "negative_element_results": [
+        {
+          "confidence": 0.96,
+          "evidence": "Although the bear is standing, a fish is visibly airborne at its mouth, providing clear fishing-action context.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "bear only standing"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "A fish is clearly visible in front of the bear's mouth.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "no visible fish"
+        },
+        {
+          "confidence": 0.98,
+          "evidence": "No fences, cages, barriers, signage, or other enclosure features are visible; the scene appears to show natural river habitat.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "zoo enclosure"
+        }
+      ],
+      "output_tokens": 922,
+      "provider_result_status": "completed",
+      "request_id": "req_43b791f57a944661a0a2811f45748bed",
+      "returned_classification": "suitable",
+      "review_required": false,
+      "review_required_reasons": [],
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "score_recomputed_from_saved_component_matches": true,
+      "semantic_score": 1.0,
+      "short_evidence": "A brown bear is clearly visible as the primary subject.",
+      "status": "success",
+      "structured_response_valid": true,
+      "subject_match": true
+    },
+    {
+      "action_match": false,
+      "cached_tokens": 0,
+      "calculated_cost_usd": 0.018545,
+      "candidate_id": "scene02_B_bear_standing_river",
+      "confidence": 0.96,
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail": "low",
+      "duration_sec": 8.549663,
+      "environment_match": true,
+      "error": null,
+      "exact_entity_match": false,
+      "expected_classification": "review",
+      "expected_must_have": [
+        {
+          "present": true,
+          "term": "brown bear"
+        },
+        {
+          "present": false,
+          "term": "salmon or fish"
+        },
+        {
+          "present": true,
+          "term": "river water"
+        }
+      ],
+      "expected_negative_elements": [
+        {
+          "present": true,
+          "term": "bear only standing"
+        },
+        {
+          "present": true,
+          "term": "no visible fish"
+        },
+        {
+          "present": false,
+          "term": "zoo enclosure"
+        }
+      ],
+      "hard_reject": false,
+      "input_tokens": 1562,
+      "mismatch_reasons": [
+        "The required action, catching salmon, is not visibly shown.",
+        "A salmon or other fish is required but absent from the visible frame.",
+        "The exact requested entity/action combination, a brown bear catching salmon, is not met.",
+        "Waterfall or rapids are not visible; only shallow river water and a rocky bank are shown.",
+        "The frame visibly matches the prohibited condition of a bear only standing."
+      ],
+      "model": "gpt-5.6-terra",
+      "must_have_match": true,
+      "must_have_results": [
+        {
+          "confidence": 0.96,
+          "evidence": "A large brown-furred bear is clearly visible in frame 0.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "brown bear"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No fish or salmon is visible in or around the bear's mouth, paws, or surrounding water.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "salmon or fish"
+        },
+        {
+          "confidence": 0.98,
+          "evidence": "The bear is standing in shallow flowing-looking water at a rocky river edge.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "river water"
+        }
+      ],
+      "negative_element_match": true,
+      "negative_element_results": [
+        {
+          "confidence": 0.97,
+          "evidence": "The visible frame shows the bear standing still in shallow water, with no visible fishing or capture action.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "bear only standing"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No fish is visible anywhere in the provided frame.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "no visible fish"
+        },
+        {
+          "confidence": 0.94,
+          "evidence": "The visible setting is a natural rocky riverbank; no enclosure features are visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "zoo enclosure"
+        }
+      ],
+      "output_tokens": 976,
+      "provider_result_status": "completed",
+      "request_id": "req_55528c7158ea4bd8bf338762afdd44d0",
+      "returned_classification": "review",
+      "review_required": true,
+      "review_required_reasons": [
+        "Only one still frame is available, so an event outside this visible instant cannot be evaluated.",
+        "The bear's species is visually consistent with a brown bear, but species-level certainty from one image is not absolute."
+      ],
+      "scene_id": "scene_02_balanced_bear_salmon",
+      "score_recomputed_from_saved_component_matches": true,
+      "semantic_score": 0.666667,
+      "short_evidence": "A single brown-furred bear is centered in the frame.",
+      "status": "success",
+      "structured_response_valid": true,
+      "subject_match": true
+    },
+    {
+      "action_match": null,
+      "cached_tokens": 0,
+      "calculated_cost_usd": 0.017827,
+      "candidate_id": "scene03_A_misty_forest_canopy",
+      "confidence": 0.95,
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail": "low",
+      "duration_sec": 10.66111,
+      "environment_match": true,
+      "error": null,
+      "exact_entity_match": null,
+      "expected_classification": "suitable",
+      "expected_must_have": [
+        {
+          "present": true,
+          "term": "trees"
+        },
+        {
+          "present": true,
+          "term": "forest canopy"
+        },
+        {
+          "present": true,
+          "term": "green vegetation"
+        }
+      ],
+      "expected_negative_elements": [
+        {
+          "present": false,
+          "term": "desert"
+        },
+        {
+          "present": false,
+          "term": "sand dunes"
+        },
+        {
+          "present": false,
+          "term": "urban skyline"
+        }
+      ],
+      "hard_reject": false,
+      "input_tokens": 1515,
+      "mismatch_reasons": [
+        "The requested camera view allows a wide or elevated landscape view, while the visible frame is a more enclosed upward-looking view through trees and canopy.",
+        "The frame does not visibly establish a broad landscape canopy vista; it primarily shows trunks, branches, and fog from within the forest."
+      ],
+      "model": "gpt-5.6-terra",
+      "must_have_match": true,
+      "must_have_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "Multiple tall tree trunks, branches, and crowns are clearly visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "trees"
+        },
+        {
+          "confidence": 0.97,
+          "evidence": "Overlapping branches and leafy crowns fill the upper and central portions of the frame.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "forest canopy"
+        },
+        {
+          "confidence": 0.97,
+          "evidence": "Visible foliage is predominantly dark to muted green.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "green vegetation"
+        }
+      ],
+      "negative_element_match": true,
+      "negative_element_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "No arid terrain, sparse desert vegetation, or desert landscape is visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "desert"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No sand or dune formations are visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "sand dunes"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No buildings, skyline, roads, or urban infrastructure are visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "urban skyline"
+        }
+      ],
+      "output_tokens": 936,
+      "provider_result_status": "completed",
+      "request_id": "req_8c52842301c041cfab199503065db2c0",
+      "returned_classification": "review",
+      "review_required": true,
+      "review_required_reasons": [
+        "Only one still frame was provided, so temporal characteristics cannot be evaluated beyond the visible static image.",
+        "Mist is strongly suggested by the pale diffuse background and haze among trees, but its density and extent cannot be assessed outside the visible frame."
+      ],
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "score_recomputed_from_saved_component_matches": true,
+      "semantic_score": 0.74,
+      "short_evidence": "A dense stand of trees and leafy canopy is visibly present throughout the frame.",
+      "status": "success",
+      "structured_response_valid": true,
+      "subject_match": true
+    },
+    {
+      "action_match": null,
+      "cached_tokens": 0,
+      "calculated_cost_usd": 0.017035,
+      "candidate_id": "scene03_B_desert_dunes",
+      "confidence": 0.99,
+      "cost_basis": {
+        "cached_tokens": 0,
+        "input_cost_per_1k_tokens_usd": 0.0025,
+        "output_cost_per_1k_tokens_usd": 0.015,
+        "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      },
+      "detail": "low",
+      "duration_sec": 8.807042,
+      "environment_match": false,
+      "error": null,
+      "exact_entity_match": null,
+      "expected_classification": "unsuitable",
+      "expected_must_have": [
+        {
+          "present": false,
+          "term": "trees"
+        },
+        {
+          "present": false,
+          "term": "forest canopy"
+        },
+        {
+          "present": false,
+          "term": "green vegetation"
+        }
+      ],
+      "expected_negative_elements": [
+        {
+          "present": true,
+          "term": "desert"
+        },
+        {
+          "present": true,
+          "term": "sand dunes"
+        },
+        {
+          "present": false,
+          "term": "urban skyline"
+        }
+      ],
+      "hard_reject": false,
+      "input_tokens": 1540,
+      "mismatch_reasons": [
+        "The required forest-canopy subject is absent.",
+        "The required green, humid or misty natural woodland environment is absent.",
+        "Desert and sand dunes, both listed negative elements, are prominently visible.",
+        "Although the frame is a wide atmospheric landscape view, it depicts an arid dune field rather than the requested forest setting."
+      ],
+      "model": "gpt-5.6-terra",
+      "must_have_match": true,
+      "must_have_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "No trees are visible; only sparse low desert shrubs appear across the dunes.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "trees"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "The frame contains open sand dunes and distant mountains, not a forest canopy.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "forest canopy"
+        },
+        {
+          "confidence": 0.98,
+          "evidence": "Vegetation is very sparse and appears muted yellow-green/brown rather than dense green vegetation.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "green vegetation"
+        }
+      ],
+      "negative_element_match": true,
+      "negative_element_results": [
+        {
+          "confidence": 0.99,
+          "evidence": "The landscape visibly consists of arid dunes, exposed sand, sparse shrubs, and distant barren mountains.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "desert"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "Large, clearly defined rolling sand dunes dominate the foreground and middle ground.",
+          "frame_indices": [
+            0
+          ],
+          "present": true,
+          "term": "sand dunes"
+        },
+        {
+          "confidence": 0.99,
+          "evidence": "No buildings or urban skyline are visible.",
+          "frame_indices": [
+            0
+          ],
+          "present": false,
+          "term": "urban skyline"
+        }
+      ],
+      "output_tokens": 879,
+      "provider_result_status": "completed",
+      "request_id": "req_6d1a623c2c7041708c0bd976f06e89ee",
+      "returned_classification": "unsuitable",
+      "review_required": false,
+      "review_required_reasons": [],
+      "scene_id": "scene_03_illustrative_forest_broll",
+      "score_recomputed_from_saved_component_matches": true,
+      "semantic_score": 0.5,
+      "short_evidence": "No trees or forest canopy are visible; the primary visible subject is a dune landscape.",
+      "status": "success",
+      "structured_response_valid": true,
+      "subject_match": false
+    }
+  ],
+  "metrics": {
+    "action_accuracy": 1.0,
+    "action_applicable_cases": 4,
+    "classification_accuracy": 0.666667,
+    "environment_accuracy": 1.0,
+    "exact_entity_accuracy": 1.0,
+    "exact_entity_applicable_cases": 4,
+    "failed_calls": 0,
+    "false_hard_reject_count": 0,
+    "false_suitable_count": 0,
+    "input_cost_per_1k_tokens_usd": 0.0025,
+    "must_have_accuracy": 1.0,
+    "negative_element_accuracy": 1.0,
+    "output_cost_per_1k_tokens_usd": 0.015,
+    "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+    "review_case_result": "review",
+    "structured_response_validity": 1.0,
+    "subject_accuracy": 1.0,
+    "suitable_accuracy": 0.333333,
+    "total_calculated_cost_usd": 0.11225,
+    "total_input_tokens": 9338,
+    "total_output_tokens": 5927,
+    "unsuitable_accuracy": 1.0
+  },
+  "safety": {
+    "budget_exceeded": false,
+    "budget_limit_usd": 0.5,
+    "calls_within_limit": true,
+    "detail": "low",
+    "images_within_limit": true,
+    "model": "gpt-5.6-terra",
+    "postprocessed_without_additional_api_calls": true,
+    "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+    "production_selection_changed": false,
+    "semantic_rerank_enabled": false
+  },
+  "schema_version": "openai_live_eval_results.v1",
+  "summary": {
+    "backend": "openai",
+    "budget_allowed": true,
+    "budget_exceeded": false,
+    "calls_attempted": 6,
+    "calls_failed": 0,
+    "calls_succeeded": 6,
+    "candidates": 6,
+    "dataset_cases": 6,
+    "dataset_path": "docs\\implementation\\openai_live_evaluation\\LIVE_EVAL_DATASET.json",
+    "detail": "low",
+    "external_http_attempts": 6,
+    "images_sent": 6,
+    "input_cost_per_1k_tokens_usd": 0.0025,
+    "live_vision_calls_performed": true,
+    "mode": "analyse_and_report",
+    "model": "gpt-5.6-terra",
+    "output_cost_per_1k_tokens_usd": 0.015,
+    "paid_calls_performed": true,
+    "postprocessed_without_additional_api_calls": true,
+    "pricing_source": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+    "production_selection_changed": false,
+    "projected_calls": 6,
+    "projected_image_count": 6,
+    "retries_observed": 0,
+    "runtime_authorized": true,
+    "scenes": 3,
+    "semantic_rerank_enabled": false,
+    "status": "completed",
+    "status_normalization": "OpenAI structured result status completed treated as success.",
+    "stop_reasons": [],
+    "total_cached_tokens": 0,
+    "total_calculated_cost_usd": 0.11225,
+    "total_input_tokens": 9338,
+    "total_output_tokens": 5927
+  }
+}

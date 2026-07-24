@@ -1,0 +1,16 @@
+{
+  "budget_exceeded": false,
+  "calls_attempted": 6,
+  "calls_failed": 0,
+  "calls_succeeded": 6,
+  "images_sent": 6,
+  "live_calls_performed": true,
+  "paid_calls_performed": true,
+  "phase": "completed",
+  "postprocessed_without_additional_api_calls": true,
+  "production_selection_changed": false,
+  "ready_for_result_review": true,
+  "semantic_rerank_enabled": false,
+  "stop_reasons": [],
+  "total_cost_usd": 0.11225
+}

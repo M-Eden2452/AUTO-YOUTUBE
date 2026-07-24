@@ -1,0 +1,378 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any
+
+from PIL import Image
+
+
+class VisualPreviewIntegrationTests(unittest.TestCase):
+    def test_neighbor_scene_duplicate_penalty(self) -> None:
+        from src.assets.review_bundle import compute_repetition_penalties
+
+        candidate = {"asset_id": "asset_a", "source_page_url": "https://source/a", "checksum_sha256": "abc"}
+        penalties = compute_repetition_penalties(
+            candidate,
+            neighbor_assets=[{"asset_id": "asset_a", "source_page_url": "https://source/a", "checksum_sha256": "abc"}],
+            project_assets=[],
+        )
+
+        self.assertGreater(penalties["duplicate_penalty"], 0)
+        self.assertIn("same_asset_id", penalties["reason"])
+
+    def test_project_level_repetition_penalty(self) -> None:
+        from src.assets.review_bundle import compute_repetition_penalties
+
+        candidate = {"asset_id": "asset_a", "source_page_url": "https://source/a", "checksum_sha256": "abc"}
+        penalties = compute_repetition_penalties(
+            candidate,
+            neighbor_assets=[],
+            project_assets=[
+                {"asset_id": "old_1", "source_page_url": "https://source/a"},
+                {"asset_id": "old_2", "source_page_url": "https://source/a"},
+            ],
+        )
+
+        self.assertEqual(penalties["project_repetition_count"], 2)
+        self.assertGreater(penalties["neighbor_similarity_penalty"], 0)
+
+    def test_review_bundle_generation(self) -> None:
+        from src.assets.review_bundle import create_scene_review_bundle
+
+        scene = {"scene_id": "scene_001", "primary_query": "ocean science", "visual_type": "image", "target_duration_sec": 4}
+        analyses = [_analysis("a1", technical=80), _analysis("a2", technical=60)]
+
+        bundle = create_scene_review_bundle(
+            project_id="project_001",
+            scene=scene,
+            semantic_scene={"visual_priority": "environment"},
+            metadata_queries=[{"query": "ocean science"}],
+            provider_routing={"ordered_providers": ["fake"]},
+            candidates=[_candidate("a1"), _candidate("a2")],
+            analyses=analyses,
+            selected_candidate_id="a1",
+            target_aspect_ratio="9:16",
+        )
+
+        self.assertEqual(bundle.project_id, "project_001")
+        self.assertEqual(bundle.scene_id, "scene_001")
+        self.assertEqual(len(bundle.shortlist), 2)
+        self.assertEqual(bundle.selected_candidate["asset_id"], "a1")
+
+    def test_review_bundle_schema_has_required_fields(self) -> None:
+        from src.assets.review_bundle import REVIEW_BUNDLE_REQUIRED_FIELDS
+
+        for field in (
+            "project_id",
+            "scene_id",
+            "scene_text",
+            "semantic_scene",
+            "target_aspect_ratio",
+            "metadata_queries",
+            "provider_routing",
+            "shortlist",
+            "selected_candidate",
+            "alternatives",
+            "manual_fallback_status",
+        ):
+            self.assertIn(field, REVIEW_BUNDLE_REQUIRED_FIELDS)
+
+    def test_html_board_generation(self) -> None:
+        from src.assets.review_bundle import create_scene_review_bundle, write_review_bundle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            frame = root / "frame.jpg"
+            Image.new("RGB", (100, 140), (30, 80, 120)).save(frame)
+            bundle = create_scene_review_bundle(
+                project_id="project_001",
+                scene={"scene_id": "scene_001", "primary_query": "ocean", "visual_type": "image"},
+                semantic_scene={},
+                metadata_queries=[],
+                provider_routing={},
+                candidates=[_candidate("a1")],
+                analyses=[_analysis("a1", frame_path=frame)],
+                selected_candidate_id="a1",
+                target_aspect_ratio="9:16",
+            )
+
+            result = write_review_bundle(root, [bundle])
+
+            self.assertTrue(Path(result["json_path"]).is_file())
+            self.assertTrue(Path(result["html_path"]).is_file())
+            html = Path(result["html_path"]).read_text(encoding="utf-8")
+            self.assertIn("scene_001", html)
+            self.assertIn("fake", html)
+
+    def test_html_uses_relative_paths(self) -> None:
+        from src.assets.review_bundle import create_scene_review_bundle, write_review_bundle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            frame = root / "assets" / "previews" / "frame.jpg"
+            frame.parent.mkdir(parents=True)
+            Image.new("RGB", (100, 140), (30, 80, 120)).save(frame)
+            bundle = create_scene_review_bundle(
+                project_id="project_001",
+                scene={"scene_id": "scene_001", "primary_query": "ocean", "visual_type": "image"},
+                semantic_scene={},
+                metadata_queries=[],
+                provider_routing={},
+                candidates=[_candidate("a1")],
+                analyses=[_analysis("a1", frame_path=frame)],
+                selected_candidate_id="a1",
+                target_aspect_ratio="9:16",
+            )
+
+            result = write_review_bundle(root, [bundle])
+            html = Path(result["html_path"]).read_text(encoding="utf-8")
+
+            self.assertIn("assets/previews/frame.jpg", html.replace("\\", "/"))
+            self.assertNotIn(str(root), html)
+
+    def test_html_contains_no_secrets(self) -> None:
+        from src.assets.review_bundle import create_scene_review_bundle, write_review_bundle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = create_scene_review_bundle(
+                project_id="project_001",
+                scene={"scene_id": "scene_001", "primary_query": "ocean", "visual_type": "image"},
+                semantic_scene={},
+                metadata_queries=[],
+                provider_routing={},
+                candidates=[{**_candidate("a1"), "raw_metadata": {"api_key": "SECRET_TOKEN_VALUE"}}],
+                analyses=[_analysis("a1")],
+                selected_candidate_id="a1",
+                target_aspect_ratio="9:16",
+            )
+
+            result = write_review_bundle(root, [bundle])
+            html = Path(result["html_path"]).read_text(encoding="utf-8")
+
+            self.assertNotIn("SECRET_TOKEN_VALUE", html)
+            self.assertNotIn("api_key", html.lower())
+
+    def test_html_does_not_expose_envato_proof(self) -> None:
+        from src.assets.review_bundle import create_scene_review_bundle, write_review_bundle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = create_scene_review_bundle(
+                project_id="project_001",
+                scene={"scene_id": "scene_001", "primary_query": "premium footage", "visual_type": "video"},
+                semantic_scene={},
+                metadata_queries=[],
+                provider_routing={},
+                candidates=[
+                    {
+                        **_candidate("envato_1", provider="envato_manual"),
+                        "raw_metadata": {"license_proof_reference": str(root / "metadata" / "licenses" / "certificate.txt")},
+                    }
+                ],
+                analyses=[_analysis("envato_1")],
+                selected_candidate_id="envato_1",
+                target_aspect_ratio="9:16",
+            )
+
+            result = write_review_bundle(root, [bundle])
+            html = Path(result["html_path"]).read_text(encoding="utf-8")
+
+            self.assertNotIn("certificate.txt", html)
+            self.assertNotIn("license_proof_reference", html)
+
+    def test_technical_rerank_disabled_by_default(self) -> None:
+        from src.assets.review_bundle import select_candidate_after_review
+
+        candidates = [_candidate("metadata_winner"), _candidate("technical_winner")]
+        analyses = [_analysis("metadata_winner", technical=20), _analysis("technical_winner", technical=95)]
+
+        selected = select_candidate_after_review(candidates, analyses, metadata_selected_id="metadata_winner", technical_rerank=False)
+
+        self.assertEqual(selected["asset_id"], "metadata_winner")
+
+    def test_technical_rerank_works_when_enabled(self) -> None:
+        from src.assets.review_bundle import select_candidate_after_review
+
+        candidates = [_candidate("metadata_winner"), _candidate("technical_winner")]
+        analyses = [_analysis("metadata_winner", technical=20), _analysis("technical_winner", technical=95)]
+
+        selected = select_candidate_after_review(candidates, analyses, metadata_selected_id="metadata_winner", technical_rerank=True)
+
+        self.assertEqual(selected["asset_id"], "technical_winner")
+
+    def test_failed_preview_falls_back_to_metadata_ranking(self) -> None:
+        from src.assets.review_bundle import select_candidate_after_review
+
+        candidates = [_candidate("metadata_winner"), _candidate("technical_winner")]
+        analyses = [
+            _analysis("metadata_winner", status="failed", technical=0),
+            _analysis("technical_winner", status="passed", technical=90),
+        ]
+
+        selected = select_candidate_after_review(candidates, analyses, metadata_selected_id="metadata_winner", technical_rerank=False)
+
+        self.assertEqual(selected["asset_id"], "metadata_winner")
+
+    def test_only_shortlisted_previews_are_fetched(self) -> None:
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            preview = root / "preview.jpg"
+            Image.new("RGB", (320, 480), (25, 65, 110)).save(preview)
+            provider = CountingPreviewProvider(preview_path=preview)
+            candidates = [_candidate(f"a{i}", preview_url=f"https://fake.local/{i}.jpg") for i in range(8)]
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=3, project_root=str(root), offline=False)
+
+            analyses = prepare_candidate_preview_analyses(candidates, providers_by_name={"fake": provider}, request=request)
+
+            self.assertEqual(len(analyses), 3)
+            self.assertEqual(provider.preview_calls, 3)
+
+    def test_envato_remote_preview_is_not_fetched(self) -> None:
+        from src.assets.models import AssetCandidate
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        candidate = AssetCandidate(
+            asset_id="envato_remote",
+            provider="envato_manual",
+            provider_asset_id="item_1",
+            media_type="video",
+            preview_url="https://elements.envato.com/remote-preview.mp4",
+            source_page_url="https://elements.envato.com/item_1",
+        ).to_manifest_dict()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1, project_root=tmp, offline=False)
+            analyses = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)
+
+        self.assertEqual(analyses[0]["analysis_status"], "failed")
+        self.assertIn("envato_remote_preview_disabled", analyses[0]["preview"]["fallback_reason"])
+
+    def test_imported_envato_local_file_can_be_analysed(self) -> None:
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            local = root / "imported.jpg"
+            Image.new("RGB", (1080, 1920), (80, 100, 130)).save(local)
+            candidate = {**_candidate("envato_local", provider="envato_manual"), "local_path": str(local), "path": str(local)}
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1, project_root=str(root), offline=True)
+
+            analyses = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)
+
+            self.assertEqual(analyses[0]["analysis_status"], "passed")
+            self.assertEqual(analyses[0]["preview"]["preview_media_type"], "image")
+
+    def test_provider_specific_preview_selection(self) -> None:
+        from src.assets.models import AssetCandidate
+        from src.assets.visual_preview import VisualPreviewRequest, resolve_candidate_preview
+
+        request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1)
+        ia = AssetCandidate(asset_id="ia", provider="internet_archive", provider_asset_id="movie_1", media_type="video", source_page_url="https://archive.org/details/movie_1")
+        pixabay = AssetCandidate(
+            asset_id="pixabay",
+            provider="pixabay",
+            provider_asset_id="77",
+            media_type="video",
+            raw_metadata={"pixabay": {"videos": {"medium": {"url": "https://cdn/medium.mp4", "width": 640, "height": 360}}}},
+        )
+
+        ia_preview = resolve_candidate_preview(ia, provider=None, request=request)
+        pixabay_preview = resolve_candidate_preview(pixabay, provider=None, request=request)
+
+        self.assertEqual(ia_preview.preview_source_url, "https://archive.org/services/img/movie_1")
+        self.assertEqual(pixabay_preview.preview_source_url, "https://cdn/medium.mp4")
+
+    def test_offline_mode_uses_cache_or_local_only(self) -> None:
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        candidate = _candidate("remote_only", preview_url="https://fake.local/remote.jpg")
+        with tempfile.TemporaryDirectory() as tmp:
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1, project_root=tmp, offline=True)
+            analyses = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)
+
+        self.assertEqual(analyses[0]["analysis_status"], "failed")
+        self.assertIn("offline_no_cache", analyses[0]["preview"]["fallback_reason"])
+
+    def test_network_guard_remains_active(self) -> None:
+        from tests.network_guard import live_tests_enabled
+
+        self.assertFalse(live_tests_enabled())
+
+
+class CountingPreviewProvider:
+    name = "fake"
+
+    def __init__(self, *, preview_path: Path) -> None:
+        self.preview_path = preview_path
+        self.preview_calls = 0
+
+    def get_preview(self, candidate: Any) -> Any:
+        from src.assets.provider_contract import AssetPreview
+
+        self.preview_calls += 1
+        return AssetPreview(candidate_id=candidate.asset_id, local_path=str(self.preview_path), width=320, height=480)
+
+
+def _candidate(asset_id: str, *, provider: str = "fake", preview_url: str = "") -> dict[str, Any]:
+    return {
+        "asset_id": asset_id,
+        "provider": provider,
+        "provider_asset_id": asset_id,
+        "media_type": "image",
+        "type": "image",
+        "title": f"Candidate {asset_id}",
+        "description": "ocean science",
+        "tags": ["ocean", "science"],
+        "source_page_url": f"https://fake.local/{asset_id}",
+        "source_page": f"https://fake.local/{asset_id}",
+        "preview_url": preview_url,
+        "author_name": "Fake Author",
+        "license": {"license_name": "fake_test_license", "allowed_for_render": True, "review_required": False},
+        "allowed_for_render": True,
+        "review_required": False,
+        "final_score": 50.0,
+        "total_score": 50.0,
+    }
+
+
+def _analysis(asset_id: str, *, status: str = "passed", technical: float = 75.0, frame_path: Path | None = None) -> dict[str, Any]:
+    frame = {
+        "frame_index": 0,
+        "local_frame_path": str(frame_path or ""),
+        "width": 100,
+        "height": 140,
+        "sha256": "a" * 64,
+        "extraction_status": "extracted" if status == "passed" else "failed",
+        "perceptual_hash": "0" * 16,
+    }
+    return {
+        "asset_id": asset_id,
+        "analysis_status": status,
+        "preview": {
+            "candidate_id": asset_id,
+            "provider": "fake",
+            "provider_asset_id": asset_id,
+            "preview_media_type": "image",
+            "local_path": str(frame_path or ""),
+            "cache_status": "hit",
+        },
+        "sampled_frames": [frame] if frame_path else [],
+        "technical_metrics": {
+            "technical_quality_score": technical,
+            "score_breakdown": {"brightness": 20.0, "contrast": 20.0},
+            "crop_suitability": {"9:16": {"heuristic_crop_suitability": technical}},
+        },
+        "perceptual_signature": {"asset_id": asset_id, "media_type": "image", "frame_hashes": ["0" * 16]},
+        "duplicate_scores": [],
+        "crop_scores": {"9:16": {"heuristic_crop_suitability": technical}},
+        "technical_quality_score": technical,
+    }
+
+
+if __name__ == "__main__":
+    unittest.main()

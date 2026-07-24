@@ -1,0 +1,194 @@
+# TEST RESULTS - VISUAL PREVIEW FOUNDATION
+
+Working directory: G:\Projects\AI-YouTube
+Date: 2026-07-23
+Branch: master
+Commit before implementation: adb40fa944318646aef66102cbb1352e40b7cacc
+
+## Baseline Before Production Code Changes
+
+Command:
+python -B -m unittest discover -s tests
+
+Result:
+Ran 134 tests in 27.910s
+OK
+
+Note:
+Existing non-fatal MoviePy FFMPEG_AudioReader.__del__ ignored exception was emitted, matching prior stage behavior.
+
+## Red TDD Check Before Implementation
+
+Command:
+python -B -m unittest tests.test_visual_preview_foundation tests.test_visual_preview_integration
+
+Result:
+Ran 45 tests in 2.518s
+FAILED (failures=2, errors=42)
+
+Expected failures/errors:
+Missing preview foundation modules and missing pipeline integration before implementation.
+
+## New Preview/Foundation Tests
+
+Command:
+python -B -m unittest tests.test_visual_preview_foundation
+
+Result:
+Ran 26 tests in 2.474s
+OK
+
+Covered:
+preview request serialization, cache key stability, cache hit, corrupted cache invalidation, image and video preview generation, normal and short video timestamps, duplicate timestamp avoidance, FFmpeg frame extraction, image-as-frame analysis, dark/white/contrast/sharpness metrics, frozen/repeated-frame detection, perceptual hash stability, exact/near duplicate detection, multi-frame video signatures, 9:16/16:9/1:1 crop suitability and Windows/Unicode-safe cache paths.
+
+## New Visual Preview Integration Tests
+
+Command:
+python -B -m unittest tests.test_visual_preview_integration
+
+Result:
+Ran 19 tests in 3.038s
+OK
+
+Covered:
+neighbor duplicate penalty, project repetition penalty, review bundle generation, HTML board generation, relative HTML paths, secret redaction, Envato proof exclusion, technical score breakdown, rerank disabled by default, rerank enabled by flag, failed-preview fallback to metadata rank, shortlist-only preview fetching, selected-only original download, Envato remote preview disabled, imported Envato local analysis, provider-specific preview selection, offline mode, network guard and CLI prepare/inspect.
+
+## Combined Preview Tests
+
+Command:
+python -B -m unittest tests.test_visual_preview_foundation tests.test_visual_preview_integration
+
+Result:
+Ran 45 tests in 4.892s
+OK
+
+## Provider Foundation / Hardening Tests
+
+Command:
+python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_provider_foundation_hardening tests.test_test_network_guard
+
+Result:
+Ran 21 tests in 0.805s
+OK
+
+## Documentary Provider Tests
+
+Command:
+python -B -m unittest tests.test_documentary_asset_providers tests.test_provider_routing tests.test_attribution_export
+
+Result:
+Ran 16 tests in 0.493s
+OK
+
+## News Asset / Pipeline / Quality / Renderer Tests
+
+Command:
+python -B -m unittest tests.test_news_to_short_assets tests.test_news_to_short_pipeline tests.test_news_to_short_quality_check tests.test_news_to_short_renderer tests.test_news_to_short_delivery tests.test_semantic_asset_selection
+
+Result:
+Ran 28 tests in 70.055s
+OK
+
+## Full Unittest Discovery
+
+Command:
+python -B -m unittest discover -s tests
+
+Result:
+Ran 179 tests in 76.410s
+OK
+
+Note:
+The existing non-fatal MoviePy FFMPEG_AudioReader.__del__ ignored exception was still emitted.
+
+## Import Checks
+
+Command:
+python -B -c "import pipeline; import src.assets.visual_preview; import src.assets.frame_sampling; import src.assets.visual_metrics; import src.assets.perceptual_similarity; import src.assets.review_bundle; import src.news.asset_manager; import src.providers.fake_provider; import src.providers.pexels_provider; import src.providers.pixabay_provider; import src.providers.wikimedia_commons_provider; import src.providers.nasa_images_provider; import src.providers.internet_archive_provider; import src.providers.envato_manual_provider; print('imports ok')"
+
+Result:
+imports ok
+
+## Config Validation
+
+Command:
+Get-Content -Raw config\visual_preview.json | ConvertFrom-Json | Out-Null; Write-Output 'config json ok'
+
+Result:
+config json ok
+
+## CLI Prepare / Inspect Smoke
+
+First attempted smoke used a Unicode filename in a PowerShell here-string. The command encoding converted Cyrillic characters to invalid Windows filename placeholders and failed before invoking preview logic.
+
+Retry command:
+temporary Fake/local project outside repository projects, then:
+python -B pipeline.py visual-preview prepare --projects-root <temp-root> --project-id project_001 --scene-id scene_001 --top-k 5 --offline
+python -B pipeline.py visual-preview inspect --projects-root <temp-root> --project-id project_001
+
+Result:
+PREPARE_RC 0
+[visual-preview] status=completed
+[visual-preview] scenes=1
+[visual-preview] manifest=<temp-root>\project_001\assets\review\visual_review_manifest.json
+[visual-preview] html=<temp-root>\project_001\assets\review\visual_review_board.html
+
+INSPECT_RC 0
+[visual-preview] scene_count=1
+[visual-preview] analysed_candidates=1
+[visual-preview] preview_cache_hits=0
+[visual-preview] preview_cache_misses=1
+[visual-preview] failed_previews=0
+[visual-preview] exact_duplicates=0
+[visual-preview] near_duplicates=0
+[visual-preview] review_required_candidates=0
+[visual-preview] selected_candidates=1
+[visual-preview] missing_scenes=0
+[visual-preview] html_board_path=<temp-root>\project_001\assets\review\visual_review_board.html
+
+Temporary files were removed after the smoke check.
+
+Persistent sample board:
+docs/implementation/visual_preview_foundation/cli_smoke_projects/preview_smoke_project/assets/review/visual_review_board.html
+
+HTML scan result:
+No absolute Windows paths or secret markers were found. The board contains a relative sampled-frame image path under assets/previews/.../preview.jpg.
+
+## Live Preview Diagnostics
+
+Command:
+limited Python diagnostic script writing docs/implementation/visual_preview_foundation/LIVE_PREVIEW_DIAGNOSTICS.txt
+
+Result:
+Wikimedia Commons: downloaded one image thumbnail, 15714 bytes, Pillow validation OK.
+NASA Images: downloaded one image thumbnail, 54586 bytes, Pillow validation OK.
+Internet Archive: downloaded one image thumbnail, 22591 bytes, Pillow validation OK.
+Pexels: skipped because PEXELS_API_KEY/PEXELS_KEY not present in process environment.
+Pixabay: skipped because PIXABAY_API_KEY/PIXABAY_KEY not present in process environment.
+Envato Manual: skipped_forbidden; automated remote preview download not performed.
+Total downloaded preview bytes: 92891.
+Temporary files removed: yes.
+
+## Media Index Integrity
+
+Command before implementation:
+Get-FileHash -Algorithm SHA256 assets\library\metadata\media_index.json
+
+Result before:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+Command after implementation:
+Get-FileHash -Algorithm SHA256 assets\library\metadata\media_index.json
+
+Result after:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+## Safety Confirmations
+
+- Ordinary tests did not use live APIs and remained protected by network guard.
+- No paid API calls were performed.
+- No Vision API calls were performed.
+- No automated Envato download was performed.
+- Originals for all shortlist candidates were not downloaded.
+- Real media_index.json was not modified.
+- No user projects or outputs were deleted.

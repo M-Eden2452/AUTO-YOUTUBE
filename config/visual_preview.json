@@ -1,0 +1,37 @@
+{
+  "enabled": true,
+  "mode": "analyse_and_report",
+  "shortlist_size": 5,
+  "maximum_preview_size_mb": 5,
+  "video_preview_max_duration_sec": 8,
+  "frame_sample_count": 5,
+  "frame_sample_positions": [0.1, 0.3, 0.5, 0.7, 0.9],
+  "similarity_thresholds": {
+    "exact_sha256": true,
+    "near_hash_distance": 6,
+    "similar_hash_distance": 20,
+    "neighbor_penalty_similarity": 0.85
+  },
+  "target_aspect_ratios": ["9:16", "16:9", "1:1"],
+  "technical_rerank_enabled": false,
+  "preview_cache_root": "assets/cache/previews",
+  "refresh_policy": "reuse_valid_cache",
+  "download_timeout_sec": 20,
+  "allow_original_fallback": false,
+  "technical_score_weights": {
+    "brightness": 0.16,
+    "contrast": 0.18,
+    "sharpness": 0.18,
+    "detail_density": 0.14,
+    "resolution": 0.14,
+    "activity": 0.08,
+    "crop": 0.12
+  },
+  "rerank_weights": {
+    "metadata_score": 0.42,
+    "technical_quality": 0.28,
+    "crop_suitability": 0.18,
+    "duplicate_penalty": 0.08,
+    "neighbor_similarity_penalty": 0.04
+  }
+}
