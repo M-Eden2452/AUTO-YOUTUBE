@@ -1,0 +1,166 @@
+{
+  "implementation": {
+    "started_at": "2026-07-22T22:07:00+03:00",
+    "completed_at": "2026-07-22T23:58:00+03:00",
+    "git_branch": "master",
+    "git_commit_before": "adb40fa944318646aef66102cbb1352e40b7cacc",
+    "tests_before": {
+      "targeted_baseline": {
+        "command": "python -B -m unittest tests.test_news_to_short_models tests.test_news_to_short_pipeline tests.test_news_to_short_assets tests.test_semantic_asset_selection tests.test_media_library tests.test_news_to_short_renderer",
+        "passed": 27,
+        "failed": 0,
+        "errors": 0,
+        "result": "OK"
+      },
+      "red_tests": {
+        "command": "python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_media_library tests.test_news_to_short_assets tests.test_news_to_short_quality_check tests.test_news_to_short_pipeline",
+        "passed": 11,
+        "failed": 2,
+        "errors": 13,
+        "result": "FAILED as expected before implementation"
+      }
+    },
+    "tests_after": {
+      "targeted": {
+        "command": "python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_news_to_short_models tests.test_news_to_short_pipeline tests.test_news_to_short_assets tests.test_news_to_short_quality_check tests.test_semantic_asset_selection tests.test_media_library tests.test_news_to_short_renderer tests.test_news_to_short_delivery",
+        "passed": 47,
+        "failed": 0,
+        "errors": 0,
+        "result": "OK"
+      },
+      "full_unittest_discovery": {
+        "command": "python -B -m unittest discover tests",
+        "passed": 107,
+        "failed": 0,
+        "errors": 0,
+        "result": "OK",
+        "notes": "MoviePy printed an ignored FFMPEG_AudioReader.__del__ warning, but exit code was 0. Final run used test isolation for news provider paths."
+      },
+      "import_check": {
+        "command": "python -B -c \"import pipeline; import apps.news_to_short.main; import src.news.pipeline; import src.news.asset_manager; import src.news.stock_video_downloader; import src.providers.pexels_provider; import src.providers.pixabay_provider; import src.providers.fake_provider; import src.providers.local_library_provider; import src.assets.models; import src.assets.provider_contract\"",
+        "result": "OK"
+      }
+    }
+  },
+  "models": [
+    "AssetCandidate",
+    "DownloadedAsset",
+    "AssetLicense",
+    "AssetProvenance",
+    "ProviderCapabilities",
+    "AssetSearchRequest",
+    "DownloadContext",
+    "AssetPreview",
+    "ProviderHealth"
+  ],
+  "providers": [
+    {
+      "name": "PexelsStockProvider",
+      "file": "src/providers/pexels_provider.py",
+      "live_tests": false,
+      "supports_search": true,
+      "supports_download": true,
+      "supports_license": true
+    },
+    {
+      "name": "PixabayStockProvider",
+      "file": "src/providers/pixabay_provider.py",
+      "live_tests": false,
+      "supports_search": true,
+      "supports_download": true,
+      "supports_license": true
+    },
+    {
+      "name": "FakeStockProvider",
+      "file": "src/providers/fake_provider.py",
+      "live_tests": false,
+      "supports_search": true,
+      "supports_download": true,
+      "supports_license": true
+    },
+    {
+      "name": "LocalLibraryStockProvider",
+      "file": "src/providers/local_library_provider.py",
+      "live_tests": false,
+      "supports_search": true,
+      "supports_download": true,
+      "supports_license": true
+    }
+  ],
+  "files_created": [
+    "IMPLEMENTATION_PROVIDER_FOUNDATION_PLAN.md",
+    "IMPLEMENTATION_PROVIDER_FOUNDATION_REPORT.md",
+    "IMPLEMENTATION_PROVIDER_FOUNDATION_SNAPSHOT.json",
+    "src/assets/models.py",
+    "src/assets/provider_contract.py",
+    "src/assets/http_client.py",
+    "src/assets/download.py",
+    "src/providers/fake_provider.py",
+    "src/providers/local_library_provider.py",
+    "tests/test_asset_foundation_models.py",
+    "tests/test_asset_foundation_providers.py",
+    "tests/test_asset_foundation_http_download.py",
+    "tests/test_news_to_short_quality_check.py"
+  ],
+  "files_modified": [
+    "src/assets/__init__.py",
+    "src/providers/__init__.py",
+    "src/providers/pexels_provider.py",
+    "src/providers/pixabay_provider.py",
+    "src/news/asset_manager.py",
+    "src/news/pipeline.py",
+    "src/news/final_renderer.py",
+    "src/news/quality_check.py",
+    "src/news/stock_video_downloader.py",
+    "src/media_library.py",
+    "tests/test_media_library.py",
+    "tests/test_news_to_short_assets.py",
+    "tests/test_news_to_short_pipeline.py",
+    "tests/test_news_to_short_delivery.py",
+    "tests/test_news_to_short_renderer.py"
+  ],
+  "compatibility_wrappers": [
+    "src/providers/pexels_provider.py::search_videos",
+    "src/providers/pexels_provider.py::search_images",
+    "src/providers/pixabay_provider.py::search_videos",
+    "src/providers/pixabay_provider.py::search_images",
+    "src/providers/pixabay_provider.py::search_music",
+    "src/news/asset_manager.py::PexelsAssetProvider",
+    "src/news/asset_manager.py::PixabayAssetProvider",
+    "src/news/asset_manager.py::UnsplashAssetProvider",
+    "src/news/stock_video_downloader.py::_legacy_download_stock_videos_for_project"
+  ],
+  "migrations": [
+    {
+      "name": "media_library_dry_run_report",
+      "file": "src/media_library.py",
+      "function": "build_media_library_migration_report",
+      "writes_real_index": false
+    }
+  ],
+  "critical_issues_fixed": [
+    "news asset_search can now download selected StockProvider candidates",
+    "selected assets now carry local_path/path/downloaded_path",
+    "downloaded assets now carry SHA-256",
+    "downloaded assets now carry technical validation",
+    "downloaded assets now carry license and provenance objects",
+    "quality_check rejects missing local files and review-required rights in schema_version 1 manifests",
+    "Pexels/Pixabay have provider contract implementations",
+    "FakeStockProvider enables no-network e2e tests",
+    "media library has dry-run migration report and checksum duplicate support"
+  ],
+  "remaining_issues": [
+    "real media library is still legacy and not migrated",
+    "old documentary, solar and legacy provider/download paths still duplicate logic",
+    "license mappings still need owner/legal approval before commercial use",
+    "no UI/manual review interface exists",
+    "no Wikimedia/NASA/Internet Archive/Envato provider implemented",
+    "no vision/frame reranking implemented",
+    "MoviePy emits an ignored cleanup warning in existing full test suite output"
+  ],
+  "live_api_calls_performed": true,
+  "live_api_calls_note": "No live calls in final targeted/full verification. One intermediate full-suite run before provider-test isolation may have attempted free stock-provider API calls after environment variables became visible.",
+  "paid_api_calls_performed": false,
+  "real_media_index_modified": false,
+  "ready_for_new_providers": false
+}

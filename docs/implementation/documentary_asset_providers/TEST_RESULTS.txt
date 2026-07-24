@@ -1,0 +1,159 @@
+New Documentary Asset Providers - Test Results
+==============================================
+
+Environment
+-----------
+Working directory: G:\Projects\AI-YouTube
+Git branch before changes: master
+Git commit before changes: adb40fa944318646aef66102cbb1352e40b7cacc
+Python: Python 3.10.11
+FFmpeg: available, version 8.1.1-full_build-www.gyan.dev
+FFprobe: available, version 8.1.1-full_build-www.gyan.dev
+
+Network And Paid Calls
+----------------------
+Ordinary unittest network mode: blocked by tests.network_guard.
+Paid API calls performed: false.
+Automated Envato download performed: false.
+Browser automation for Envato performed: false.
+Envato browser opening during CLI smoke: false.
+
+Real Media Index Integrity
+--------------------------
+Before SHA-256:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+After SHA-256:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+Result:
+assets/library/metadata/media_index.json was not modified.
+
+Baseline Before Production-Code Changes
+---------------------------------------
+Command:
+python -B -m unittest discover tests
+
+Result:
+Ran 117 tests in 27.034s
+OK
+
+Note:
+The existing non-fatal MoviePy cleanup warning from FFMPEG_AudioReader.__del__ was emitted, matching the previous hardening baseline.
+
+Red Tests Before Implementation
+-------------------------------
+Command:
+python -B -m unittest tests.test_documentary_asset_providers tests.test_provider_routing tests.test_attribution_export
+
+Result:
+Ran 16 tests in 0.218s
+FAILED (errors=16)
+
+Expected reason:
+The new provider modules, routing module, attribution export module, and Envato manual request integration did not exist yet.
+
+New Provider / Routing / Attribution Tests
+------------------------------------------
+Command:
+python -B -m unittest tests.test_documentary_asset_providers tests.test_provider_routing tests.test_attribution_export
+
+Result:
+Ran 16 tests in 0.357s
+OK
+
+Provider Foundation / News / Quality / Renderer Targeted Tests
+--------------------------------------------------------------
+Command:
+python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_provider_foundation_hardening tests.test_test_network_guard tests.test_media_library tests.test_news_to_short_assets tests.test_news_to_short_quality_check tests.test_semantic_asset_selection tests.test_news_to_short_pipeline tests.test_news_to_short_renderer tests.test_news_to_short_delivery
+
+Result:
+Ran 54 tests in 29.787s
+OK
+
+Policy Regression Targeted Tests
+--------------------------------
+Command:
+python -B -m unittest tests.test_provider_foundation_hardening tests.test_asset_foundation_providers tests.test_documentary_asset_providers tests.test_provider_routing tests.test_attribution_export
+
+Result:
+Ran 31 tests in 0.598s
+OK
+
+Full Mocked Unittest Discovery Before Live Diagnostics
+------------------------------------------------------
+Command:
+python -B -m unittest discover tests
+
+Result:
+Ran 134 tests in 29.469s
+OK
+
+Full Mocked Unittest Discovery After Live Diagnostics
+-----------------------------------------------------
+Command:
+python -B -m unittest discover tests
+
+Result:
+Ran 134 tests in 30.492s
+OK
+
+Note:
+The same non-fatal legacy MoviePy cleanup warning was emitted. Exit code was 0.
+
+Import Checks
+-------------
+Command:
+python -B -c "import pipeline; import src.news.pipeline; import src.news.asset_manager; import src.news.quality_check; import src.news.final_renderer; import src.news.exporter; import src.media_library; import src.assets.models; import src.assets.provider_contract; import src.assets.license_policy; import src.assets.provider_diagnostics; import src.assets.provider_routing; import src.assets.attribution_export; import src.providers.wikimedia_commons_provider; import src.providers.nasa_images_provider; import src.providers.internet_archive_provider; import src.providers.envato_manual_provider; import src.providers.pexels_provider; import src.providers.pixabay_provider; import src.providers.local_library_provider"
+
+Result:
+Exit code 0
+
+JSON Validation
+---------------
+Command:
+Get-Content -Raw 'config\license_policy.json' | ConvertFrom-Json | Out-Null
+
+Result:
+Exit code 0
+
+Provider Diagnostics Without Network
+------------------------------------
+Commands:
+python -B pipeline.py provider-diagnostics
+python -B pipeline.py provider-diagnostics --provider wikimedia
+python -B pipeline.py provider-diagnostics --provider nasa
+python -B pipeline.py provider-diagnostics --provider internet_archive
+python -B pipeline.py provider-diagnostics --provider envato_manual
+
+Result:
+All commands exited 0.
+Diagnostics reported live=false, health_status=not_checked, API key presence as booleans only, no secret values, and provider-specific routing priority.
+
+Envato Manual CLI Smoke
+-----------------------
+Command:
+python -B pipeline.py envato-manual prepare --project-id smoke_project --scene-id scene_001 --query "renewable energy infrastructure aerial" --limit 3
+
+Result:
+Exit code 0.
+The command printed scene id, semantic description, 3 search queries, 3 public Envato search URLs, destination import folder and required metadata checklist.
+No browser was opened.
+No login was performed.
+No automated Envato download was performed.
+The disposable smoke_project manifest created by this smoke command was removed immediately; no user project was touched.
+
+Live Diagnostics
+----------------
+See LIVE_DIAGNOSTICS.txt.
+
+Final Git Diff / Status
+-----------------------
+Command:
+git diff --stat
+
+Result:
+Tracked diff still reflects the pre-existing foundation/hardening dirty worktree plus this stage's tracked edits:
+8 tracked files changed, 968 insertions(+), 11 deletions(-).
+
+Untracked files include the previous foundation/hardening files and this stage's new provider/routing/export/test/docs files. See PROVIDERS_REPORT.md and PROVIDERS_SNAPSHOT.json for this stage's file list.

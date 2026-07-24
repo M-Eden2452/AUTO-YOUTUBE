@@ -121,6 +121,53 @@ class MediaLibraryTests(unittest.TestCase):
 
         self.assertEqual(index["items"][0]["used_in"], ["survival/juliane"])
 
+    def test_migration_dry_run_marks_legacy_records_for_review_without_mutating_index(self) -> None:
+        from src.media_library import build_media_library_migration_report
+
+        index = {
+            "version": 1,
+            "items": [
+                {
+                    "id": "legacy_1",
+                    "type": "video",
+                    "provider": "pexels",
+                    "local_path": "assets/library/videos/legacy.mp4",
+                    "source_url": "https://www.pexels.com/video/1/",
+                    "license_note": "Pexels license",
+                }
+            ],
+        }
+        before = {"version": index["version"], "items": [dict(index["items"][0])]}
+
+        report = build_media_library_migration_report(index)
+
+        self.assertEqual(index, before)
+        self.assertEqual(report["schema_version"], 1)
+        self.assertEqual(report["total_items"], 1)
+        self.assertEqual(report["items"][0]["migration_status"], "legacy_unknown")
+        self.assertTrue(report["items"][0]["review_required"])
+        self.assertFalse(report["items"][0]["commercial_use_allowed"])
+
+    def test_duplicate_detection_can_use_checksum_for_new_records(self) -> None:
+        from src.media_library import avoid_duplicate_downloads, register_asset
+
+        index = {"version": 1, "items": []}
+        register_asset(
+            index,
+            {
+                "type": "video",
+                "provider": "fake",
+                "local_path": "assets/library/videos/clip.mp4",
+                "checksum_sha256": "b" * 64,
+                "rights_status": "licensed",
+            },
+        )
+
+        duplicate = avoid_duplicate_downloads(index, source_url="", local_path="", download_url="", checksum_sha256="b" * 64)
+
+        self.assertIsNotNone(duplicate)
+        self.assertEqual(duplicate["checksum_sha256"], "b" * 64)
+
 
 if __name__ == "__main__":
     unittest.main()

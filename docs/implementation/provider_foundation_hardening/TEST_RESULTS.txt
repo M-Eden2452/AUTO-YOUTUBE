@@ -1,0 +1,128 @@
+Provider Foundation Hardening - Test Results
+===========================================
+
+Environment
+-----------
+Working directory: G:\Projects\AI-YouTube
+Git branch before changes: master
+Git commit before changes: adb40fa944318646aef66102cbb1352e40b7cacc
+Python: Python 3.10.11
+FFmpeg: available, version 8.1.1-full_build
+FFprobe: available, version 8.1.1-full_build
+
+Network
+-------
+Ordinary test suite network mode: blocked by tests.network_guard
+Live API calls performed: false
+Paid API calls performed: false
+Live test flags used: false
+
+Baseline Before Code Changes
+----------------------------
+Command:
+python -B -m unittest discover tests
+
+Result:
+Ran 107 tests in 26.754s
+OK
+Blocked network attempts observed by temporary baseline guard: 0
+
+Red Test Run Before Implementation
+----------------------------------
+Command:
+python -B -m unittest tests.test_test_network_guard tests.test_provider_foundation_hardening
+
+Result:
+Failed as expected before the hardening code existed. Missing guard/policy/diagnostics/migration APIs and old manual/quality behavior were exposed.
+
+Targeted Provider Foundation / Media Library / Quality Tests
+------------------------------------------------------------
+Command:
+python -B -m unittest tests.test_asset_foundation_models tests.test_asset_foundation_providers tests.test_asset_foundation_http_download tests.test_provider_foundation_hardening tests.test_test_network_guard tests.test_media_library tests.test_news_to_short_assets tests.test_news_to_short_quality_check
+
+Result:
+Ran 35 tests in 0.417s
+OK
+
+News Pipeline / Renderer Tests
+------------------------------
+Command:
+python -B -m unittest tests.test_news_to_short_models tests.test_news_to_short_pipeline tests.test_news_to_short_delivery tests.test_news_to_short_renderer tests.test_semantic_asset_selection
+
+Result:
+Ran 22 tests in 29.885s
+OK
+
+Full Local Unittest Discovery
+-----------------------------
+Command:
+python -B -m unittest discover tests
+
+Result:
+Ran 117 tests in 27.160s
+OK
+
+Note:
+The command emitted a non-fatal ignored MoviePy cleanup warning from legacy object finalization:
+AttributeError: 'FFMPEG_AudioReader' object has no attribute 'proc'
+
+Import Checks
+-------------
+Command:
+python -B -c "import pipeline; import apps.news_to_short.main; import src.news.pipeline; import src.news.asset_manager; import src.news.quality_check; import src.news.final_renderer; import src.news.stock_video_downloader; import src.providers.pexels_provider; import src.providers.pixabay_provider; import src.providers.fake_provider; import src.providers.local_library_provider; import src.assets.models; import src.assets.provider_contract; import src.assets.license_policy; import src.assets.provider_diagnostics; import src.media_library"
+
+Result:
+Exit code 0
+
+Provider Diagnostics Without Network
+------------------------------------
+Command:
+python -B pipeline.py provider-diagnostics
+
+Result:
+Exit code 0
+Output was JSON. Diagnostics reported live=false and health_status=not_checked. API key presence was reported only as key_configured true/false; no secret values were printed.
+
+Media Library Analyse
+---------------------
+Command:
+python -B pipeline.py media-library analyse --report-path docs/implementation/provider_foundation_hardening/media_library_analyse.json
+
+Result:
+records_total=64
+safe_records=0
+review_records=5
+quarantine_records=64
+
+Media Library Migration Dry-Run
+-------------------------------
+Command:
+python -B pipeline.py media-library migrate --dry-run --output-path docs/implementation/provider_foundation_hardening/media_library_migration_proposed.json --report-path docs/implementation/provider_foundation_hardening/media_library_migration_report.json
+
+Result:
+dry_run=True
+applied=False
+records_total=64
+safe_records=0
+review_records=5
+quarantine_records=64
+
+Real Media Index Integrity
+--------------------------
+Before SHA-256:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+After SHA-256:
+61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385
+
+Result:
+assets/library/metadata/media_index.json was not modified.
+
+JSON Validation
+---------------
+Validated:
+config/license_policy.json
+docs/implementation/provider_foundation_hardening/media_library_analyse.json
+docs/implementation/provider_foundation_hardening/media_library_migration_report.json
+docs/implementation/provider_foundation_hardening/media_library_migration_proposed.json
+docs/implementation/provider_foundation_hardening/HARDENING_SNAPSHOT.json

@@ -1,0 +1,359 @@
+{
+  "policy_version": "documentary-asset-providers-2026-07-23",
+  "policy_reviewed_date": "2026-07-23",
+  "default_context": "internal_content_production",
+  "default_decision": {
+    "allowed_for_render": false,
+    "review_required": true,
+    "commercial_use_allowed": false,
+    "modification_allowed": false,
+    "attribution_required": true,
+    "owner_review_required": true,
+    "owner_approval_status": "not_reviewed",
+    "reason": "default_deny",
+    "notes": "Unknown or incomplete license metadata is blocked until reviewed. This project policy is not legal advice."
+  },
+  "providers": {
+    "fake": {
+      "enabled": true,
+      "owner_review_required": false,
+      "owner_approval_status": "approved",
+      "provider_terms_url": "https://fake.local/terms",
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "fake_test_license",
+          "license_url": "https://fake.local/license",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "notes": "Deterministic no-network test fixture license."
+        }
+      ]
+    },
+    "pexels": {
+      "enabled": true,
+      "provider_terms_url": "https://www.pexels.com/terms-of-service/",
+      "api_documentation_url": "https://www.pexels.com/api/documentation/",
+      "ui_attribution_requirement": "Future UI surfaces showing API results must include a prominent link to Pexels and should show the author when available.",
+      "contexts": {
+        "internal_content_production": {
+          "owner_review_required": false,
+          "owner_approval_status": "approved",
+          "rules": [
+            {
+              "media_type": "*",
+              "license_name": "pexels",
+              "license_url": "https://www.pexels.com/license/",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "notes": "Allowed only for internal edited-video production when source page, provider asset id, download URL, provider terms URL and technical validation are preserved, and prohibited uses are not detected."
+            }
+          ]
+        },
+        "public_multi_user_product": {
+          "owner_review_required": true,
+          "owner_approval_status": "commercial_audit_pending",
+          "rules": [
+            {
+              "media_type": "*",
+              "license_name": "pexels",
+              "license_url": "https://www.pexels.com/license/",
+              "allowed_for_render": false,
+              "review_required": true,
+              "commercial_use_allowed": false,
+              "modification_allowed": false,
+              "attribution_required": false,
+              "notes": "Blocked for a public multi-user product until future commercial/product audit."
+            }
+          ]
+        }
+      }
+    },
+    "pixabay": {
+      "enabled": true,
+      "provider_terms_url": "https://pixabay.com/service/terms/",
+      "api_documentation_url": "https://pixabay.com/api/docs/",
+      "ui_attribution_requirement": "Future UI surfaces must show that results are provided by Pixabay.",
+      "contexts": {
+        "internal_content_production": {
+          "owner_review_required": false,
+          "owner_approval_status": "approved",
+          "rules": [
+            {
+              "media_type": "*",
+              "license_name": "pixabay",
+              "license_url": "https://pixabay.com/service/license-summary/",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "notes": "Allowed only for internal edited-video production when source page, provider asset id, download URL, provider terms URL and technical validation are preserved, and prohibited uses are not detected."
+            }
+          ]
+        },
+        "public_multi_user_product": {
+          "owner_review_required": true,
+          "owner_approval_status": "commercial_audit_pending",
+          "rules": [
+            {
+              "media_type": "*",
+              "license_name": "pixabay",
+              "license_url": "https://pixabay.com/service/license-summary/",
+              "allowed_for_render": false,
+              "review_required": true,
+              "commercial_use_allowed": false,
+              "modification_allowed": false,
+              "attribution_required": false,
+              "notes": "Blocked for a public multi-user product until future commercial/product audit."
+            }
+          ]
+        }
+      }
+    },
+    "wikimedia": {
+      "enabled": true,
+      "owner_review_required": false,
+      "owner_approval_status": "approved_for_recognized_free_licenses",
+      "provider_terms_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+      "policy_references": [
+        "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+        "https://commons.wikimedia.org/wiki/Commons:Licensing",
+        "https://commons.wikimedia.org/wiki/Commons:Non-copyright_restrictions"
+      ],
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "Public domain",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "notes": "Auto-allowed only when public-domain metadata is clear and no non-copyright restriction warning is present."
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "notes": "CC0/Public Domain provenance is still retained for credits."
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY 2.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY 2.5",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY 3.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY 4.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true
+        }
+      ]
+    },
+    "nasa_images": {
+      "enabled": true,
+      "owner_review_required": false,
+      "owner_approval_status": "approved_for_editorial_informational",
+      "provider_terms_url": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "NASA Media Guidelines",
+          "license_url": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "notes": "Allowed only for internal documentary/editorial/informational use. NASA must be identified as source without implying endorsement."
+        }
+      ]
+    },
+    "internet_archive": {
+      "enabled": true,
+      "owner_review_required": false,
+      "owner_approval_status": "approved_for_explicit_open_license_only",
+      "provider_terms_url": "https://help.archive.org/help/rights/",
+      "trusted_collections": [
+        "prelinger"
+      ],
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "CC0",
+          "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "Public Domain",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY 3.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY 4.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true
+        }
+      ]
+    },
+    "envato_manual": {
+      "enabled": true,
+      "owner_review_required": true,
+      "owner_approval_status": "per_asset_project_registration",
+      "provider_terms_url": "https://help.elements.envato.com/hc/en-us/articles/360000629006-Envato-Elements-User-Terms",
+      "policy_references": [
+        "https://help.elements.envato.com/hc/en-us/articles/360000621703-Do-any-limits-apply-to-downloads",
+        "https://help.elements.envato.com/hc/en-us/articles/360000629006-Envato-Elements-User-Terms"
+      ],
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "envato_elements_project_registered",
+          "license_url": "https://help.elements.envato.com/hc/en-us/articles/360000629006-Envato-Elements-User-Terms",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "requires_rights_confirmation": true,
+          "notes": "Manual import only. Requires source URL, item id, author, local proof reference and explicit project registration confirmation. No automated download is allowed."
+        }
+      ]
+    },
+    "user": {
+      "enabled": true,
+      "owner_review_required": true,
+      "owner_approval_status": "per_asset_confirmation",
+      "provider_terms_url": "",
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "user_owned",
+          "license_url": "",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "requires_rights_confirmation": true,
+          "notes": "Manual assets require an explicit per-asset rights declaration and owner approval."
+        }
+      ]
+    },
+    "manual": {
+      "enabled": true,
+      "owner_review_required": true,
+      "owner_approval_status": "per_asset_confirmation",
+      "provider_terms_url": "",
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "user_owned",
+          "license_url": "",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "requires_rights_confirmation": true,
+          "notes": "Manual assets require an explicit per-asset rights declaration and owner approval."
+        }
+      ]
+    },
+    "local_library": {
+      "enabled": true,
+      "owner_review_required": true,
+      "owner_approval_status": "schema_v1_required",
+      "provider_terms_url": "",
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "user_owned",
+          "license_url": "",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "requires_schema_version": 1,
+          "notes": "Only schema_version 1 local-library records with explicit license/provenance may be used automatically."
+        },
+        {
+          "media_type": "*",
+          "license_name": "fake_test_license",
+          "license_url": "https://fake.local/license",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "requires_schema_version": 1,
+          "notes": "Allows migrated no-network test fixtures stored in the local library."
+        }
+      ]
+    }
+  }
+}

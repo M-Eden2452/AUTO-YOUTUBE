@@ -1,0 +1,69 @@
+New Documentary Asset Providers - Live Diagnostics
+==================================================
+
+Rules applied
+-------------
+- Live diagnostics were run only after mocked tests passed.
+- No original media files were downloaded.
+- No mass requests were performed.
+- No paid API calls were performed.
+- No browser automation, login, scraping or Envato download was performed.
+- Envato diagnostic generated only a public search URL.
+
+Wikimedia Commons
+-----------------
+Command:
+python -B pipeline.py provider-diagnostics --provider wikimedia --live
+
+HTTP status:
+200
+
+Result:
+health_status=ok
+live_status=ok
+One Wikimedia File namespace search request returned 1 result(s); no media was downloaded.
+
+NASA Image and Video Library
+----------------------------
+Command:
+python -B pipeline.py provider-diagnostics --provider nasa --live
+
+HTTP status:
+200
+
+Result:
+health_status=ok
+live_status=ok
+One NASA Images search request returned 1 result(s); no asset rendition was downloaded.
+
+Internet Archive
+----------------
+Command:
+python -B pipeline.py provider-diagnostics --provider internet_archive --live
+
+HTTP status:
+200
+
+Result:
+health_status=ok
+live_status=ok
+One Internet Archive advanced search request returned 1 result(s); no item files were downloaded.
+
+Envato Manual
+-------------
+Command:
+python -B pipeline.py provider-diagnostics --provider envato_manual --live
+
+HTTP status:
+not_applicable
+
+Result:
+health_status=ok
+live_status=ok
+Public search URL generated only:
+https://elements.envato.com/search?term=documentary+footage
+
+Summary
+-------
+Live diagnostics passed for the three read-only public APIs and Envato URL generation.
+No media download, login, browser automation, paid operation, or credential disclosure occurred.

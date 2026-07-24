@@ -61,6 +61,7 @@ def register_asset(index: dict[str, Any], asset: dict[str, Any]) -> dict[str, An
         index,
         source_url=normalized.get("source_url") or normalized.get("download_url", ""),
         local_path=normalized.get("local_path", ""),
+        checksum_sha256=normalized.get("checksum_sha256", ""),
     )
     if duplicate:
         duplicate.update({key: value for key, value in normalized.items() if value not in ("", [], 0, None)})
@@ -149,10 +150,14 @@ def avoid_duplicate_downloads(
     source_url: str = "",
     local_path: str = "",
     download_url: str = "",
+    checksum_sha256: str = "",
 ) -> dict[str, Any] | None:
     source_url = source_url or download_url
     normalized_path = _path_key(local_path)
+    checksum_sha256 = str(checksum_sha256 or "").lower()
     for item in index.get("items", []):
+        if checksum_sha256 and str(item.get("checksum_sha256") or "").lower() == checksum_sha256:
+            return item
         if source_url and source_url in {item.get("source_url"), item.get("download_url")}:
             return item
         if normalized_path and _path_key(str(item.get("local_path", ""))) == normalized_path:
@@ -228,24 +233,262 @@ def create_asset_report(index_path: str | Path = INDEX_PATH, output_path: str | 
     return target
 
 
+def build_media_library_migration_report(index: dict[str, Any]) -> dict[str, Any]:
+    report, _proposal = _build_media_library_migration(index)
+    return report
+
+
+def analyse_media_library(
+    *,
+    index_path: str | Path = INDEX_PATH,
+    report_path: str | Path | None = None,
+) -> dict[str, Any]:
+    index = load_media_index(index_path)
+    report = build_media_library_migration_report(index)
+    if report_path:
+        _atomic_write_json(project_path(report_path), report)
+    return report
+
+
+def migrate_media_library(
+    *,
+    index_path: str | Path = INDEX_PATH,
+    dry_run: bool = False,
+    apply: bool = False,
+    output_path: str | Path | None = None,
+    report_path: str | Path | None = None,
+    backup_path: str | Path | None = None,
+    confirm_apply: bool = False,
+) -> dict[str, Any]:
+    if apply and dry_run:
+        raise ValueError("Use either dry_run or apply, not both.")
+    if not apply and not dry_run:
+        raise ValueError("Migration requires dry_run=True or apply=True.")
+    target_index = project_path(index_path)
+    index = load_media_index(target_index)
+    report, proposal = _build_media_library_migration(index)
+    result = {
+        "dry_run": bool(dry_run),
+        "applied": False,
+        "index_path": str(target_index),
+        "output_path": str(project_path(output_path)) if output_path else "",
+        "report_path": str(project_path(report_path)) if report_path else "",
+        "backup_path": str(project_path(backup_path)) if backup_path else "",
+        "records_total": report["records_total"],
+        "safe_records": report["safe_records"],
+        "review_records": report["review_records"],
+        "quarantine_records": report["quarantine_records"],
+        "errors": report["errors"],
+    }
+    if output_path:
+        _atomic_write_json(project_path(output_path), proposal)
+    if report_path:
+        _atomic_write_json(project_path(report_path), report)
+    if dry_run:
+        return result
+    if not confirm_apply:
+        raise PermissionError("Media library migration apply requires confirm_apply=True.")
+    if not output_path or not backup_path:
+        raise ValueError("Media library migration apply requires explicit output_path and backup_path.")
+    if report["errors"]:
+        raise RuntimeError("Media library migration apply requires a dry-run report without errors.")
+    backup = project_path(backup_path)
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(target_index, backup)
+    _atomic_write_json(target_index, proposal)
+    result["applied"] = True
+    return result
+
+
+def _build_media_library_migration(index: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    items = [dict(item) for item in index.get("items", [])]
+    seen_urls: dict[str, str] = {}
+    seen_checksums: dict[str, str] = {}
+    report_items = []
+    proposed_items = []
+    for item in items:
+        report_item = _classify_media_record(item, seen_urls=seen_urls, seen_checksums=seen_checksums)
+        report_items.append(report_item)
+        proposed_items.append(_propose_media_record(item, report_item))
+    safe_records = sum(1 for item in report_items if item["proposed_status"] == "current_safe")
+    quarantine_records = sum(1 for item in report_items if "quarantine_recommended" in item["classifications"])
+    review_records = sum(1 for item in report_items if "manual_review_required" in item["classifications"])
+    report = {
+        "schema_version": 1,
+        "dry_run": True,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "records_total": len(report_items),
+        "total_items": len(report_items),
+        "safe_records": safe_records,
+        "review_records": review_records,
+        "quarantine_records": quarantine_records,
+        "errors": quarantine_records,
+        "current_items": safe_records,
+        "legacy_unknown_items": sum(1 for item in report_items if "legacy_incomplete" in item["classifications"] or "legacy_complete" in item["classifications"]),
+        "items": report_items,
+    }
+    proposal = {
+        "schema_version": 1,
+        "source_version": index.get("version", 1),
+        "generated_at": report["generated_at"],
+        "items": proposed_items,
+    }
+    return report, proposal
+
+
+def _classify_media_record(
+    item: dict[str, Any],
+    *,
+    seen_urls: dict[str, str],
+    seen_checksums: dict[str, str],
+) -> dict[str, Any]:
+    item_id = str(item.get("id") or item.get("asset_id") or "")
+    provider = str(item.get("provider") or "")
+    media_type = str(item.get("type") or item.get("media_type") or "")
+    local_path = str(item.get("local_path") or item.get("path") or "")
+    source_url = str(item.get("source_url") or item.get("source_page_url") or item.get("source_page") or "")
+    license_value = item.get("license") if item.get("license") else item.get("license_note", "")
+    checksum = str(item.get("checksum_sha256") or "").lower()
+    schema_version = int(item.get("schema_version") or 0)
+    missing_fields = [
+        field
+        for field, value in {
+            "schema_version": item.get("schema_version"),
+            "provider": provider,
+            "type": media_type,
+            "local_path": local_path,
+            "source_url": source_url,
+            "provider_asset_id": item.get("provider_asset_id"),
+            "author": item.get("author"),
+            "rights_status": item.get("rights_status"),
+            "checksum_sha256": checksum,
+            "license": item.get("license"),
+            "provenance": item.get("provenance"),
+        }.items()
+        if not value
+    ]
+    classifications: list[str] = []
+    has_license_object = isinstance(item.get("license"), dict)
+    has_provenance = isinstance(item.get("provenance"), dict)
+    if schema_version >= 1 and has_license_object and has_provenance and item.get("allowed_for_render") and not item.get("review_required"):
+        classifications.append("current_safe")
+    elif schema_version == 0:
+        legacy_required = [provider, media_type, local_path, source_url, license_value]
+        classifications.append("legacy_complete" if all(legacy_required) else "legacy_incomplete")
+    if local_path and not project_path(local_path).exists():
+        classifications.append("missing_file")
+    if not source_url:
+        classifications.append("missing_source")
+    if not has_license_object or not item.get("rights_status") or item.get("review_required", True):
+        classifications.append("unknown_rights")
+    if source_url:
+        if source_url in seen_urls:
+            classifications.append("duplicate_url")
+        else:
+            seen_urls[source_url] = item_id
+    if checksum:
+        if checksum in seen_checksums:
+            classifications.append("duplicate_checksum")
+        else:
+            seen_checksums[checksum] = item_id
+    if provider in {"manual", "manual_asset", "user", "local"} and "current_safe" not in classifications:
+        classifications.append("manual_review_required")
+    if any(flag in classifications for flag in ("legacy_complete", "legacy_incomplete", "missing_file", "missing_source", "unknown_rights", "duplicate_url", "duplicate_checksum", "manual_review_required")):
+        if "current_safe" not in classifications:
+            classifications.append("quarantine_recommended")
+    classifications = list(dict.fromkeys(classifications))
+    if "current_safe" in classifications:
+        proposed_status = "current_safe"
+        proposed_action = "keep"
+    elif "quarantine_recommended" in classifications:
+        proposed_status = "quarantine_recommended"
+        proposed_action = "quarantine_or_manual_review"
+    else:
+        proposed_status = "manual_review_required"
+        proposed_action = "manual_review"
+    reason = "|".join(classifications) if classifications else "no_classification"
+    return {
+        "id": item_id,
+        "provider": provider,
+        "type": media_type,
+        "local_path": local_path,
+        "source_url": source_url,
+        "license": license_value,
+        "checksum_sha256": checksum,
+        "schema_version": schema_version,
+        "missing_fields": missing_fields,
+        "classifications": classifications,
+        "proposed_status": proposed_status,
+        "proposed_action": proposed_action,
+        "reason": reason,
+        "migration_status": "current" if proposed_status == "current_safe" else "legacy_unknown",
+        "review_required": proposed_status != "current_safe",
+        "commercial_use_allowed": bool((item.get("license") or {}).get("commercial_use_allowed", False)) if isinstance(item.get("license"), dict) else False,
+    }
+
+
+def _propose_media_record(item: dict[str, Any], report_item: dict[str, Any]) -> dict[str, Any]:
+    proposed = dict(item)
+    proposed.setdefault("schema_version", int(item.get("schema_version") or 0))
+    if report_item["proposed_status"] != "current_safe":
+        proposed["allowed_for_render"] = False
+        proposed["review_required"] = True
+        proposed.setdefault("rights_status", "legacy_unknown")
+    proposed["migration"] = {
+        "proposed_status": report_item["proposed_status"],
+        "proposed_action": report_item["proposed_action"],
+        "classifications": report_item["classifications"],
+        "reason": report_item["reason"],
+    }
+    return proposed
+
+
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + ".tmp")
+    temp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temp.replace(path)
+    return path
+
+
 def _normalize_asset(asset: dict[str, Any]) -> dict[str, Any]:
     item = {
-        "id": asset.get("id") or _asset_id(asset),
-        "type": asset.get("type", ""),
+        "schema_version": int(asset.get("schema_version") or 1),
+        "id": asset.get("id") or asset.get("asset_id") or _asset_id(asset),
+        "type": asset.get("type") or asset.get("media_type", ""),
         "provider": asset.get("provider", "local"),
-        "source_url": asset.get("source_url", ""),
-        "download_url": asset.get("download_url", ""),
+        "provider_asset_id": asset.get("provider_asset_id") or asset.get("source_id", ""),
+        "source_url": asset.get("source_url") or asset.get("source_page_url", ""),
+        "source_page_url": asset.get("source_page_url") or asset.get("source_page") or asset.get("source_url", ""),
+        "preview_url": asset.get("preview_url", ""),
+        "download_url": asset.get("download_url") or asset.get("direct_download_url", ""),
         "local_path": asset.get("local_path") or asset.get("path", ""),
+        "original_filename": asset.get("original_filename", ""),
         "thumbnail_path": asset.get("thumbnail_path", ""),
         "original_query": asset.get("original_query") or asset.get("query", ""),
         "keywords": _as_list(asset.get("keywords")),
+        "tags": _as_list(asset.get("tags")),
         "mood": _as_list(asset.get("mood")),
         "channel_tags": _as_list(asset.get("channel_tags")),
         "scene_tags": _as_list(asset.get("scene_tags")),
         "width": int(asset.get("width") or 0),
         "height": int(asset.get("height") or 0),
         "duration": float(asset.get("duration") or asset.get("source_duration") or 0),
+        "duration_sec": float(asset.get("duration_sec") or asset.get("duration") or asset.get("source_duration") or 0),
         "fps": float(asset.get("fps") or 0),
+        "author": asset.get("author") or asset.get("author_name", ""),
+        "author_url": asset.get("author_url", ""),
+        "rights_status": asset.get("rights_status", ""),
+        "allowed_for_render": bool(asset.get("allowed_for_render", False)),
+        "review_required": bool(asset.get("review_required", False)),
+        "license": asset.get("license") if isinstance(asset.get("license"), dict) else {},
+        "license_name": asset.get("license_name") or (asset.get("license") if isinstance(asset.get("license"), str) else ""),
+        "license_url": asset.get("license_url", ""),
+        "provenance": asset.get("provenance") if isinstance(asset.get("provenance"), dict) else {},
+        "checksum_sha256": asset.get("checksum_sha256", ""),
+        "project_id": asset.get("project_id", ""),
+        "scene_id": asset.get("scene_id", ""),
+        "technical_validation": asset.get("technical_validation") if isinstance(asset.get("technical_validation"), dict) else {},
         "license_note": asset.get("license_note", ""),
         "downloaded_at": asset.get("downloaded_at") or datetime.now(timezone.utc).isoformat(),
         "used_in": list(asset.get("used_in", [])),

@@ -1,0 +1,115 @@
+{
+  "implementation": {
+    "git_branch": "master",
+    "git_commit_before": "adb40fa944318646aef66102cbb1352e40b7cacc",
+    "started_at": "2026-07-23T01:00:00+03:00",
+    "completed_at": "2026-07-23T01:22:57.8389523+03:00"
+  },
+  "providers": {
+    "wikimedia": {
+      "implemented": true,
+      "mock_tests_passed": true,
+      "live_diagnostic_passed": true
+    },
+    "nasa_images": {
+      "implemented": true,
+      "mock_tests_passed": true,
+      "live_diagnostic_passed": true
+    },
+    "internet_archive": {
+      "implemented": true,
+      "mock_tests_passed": true,
+      "live_diagnostic_passed": true
+    },
+    "envato_manual": {
+      "implemented": true,
+      "automatic_download": false,
+      "manual_import_tested": true
+    }
+  },
+  "routing": {
+    "implemented": true,
+    "tested": true
+  },
+  "attribution_export": {
+    "implemented": true,
+    "tested": true
+  },
+  "tests": {
+    "passed": 134,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "live_api_calls": [
+    {
+      "provider": "wikimedia",
+      "command": "python -B pipeline.py provider-diagnostics --provider wikimedia --live",
+      "http_status": 200,
+      "operation": "one File namespace search request",
+      "media_downloaded": false
+    },
+    {
+      "provider": "nasa_images",
+      "command": "python -B pipeline.py provider-diagnostics --provider nasa --live",
+      "http_status": 200,
+      "operation": "one NASA Images search request",
+      "media_downloaded": false
+    },
+    {
+      "provider": "internet_archive",
+      "command": "python -B pipeline.py provider-diagnostics --provider internet_archive --live",
+      "http_status": 200,
+      "operation": "one Internet Archive advanced search request",
+      "media_downloaded": false
+    },
+    {
+      "provider": "envato_manual",
+      "command": "python -B pipeline.py provider-diagnostics --provider envato_manual --live",
+      "http_status": null,
+      "operation": "public search URL generation only",
+      "media_downloaded": false
+    }
+  ],
+  "paid_api_calls_performed": false,
+  "envato_automated_download_performed": false,
+  "real_media_index_modified": false,
+  "files_created": [
+    "docs/implementation/documentary_asset_providers/PROVIDERS_PLAN.md",
+    "docs/implementation/documentary_asset_providers/PROVIDERS_REPORT.md",
+    "docs/implementation/documentary_asset_providers/PROVIDERS_SNAPSHOT.json",
+    "docs/implementation/documentary_asset_providers/TEST_RESULTS.txt",
+    "docs/implementation/documentary_asset_providers/LIVE_DIAGNOSTICS.txt",
+    "docs/implementation/documentary_asset_providers/LICENSE_POLICY_DECISIONS.md",
+    "src/assets/provider_routing.py",
+    "src/assets/attribution_export.py",
+    "src/providers/wikimedia_commons_provider.py",
+    "src/providers/nasa_images_provider.py",
+    "src/providers/internet_archive_provider.py",
+    "src/providers/envato_manual_provider.py",
+    "tests/test_documentary_asset_providers.py",
+    "tests/test_provider_routing.py",
+    "tests/test_attribution_export.py"
+  ],
+  "files_modified": [
+    "config/license_policy.json",
+    "pipeline.py",
+    "src/assets/__init__.py",
+    "src/assets/download.py",
+    "src/assets/license_policy.py",
+    "src/assets/provider_diagnostics.py",
+    "src/news/asset_manager.py",
+    "src/news/exporter.py",
+    "src/providers/__init__.py",
+    "tests/test_asset_foundation_providers.py",
+    "tests/test_provider_foundation_hardening.py"
+  ],
+  "remaining_issues": [
+    "No UI/manual review screen exists yet.",
+    "Real local media library still requires reviewed migration before automatic use of legacy records.",
+    "NASA and Internet Archive policy remains intentionally conservative.",
+    "Envato import is manual CLI-only.",
+    "Full unittest discovery exits successfully but emits a non-fatal legacy MoviePy cleanup warning."
+  ],
+  "ready_for_visual_reranking": true
+}

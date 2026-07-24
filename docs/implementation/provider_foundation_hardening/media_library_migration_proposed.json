@@ -1,0 +1,2972 @@
+{
+  "schema_version": 1,
+  "source_version": 1,
+  "generated_at": "2026-07-22T21:46:58.413270+00:00",
+  "items": [
+    {
+      "id": "30454a7f7fd1fc18",
+      "type": "music",
+      "provider": "local",
+      "source_url": "",
+      "download_url": "",
+      "local_path": "G:\\Projects\\AI-YouTube\\music\\background.mp3",
+      "thumbnail_path": "",
+      "original_query": "",
+      "keywords": [
+        "dark ambient survival",
+        "cinematic jungle tension",
+        "documentary suspense",
+        "rainforest ambient",
+        "survival cinematic",
+        "emotional documentary"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [],
+      "width": 0,
+      "height": 0,
+      "duration": 0.0,
+      "fps": 0.0,
+      "license_note": "Local fallback music; verify license before publishing.",
+      "downloaded_at": "2026-05-17T12:00:52.550280+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001",
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_incomplete",
+          "missing_source",
+          "unknown_rights",
+          "manual_review_required",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_incomplete|missing_source|unknown_rights|manual_review_required|quarantine_recommended"
+      }
+    },
+    {
+      "id": "8559762c98890ad4",
+      "type": "video",
+      "provider": "local",
+      "source_url": "https://www.pexels.com/video/video-of-a-airplane-view-6216471/",
+      "download_url": "https://videos.pexels.com/video-files/6216471/6216471-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_6216471.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\0909a08ab33eb07d.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "pexels",
+        "video",
+        "survival",
+        "storm",
+        "clouds",
+        "airplane",
+        "dark",
+        "rainforest",
+        "aerial",
+        "lightning",
+        "storm",
+        "1920x1080",
+        "6216471"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 22.0,
+      "fps": 0.0,
+      "license_note": "Local asset; verify license before publishing.",
+      "downloaded_at": "2026-05-17T12:04:11.259883+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "manual_review_required",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|manual_review_required|quarantine_recommended"
+      }
+    },
+    {
+      "id": "fba3530019114ff6",
+      "type": "video",
+      "provider": "local",
+      "source_url": "https://www.pexels.com/video/an-aircraft-wing-5703847/",
+      "download_url": "https://videos.pexels.com/video-files/5703847/5703847-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_5703847.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\aff6ae2882abfa41.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "pexels",
+        "video",
+        "survival",
+        "storm",
+        "clouds",
+        "airplane",
+        "dark",
+        "rainforest",
+        "aerial",
+        "lightning",
+        "storm",
+        "1920x1080",
+        "5703847"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 23.0,
+      "fps": 0.0,
+      "license_note": "Local asset; verify license before publishing.",
+      "downloaded_at": "2026-05-17T12:04:11.258834+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "manual_review_required",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|manual_review_required|quarantine_recommended"
+      }
+    },
+    {
+      "id": "0991886d8a9c7364",
+      "type": "video",
+      "provider": "local",
+      "source_url": "https://www.pexels.com/video/dramatic-thunderstorm-approaching-airport-36936635/",
+      "download_url": "https://videos.pexels.com/video-files/36936635/15647962_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_36936635.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\6ce09d8927f2e807.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "pexels",
+        "video",
+        "survival",
+        "storm",
+        "clouds",
+        "airplane",
+        "dark",
+        "rainforest",
+        "aerial",
+        "lightning",
+        "storm",
+        "1920x1080",
+        "36936635"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Local asset; verify license before publishing.",
+      "downloaded_at": "2026-05-17T12:04:11.257543+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "manual_review_required",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|manual_review_required|quarantine_recommended"
+      }
+    },
+    {
+      "id": "e999bdda9b276f2a",
+      "type": "video",
+      "provider": "local",
+      "source_url": "https://www.pexels.com/video/young-girl-looking-at-rain-through-a-glass-window-5155195/",
+      "download_url": "https://videos.pexels.com/video-files/5155195/5155195-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_teen_girl_silhouette_window_airport_1970s_mood_girl_looking_out_window_1920x1080_5155195.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\8b5d6c41a3bfa2ad.jpg",
+      "original_query": "teen girl silhouette window",
+      "keywords": [
+        "pexels",
+        "video",
+        "survival",
+        "teen",
+        "girl",
+        "silhouette",
+        "window",
+        "airport",
+        "1970s",
+        "mood",
+        "girl",
+        "looking",
+        "out",
+        "window",
+        "1920x1080",
+        "5155195"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Local asset; verify license before publishing.",
+      "downloaded_at": "2026-05-17T12:04:11.260801+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "manual_review_required",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|manual_review_required|quarantine_recommended"
+      }
+    },
+    {
+      "id": "a02e43f7076fc30d",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/thunderstorm-at-night-with-lightning-strikes-11025478/",
+      "download_url": "https://videos.pexels.com/video-files/11025478/11025478-hd_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_lightning_storm_airplane_turbulence_dark_clouds_1920x1080_11025478.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\a02e43f7076fc30d.jpg",
+      "original_query": "lightning storm",
+      "keywords": [
+        "lightning storm",
+        "airplane turbulence",
+        "dark clouds",
+        "rain window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 68.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:42:27.901620+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "f54a4d2c1d6aa413",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/low-angle-shot-of-a-plane-flying-across-a-cloudy-sky-9391260/",
+      "download_url": "https://videos.pexels.com/video-files/9391260/9391260-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_9391260.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\f54a4d2c1d6aa413.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "storm clouds airplane",
+        "dark rainforest aerial",
+        "lightning storm",
+        "amazon jungle rain"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 42.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:44:35.303069+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "4e31290bf82315d9",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/airplane-flying-through-dramatic-cloudy-skies-30280977/",
+      "download_url": "https://videos.pexels.com/video-files/30280977/12980671_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_30280977.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\4e31290bf82315d9.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "storm clouds airplane",
+        "dark rainforest aerial",
+        "lightning storm",
+        "amazon jungle rain"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 19.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:44:38.478719+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "8ee48f9943eaefe5",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/silhouette-of-a-man-standing-by-the-window-4123750/",
+      "download_url": "https://videos.pexels.com/video-files/4123750/4123750-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_teen_girl_silhouette_window_airport_1970s_mood_girl_looking_out_window_1920x1080_4123750.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\8ee48f9943eaefe5.jpg",
+      "original_query": "teen girl silhouette window",
+      "keywords": [
+        "teen girl silhouette window",
+        "airport 1970s mood",
+        "girl looking out window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 28.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:44:41.409017+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "5daa1ff7c39b9ada",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-283428/",
+      "download_url": "https://cdn.pixabay.com/video/2025/06/03/283428_small.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_survival_lightning_storm_airplane_turbulence_dark_clouds_1920x1080_283428.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\5daa1ff7c39b9ada.jpg",
+      "original_query": "lightning storm",
+      "keywords": [
+        "lightning storm",
+        "airplane turbulence",
+        "dark clouds",
+        "rain window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 56.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-17T12:44:43.265767+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "3315299f0bb011b3",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/lush-green-tropical-forest-aerial-view-36153127/",
+      "download_url": "https://videos.pexels.com/video-files/36153127/15332022_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_rainforest_canopy_jungle_floor_green_leaves_dark_1920x1080_36153127.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\3315299f0bb011b3.jpg",
+      "original_query": "rainforest canopy",
+      "keywords": [
+        "rainforest canopy",
+        "jungle floor",
+        "green leaves dark",
+        "alone in jungle"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 29.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:44:48.696069+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "716d4352ff1f357e",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-lush-amazon-rainforest-canopy-35771035/",
+      "download_url": "https://videos.pexels.com/video-files/35771035/15165596_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_empty_jungle_dark_rainforest_path_lonely_forest_1920x1080_35771035.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\716d4352ff1f357e.jpg",
+      "original_query": "empty jungle",
+      "keywords": [
+        "empty jungle",
+        "dark rainforest path",
+        "lonely forest",
+        "rain dripping leaves"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:44:51.652355+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "9421d5ca969d6751",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/serene-jungle-river-flowing-in-tropical-forest-34770435/",
+      "download_url": "https://videos.pexels.com/video-files/34770435/14741342_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_jungle_stream_river_rainforest_water_in_forest_1920x1080_34770435.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\9421d5ca969d6751.jpg",
+      "original_query": "jungle stream",
+      "keywords": [
+        "jungle stream",
+        "river rainforest",
+        "water in forest",
+        "survival walking"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "survival_lesson"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 62.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:44:59.230943+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "fbd4553767f8876f",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/a-man-doing-tree-planting-7006967/",
+      "download_url": "https://videos.pexels.com/video-files/7006967/7006967-hd_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_feet_walking_mud_jungle_river_walk_rainforest_survival_1920x1080_7006967.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\fbd4553767f8876f.jpg",
+      "original_query": "feet walking mud",
+      "keywords": [
+        "feet walking mud",
+        "jungle river walk",
+        "rainforest survival"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:02.319117+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "5973a9247370372d",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/sitting-butterfly-19912516/",
+      "download_url": "https://videos.pexels.com/video-files/19912516/19912516-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_macro_insects_rainforest_dark_jungle_night_mosquitoes_forest_1920x1080_19912516.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\5973a9247370372d.jpg",
+      "original_query": "macro insects rainforest",
+      "keywords": [
+        "macro insects rainforest",
+        "dark jungle night",
+        "mosquitoes forest",
+        "humid rainforest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 32.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:06.111505+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "de66f08fd7857811",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/sunlight-filtering-through-lush-green-jungle-canopy-37218119/",
+      "download_url": "https://videos.pexels.com/video-files/37218119/15766870_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_sun_through_jungle_rainforest_river_dark_forest_walking_1920x1080_37218119.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\de66f08fd7857811.jpg",
+      "original_query": "sun through jungle",
+      "keywords": [
+        "sun through jungle",
+        "rainforest river",
+        "dark forest walking"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:09.843622+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "44b90c3cf44006d8",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/serene-pathway-through-tropical-village-35005354/",
+      "download_url": "https://videos.pexels.com/video-files/35005354/14830333_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_small_hut_jungle_river_camp_rainforest_wooden_shelter_forest_1920x1080_35005354.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\44b90c3cf44006d8.jpg",
+      "original_query": "small hut jungle",
+      "keywords": [
+        "small hut jungle",
+        "river camp rainforest",
+        "wooden shelter forest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 38.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:15.820821+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "55e776a91d79ad3a",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/cozy-cabin-in-snowy-forest-landscape-28963349/",
+      "download_url": "https://videos.pexels.com/video-files/28963349/12529755_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_empty_wooden_hut_river_silence_dark_camp_1920x1080_28963349.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\55e776a91d79ad3a.jpg",
+      "original_query": "empty wooden hut",
+      "keywords": [
+        "empty wooden hut",
+        "river silence",
+        "dark camp"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 19.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:19.538601+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "94fef9bddd7484fb",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-journey-through-amazonian-river-35771036/",
+      "download_url": "https://videos.pexels.com/video-files/35771036/15165608_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_canoe_river_jungle_people_river_rescue_rainforest_boat_1920x1080_35771036.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\94fef9bddd7484fb.jpg",
+      "original_query": "canoe river jungle",
+      "keywords": [
+        "canoe river jungle",
+        "people river rescue",
+        "rainforest boat"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 43.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:25.622512+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "a954b981400bd0ec",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-lush-amazon-rainforest-canopy-31574277/",
+      "download_url": "https://videos.pexels.com/video-files/31574277/13456069_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_river_sunset_jungle_survivor_silhouette_forest_light_1920x1080_31574277.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\a954b981400bd0ec.jpg",
+      "original_query": "river sunset jungle",
+      "keywords": [
+        "river sunset jungle",
+        "survivor silhouette",
+        "forest light"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "reflection"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 27.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:28.471359+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "bc85db0bfffee542",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-the-lush-amazon-rainforest-31574274/",
+      "download_url": "https://videos.pexels.com/video-files/31574274/13456063_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_amazon_river_aerial_jungle_sunset_dark_cinematic_forest_1920x1080_31574274.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\bc85db0bfffee542.jpg",
+      "original_query": "amazon river aerial",
+      "keywords": [
+        "amazon river aerial",
+        "jungle sunset",
+        "dark cinematic forest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "outro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 26.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T12:45:31.829957+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "aca816a9556495b2",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/dramatic-storm-clouds-timelapse-in-gray-sky-33481723/",
+      "download_url": "https://videos.pexels.com/video-files/33481723/14243422_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_33481723.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\aca816a9556495b2.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "storm clouds airplane",
+        "dark rainforest aerial",
+        "lightning storm",
+        "amazon jungle rain"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 26.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:14:35.326128+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "8da900bb52356f4b",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/a-woman-holding-a-bouquet-of-flowers-by-a-window-8246804/",
+      "download_url": "https://videos.pexels.com/video-files/8246804/8246804-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_teen_girl_silhouette_window_airport_1970s_mood_girl_looking_out_window_1920x1080_8246804.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\8da900bb52356f4b.jpg",
+      "original_query": "teen girl silhouette window",
+      "keywords": [
+        "teen girl silhouette window",
+        "airport 1970s mood",
+        "girl looking out window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:14:37.916680+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "67196d9e5e3a7368",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-16160/",
+      "download_url": "https://cdn.pixabay.com/video/2018/05/11/16160-269534741_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_survival_lightning_storm_airplane_turbulence_dark_clouds_1920x1080_16160.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\67196d9e5e3a7368.jpg",
+      "original_query": "lightning storm",
+      "keywords": [
+        "lightning storm",
+        "airplane turbulence",
+        "dark clouds",
+        "rain window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 40.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-17T13:14:39.999258+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "caf67f2f779a6e0e",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-lush-tropical-forest-canopy-36965355/",
+      "download_url": "https://videos.pexels.com/video-files/36965355/15661285_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_rainforest_canopy_jungle_floor_green_leaves_dark_1920x1080_36965355.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\caf67f2f779a6e0e.jpg",
+      "original_query": "rainforest canopy",
+      "keywords": [
+        "rainforest canopy",
+        "jungle floor",
+        "green leaves dark",
+        "alone in jungle"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 44.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:14:49.139015+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "5bb6e4c03466677b",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/lush-tropical-jungle-canopy-in-mist-35232259/",
+      "download_url": "https://videos.pexels.com/video-files/35232259/14926812_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_empty_jungle_dark_rainforest_path_lonely_forest_1920x1080_35232259.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\5bb6e4c03466677b.jpg",
+      "original_query": "empty jungle",
+      "keywords": [
+        "empty jungle",
+        "dark rainforest path",
+        "lonely forest",
+        "rain dripping leaves"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:14:53.523355+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "7daa7f177a00523f",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/lepoh-falls-malaysia-15504939/",
+      "download_url": "https://videos.pexels.com/video-files/15504939/15504939-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_jungle_stream_river_rainforest_water_in_forest_1920x1080_15504939.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\7daa7f177a00523f.jpg",
+      "original_query": "jungle stream",
+      "keywords": [
+        "jungle stream",
+        "river rainforest",
+        "water in forest",
+        "survival walking"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "survival_lesson"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:14:58.433795+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "dbbc4ed56d6a4179",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/walking-on-the-grass-7358240/",
+      "download_url": "https://videos.pexels.com/video-files/7358240/7358240-hd_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_feet_walking_mud_jungle_river_walk_rainforest_survival_1920x1080_7358240.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\dbbc4ed56d6a4179.jpg",
+      "original_query": "feet walking mud",
+      "keywords": [
+        "feet walking mud",
+        "jungle river walk",
+        "rainforest survival"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:15:01.676548+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "e6e931417d5ba39b",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/beautiful-heliconius-doris-butterfly-on-leaf-36683557/",
+      "download_url": "https://videos.pexels.com/video-files/36683557/15550872_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_macro_insects_rainforest_dark_jungle_night_mosquitoes_forest_1920x1080_36683557.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\e6e931417d5ba39b.jpg",
+      "original_query": "macro insects rainforest",
+      "keywords": [
+        "macro insects rainforest",
+        "dark jungle night",
+        "mosquitoes forest",
+        "humid rainforest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:15:04.655751+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "db023d76168777d8",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/sunlight-filtering-through-bamboo-canopy-34211148/",
+      "download_url": "https://videos.pexels.com/video-files/34211148/14500659_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_sun_through_jungle_rainforest_river_dark_forest_walking_1920x1080_34211148.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\db023d76168777d8.jpg",
+      "original_query": "sun through jungle",
+      "keywords": [
+        "sun through jungle",
+        "rainforest river",
+        "dark forest walking"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 25.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:15:09.624852+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "357de26db7c798d9",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/visitors-explore-exotic-jungle-retreat-35098573/",
+      "download_url": "https://videos.pexels.com/video-files/35098573/14869117_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_small_hut_jungle_river_camp_rainforest_wooden_shelter_forest_1920x1080_35098573.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\357de26db7c798d9.jpg",
+      "original_query": "small hut jungle",
+      "keywords": [
+        "small hut jungle",
+        "river camp rainforest",
+        "wooden shelter forest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 30.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:15:13.453935+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "df96bc1b44ec51be",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/historical-log-house-surrounded-by-trees-27682644/",
+      "download_url": "https://videos.pexels.com/video-files/27682644/12203759_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_empty_wooden_hut_river_silence_dark_camp_1920x1080_27682644.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\df96bc1b44ec51be.jpg",
+      "original_query": "empty wooden hut",
+      "keywords": [
+        "empty wooden hut",
+        "river silence",
+        "dark camp"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 60.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:16:33.394710+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "0db01a680c0242eb",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/drone-footage-of-canoeing-in-amazon-rainforest-35771041/",
+      "download_url": "https://videos.pexels.com/video-files/35771041/15165602_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_canoe_river_jungle_people_river_rescue_rainforest_boat_1920x1080_35771041.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\0db01a680c0242eb.jpg",
+      "original_query": "canoe river jungle",
+      "keywords": [
+        "canoe river jungle",
+        "people river rescue",
+        "rainforest boat"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 28.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:16:37.080438+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "d560a37961778a6a",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-lush-amazon-jungle-river-31574276/",
+      "download_url": "https://videos.pexels.com/video-files/31574276/13455981_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_river_sunset_jungle_survivor_silhouette_forest_light_1920x1080_31574276.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\d560a37961778a6a.jpg",
+      "original_query": "river sunset jungle",
+      "keywords": [
+        "river sunset jungle",
+        "survivor silhouette",
+        "forest light"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "reflection"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 19.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:16:40.864728+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "fbec93b59f110d0d",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/stunning-aerial-view-of-amazon-rainforest-river-35969886/",
+      "download_url": "https://videos.pexels.com/video-files/35969886/15251197_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_amazon_river_aerial_jungle_sunset_dark_cinematic_forest_1920x1080_35969886.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\fbec93b59f110d0d.jpg",
+      "original_query": "amazon river aerial",
+      "keywords": [
+        "amazon river aerial",
+        "jungle sunset",
+        "dark cinematic forest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "outro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 41.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:16:44.377563+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "c170779f8adce63c",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-22070/",
+      "download_url": "https://cdn.pixabay.com/video/2019/03/18/22070-325253460_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_survival_storm_clouds_airplane_dark_rainforest_aerial_lightning_storm_1920x1080_22070.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\c170779f8adce63c.jpg",
+      "original_query": "storm clouds airplane",
+      "keywords": [
+        "storm clouds airplane",
+        "dark rainforest aerial",
+        "lightning storm",
+        "amazon jungle rain"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-17T13:21:14.316245+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "b8d4b6d3e2e94a9d",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/woman-looking-outside-while-standing-on-the-windowsill-7277926/",
+      "download_url": "https://videos.pexels.com/video-files/7277926/7277926-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_teen_girl_silhouette_window_airport_1970s_mood_girl_looking_out_window_1920x1080_7277926.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\b8d4b6d3e2e94a9d.jpg",
+      "original_query": "teen girl silhouette window",
+      "keywords": [
+        "teen girl silhouette window",
+        "airport 1970s mood",
+        "girl looking out window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 35.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:16.455117+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "ba3689414ecda7cf",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-31342/",
+      "download_url": "https://cdn.pixabay.com/video/2020/01/17/31342-385863216_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_survival_lightning_storm_airplane_turbulence_dark_clouds_1920x1080_31342.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\ba3689414ecda7cf.jpg",
+      "original_query": "lightning storm",
+      "keywords": [
+        "lightning storm",
+        "airplane turbulence",
+        "dark clouds",
+        "rain window"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 32.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-17T13:21:18.544232+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "b2f8bbe7d1ace39a",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/lush-tropical-forest-aerial-view-36999631/",
+      "download_url": "https://videos.pexels.com/video-files/36999631/15674804_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_rainforest_canopy_jungle_floor_green_leaves_dark_1920x1080_36999631.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\b2f8bbe7d1ace39a.jpg",
+      "original_query": "rainforest canopy",
+      "keywords": [
+        "rainforest canopy",
+        "jungle floor",
+        "green leaves dark",
+        "alone in jungle"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 34.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:23.046839+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "f7a1d75d1dd13191",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/lush-tropical-jungle-with-palm-trees-and-greenery-34411623/",
+      "download_url": "https://videos.pexels.com/video-files/34411623/14577738_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_empty_jungle_dark_rainforest_path_lonely_forest_1920x1080_34411623.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\f7a1d75d1dd13191.jpg",
+      "original_query": "empty jungle",
+      "keywords": [
+        "empty jungle",
+        "dark rainforest path",
+        "lonely forest",
+        "rain dripping leaves"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 34.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:27.382401+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001",
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "052b67e89c956247",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/tranquil-forest-stream-with-lush-green-foliage-31565121/",
+      "download_url": "https://videos.pexels.com/video-files/31565121/13452250_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_jungle_stream_river_rainforest_water_in_forest_1920x1080_31565121.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\052b67e89c956247.jpg",
+      "original_query": "jungle stream",
+      "keywords": [
+        "jungle stream",
+        "river rainforest",
+        "water in forest",
+        "survival walking"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "survival_lesson"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:32.684344+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "f2cc0462c8be4914",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/woman-stepping-in-the-sand-6473582/",
+      "download_url": "https://videos.pexels.com/video-files/6473582/6473582-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_feet_walking_mud_jungle_river_walk_rainforest_survival_1920x1080_6473582.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\f2cc0462c8be4914.jpg",
+      "original_query": "feet walking mud",
+      "keywords": [
+        "feet walking mud",
+        "jungle river walk",
+        "rainforest survival"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:36.688545+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "6bd504a367e82a5e",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/little-black-ant-15025542/",
+      "download_url": "https://videos.pexels.com/video-files/15025542/15025542-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_macro_insects_rainforest_dark_jungle_night_mosquitoes_forest_1920x1080_15025542.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\6bd504a367e82a5e.jpg",
+      "original_query": "macro insects rainforest",
+      "keywords": [
+        "macro insects rainforest",
+        "dark jungle night",
+        "mosquitoes forest",
+        "humid rainforest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 77.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:39.017952+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "b460b86828cc3b0d",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/serene-forest-sunset-through-tall-trees-37121718/",
+      "download_url": "https://videos.pexels.com/video-files/37121718/15726458_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_sun_through_jungle_rainforest_river_dark_forest_walking_1920x1080_37121718.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\b460b86828cc3b0d.jpg",
+      "original_query": "sun through jungle",
+      "keywords": [
+        "sun through jungle",
+        "rainforest river",
+        "dark forest walking"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 44.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:43.457242+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "f40ab909906492a2",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-46782/",
+      "download_url": "https://cdn.pixabay.com/video/2020/08/10/46782-449244490_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_survival_small_hut_jungle_river_camp_rainforest_wooden_shelter_forest_1920x1080_46782.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\f40ab909906492a2.jpg",
+      "original_query": "small hut jungle",
+      "keywords": [
+        "small hut jungle",
+        "river camp rainforest",
+        "wooden shelter forest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 34.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-17T13:21:46.204005+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "984ad5c62a791cf1",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-49338/",
+      "download_url": "https://cdn.pixabay.com/video/2020/09/07/49338-459186605_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_survival_empty_wooden_hut_river_silence_dark_camp_1920x1080_49338.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\984ad5c62a791cf1.jpg",
+      "original_query": "empty wooden hut",
+      "keywords": [
+        "empty wooden hut",
+        "river silence",
+        "dark camp"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 19.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-17T13:21:48.809156+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "cef6fa9d050eeb69",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/drone-shot-of-canoe-in-tropical-jungle-river-35771038/",
+      "download_url": "https://videos.pexels.com/video-files/35771038/15165585_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_canoe_river_jungle_people_river_rescue_rainforest_boat_1920x1080_35771038.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\cef6fa9d050eeb69.jpg",
+      "original_query": "canoe river jungle",
+      "keywords": [
+        "canoe river jungle",
+        "people river rescue",
+        "rainforest boat"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "story"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:51.947674+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "bb6d0dfef16d2374",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/rio-orteguaza-caqueta-26202145/",
+      "download_url": "https://videos.pexels.com/video-files/26202145/11938727_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_river_sunset_jungle_survivor_silhouette_forest_light_1920x1080_26202145.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\bb6d0dfef16d2374.jpg",
+      "original_query": "river sunset jungle",
+      "keywords": [
+        "river sunset jungle",
+        "survivor silhouette",
+        "forest light"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "reflection"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 38.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:56.078587+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "938f058f2a43f59b",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-lush-rainforest-by-the-river-33884038/",
+      "download_url": "https://videos.pexels.com/video-files/33884038/14380061_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_survival_amazon_river_aerial_jungle_sunset_dark_cinematic_forest_1920x1080_33884038.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\938f058f2a43f59b.jpg",
+      "original_query": "amazon river aerial",
+      "keywords": [
+        "amazon river aerial",
+        "jungle sunset",
+        "dark cinematic forest"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "survival"
+      ],
+      "scene_tags": [
+        "outro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-17T13:21:59.902077+00:00",
+      "used_in": [
+        "survival/juliane_koepcke_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "d0ebefa7f74b557e",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/video-of-cars-on-the-road-at-night-6470925/",
+      "download_url": "https://videos.pexels.com/video-files/6470925/6470925-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_night_city_rain_lonely_apartment_window_empty_street_reflections_1920x1080_6470925.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\d0ebefa7f74b557e.jpg",
+      "original_query": "night city rain",
+      "keywords": [
+        "night city rain",
+        "lonely apartment window",
+        "empty street reflections",
+        "cinematic loneliness"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "intro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 21.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:28.883921+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "fab3fec372508111",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/tired-man-rubbing-eyes-6964232/",
+      "download_url": "https://videos.pexels.com/video-files/6964232/6964232-hd_1920_1080_25fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_screen_glow_tired_person_late_night_laptop_open_browser_tabs_1920x1080_6964232.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\fab3fec372508111.jpg",
+      "original_query": "screen glow tired person",
+      "keywords": [
+        "screen glow tired person",
+        "late night laptop",
+        "open browser tabs",
+        "quiet room at night"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:32.195838+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "e8e2a4c5f48519aa",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-46637/",
+      "download_url": "https://cdn.pixabay.com/video/2020/08/07/46637-448480646_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_psychology_person_alone_desk_night_hands_still_keyboard_dark_office_window_rain_1920x1080_46637.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\e8e2a4c5f48519aa.jpg",
+      "original_query": "person alone desk night",
+      "keywords": [
+        "person alone desk night",
+        "hands still keyboard",
+        "dark office window rain",
+        "modern exhaustion"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-18T11:46:34.829403+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "f29671cd6975f261",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/empty-train-4547945/",
+      "download_url": "https://videos.pexels.com/video-files/4547945/4547945-hd_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_empty_subway_tired_commuter_city_train_reflection_people_alone_commute_1920x1080_4547945.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\f29671cd6975f261.jpg",
+      "original_query": "empty subway tired commuter",
+      "keywords": [
+        "empty subway tired commuter",
+        "city train reflection",
+        "people alone commute",
+        "urban exhaustion"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:39.163779+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "a55f797e7f7ef4d1",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/futuristic-data-analysis-dashboard-visualization-34128979/",
+      "download_url": "https://videos.pexels.com/video-files/34128979/14471959_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_diagram_01_cognitive_load_infographic_minimal_psychology_diagram_dark_transparent_interface_1920x1080_341289.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\a55f797e7f7ef4d1.jpg",
+      "original_query": "diagram_01 cognitive load infographic",
+      "keywords": [
+        "diagram_01 cognitive load infographic",
+        "minimal psychology diagram",
+        "dark transparent interface",
+        "visible task hidden load"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "infographic"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:43.130586+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "8562a752692bf829",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/man-looking-at-smartphone-screen-6415082/",
+      "download_url": "https://videos.pexels.com/video-files/6415082/6415082-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_phone_screen_glow_face_lonely_room_night_unanswered_messages_1920x1080_6415082.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\8562a752692bf829.jpg",
+      "original_query": "phone screen glow face",
+      "keywords": [
+        "phone screen glow face",
+        "lonely room night",
+        "unanswered messages",
+        "rain window reflection"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 27.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:46.821745+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "14b062c1b5bd6ac9",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/lonely-figure-walking-an-empty-crossroad-at-dawn-30353676/",
+      "download_url": "https://videos.pexels.com/video-files/30353676/13010704_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_lonely_urban_scenes_person_sitting_edge_bed_night_reflections_1920x1080_30353676.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\14b062c1b5bd6ac9.jpg",
+      "original_query": "lonely urban scenes",
+      "keywords": [
+        "lonely urban scenes",
+        "person sitting edge bed",
+        "night reflections",
+        "quiet mental pressure"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 20.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:50.809692+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "25cbb5d4a0971722",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/motorbike-hauling-large-load-across-city-street-34971525/",
+      "download_url": "https://videos.pexels.com/video-files/34971525/14814247_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_diagram_02_laziness_overload_distinction_minimal_documentary_infographic_psychology_comparison_diagram_1920x.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\25cbb5d4a0971722.jpg",
+      "original_query": "diagram_02 laziness overload distinction",
+      "keywords": [
+        "diagram_02 laziness overload distinction",
+        "minimal documentary infographic",
+        "psychology comparison diagram"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "infographic"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 18.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:46:56.119243+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "ef142503122b5adc",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/a-person-opening-a-canned-drink-4061832/",
+      "download_url": "https://videos.pexels.com/video-files/4061832/4061832-hd_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_many_browser_tabs_dark_calendar_notifications_notes_desk_night_1920x1080_4061832.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\ef142503122b5adc.jpg",
+      "original_query": "many browser tabs dark",
+      "keywords": [
+        "many browser tabs dark",
+        "calendar notifications",
+        "notes desk night",
+        "screen glow modern exhaustion"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 29.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:47:00.133451+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "749c635b6875fb3c",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/from-above-footage-of-dense-clouds-blurring-the-view-of-building-rooftops-in-the-city-2818555/",
+      "download_url": "https://videos.pexels.com/video-files/2818555/2818555-hd_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_fog_city_morning_slow_train_window_empty_platform_night_1920x1080_2818555.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\749c635b6875fb3c.jpg",
+      "original_query": "fog city morning",
+      "keywords": [
+        "fog city morning",
+        "slow train window",
+        "empty platform night",
+        "lonely silhouette fog"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "psychology_explainer"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 31.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:47:03.478790+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "9194732557932251",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/heavy-rainfall-1299684/",
+      "download_url": "https://videos.pexels.com/video-files/1299684/1299684-hd_1920_1080_30fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_quiet_notebook_rain_person_writing_at_night_closing_laptop_slowly_1920x1080_1299684.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\9194732557932251.jpg",
+      "original_query": "quiet notebook rain",
+      "keywords": [
+        "quiet notebook rain",
+        "person writing at night",
+        "closing laptop slowly",
+        "calm intelligence"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "reframe"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 30.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:47:06.382759+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "50d7a5234d33ffaa",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-industrial-recycling-conveyor-29702561/",
+      "download_url": "https://videos.pexels.com/video-files/29702561/12773255_1920_1080_24fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_diagram_03_overload_reduction_path_minimal_psychology_flow_diagram_calm_documentary_infographic_1920x1080_29.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\50d7a5234d33ffaa.jpg",
+      "original_query": "diagram_03 overload reduction path",
+      "keywords": [
+        "diagram_03 overload reduction path",
+        "minimal psychology flow diagram",
+        "calm documentary infographic"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "infographic"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 39.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:47:13.507129+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "d82237d39b9658fe",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-14338/",
+      "download_url": "https://cdn.pixabay.com/video/2018/02/16/14338-256171799_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_psychology_closing_browser_tabs_slow_handwriting_journal_rain_on_window_1920x1080_14338.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\d82237d39b9658fe.jpg",
+      "original_query": "closing browser tabs",
+      "keywords": [
+        "closing browser tabs",
+        "slow handwriting journal",
+        "rain on window",
+        "minimal desk night"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "recovery"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 60.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-18T11:47:17.026655+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "4d01c842fb270c02",
+      "type": "video",
+      "provider": "pexels",
+      "source_url": "https://www.pexels.com/video/fog-rolling-over-serene-forest-lake-timelapse-31661097/",
+      "download_url": "https://videos.pexels.com/video-files/31661097/13489233_1920_1080_60fps.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pexels_video_psychology_atmospheric_nature_fog_quiet_lake_fog_city_park_morning_silence_1920x1080_31661097.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\4d01c842fb270c02.jpg",
+      "original_query": "atmospheric nature fog",
+      "keywords": [
+        "atmospheric nature fog",
+        "quiet lake fog",
+        "city park morning silence",
+        "soft rain nature"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "recovery"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 24.0,
+      "fps": 0.0,
+      "license_note": "Pexels API asset; review Pexels license and attribution expectations before publishing.",
+      "downloaded_at": "2026-05-18T11:47:20.488447+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    },
+    {
+      "id": "24a36f13465bdb4f",
+      "type": "video",
+      "provider": "pixabay",
+      "source_url": "https://pixabay.com/videos/id-199/",
+      "download_url": "https://cdn.pixabay.com/video/2015/08/10/199-135847133_large.mp4",
+      "local_path": "G:\\Projects\\AI-YouTube\\assets\\library\\videos\\pixabay_video_psychology_morning_grey_city_lonely_person_walking_slowly_rain_stops_street_1920x1080_199.mp4",
+      "thumbnail_path": "G:\\Projects\\AI-YouTube\\assets\\library\\thumbnails\\24a36f13465bdb4f.jpg",
+      "original_query": "morning grey city",
+      "keywords": [
+        "morning grey city",
+        "lonely person walking slowly",
+        "rain stops street",
+        "calm urban dawn"
+      ],
+      "mood": [],
+      "channel_tags": [
+        "psychology"
+      ],
+      "scene_tags": [
+        "outro"
+      ],
+      "width": 1920,
+      "height": 1080,
+      "duration": 38.0,
+      "fps": 0.0,
+      "license_note": "Pixabay API asset; review Pixabay Content License before publishing.",
+      "downloaded_at": "2026-05-18T11:47:23.910869+00:00",
+      "used_in": [
+        "psychology/overloaded_mind_001"
+      ],
+      "schema_version": 0,
+      "allowed_for_render": false,
+      "review_required": true,
+      "rights_status": "legacy_unknown",
+      "migration": {
+        "proposed_status": "quarantine_recommended",
+        "proposed_action": "quarantine_or_manual_review",
+        "classifications": [
+          "legacy_complete",
+          "unknown_rights",
+          "quarantine_recommended"
+        ],
+        "reason": "legacy_complete|unknown_rights|quarantine_recommended"
+      }
+    }
+  ]
+}
