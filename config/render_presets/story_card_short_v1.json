@@ -1,0 +1,85 @@
+{
+  "schema_version": "story_card_short_preset.v1",
+  "name": "story_card_short_v1",
+  "resolution": [1080, 1920],
+  "fps": 30,
+  "duration_sec": 7.5,
+  "fragment": {
+    "start_sec": 12.5,
+    "duration_sec": 7.5,
+    "repeat_count": 1,
+    "first_zoom": 1.08,
+    "second_zoom": 1.16
+  },
+  "safe_margins": {
+    "left": 48,
+    "right": 48,
+    "top": 72,
+    "bottom": 72
+  },
+  "layout": {
+    "text_side_inset": 44,
+    "video_side_inset": 12,
+    "top_pad": 54,
+    "bottom_pad": 44,
+    "gap_text_to_video": 26,
+    "gap_video_to_channel": 30,
+    "gap_channel_to_comment": 28,
+    "min_video_aspect": 1.18,
+    "min_video_height": 40
+  },
+  "background": {
+    "blur_radius": 18,
+    "darken_alpha": 160,
+    "zoom_start": 1.08,
+    "zoom_end": 1.16
+  },
+  "card": {
+    "x": 72,
+    "y": 96,
+    "width": 936,
+    "height": 1728,
+    "radius": 30,
+    "background_color": "#111a24",
+    "shadow_alpha": 150
+  },
+  "central_video": {
+    "corner_radius": 20
+  },
+  "text": {
+    "font": "DejaVuSans.ttf",
+    "top_font_size": 46,
+    "comment_font_size": 36,
+    "brand_font_size": 40,
+    "username_font_size": 26,
+    "line_spacing": 12,
+    "top": "Сова не поворачивает голову на 360°.\nНо она может развернуть её примерно на 270°.\nОсобое строение шеи помогает сохранять кровоток,\nпока тело остаётся почти неподвижным.",
+    "comment": "Миф о полном обороте звучит эффектнее.\nНо настоящая анатомия совы интереснее:\nогромный обзор почти без движения тела.",
+    "top_highlights": {
+      "negative": "не поворачивает",
+      "number": "270°",
+      "mechanism": "особое строение шеи",
+      "context": "неподвижным"
+    },
+    "colors": {
+      "primary": "#ffffff",
+      "negative": "#ff5454",
+      "number": "#ffe66d",
+      "mechanism": "#72e084",
+      "context": "#7ecbff",
+      "muted": "#b7c2cf",
+      "shadow": "#000000"
+    }
+  },
+  "brand": {
+    "name": "Пульс природы",
+    "username": "@nature_pulse_test",
+    "icon_size": 64
+  },
+  "encoding": {
+    "codec": "libx264",
+    "crf": 21,
+    "preset": "veryfast",
+    "pix_fmt": "yuv420p"
+  }
+}
