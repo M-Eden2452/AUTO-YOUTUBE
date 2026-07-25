@@ -1,0 +1,64 @@
+emotional_words:
+  - шок
+  - страх
+  - боль
+  - смерть
+  - убить
+  - предал
+  - ненавижу
+  - люблю
+  - прости
+  - невозможно
+  - почему
+  - что
+  - нет
+  - стой
+  - беги
+  - умри
+  - monster
+  - kill
+  - death
+  - hate
+  - love
+  - sorry
+  - impossible
+  - why
+  - run
+  - stop
+
+candidate_scoring:
+  min_text_chars: 35
+  overlap_threshold: 0.55
+  target_duration: 32
+  audio_peak_threshold: 0.65
+
+subtitles:
+  max_chars_per_line: 24
+  max_lines: 2
+  font_name: Arial
+  font_size: 72
+
+render:
+  default_max_clips: 10
+  default_candidate_count: 30
+  crop_mode: auto
+  output_width: 1080
+  output_height: 1920
+  width: 1080
+  height: 1920
+  video_bitrate: 8M
+  auto_blur_fallback: true
+
+dynamic_crop:
+  sample_fps: 2
+  detector_backend: anime
+  smoothing: 0.9
+  max_shift_px: 45
+  min_face_detections_ratio: 0.25
+  smart_static_min_face_ratio: 0.1
+  face_size_weight: 0.5
+  center_weight: 0.3
+  stability_weight: 0.2
+  anime_min_area_ratio: 0.004
+  anime_max_area_ratio: 0.18
+  anime_max_faces: 4

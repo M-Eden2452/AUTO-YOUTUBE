@@ -10,6 +10,14 @@ outputs/*.wav
 outputs/**/*.wav
 outputs/*.mp3
 outputs/**/*.mp3
+outputs/*.flac
+outputs/**/*.flac
+outputs/*.opus
+outputs/**/*.opus
+outputs/*.m4a
+outputs/**/*.m4a
+outputs/*.aac
+outputs/**/*.aac
 outputs/*.txt
 outputs/**/*.txt
 outputs/**/*.json
@@ -18,6 +26,12 @@ outputs/*TEMP*
 outputs/**/*TEMP*
 outputs/render_temp/
 outputs/**/render_temp/
+/projects/
+anime_factory/episodes/*
+!anime_factory/episodes/.gitkeep
+project_solar_vs_nuclear/**/*.jpg
+project_solar_vs_nuclear/**/*.jpeg
+project_solar_vs_nuclear/**/*.png
 assets/*
 !assets/library/
 assets/library/videos/

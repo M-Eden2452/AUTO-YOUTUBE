@@ -1,0 +1,596 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+from src.content_creation import capabilities
+from src.content_creation.models import (
+    ContentCreationError,
+    ContentCreationRequest,
+    ExecutionFlags,
+    MusicRequestConfig,
+    RenderRequestConfig,
+    SubtitleRequestConfig,
+    TimingRequestConfig,
+    VoiceRequestConfig,
+)
+from src.content_creation.output_report import describe_output_file
+from src.content_creation.service import create_content
+from src.production_catalog.catalog import get_default_catalog
+from src.production_catalog.models import CatalogValidationError
+
+
+def configure_console_encoding() -> None:
+    # Mirrors pipeline.py's own helper (not imported from there - this CLI must
+    # stay independent of pipeline.py, like src.project_foundation.cli). Without
+    # this, printing Cyrillic text crashes on a default-codepage Windows console.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
+def _json_flag_parser() -> argparse.ArgumentParser:
+    # A shared `parents=[...]` parser so these work both before and after the
+    # subcommand (argparse subparsers otherwise only accept flags defined on the
+    # specific subparser they belong to).
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--json", dest="json_output", action="store_true", help="Print machine-readable JSON.")
+    common.add_argument(
+        "--debug", action="store_true", help="Show full tracebacks instead of a short error message."
+    )
+    common.add_argument(
+        "--no-icons", action="store_true", help="Use ASCII markers instead of emoji (wizard only)."
+    )
+    return common
+
+
+def build_parser() -> argparse.ArgumentParser:
+    json_flag = _json_flag_parser()
+    parser = argparse.ArgumentParser(
+        prog="content-creation",
+        description=(
+            "Unified content-creation CLI: one create/wizard command over the existing "
+            "Production Catalog, Project Foundation, VoiceProfileRegistry and renderers. "
+            "Never runs paid TTS without --approve-paid-generation."
+        ),
+        parents=[json_flag],
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser(
+        "capabilities",
+        help="Show what formats/templates/voices/subtitles/music are usable today.",
+        parents=[json_flag],
+    )
+
+    formats_p = subparsers.add_parser(
+        "formats", help="List/inspect formats from the Production Catalog.", parents=[json_flag]
+    )
+    formats_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
+    formats_p.add_argument("--format", help="format_id for 'show'.")
+
+    templates_p = subparsers.add_parser(
+        "templates", help="List/inspect templates from the Production Catalog.", parents=[json_flag]
+    )
+    templates_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
+    templates_p.add_argument("--template", help="template_id or legacy alias for 'show'.")
+    templates_p.add_argument("--format", help="Filter list by format_id.")
+
+    channels_p = subparsers.add_parser("channels", help="List/inspect channels.", parents=[json_flag])
+    channels_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
+    channels_p.add_argument("--channel", help="channel_id for 'show'.")
+
+    voices_p = subparsers.add_parser("voices", help="List voice providers/profiles.", parents=[json_flag])
+    voices_p.add_argument("action", choices=["providers", "profiles", "show"])
+    voices_p.add_argument("--channel", help="channel_id for 'profiles'/'show'.")
+    voices_p.add_argument("--voice-profile", help="Profile id, alias, or display name (e.g. \"Дом\") for 'show'.")
+
+    subtitles_p = subparsers.add_parser("subtitles", help="List/inspect subtitle styles.", parents=[json_flag])
+    subtitles_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
+    subtitles_p.add_argument("--style", help="style_id for 'show'.")
+
+    project_p = subparsers.add_parser("project", help="Inspect existing projects.", parents=[json_flag])
+    project_p.add_argument("action", choices=["list", "status", "validate", "rights-report"])
+    project_p.add_argument("--project-id", help="Required for every action except 'list'.")
+    project_p.add_argument("--projects-root", default="projects")
+
+    create_p = subparsers.add_parser(
+        "create", help="Create one piece of content (flag-driven, non-interactive).", parents=[json_flag]
+    )
+    _add_create_arguments(create_p)
+
+    resume_p = subparsers.add_parser(
+        "resume", help="Resume an existing project (shortcut for create --resume).", parents=[json_flag]
+    )
+    _add_create_arguments(resume_p)
+
+    run_stage_p = subparsers.add_parser(
+        "run-stage", help="Run a single news_to_short stage on an existing project.", parents=[json_flag]
+    )
+    run_stage_p.add_argument("--project-id", required=True)
+    run_stage_p.add_argument("--stage", required=True)
+    run_stage_p.add_argument("--projects-root", default="projects")
+    run_stage_p.add_argument("--execute-voice", action="store_true")
+
+    subparsers.add_parser(
+        "wizard", help="Interactive terminal wizard (same request/service as 'create').", parents=[json_flag]
+    )
+    return parser
+
+
+def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--format", dest="format_id", help="Format id, e.g. vertical_short.")
+    parser.add_argument("--template", dest="template_id", help="Template id or legacy alias.")
+    parser.add_argument("--channel", dest="channel_id", help="Channel id.")
+    parser.add_argument("--language", default="ru")
+    parser.add_argument("--title", default="")
+    parser.add_argument("--topic", default="", help="Topic/idea (fullscreen_voiceover_v1).")
+    parser.add_argument("--text", default="", help="Card headline text (story_card_text_only_v1).")
+    parser.add_argument("--comment", default="", help="Card bottom-comment text (story_card_text_only_v1).")
+    parser.add_argument("--source-asset", dest="source_asset_path", default="", help="Local video file (story_card_text_only_v1).")
+    parser.add_argument("--source-url", default="", help="Article URL (fullscreen_voiceover_v1).")
+    parser.add_argument("--script-file", dest="script_path", default="")
+    parser.add_argument("--pasted-script", default="", help="Full script text pasted directly (fullscreen_voiceover_v1).")
+    parser.add_argument(
+        "--input-mode",
+        dest="content_input_mode",
+        default="",
+        choices=["", "topic", "article_url", "pasted_script", "script_file"],
+        help="Which of --topic/--source-url/--pasted-script/--script-file is authoritative.",
+    )
+    parser.add_argument("--project-id", default="")
+    parser.add_argument(
+        "--voice-provider", default="disabled", help="disabled | elevenlabs | audio_file (see `voices providers`)."
+    )
+    parser.add_argument("--voice-profile", default="", help="Profile id, alias, or display name, e.g. \"Дом\".")
+    parser.add_argument(
+        "--voice-mode", default="", help="scene_audio | single_narration | manual_audio | disabled."
+    )
+    parser.add_argument("--audio-file", default="", help="Manual WAV file for --voice-provider audio_file.")
+    parser.add_argument("--subtitles", dest="subtitle_style", default="disabled", help="See `subtitles list`.")
+    parser.add_argument("--music", dest="music_mode", default="disabled", help="See `capabilities`.")
+    parser.add_argument("--music-path", default="")
+    parser.add_argument("--timing-mode", default="")
+    parser.add_argument("--quality", default="default")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--prepare-only", action="store_true", help="Stop before any paid TTS call.")
+    parser.add_argument("--approve-paid-generation", action="store_true", help="Explicitly allow paid ElevenLabs synthesis.")
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--projects-root", default="projects")
+
+
+def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
+    voice_profile = args.voice_profile
+    if voice_profile and args.channel_id:
+        try:
+            voice_profile = capabilities.resolve_voice_profile(args.channel_id, args.voice_profile)
+        except Exception:
+            pass  # let the service layer raise a clearer error with full context
+    text: dict[str, str] = {}
+    if getattr(args, "text", ""):
+        text["top"] = args.text
+    if getattr(args, "comment", ""):
+        text["comment"] = args.comment
+    return ContentCreationRequest(
+        project_id=args.project_id,
+        title=args.title,
+        source_url=args.source_url,
+        script_path=args.script_path,
+        pasted_script=getattr(args, "pasted_script", ""),
+        content_input_mode=getattr(args, "content_input_mode", ""),
+        channel_id=args.channel_id,
+        format_id=args.format_id or "",
+        template_id=args.template_id or "",
+        language=args.language,
+        text=text,
+        source_asset_path=args.source_asset_path,
+        topic=args.topic,
+        voice=VoiceRequestConfig(
+            provider=args.voice_provider,
+            profile=voice_profile,
+            mode=args.voice_mode or ("disabled" if args.voice_provider == "disabled" else "scene_audio"),
+            audio_file=args.audio_file,
+            approve_paid_generation=args.approve_paid_generation,
+        ),
+        subtitles=SubtitleRequestConfig(style=args.subtitle_style),
+        music=MusicRequestConfig(mode=args.music_mode, path=args.music_path),
+        timing=TimingRequestConfig(mode=args.timing_mode),
+        render=RenderRequestConfig(quality=args.quality),
+        execution=ExecutionFlags(
+            dry_run=args.dry_run,
+            prepare_only=args.prepare_only,
+            resume=args.resume,
+            stage="",
+            until_stage="",
+        ),
+        project_overrides={"projects_root": args.projects_root},
+    )
+
+
+def _print_json(data: Any) -> None:
+    print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+
+
+def _print_rights_lines(evidence: dict[str, Any], *, prefix: str = "") -> None:
+    """Four-line rights summary for a finished run - the detail lives in
+    `project rights-report`, which this deliberately does not duplicate."""
+    if not evidence or not evidence.get("evidence_manifest_path"):
+        return
+    status = str(evidence.get("rights_status") or "unknown")
+    print(f"{prefix}rights_status={_RIGHTS_STATUS_LABELS.get(status, status)}")
+    print(f"{prefix}evidence_path={evidence['evidence_manifest_path']}")
+    print(f"{prefix}source_type={evidence.get('source_type') or '-'}")
+    print(f"{prefix}review_required={'да' if evidence.get('review_required') else 'нет'}")
+
+
+def _run_create(args: argparse.Namespace) -> int:
+    request = _request_from_args(args)
+    if getattr(args, "debug", False):
+        result = create_content(request)
+    else:
+        try:
+            result = create_content(request)
+        except ContentCreationError as exc:
+            if args.json_output:
+                _print_json({"status": "failed", "error": str(exc), "reason": exc.reason, "retryable": exc.retryable})
+            else:
+                print(f"[create] error: {exc} (reason={exc.reason})")
+            return 1
+    if args.json_output:
+        _print_json(result.to_dict())
+        return 0 if result.status not in {"failed"} else 1
+    print(f"[create] status={result.status}")
+    print(f"[create] project_id={result.project_id}")
+    print(f"[create] project_root={Path(result.project_root).resolve()}")
+    for stage in result.stages:
+        print(f"[create] stage {stage.get('stage')}: {stage.get('status')}")
+    final_video = result.output_paths.get("final_video")
+    if final_video:
+        report = describe_output_file(final_video, project_root=result.project_root)
+        print(f"[create] output_path={report['absolute_path']}")
+        print(f"[create] output_project_relative={report['project_relative_path']}")
+        print(f"[create] output_size_bytes={report['size_bytes']}")
+        print(f"[create] output_duration_sec={report['duration_sec']}")
+        print(f"[create] output_resolution={report['resolution']}")
+        print(f"[create] output_audio_present={report['audio_present']}")
+    _print_rights_lines(result.evidence, prefix="[create] ")
+    for warning in result.warnings:
+        print(f"[create] warning: {warning}")
+    for error in result.errors:
+        print(f"[create] error: {error}")
+    if result.rerun_commands:
+        print(f"[create] rerun: {result.rerun_commands[0]}")
+    return 0 if result.status != "failed" else 1
+
+
+def _run_wizard(args: argparse.Namespace) -> int:
+    # The wizard now owns its own creation/retry loop (interactive network-error
+    # recovery needs to happen live, not after the fact) - it returns the final
+    # ContentCreationResult itself, already printed via wizard.print_result().
+    from src.content_creation.wizard import run_wizard
+
+    result = run_wizard(no_icons=getattr(args, "no_icons", False))
+    if result is None:
+        return 0
+    return 0 if result.status != "failed" else 1
+
+
+def run_content_creation_cli(args: argparse.Namespace) -> int:
+    command = args.command
+    if command == "capabilities":
+        report = capabilities.build_capabilities_report()
+        if args.json_output:
+            _print_json(report)
+        else:
+            for template in report["templates"]:
+                print(
+                    f"[capabilities] template={template['template_id']} format={template['format_id']} "
+                    f"voice_required={template['voice_required']} tested_status={template['tested_status']}"
+                )
+            for provider in report["voice_providers"]:
+                print(f"[capabilities] voice_provider={provider['provider_id']} paid={provider['paid']} configured={provider['configured']}")
+            for style in report["subtitle_styles"]:
+                print(f"[capabilities] subtitle_style={style['style_id']} status={style['status']}")
+            for option in report["music_options"]:
+                print(f"[capabilities] music_option={option['mode_id']} status={option['status']}")
+            for channel in report["channels"]:
+                print(f"[capabilities] channel={channel['channel_id']} type={channel['channel_profile_type']}")
+        return 0
+
+    if command == "formats":
+        catalog = get_default_catalog()
+        if args.action == "show":
+            if not args.format:
+                raise SystemExit("formats show requires --format.")
+            data = catalog.formats.get(args.format).to_dict()
+        else:
+            data = catalog.formats.serialize()
+        _print_json(data) if args.json_output else _print_plain(data)
+        return 0
+
+    if command == "templates":
+        catalog = get_default_catalog()
+        try:
+            if args.action == "show":
+                if not args.template:
+                    raise SystemExit("templates show requires --template.")
+                data = catalog.templates.get(args.template).to_dict()
+            elif args.format:
+                data = [t.to_dict() for t in catalog.templates.filter_by_format(args.format)]
+            else:
+                data = catalog.templates.serialize()
+        except CatalogValidationError as exc:
+            raise SystemExit(str(exc)) from exc
+        _print_json(data) if args.json_output else _print_plain(data)
+        return 0
+
+    if command == "channels":
+        if args.action == "show":
+            if not args.channel:
+                raise SystemExit("channels show requires --channel.")
+            data = next((c for c in capabilities.list_channels() if c["channel_id"] == args.channel), None)
+            if data is None:
+                raise SystemExit(f"Unknown channel_id: {args.channel!r}.")
+        else:
+            data = capabilities.list_channels()
+        _print_json(data) if args.json_output else _print_plain(data)
+        return 0
+
+    if command == "voices":
+        if args.action == "providers":
+            data = capabilities.list_voice_providers()
+        elif args.action == "profiles":
+            if not args.channel:
+                raise SystemExit("voices profiles requires --channel.")
+            data = capabilities.list_voice_profiles(args.channel)
+        else:
+            if not args.channel or not args.voice_profile:
+                raise SystemExit("voices show requires --channel and --voice-profile.")
+            profile_id = capabilities.resolve_voice_profile(args.channel, args.voice_profile)
+            data = next((p for p in capabilities.list_voice_profiles(args.channel) if p["profile_id"] == profile_id), None)
+        _print_json(data) if args.json_output else _print_plain(data)
+        return 0
+
+    if command == "subtitles":
+        styles = capabilities.list_subtitle_styles()
+        if args.action == "show":
+            if not args.style:
+                raise SystemExit("subtitles show requires --style.")
+            data = next((s for s in styles if s["style_id"] == args.style), None)
+            if data is None:
+                raise SystemExit(f"Unknown subtitle style: {args.style!r}.")
+        else:
+            data = styles
+        _print_json(data) if args.json_output else _print_plain(data)
+        return 0
+
+    if command == "project":
+        return _run_project(args)
+
+    if command == "create" or command == "resume":
+        if command == "resume":
+            args.resume = True
+        return _run_create(args)
+
+    if command == "run-stage":
+        from src.news.pipeline import run_news_to_short_job
+
+        result = run_news_to_short_job(
+            projects_root=args.projects_root,
+            job_id=args.project_id,
+            stage=args.stage,
+            execute_voice=args.execute_voice,
+        )
+        print(f"[run-stage] status={result.status} completed_stages={result.completed_stages}")
+        return 0
+
+    if command == "wizard":
+        return _run_wizard(args)
+
+    raise SystemExit(f"Unknown command: {command!r}")
+
+
+def _run_project(args: argparse.Namespace) -> int:
+    from src.project_foundation.evidence import EvidenceBundle
+    from src.project_foundation.policies import ChannelOutputPolicy, validate as validate_policy
+    from src.project_foundation.projects import ProjectFactory
+    from src.project_foundation.channels import ChannelRegistry
+    from src.projects import PROJECT_KIND_PROJECT_MANIFEST, ProjectNotFoundError, ProjectRepository
+
+    from src.project_foundation.models import ProjectFoundationError
+
+    # list/status/rights-report go through the read-only src.projects layer, which
+    # understands both storage systems living in projects/ (job.json and project.json).
+    # validate still needs a real ProjectManifest + ChannelProfile, so it stays on
+    # ProjectFactory and says so plainly for a news job.
+    repository = ProjectRepository(args.projects_root)
+
+    if args.action == "list":
+        views = [view.to_dict() for view in repository.list(include_unknown=True)]
+        if getattr(args, "json_output", False):
+            _print_json(views)
+        elif not views:
+            print(f"[project] В {Path(args.projects_root).resolve()} нет проектов.")
+        else:
+            for view in views:
+                print(
+                    f"[project] {view['project_id']} | kind={view['kind']} | template={view['template_id'] or '-'} "
+                    f"| channel={view['channel_id'] or '-'} | status={view['status']} "
+                    f"| video={'да' if view['final_video'] else 'нет'}"
+                )
+        return 0
+
+    if not args.project_id:
+        print(f"[project] Действие {args.action!r} требует --project-id.")
+        return 1
+
+    if args.action == "status":
+        try:
+            view = repository.get(args.project_id)
+        except ProjectNotFoundError as exc:
+            print(f"[project] {exc}")
+            return 1
+        if getattr(args, "json_output", False):
+            _print_json(view.to_dict())
+        else:
+            print(f"[project] project_id={view.project_id}")
+            print(f"[project] kind={view.kind}")
+            print(f"[project] project_root={Path(view.project_root).resolve()}")
+            print(f"[project] channel={view.channel_id or '-'} template={view.template_id or '-'} language={view.language or '-'}")
+            print(f"[project] status={view.status}")
+            if view.quality_status:
+                print(f"[project] quality={view.quality_status}")
+            for stage in view.stages:
+                print(f"[project] stage {stage.stage}: {stage.status}" + (f" ({stage.error})" if stage.error else ""))
+            if view.final_video:
+                print(f"[project] final_video={Path(view.final_video).resolve()}")
+            else:
+                print("[project] final_video=нет готового файла")
+            for name, path in view.output_paths.items():
+                print(f"[project] output {name}={path}")
+            for path in view.evidence_paths:
+                print(f"[project] evidence={path}")
+            for warning in view.warnings:
+                print(f"[project] warning: {warning}")
+        return 0 if view.kind != "unknown" else 1
+
+    if args.action == "rights-report":
+        return _run_rights_report(args, repository)
+
+    if repository.detect_kind(args.project_id) != PROJECT_KIND_PROJECT_MANIFEST:
+        print(
+            f"[project] Действие {args.action!r} пока поддерживается только для проектов с project.json "
+            "(story_card). Для проектов news_to_short используйте 'project status' и 'project rights-report'."
+        )
+        return 1
+
+    factory = ProjectFactory(base_dir=args.projects_root)
+    try:
+        manifest = factory.get(args.project_id)
+    except ProjectFoundationError as exc:
+        print(f"[project] {exc}")
+        return 1
+    if args.action == "validate":
+        channel = ChannelRegistry().get(manifest.channel_id)
+        policy = ChannelOutputPolicy.from_dict(channel.output_policy)
+        bundle = EvidenceBundle.load(manifest.project_root, manifest.project_id)
+        result = validate_policy(policy, channel, manifest, bundle.summary())
+        _print_json(result.to_dict()) if getattr(args, "json_output", False) else _print_plain(result.to_dict())
+        return 0 if result.allowed else 1
+    raise SystemExit(f"Unknown project action: {args.action!r}")
+
+
+_RIGHTS_STATUS_LABELS = {
+    "verified": "подтверждено",
+    "review_required": "требует проверки",
+    "blocked": "заблокировано",
+    "unknown": "нет данных",
+}
+
+
+def _run_rights_report(args: argparse.Namespace, repository) -> int:
+    """Show every rights-bearing material of one project, whichever system created it.
+
+    Exit code is 0 for a report that contains only unknown/review_required items -
+    those need a human, but nothing is provably wrong - and 1 when something is
+    actually blocking: a forbidden asset or a scene with no material at all.
+    """
+    from src.project_foundation.evidence import EvidenceBundle
+    from src.projects import PROJECT_KIND_PROJECT_MANIFEST, ProjectNotFoundError, build_rights_report
+
+    try:
+        view = repository.get(args.project_id)
+    except ProjectNotFoundError as exc:
+        print(f"[rights] {exc}")
+        return 1
+
+    report = build_rights_report(
+        project_id=view.project_id, project_root=view.project_root, project_kind=view.kind
+    )
+
+    # Backward compatibility: everything the pre-Stage-C2 command printed for a
+    # project.json project came from EvidenceBundle.rights_report(). It is still
+    # produced and carried in the output so no previously available field is lost.
+    if view.kind == PROJECT_KIND_PROJECT_MANIFEST:
+        try:
+            report.evidence_bundle_report = EvidenceBundle.load(view.project_root, view.project_id).rights_report()
+        except Exception as exc:  # tolerant: a broken bundle must not kill the report
+            report.warnings.append(f"EvidenceBundle не прочитан: {exc}")
+
+    if getattr(args, "json_output", False):
+        _print_json(report.to_dict())
+        return 1 if report.has_blocking_problems else 0
+
+    summary = report.summary
+    print(f"Проект: {report.project_id}")
+    print(f"Тип: {report.project_kind}")
+    print(f"Папка: {Path(report.project_root).resolve()}")
+    print(f"Итоговый статус: {_RIGHTS_STATUS_LABELS.get(report.overall_status, report.overall_status)}")
+    print()
+    print(f"Всего материалов: {summary.total} (визуал {summary.visual_items}, музыка {summary.music_items}, прочее {summary.other_items})")
+    print(f"  Подтверждено:     {summary.verified}")
+    print(f"  Требует проверки: {summary.review_required}")
+    print(f"  Заблокировано:    {summary.blocked}")
+    print(f"  Нет данных:       {summary.unknown}")
+    print(f"Сцен без материала: {summary.scenes_without_asset}")
+
+    if report.items:
+        print()
+        print("Материалы:")
+        for item in report.items:
+            label = _RIGHTS_STATUS_LABELS.get(item.verification_status, item.verification_status)
+            scene = f" {item.scene_id}" if item.scene_id else ""
+            print(f"  [{item.media_role}]{scene} {item.item_id} — {label}")
+            if item.provider or item.author:
+                print(f"      источник: {item.provider or '-'} / {item.author or 'автор не указан'}")
+            if item.source_page_url:
+                print(f"      страница: {item.source_page_url}")
+            if item.license_name:
+                print(f"      лицензия: {item.license_name} ({item.commercial_use_status})")
+            if item.local_path:
+                mark = "" if item.local_file_present else "  ← ФАЙЛ НЕ НАЙДЕН"
+                print(f"      файл: {item.local_path}{mark}")
+            print(f"      записано в: {item.source_manifest}")
+            for warning in item.warnings:
+                print(f"      ! {warning}")
+
+    if report.missing_scenes:
+        print()
+        print("Сцены без материала (ролик нельзя считать готовым):")
+        for scene in report.missing_scenes:
+            print(f"  {scene.scene_id or '(без id)'} — {scene.reason or 'причина не записана'}")
+
+    if report.warnings:
+        print()
+        for warning in report.warnings:
+            print(f"! {warning}")
+
+    print()
+    print(f"Прочитанные манифесты: {', '.join(report.sources_read) or 'ни одного'}")
+    print(
+        "Отчёт показывает только то, что записано в проекте. Он не является юридическим "
+        "подтверждением прав: статусы «требует проверки» и «нет данных» нужно закрывать вручную."
+    )
+    return 1 if report.has_blocking_problems else 0
+
+
+def _print_plain(data: Any) -> None:
+    if isinstance(data, list):
+        for item in data:
+            print(item)
+    else:
+        print(data)
+
+
+def main(argv: list[str] | None = None) -> int:
+    configure_console_encoding()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return run_content_creation_cli(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

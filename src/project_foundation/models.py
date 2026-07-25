@@ -49,6 +49,29 @@ VERIFICATION_STATUSES = (
     VERIFICATION_UNKNOWN,
 )
 
+# What kind of material an evidence record describes. src.projects.rights re-exports
+# these so the unified rights report and the stored records cannot drift apart.
+MEDIA_ROLE_VISUAL = "visual"
+MEDIA_ROLE_MUSIC = "music"
+MEDIA_ROLE_VOICE = "voice"
+MEDIA_ROLE_OTHER = "other"
+
+MEDIA_ROLES = (MEDIA_ROLE_VISUAL, MEDIA_ROLE_MUSIC, MEDIA_ROLE_VOICE, MEDIA_ROLE_OTHER)
+
+# EvidenceRecord's own version, separate from the project/channel SCHEMA_VERSION:
+# v2 added the visual-provenance fields (see EvidenceRecord). Bumping the shared
+# SCHEMA_VERSION instead would have re-versioned ProjectManifest and ChannelProfile,
+# whose formats did not change.
+EVIDENCE_RECORD_SCHEMA_VERSION = 2
+
+# Recorded in EvidenceRecord.source_type: how the material reached the project.
+SOURCE_TYPE_USER_SUPPLIED = "user_supplied"
+SOURCE_TYPE_PROVIDER = "provider"
+
+# EvidenceRecord.provider for a file the user pointed at on their own disk. It is a
+# statement about *where the file came from*, never a claim about rights.
+PROVIDER_USER_SUPPLIED = "user_supplied"
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -279,6 +302,25 @@ class ProjectManifest:
 
 @dataclass
 class EvidenceRecord:
+    """One rights-bearing material, described well enough to be auditable.
+
+    Fields below ``schema_version`` v1 (evidence_id ... verification_status) are the
+    original set. The v2 additions exist for one reason: a real production workflow
+    finally writes evidence (Story Card), and the material it describes is a visual
+    asset whose provenance is already modelled elsewhere in this repository. The
+    extension is therefore not open-ended - it is exactly the set of facts that
+    ``src.projects.rights.RightsItem`` (the unified rights report) and
+    ``src.assets.models.AssetLicense``/``AssetProvenance`` (the canonical provider
+    contract) already carry and that a v1 record could not express without loss.
+
+    Deliberately *not* added: a second ``rights_status``. ``verification_status``
+    already is this record's rights status; duplicating it would let the two disagree.
+
+    v1 records stay readable unchanged - every new field is optional, and
+    ``allowed_for_render``/``review_required`` fall back to what the unified report
+    previously derived from ``verification_status`` when they are absent.
+    """
+
     evidence_id: str
     asset_id: str = ""
     source_url: str = ""
@@ -296,7 +338,18 @@ class EvidenceRecord:
     proof_files: list[str] = field(default_factory=list)
     notes: str = ""
     verification_status: str = VERIFICATION_UNKNOWN
-    schema_version: int = SCHEMA_VERSION
+    # --- schema v2 -------------------------------------------------------
+    media_role: str = MEDIA_ROLE_OTHER
+    media_type: str = ""
+    source_type: str = ""
+    provider_asset_id: str = ""
+    download_url: str = ""
+    author_url: str = ""
+    allowed_for_render: bool = False
+    review_required: bool = False
+    provenance: dict[str, Any] = field(default_factory=dict)
+    technical_validation: dict[str, Any] = field(default_factory=dict)
+    schema_version: int = EVIDENCE_RECORD_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
         self.evidence_id = _require_non_empty_str(self.evidence_id, field_name="evidence_id", owner="EvidenceRecord")
@@ -320,7 +373,24 @@ class EvidenceRecord:
                 f"EvidenceRecord {self.evidence_id!r}: unknown verification_status {self.verification_status!r}. "
                 f"Must be one of {list(VERIFICATION_STATUSES)}."
             )
-        self.schema_version = int(self.schema_version or SCHEMA_VERSION)
+        self.media_role = str(self.media_role or MEDIA_ROLE_OTHER)
+        if self.media_role not in MEDIA_ROLES:
+            # Raised rather than coerced, for the same reason verification_status is:
+            # a typo here would silently mis-file a material in the rights report.
+            raise ProjectFoundationError(
+                f"EvidenceRecord {self.evidence_id!r}: unknown media_role {self.media_role!r}. "
+                f"Must be one of {list(MEDIA_ROLES)}."
+            )
+        self.media_type = str(self.media_type or "")
+        self.source_type = str(self.source_type or "")
+        self.provider_asset_id = str(self.provider_asset_id or "")
+        self.download_url = str(self.download_url or "")
+        self.author_url = str(self.author_url or "")
+        self.allowed_for_render = bool(self.allowed_for_render)
+        self.review_required = bool(self.review_required)
+        self.provenance = dict(self.provenance or {})
+        self.technical_validation = dict(self.technical_validation or {})
+        self.schema_version = int(self.schema_version or EVIDENCE_RECORD_SCHEMA_VERSION)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -341,6 +411,16 @@ class EvidenceRecord:
             "proof_files": list(self.proof_files),
             "notes": self.notes,
             "verification_status": self.verification_status,
+            "media_role": self.media_role,
+            "media_type": self.media_type,
+            "source_type": self.source_type,
+            "provider_asset_id": self.provider_asset_id,
+            "download_url": self.download_url,
+            "author_url": self.author_url,
+            "allowed_for_render": self.allowed_for_render,
+            "review_required": self.review_required,
+            "provenance": dict(self.provenance),
+            "technical_validation": dict(self.technical_validation),
             "schema_version": self.schema_version,
         }
 
@@ -348,6 +428,7 @@ class EvidenceRecord:
     def from_dict(cls, data: dict[str, Any]) -> EvidenceRecord:
         if not isinstance(data, dict):
             raise ProjectFoundationError("EvidenceRecord.from_dict expects a dict.")
+        verification_status = data.get("verification_status", VERIFICATION_UNKNOWN)
         return cls(
             evidence_id=data.get("evidence_id", ""),
             asset_id=data.get("asset_id", ""),
@@ -365,8 +446,21 @@ class EvidenceRecord:
             original_filename=data.get("original_filename", ""),
             proof_files=data.get("proof_files", []),
             notes=data.get("notes", ""),
-            verification_status=data.get("verification_status", VERIFICATION_UNKNOWN),
-            schema_version=data.get("schema_version", SCHEMA_VERSION),
+            verification_status=verification_status,
+            media_role=data.get("media_role", MEDIA_ROLE_OTHER),
+            media_type=data.get("media_type", ""),
+            source_type=data.get("source_type", ""),
+            provider_asset_id=data.get("provider_asset_id", ""),
+            download_url=data.get("download_url", ""),
+            author_url=data.get("author_url", ""),
+            # A v1 record has neither flag. Falling back to what the unified rights
+            # report used to derive from the status keeps such records reading exactly
+            # as they did before this schema existed.
+            allowed_for_render=data.get("allowed_for_render", verification_status == VERIFICATION_VERIFIED),
+            review_required=data.get("review_required", verification_status == VERIFICATION_REVIEW_REQUIRED),
+            provenance=data.get("provenance", {}),
+            technical_validation=data.get("technical_validation", {}),
+            schema_version=data.get("schema_version", EVIDENCE_RECORD_SCHEMA_VERSION),
         )
 
 

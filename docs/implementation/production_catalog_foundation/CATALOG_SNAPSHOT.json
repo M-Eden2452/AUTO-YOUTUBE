@@ -1,0 +1,210 @@
+{
+  "schema_version": "production_catalog_foundation.v1",
+  "applications": [
+    {
+      "application_id": "content_creator",
+      "display_name": "Создание контента",
+      "description": "Создание нового видео из темы, сценария, текста или ссылки: сценарий, подбор визуала, озвучка и финальный рендер.",
+      "supported_input_types": [
+        "topic",
+        "script",
+        "text",
+        "url"
+      ],
+      "supported_format_ids": [
+        "vertical_short",
+        "longform"
+      ],
+      "enabled": true,
+      "implementation_status": "active"
+    },
+    {
+      "application_id": "video_repurposer",
+      "display_name": "Нарезка и переработка видео",
+      "description": "Планируемое приложение для нарезки и переработки уже существующего видео в короткие вертикальные или горизонтальные ролики. Workflow пока не реализован.",
+      "supported_input_types": [
+        "local_video",
+        "source_url"
+      ],
+      "supported_format_ids": [
+        "vertical_short",
+        "horizontal_clip"
+      ],
+      "enabled": false,
+      "implementation_status": "planned"
+    }
+  ],
+  "formats": [
+    {
+      "format_id": "vertical_short",
+      "display_name": "Короткое вертикальное видео",
+      "width": 1080,
+      "height": 1920,
+      "aspect_ratio": "9:16",
+      "enabled": true,
+      "implementation_status": "active"
+    },
+    {
+      "format_id": "longform",
+      "display_name": "Длинное видео",
+      "width": 1920,
+      "height": 1080,
+      "aspect_ratio": "16:9",
+      "enabled": true,
+      "implementation_status": "experimental"
+    },
+    {
+      "format_id": "horizontal_clip",
+      "display_name": "Горизонтальная нарезка",
+      "width": 1920,
+      "height": 1080,
+      "aspect_ratio": "16:9",
+      "enabled": false,
+      "implementation_status": "planned"
+    }
+  ],
+  "templates": [
+    {
+      "template_id": "story_card_text_only_v1",
+      "application_id": "content_creator",
+      "format_id": "vertical_short",
+      "display_name": "Карточка с текстом",
+      "description": "Короткое вертикальное видео без обязательной озвучки: верхний смысловой текст, центральное видео, блок канала и авторский комментарий.",
+      "version": 1,
+      "enabled": true,
+      "implementation_status": "active",
+      "supported_input_types": [
+        "topic",
+        "script",
+        "text"
+      ],
+      "supported_export_targets": [
+        "youtube_shorts",
+        "instagram_reels",
+        "tiktok",
+        "facebook_reels",
+        "stories"
+      ],
+      "requires_voice": false,
+      "supports_topic_input": true,
+      "supports_script_input": true,
+      "recommended_for": [
+        "короткие факты",
+        "животные",
+        "природные явления",
+        "одно визуально понятное событие",
+        "короткий ролик без обязательной озвучки"
+      ],
+      "render_preset_id": "story_card_short_v1",
+      "legacy_aliases": [
+        "story_card_short_v1"
+      ],
+      "workflow_binding": {
+        "workflow": "news_to_short",
+        "cli_entrypoint": "src.news.pipeline.run_news_to_short_cli",
+        "renderer": "src.production_plan.story_card_short_render",
+        "renderer_entrypoints": [
+          "load_story_card_preset",
+          "build_story_card_layout"
+        ]
+      },
+      "output_contract": {
+        "final_video": {
+          "type": "mp4",
+          "orientation": "vertical",
+          "required": true
+        },
+        "render_manifest": {
+          "type": "json",
+          "required": true
+        },
+        "layout_manifest": {
+          "type": "json",
+          "required": true
+        },
+        "preview_image": {
+          "type": "png",
+          "required": true
+        },
+        "technical_validation": {
+          "type": "json",
+          "required": true
+        }
+      },
+      "evidence_required": true,
+      "script_policy_id": null,
+      "asset_policy_id": null,
+      "audio_policy_id": null,
+      "duration_policy_id": null,
+      "selection_policy_id": null,
+      "quality_policy_id": null
+    }
+  ],
+  "export_targets": [
+    {
+      "target_id": "youtube_shorts",
+      "display_name": "YouTube Shorts",
+      "format_id": "vertical_short",
+      "width": 1080,
+      "height": 1920,
+      "aspect_ratio": "9:16",
+      "max_duration_sec": null,
+      "safe_zone_profile": "vertical_9x16_standard",
+      "output_filename": "youtube_shorts.mp4",
+      "enabled": true,
+      "implementation_status": "active"
+    },
+    {
+      "target_id": "instagram_reels",
+      "display_name": "Instagram Reels",
+      "format_id": "vertical_short",
+      "width": 1080,
+      "height": 1920,
+      "aspect_ratio": "9:16",
+      "max_duration_sec": null,
+      "safe_zone_profile": "vertical_9x16_standard",
+      "output_filename": "instagram_reels.mp4",
+      "enabled": true,
+      "implementation_status": "active"
+    },
+    {
+      "target_id": "tiktok",
+      "display_name": "TikTok",
+      "format_id": "vertical_short",
+      "width": 1080,
+      "height": 1920,
+      "aspect_ratio": "9:16",
+      "max_duration_sec": null,
+      "safe_zone_profile": "vertical_9x16_standard",
+      "output_filename": "tiktok.mp4",
+      "enabled": true,
+      "implementation_status": "active"
+    },
+    {
+      "target_id": "facebook_reels",
+      "display_name": "Facebook Reels",
+      "format_id": "vertical_short",
+      "width": 1080,
+      "height": 1920,
+      "aspect_ratio": "9:16",
+      "max_duration_sec": null,
+      "safe_zone_profile": "vertical_9x16_standard",
+      "output_filename": "facebook_reels.mp4",
+      "enabled": true,
+      "implementation_status": "active"
+    },
+    {
+      "target_id": "stories",
+      "display_name": "Stories (Instagram/Facebook)",
+      "format_id": "vertical_short",
+      "width": 1080,
+      "height": 1920,
+      "aspect_ratio": "9:16",
+      "max_duration_sec": null,
+      "safe_zone_profile": "vertical_9x16_standard",
+      "output_filename": "stories.mp4",
+      "enabled": true,
+      "implementation_status": "active"
+    }
+  ]
+}

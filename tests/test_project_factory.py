@@ -125,7 +125,31 @@ class ProjectFactoryCreateTests(unittest.TestCase):
 
             result = factory.create(channel, title="Auto Generated Id")
 
-            self.assertTrue(result.manifest.project_id.startswith("auto-generated-id-"))
+            # Stage B3: date first (so a folder listing sorts chronologically),
+            # then the title. The old format was title + a random hex suffix.
+            self.assertRegex(result.manifest.project_id, r"^\d{4}-\d{2}-\d{2}_auto-generated-id$")
+
+    def test_two_projects_with_the_same_title_do_not_collide(self) -> None:
+        with TemporaryDirectory() as tmp:
+            factory = ProjectFactory(base_dir=Path(tmp) / "projects")
+            channel = _channel()
+
+            first = factory.create(channel, title="Одинаковое название")
+            second = factory.create(channel, title="Одинаковое название")
+
+            self.assertNotEqual(first.manifest.project_id, second.manifest.project_id)
+            self.assertTrue(second.manifest.project_id.endswith("-2"))
+
+    def test_russian_title_is_transliterated_instead_of_being_dropped(self) -> None:
+        with TemporaryDirectory() as tmp:
+            factory = ProjectFactory(base_dir=Path(tmp) / "projects")
+
+            result = factory.create(_channel(), title="Почему вороны запоминают лица")
+
+            # The old _slugify stripped every non-ASCII character, which is how the
+            # one story-card project on disk ended up called "project-61958823".
+            self.assertIn("pochemu-vorony", result.manifest.project_id)
+            self.assertNotIn("project-", result.manifest.project_id)
 
     def test_list_and_get(self) -> None:
         with TemporaryDirectory() as tmp:

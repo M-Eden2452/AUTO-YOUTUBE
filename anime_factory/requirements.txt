@@ -1,0 +1,5 @@
+faster-whisper
+numpy
+soundfile
+pyyaml
+opencv-python<5

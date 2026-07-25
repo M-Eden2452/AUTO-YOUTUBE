@@ -1,0 +1,2 @@
+"""Anime Factory app wrapper."""
+

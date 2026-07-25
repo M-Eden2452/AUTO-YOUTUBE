@@ -1,0 +1,14 @@
+{
+  "font": "Arial",
+  "font_size": 72,
+  "max_lines": 2,
+  "max_words_per_fragment": 6,
+  "safe_zone_top": 180,
+  "safe_zone_bottom": 320,
+  "alignment": "center",
+  "outline": true,
+  "save_srt": true,
+  "save_ass": true,
+  "burned_in_default": true,
+  "export_without_subtitles": true
+}

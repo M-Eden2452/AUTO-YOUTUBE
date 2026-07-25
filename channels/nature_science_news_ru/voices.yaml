@@ -1,0 +1,25 @@
+voices:
+  ru_dom:
+    display_name: Dom
+    provider: elevenlabs
+    voice_id: hDfThiytYnsDMuVgm6Qy
+    model_id: eleven_multilingual_v2
+    language: ru
+    output_format: mp3_44100_128
+    enabled: true
+    settings:
+      stability: 0.60
+      similarity_boost: 0.75
+      style: 0.05
+      use_speaker_boost: true
+      speed: 1.02
+
+voice_workflow:
+  draft_provider: audio_file
+  paid_provider: elevenlabs
+  paid_tts_requires_approval: true
+  audition_requires_approval: true
+  full_generation_requires_approval: true
+  audition_max_characters: 300
+  never_auto_fallback_to_paid: true
+  audition_model_strategy: same_model

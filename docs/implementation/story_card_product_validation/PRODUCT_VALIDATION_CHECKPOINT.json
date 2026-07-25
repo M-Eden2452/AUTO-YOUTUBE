@@ -1,0 +1,91 @@
+{
+  "schema_version": "story_card_product_validation_checkpoint.v1",
+  "created_at_local": "2026-07-23T17:35:00+03:00",
+  "updated_at_local": "2026-07-23T18:07:56+03:00",
+  "completed_phases": [
+    "baseline",
+    "decision_calibration",
+    "owl_candidate_search",
+    "temporal_preview_analysis",
+    "controlled_semantic_test",
+    "shadow_ranking",
+    "story_card_render",
+    "verification",
+    "reports"
+  ],
+  "current_phase": "completed",
+  "next_action": "Stop and report final product validation result to the user.",
+  "selected_project": "projects/story_card_owl_test",
+  "selected_candidates": [
+    {
+      "asset_id": "pixabay_video_18244",
+      "role": "shadow_winner",
+      "provider": "pixabay",
+      "source_page_url": "https://pixabay.com/videos/id-18244/"
+    },
+    {
+      "asset_id": "pixabay_video_95059",
+      "role": "runner_up",
+      "provider": "pixabay",
+      "source_page_url": ""
+    }
+  ],
+  "api_calls_performed": {
+    "openai_vision_logical_calls": 2,
+    "openai_vision_external_http_attempts": 2,
+    "openai_vision_images": 6,
+    "provider_search_requests": 16,
+    "original_downloads": 1,
+    "envato_downloads": 0
+  },
+  "cost": {
+    "openai_vision_usd": 0.06904,
+    "budget_cap_usd": 0.2
+  },
+  "tests": {
+    "targeted": [
+      "python -m unittest tests.test_semantic_decision_policy -v: passed",
+      "python -m unittest tests.test_temporal_video_analysis -v: passed",
+      "python -m unittest tests.test_story_card_short_renderer -v: passed",
+      "combined targeted verification modules: passed (53 tests)"
+    ],
+    "full_unittest_discovery": {
+      "status": "passed",
+      "test_count": 276,
+      "duration_sec": 79.042,
+      "exit_code": 0,
+      "path": "docs/implementation/story_card_product_validation/TEST_RESULTS.txt"
+    }
+  },
+  "output_paths": {
+    "product_validation_plan": "docs/implementation/story_card_product_validation/PRODUCT_VALIDATION_PLAN.md",
+    "product_validation_checkpoint": "docs/implementation/story_card_product_validation/PRODUCT_VALIDATION_CHECKPOINT.json",
+    "calibration_report": "docs/implementation/story_card_product_validation/CALIBRATION_REPORT.md",
+    "owl_review_manifest": "projects/story_card_owl_test/visual_review_manifest.json",
+    "temporal_test_report": "docs/implementation/story_card_product_validation/TEMPORAL_TEST_REPORT.md",
+    "semantic_temporal_results": "projects/story_card_owl_test/semantic_temporal_results.json",
+    "temporal_contact_sheet": "projects/story_card_owl_test/assets/review/owl_temporal_contact_sheet.html",
+    "shadow_recommendation": "projects/story_card_owl_test/shadow_recommendation.json",
+    "shadow_ranking_report": "docs/implementation/story_card_product_validation/SHADOW_RANKING_REPORT.md",
+    "selected_asset": "projects/story_card_owl_test/selected_asset.json",
+    "final_test_video": "projects/story_card_owl_test/final_test.mp4",
+    "frame_preview": "projects/story_card_owl_test/frame_preview.png",
+    "render_manifest": "projects/story_card_owl_test/render_manifest.json",
+    "story_card_layout": "projects/story_card_owl_test/story_card_layout.json",
+    "sources": "projects/story_card_owl_test/sources.json",
+    "attribution": "projects/story_card_owl_test/ATTRIBUTION.md",
+    "test_report": "projects/story_card_owl_test/TEST_REPORT.md",
+    "story_card_report": "docs/implementation/story_card_product_validation/STORY_CARD_REPORT.md",
+    "product_validation_snapshot": "docs/implementation/story_card_product_validation/PRODUCT_VALIDATION_SNAPSHOT.json",
+    "test_results": "docs/implementation/story_card_product_validation/TEST_RESULTS.txt"
+  },
+  "baseline": {
+    "cwd": "G:/Projects/AI-YouTube",
+    "media_index_path": "assets/library/metadata/media_index.json",
+    "media_index_sha256": "61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385",
+    "production_selection_change_allowed": false,
+    "semantic_rerank_global_change_allowed": false,
+    "safe_defaults_change_allowed": false
+  },
+  "safe_to_resume": true
+}

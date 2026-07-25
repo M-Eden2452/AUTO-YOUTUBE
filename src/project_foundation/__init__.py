@@ -7,6 +7,8 @@ src.production_catalog, or src.production_plan.
 from .channels import ChannelRegistry
 from .evidence import EvidenceBundle
 from .models import (
+    EVIDENCE_RECORD_SCHEMA_VERSION,
+    MEDIA_ROLES,
     SCHEMA_VERSION,
     ChannelBranding,
     ChannelProfile,
@@ -23,6 +25,8 @@ from .projects import ProjectCreationResult, ProjectFactory
 
 __all__ = [
     "SCHEMA_VERSION",
+    "EVIDENCE_RECORD_SCHEMA_VERSION",
+    "MEDIA_ROLES",
     "PROJECT_STATUSES",
     "VERIFICATION_STATUSES",
     "ProjectFoundationError",

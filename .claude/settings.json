@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "default",
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./secrets/**)",
+      "Read(./**/secrets/**)",
+      "Read(./credentials/**)",
+      "Read(./**/credentials/**)",
+      "Read(./*.pem)",
+      "Read(./**/*.pem)",
+      "Read(./*.key)",
+      "Read(./**/*.key)",
+      "Read(./*credential*)",
+      "Read(./**/*credential*)",
+      "Read(./*secret*)",
+      "Read(./**/*secret*)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -r *)",
+      "Bash(del /s *)",
+      "Bash(rd /s *)",
+      "Bash(Remove-Item -Recurse *)",
+      "Bash(Remove-Item * -Recurse *)",
+      "Bash(*media-library migrate*--apply*)"
+    ]
+  }
+}
+

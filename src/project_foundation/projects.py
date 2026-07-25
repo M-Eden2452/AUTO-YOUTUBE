@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import re
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .models import ChannelProfile, ProjectFoundationError, ProjectManifest, utc_now_iso
+from .naming import build_project_id, slugify_title
 from .storage import atomic_write_json, ensure_dir, read_json_if_exists
 
 PROJECT_FILENAME = "project.json"
@@ -15,15 +14,23 @@ PROJECT_SUBDIRS = ("evidence", "assets", "outputs", "logs")
 
 
 def _slugify(title: str) -> str:
-    text = str(title or "").strip().lower()
-    text = re.sub(r"[^a-z0-9]+", "-", text)
-    text = text.strip("-")
-    return text or "project"
+    """Kept as the module's local name; the rule itself now lives in .naming so the
+    news pipeline and this factory cannot disagree about what a folder is called.
+
+    The old implementation dropped every non-ASCII character, which turned any
+    Russian title into the bare fallback - that is why the one existing story-card
+    project on disk is called ``project-61958823``.
+    """
+    return slugify_title(title)
 
 
-def generate_project_id(title: str) -> str:
-    suffix = uuid.uuid4().hex[:8]
-    return f"{_slugify(title)}-{suffix}"
+def generate_project_id(title: str, *, created_at: str | None = None, is_taken: Callable[[str], bool] | None = None) -> str:
+    """``YYYY-MM-DD_readable-title``; see src.project_foundation.naming.
+
+    ``is_taken`` is optional so existing callers keep working unchanged and the
+    result stays deterministic when no root is available to check against.
+    """
+    return build_project_id(title, created_at=created_at, is_taken=is_taken)
 
 
 @dataclass
@@ -77,7 +84,10 @@ class ProjectFactory:
         if not title:
             raise ProjectFoundationError("ProjectFactory.create requires a non-empty title.")
 
-        resolved_project_id = str(project_id or generate_project_id(title))
+        # Uniqueness is resolved against this factory's own root, so two projects
+        # created from the same title on the same day get -2, -3... instead of the
+        # second one failing with "already exists".
+        resolved_project_id = str(project_id or generate_project_id(title, is_taken=self.exists))
         resolved_application_id = str(application_id or channel.default_application or "")
         resolved_format_id = str(format_id or channel.default_format or "")
         resolved_template_id = str(template_id or channel.default_template or "")

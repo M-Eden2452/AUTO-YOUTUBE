@@ -1,0 +1,11 @@
+{
+  "channel_id": "nature_science_news_ru",
+  "visual_style": "restrained_nature_science_vertical",
+  "tone": "intriguing_factual",
+  "subtitle_style": "large_safe_zone_captions",
+  "avoid": [
+    "unverified claims",
+    "shock language",
+    "unknown rights assets"
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "schema_version": "product_validation_snapshot.v1",
+  "generated_at_local": "2026-07-23T18:07:56+03:00",
+  "project_id": "story_card_owl_test",
+  "phase_summary": {
+    "semantic_calibration": "completed",
+    "temporal_video_test": "completed",
+    "shadow_ranking": "completed",
+    "story_card_short": "completed"
+  },
+  "calibration": {
+    "raw_accuracy": 0.666667,
+    "calibrated_accuracy": 0.833333,
+    "pairwise_ranking_accuracy": "3/3"
+  },
+  "candidate_search": {
+    "provider_result_counts": {
+      "local_library": 0,
+      "pexels": 5,
+      "pixabay": 5,
+      "wikimedia": 0
+    },
+    "shortlist": [
+      {
+        "asset_id": "pixabay_video_95059",
+        "provider": "pixabay",
+        "source_page_url": "https://pixabay.com/videos/id-95059/",
+        "author_name": "NickyPe",
+        "metadata_score": 174.278
+      },
+      {
+        "asset_id": "pexels_video_34457347",
+        "provider": "pexels",
+        "source_page_url": "https://www.pexels.com/video/close-up-of-a-resting-owl-in-natural-habitat-34457347/",
+        "author_name": "Magda Ehlers",
+        "metadata_score": 164.278
+      },
+      {
+        "asset_id": "pixabay_video_18244",
+        "provider": "pixabay",
+        "source_page_url": "https://pixabay.com/videos/id-18244/",
+        "author_name": "Lirofilm",
+        "metadata_score": 161.278
+      },
+      {
+        "asset_id": "pexels_video_12709245",
+        "provider": "pexels",
+        "source_page_url": "https://www.pexels.com/video/video-of-a-wild-burrowing-owl-athene-cunicularia-12709245/",
+        "author_name": "Steven HAuse",
+        "metadata_score": 156.278
+      }
+    ]
+  },
+  "temporal_test": {
+    "positions": [
+      0.15,
+      0.5,
+      0.85
+    ],
+    "controlled_status": "completed",
+    "logical_calls": 2,
+    "images_sent": 6,
+    "external_http_attempts": 2,
+    "actual_cost_usd": 0.06904,
+    "winner": "pixabay_video_18244"
+  },
+  "shadow_recommendation": {
+    "recommended_candidate": "pixabay_video_18244",
+    "runner_up": "pixabay_video_95059",
+    "score_margin": 0.7066,
+    "confidence": "high",
+    "reasons": [
+      "A shows owl face orientation changing from front/near-front to side-facing across sampled frames.",
+      "B keeps a near-frontal/static head orientation and misses head-turn must-have terms.",
+      "OpenAI temporal semantic score and calibrated policy both favor A.",
+      "License policy allows internal edited-video production for the selected provider asset."
+    ],
+    "license_eligible": true
+  },
+  "render": {
+    "final_test_mp4": "projects/story_card_owl_test/final_test.mp4",
+    "frame_preview_png": "projects/story_card_owl_test/frame_preview.png",
+    "status": "completed",
+    "resolution": [
+      1080,
+      1920
+    ],
+    "fps": 30.0,
+    "duration_sec": 14.0,
+    "central_fragment": {
+      "start_sec": 13.0,
+      "duration_sec": 6.8,
+      "repeat_count": 2,
+      "first_zoom": 1.12,
+      "second_zoom": 1.24
+    },
+    "source": {
+      "provider": "pixabay",
+      "source_page_url": "https://pixabay.com/videos/id-18244/",
+      "author_name": "Lirofilm",
+      "license_name": "pixabay"
+    }
+  },
+  "verification": {
+    "selected_one_original": true,
+    "source_and_license_saved": true,
+    "mp4_opens": true,
+    "resolution_1080x1920": true,
+    "fps_30": true,
+    "duration_12_to_15_sec": true,
+    "central_fragment_5_to_7_sec": true,
+    "owl_visible_and_head_turn_noticeable": true,
+    "text_not_clipped_and_readable_manual_preview": true,
+    "card_inside_safe_zones": true,
+    "background_darkened_and_blurred": true,
+    "channel_block_displayed": true,
+    "bottom_comment_fits": true,
+    "semantic_global_selection_disabled": true,
+    "media_index_unchanged": true,
+    "paid_vision_cost_within_cap": true,
+    "openai_attempts_max_2": true,
+    "openai_images_max_6": true,
+    "envato_downloads_none": true,
+    "tts_not_performed": true,
+    "media_index_sha256": "61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385",
+    "media_index_baseline_sha256": "61B2C5B89F353659ACD48E299DEA3CE6478F28FA968B9149E615DD2051A30385"
+  },
+  "tests": {
+    "targeted": "passed: 53 tests",
+    "full_unittest_discovery": {
+      "status": "passed",
+      "test_count": 276,
+      "duration_sec": 79.042,
+      "exit_code": 0,
+      "path": "docs/implementation/story_card_product_validation/TEST_RESULTS.txt"
+    }
+  },
+  "output_paths": {
+    "final_test_mp4": "projects/story_card_owl_test/final_test.mp4",
+    "frame_preview_png": "projects/story_card_owl_test/frame_preview.png",
+    "test_report_md": "projects/story_card_owl_test/TEST_REPORT.md",
+    "story_card_report_md": "docs/implementation/story_card_product_validation/STORY_CARD_REPORT.md",
+    "product_validation_snapshot_json": "docs/implementation/story_card_product_validation/PRODUCT_VALIDATION_SNAPSHOT.json",
+    "test_results_txt": "docs/implementation/story_card_product_validation/TEST_RESULTS.txt"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "schema_version": "ai_youtube_handoff.v1",
+  "generated_at": "2026-07-23T21:16:40+03:00",
+  "project_root": "G:\\Projects\\AI-YouTube",
+  "current_branch": "master",
+  "handoff_files": [
+    "CLAUDE.md",
+    "docs/handoff/START_HERE.md",
+    "docs/handoff/CURRENT_STATE.md",
+    "docs/handoff/NEXT_PLAN.md",
+    "docs/handoff/CLI_CHEATSHEET.md",
+    "docs/handoff/REPO_SNAPSHOT.md",
+    "docs/handoff/HANDOFF_MANIFEST.json",
+    ".claude/settings.json"
+  ],
+  "source_documents": [
+    "pipeline.py",
+    "README.md",
+    "config/render_presets/story_card_short_v1.json",
+    "tests/test_story_card_short_renderer.py",
+    "tests/test_temporal_video_analysis.py",
+    "tests/test_semantic_decision_policy.py",
+    "docs/implementation/story_card_product_validation/PRODUCT_VALIDATION_SNAPSHOT.json",
+    "docs/implementation/story_card_product_validation/PRODUCT_VALIDATION_CHECKPOINT.json",
+    "docs/implementation/story_card_product_validation/STORY_CARD_REPORT.md",
+    "docs/implementation/story_card_product_validation/TEMPORAL_TEST_REPORT.md",
+    "docs/implementation/story_card_product_validation/SHADOW_RANKING_REPORT.md",
+    "docs/implementation/story_card_product_validation/CALIBRATION_REPORT.md",
+    "docs/implementation/openai_live_evaluation/results/LIVE_EVAL_REPORT.md",
+    "projects/story_card_owl_test/render_manifest.json",
+    "projects/story_card_owl_test/story_card_layout.json",
+    "projects/story_card_owl_test/selected_asset.json",
+    "projects/story_card_owl_test/shadow_recommendation.json"
+  ],
+  "key_entrypoints": {
+    "cli": "pipeline.py",
+    "news_to_short": "src/news/pipeline.py",
+    "story_card_renderer": "src/production_plan/story_card_short_render.py",
+    "visual_preview": "src/assets/visual_preview.py",
+    "temporal_analysis": "src/assets/temporal_video_analysis.py",
+    "semantic_service": "src/assets/semantic_visual_service.py",
+    "semantic_openai_backend": "src/assets/semantic_visual_openai.py",
+    "semantic_policy": "src/assets/semantic_decision_policy.py",
+    "voice_cli": "src/audio/voice_cli.py",
+    "production_catalog_models": "src/production_catalog/models.py",
+    "production_catalog_registry": "src/production_catalog/registry.py",
+    "production_catalog": "src/production_catalog/catalog.py",
+    "production_catalog_cli": "src/production_catalog/cli.py"
+  },
+  "key_configs": [
+    "config/render_presets/story_card_short_v1.json",
+    "config/license_policy.json",
+    "config/visual_preview.json",
+    "config/semantic_visual.json",
+    "config/semantic_visual_eval.json",
+    "channels/nature_science_news_ru/voices.yaml"
+  ],
+  "key_tests": [
+    "tests/test_story_card_short_renderer.py",
+    "tests/test_temporal_video_analysis.py",
+    "tests/test_semantic_decision_policy.py",
+    "tests/test_production_catalog_foundation.py"
+  ],
+  "current_test_artifact": {
+    "project": "projects/story_card_owl_test",
+    "final_mp4": "projects/story_card_owl_test/final_test.mp4",
+    "render_manifest": "projects/story_card_owl_test/render_manifest.json",
+    "layout": "projects/story_card_owl_test/story_card_layout.json",
+    "selected_asset": "projects/story_card_owl_test/selected_asset.json",
+    "shadow_recommendation": "projects/story_card_owl_test/shadow_recommendation.json"
+  },
+  "next_task": "Stage 2B: Project / Channel / Evidence Foundation (ChannelProfile, ProjectManifest, ProjectFactory, EvidenceBundle, ChannelOutputPolicy, channels list/inspect, test channel nature_pulse).",
+  "paid_api_required_for_next_task": false,
+  "safe_to_start_claude_code": true,
+  "completed_stages": [
+    "Stage 1: adaptive story_card_short_v1 (projects/story_card_owl_test/final_test_v2.mp4)",
+    "Stage 2A: Production Catalog Foundation (src/production_catalog/, applications/formats/templates/export-targets read-only CLI)"
+  ],
+  "production_catalog": {
+    "location": "src/production_catalog/",
+    "cli_commands": ["applications", "formats", "templates", "export-targets"],
+    "first_template_id": "story_card_text_only_v1",
+    "first_template_legacy_alias": "story_card_short_v1",
+    "report": "docs/implementation/production_catalog_foundation/CATALOG_REPORT.md"
+  },
+  "warnings": [
+    "Do not read or modify .env or credential files.",
+    "Do not run paid APIs without explicit user approval.",
+    "Do not run provider search, Vision, TTS, downloads, or full unittest suite without explicit approval.",
+    "Do not overwrite projects/story_card_owl_test/final_test.mp4 or final_test_v2.mp4.",
+    "Do not run media-library migrate --apply without separate confirmation.",
+    "Do not create ProjectManifest/ChannelProfile/EvidenceBundle or project/channel folders until Stage 2B is scoped and approved.",
+    "Repository already contains many uncommitted tracked and untracked changes."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "channel_id": "nature_pulse",
+  "display_name": "Nature Pulse (test)",
+  "description": "",
+  "default_language": "ru",
+  "supported_languages": [
+    "ru"
+  ],
+  "default_application": "content_creator",
+  "default_format": "vertical_short",
+  "default_template": "story_card_text_only_v1",
+  "export_targets": [
+    "youtube_shorts",
+    "instagram_reels"
+  ],
+  "branding": {
+    "channel_name": "",
+    "logo_path": "",
+    "primary_font": "",
+    "secondary_font": "",
+    "default_music_policy": "optional",
+    "default_voice_id": "",
+    "visual_style_notes": ""
+  },
+  "output_policy": {},
+  "created_at": "2026-07-24T15:23:07Z",
+  "updated_at": "2026-07-24T15:23:07Z",
+  "schema_version": 1
+}

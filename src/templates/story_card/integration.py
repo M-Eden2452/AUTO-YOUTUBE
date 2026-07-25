@@ -5,7 +5,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from src.project_foundation.models import ChannelProfile, ProjectManifest
+from src.project_foundation.evidence import EvidenceBundle
+from src.project_foundation.models import (
+    VERIFICATION_VERIFIED,
+    ChannelProfile,
+    ProjectManifest,
+)
 from src.project_foundation.policies import ChannelOutputPolicy
 from src.project_foundation.storage import atomic_write_json, ensure_dir
 from src.production_plan.story_card_short_render import (
@@ -15,6 +20,10 @@ from src.production_plan.story_card_short_render import (
 )
 
 STORY_CARD_CANONICAL_TEMPLATE_ID = "story_card_text_only_v1"
+
+# This template uses exactly one visual, so one stable id is enough: re-rendering the
+# same project replaces the record instead of piling up near-duplicates.
+STORY_CARD_VISUAL_EVIDENCE_ID = "visual_source_asset"
 STORY_CARD_LEGACY_ALIASES = ("story_card_short_v1",)
 STORY_CARD_SUPPORTED_FORMAT_ID = "vertical_short"
 
@@ -149,11 +158,62 @@ def _check_channel_compatibility(
             )
 
 
+def _record_source_asset_evidence(
+    *,
+    project: ProjectManifest,
+    source_asset: Path,
+    asset: Any,
+    warnings: list[str],
+) -> dict[str, Any]:
+    """Store what this project is really using, in the project's own EvidenceBundle.
+
+    Uses the existing bundle at ``<project_root>/evidence/evidence_manifest.json`` -
+    the same file ``src.projects.build_rights_report`` already reads - rather than a
+    story-card-specific format. The record is keyed by a fixed evidence_id because
+    this template has exactly one visual, so re-rendering updates it in place.
+
+    Raises StoryCardIntegrationError if the material cannot be described. That is
+    deliberate: this template is registered with evidence_required=True, and a video
+    whose source we cannot account for is worse than a video we did not make.
+    """
+    from src.assets.evidence_adapter import AssetEvidenceError, build_asset_evidence_record
+
+    try:
+        record = build_asset_evidence_record(
+            evidence_id=STORY_CARD_VISUAL_EVIDENCE_ID, local_path=source_asset, asset=asset
+        )
+    except AssetEvidenceError as exc:
+        raise StoryCardIntegrationError(f"Could not record evidence for the source asset: {exc}") from exc
+
+    bundle = EvidenceBundle.load(project.project_root, project.project_id)
+    bundle.add(record, overwrite=True)
+    manifest_path = bundle.save(project.project_root)
+
+    if record.verification_status != VERIFICATION_VERIFIED:
+        warnings.append(
+            f"Права на исходный материал не подтверждены (статус: {record.verification_status}, "
+            f"источник: {record.source_type or 'не указан'}). Подробности: "
+            "project rights-report --project-id "
+            f"{project.project_id}."
+        )
+
+    return {
+        "evidence_id": record.evidence_id,
+        "evidence_manifest_path": Path(manifest_path).as_posix(),
+        "checksum_sha256": record.checksum_sha256,
+        "source_type": record.source_type,
+        "provider": record.provider,
+        "rights_status": record.verification_status,
+        "review_required": record.review_required,
+    }
+
+
 def prepare_story_card_render(
     project: ProjectManifest,
     *,
     channel: ChannelProfile | None = None,
     source_asset_path: str | Path,
+    source_asset: Any = None,
     text: dict[str, str],
     render_preset_path: str | Path = DEFAULT_STORY_CARD_PRESET_PATH,
     output_filename: str = DEFAULT_OUTPUT_FILENAME,
@@ -168,6 +228,12 @@ def prepare_story_card_render(
     Never touches the network, never downloads assets, never calls TTS. Only
     reads a local source_asset_path and writes under project.project_root.
     When dry_run is True, no files are written regardless of `render`.
+
+    ``source_asset`` is optional provenance for the same file: an AssetCandidate /
+    DownloadedAsset (or its dict form) when the material came from a provider, so
+    its licence and provenance are stored instead of being flattened into
+    "user_supplied". ``source_asset_path`` always decides which file is rendered
+    and which file the checksum is taken from.
     """
     if not isinstance(project, ProjectManifest):
         raise StoryCardIntegrationError("prepare_story_card_render requires a ProjectManifest instance.")
@@ -186,8 +252,8 @@ def prepare_story_card_render(
             raise StoryCardIntegrationError("channel must be a ChannelProfile instance when provided.")
         _check_channel_compatibility(channel, project, canonical_template_id, warnings)
 
-    source_asset = Path(source_asset_path)
-    if not source_asset.is_file():
+    source_asset_path_resolved = Path(source_asset_path)
+    if not source_asset_path_resolved.is_file():
         raise StoryCardIntegrationError(f"source_asset_path {source_asset_path!r} does not exist or is not a file.")
 
     top_text = str((text or {}).get("top") or "").strip()
@@ -236,7 +302,7 @@ def prepare_story_card_render(
             height=height,
             fps=fps,
             duration_seconds=duration_seconds,
-            source_asset=str(source_asset),
+            source_asset=str(source_asset_path_resolved),
             localization=localization,
             warnings=warnings,
             metadata=metadata,
@@ -257,11 +323,18 @@ def prepare_story_card_render(
             height=height,
             fps=fps,
             duration_seconds=duration_seconds,
-            source_asset=str(source_asset),
+            source_asset=str(source_asset_path_resolved),
             localization=localization,
             warnings=warnings,
             metadata=metadata,
         )
+
+    # Record what is being used *before* rendering: this is the moment the project
+    # commits to one specific file, and the checksum below is taken from that same
+    # file, so a candidate swapped out earlier can never end up in the report.
+    evidence = _record_source_asset_evidence(
+        project=project, source_asset=source_asset_path_resolved, asset=source_asset, warnings=warnings
+    )
 
     render_request = {
         "schema_version": "story_card_render_request.v1",
@@ -271,11 +344,15 @@ def prepare_story_card_render(
         "canonical_template_id": canonical_template_id,
         "format_id": project.format_id,
         "language": project.language,
-        "source_asset": str(source_asset),
+        "source_asset": str(source_asset_path_resolved),
         "output_path": output_path.as_posix(),
         "frame_preview_path": preview_path.as_posix(),
         "preset": preset,
+        # Ties the render input to its rights record: same file, same checksum.
+        "evidence_id": evidence.get("evidence_id", ""),
+        "source_asset_checksum_sha256": evidence.get("checksum_sha256", ""),
     }
+    metadata["evidence"] = evidence
     ensure_dir(output_path.parent)
     atomic_write_json(render_request_path, render_request)
 
@@ -291,14 +368,14 @@ def prepare_story_card_render(
             height=height,
             fps=fps,
             duration_seconds=duration_seconds,
-            source_asset=str(source_asset),
+            source_asset=str(source_asset_path_resolved),
             localization=localization,
             warnings=warnings,
             metadata=metadata,
         )
 
     render_manifest = render_story_card_short(
-        source_video=source_asset,
+        source_video=source_asset_path_resolved,
         output_path=output_path,
         frame_preview_path=preview_path,
         preset=preset,
@@ -317,7 +394,7 @@ def prepare_story_card_render(
         height=int(render_manifest.get("resolution", {}).get("height") or height),
         fps=fps,
         duration_seconds=float(render_manifest.get("duration_sec") or duration_seconds),
-        source_asset=str(source_asset),
+        source_asset=str(source_asset_path_resolved),
         localization=localization,
         warnings=warnings,
         metadata=metadata,

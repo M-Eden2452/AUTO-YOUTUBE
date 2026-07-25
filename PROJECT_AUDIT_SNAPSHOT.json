@@ -1,0 +1,447 @@
+{
+  "audit": {
+    "generated_at": "2026-07-22T22:07:00+03:00",
+    "project_root": "G:/Projects/AI-YouTube",
+    "git_branch": "master",
+    "git_commit": "adb40fa944318646aef66102cbb1352e40b7cacc",
+    "git_status_clean": false,
+    "tests_executed": false
+  },
+  "counts": {
+    "source_files": 312,
+    "python_files": 127,
+    "test_files": 22,
+    "entrypoints": 7,
+    "pipelines": 9,
+    "providers": 5,
+    "project_directories": 8,
+    "media_library_records": 64
+  },
+  "entrypoints": [
+    "pipeline.py",
+    "apps/news_to_short/main.py",
+    "apps/news_to_short/__main__.py",
+    "apps/youtube_pipeline/main.py",
+    "apps/anime_factory/main.py",
+    "anime_factory/pipeline.py",
+    "legacy/main.py"
+  ],
+  "pipelines": [
+    {
+      "name": "news-to-short",
+      "entrypoint": "src/news/pipeline.py",
+      "status": "works partially",
+      "end_to_end": false,
+      "manual_steps": [
+        "manual voice approval or manual WAV import",
+        "manual review/replacement of assets when selected assets are not local"
+      ],
+      "critical_gaps": [
+        "asset search does not download selected provider assets in the main pipeline",
+        "final renderer expects local asset paths",
+        "preview renderer depends on existing final output"
+      ]
+    },
+    {
+      "name": "old documentary/quote pipeline",
+      "entrypoint": "pipeline.py",
+      "status": "prototype/legacy",
+      "end_to_end": true,
+      "manual_steps": [
+        "prepare channel and video configuration",
+        "provide valid API keys or local fallbacks"
+      ],
+      "critical_gaps": [
+        "weak license provenance",
+        "mixed legacy and current schemas"
+      ]
+    },
+    {
+      "name": "production plan generator",
+      "entrypoint": "src/production_plan/youtube_shorts.py",
+      "status": "experiment",
+      "end_to_end": true,
+      "manual_steps": [
+        "review fixed project files"
+      ],
+      "critical_gaps": [
+        "hardcoded to solar_vs_nuclear"
+      ]
+    },
+    {
+      "name": "solar_vs_nuclear render",
+      "entrypoint": "src/production_plan/solar_vs_nuclear_render.py",
+      "status": "experiment",
+      "end_to_end": false,
+      "manual_steps": [
+        "provide final voice WAV or allow ElevenLabs synthesis"
+      ],
+      "critical_gaps": [
+        "can perform paid ElevenLabs call outside the shared safe voice workflow",
+        "project-specific asset logic"
+      ]
+    },
+    {
+      "name": "anime_factory",
+      "entrypoint": "anime_factory/pipeline.py",
+      "status": "experiment",
+      "end_to_end": false,
+      "manual_steps": [
+        "provide local episode video",
+        "select/render candidates as needed"
+      ],
+      "critical_gaps": [
+        "separate from stock/license/news architecture",
+        "copyright handling outside project license system"
+      ]
+    },
+    {
+      "name": "size comparison",
+      "entrypoint": "src/size_comparison_engine.py",
+      "status": "experiment",
+      "end_to_end": false,
+      "manual_steps": [
+        "prepare size comparison content and config"
+      ],
+      "critical_gaps": [
+        "specialized engine"
+      ]
+    },
+    {
+      "name": "voice workflow",
+      "entrypoint": "src/audio/voice_cli.py",
+      "status": "works partially",
+      "end_to_end": false,
+      "manual_steps": [
+        "approve paid provider or import manual WAV"
+      ],
+      "critical_gaps": [
+        "not unified across old and solar render paths"
+      ]
+    },
+    {
+      "name": "stock downloader workflows",
+      "entrypoint": "src/news/stock_video_downloader.py",
+      "status": "prototype/legacy",
+      "end_to_end": false,
+      "manual_steps": [
+        "invoke separately or integrate manually"
+      ],
+      "critical_gaps": [
+        "duplicated implementations",
+        "not connected to main news pipeline"
+      ]
+    },
+    {
+      "name": "legacy OpenAI/b-roll scripts",
+      "entrypoint": "legacy/main.py",
+      "status": "legacy",
+      "end_to_end": false,
+      "manual_steps": [
+        "standalone script execution"
+      ],
+      "critical_gaps": [
+        "not part of current pipeline"
+      ]
+    }
+  ],
+  "providers": [
+    {
+      "name": "Pexels",
+      "implementation_files": [
+        "src/providers/pexels_provider.py",
+        "src/news/asset_manager.py",
+        "src/news/stock_video_downloader.py",
+        "src/video_asset_engine.py",
+        "src/production_plan/solar_vs_nuclear_render.py",
+        "legacy/download_broll.py"
+      ],
+      "official_api": true,
+      "supports_search": true,
+      "supports_preview": false,
+      "supports_download": true,
+      "supports_license_metadata": false,
+      "connected_to_main_pipeline": false
+    },
+    {
+      "name": "Pixabay",
+      "implementation_files": [
+        "src/providers/pixabay_provider.py",
+        "src/news/asset_manager.py",
+        "src/news/stock_video_downloader.py",
+        "src/video_asset_engine.py",
+        "src/music_engine.py",
+        "src/production_plan/solar_vs_nuclear_render.py"
+      ],
+      "official_api": true,
+      "supports_search": true,
+      "supports_preview": false,
+      "supports_download": true,
+      "supports_license_metadata": false,
+      "connected_to_main_pipeline": false
+    },
+    {
+      "name": "Unsplash",
+      "implementation_files": [
+        "src/providers/unsplash_provider.py",
+        "src/news/asset_manager.py"
+      ],
+      "official_api": true,
+      "supports_search": true,
+      "supports_preview": false,
+      "supports_download": false,
+      "supports_license_metadata": false,
+      "connected_to_main_pipeline": false
+    },
+    {
+      "name": "Local media library",
+      "implementation_files": [
+        "src/media_library.py",
+        "assets/library/metadata/media_index.json"
+      ],
+      "official_api": false,
+      "supports_search": true,
+      "supports_preview": true,
+      "supports_download": false,
+      "supports_license_metadata": false,
+      "connected_to_main_pipeline": true
+    },
+    {
+      "name": "Manual/user assets",
+      "implementation_files": [
+        "src/news/asset_manager.py",
+        "src/news/models.py"
+      ],
+      "official_api": false,
+      "supports_search": false,
+      "supports_preview": false,
+      "supports_download": false,
+      "supports_license_metadata": true,
+      "connected_to_main_pipeline": true
+    }
+  ],
+  "external_services": [
+    "ElevenLabs",
+    "OpenAI legacy",
+    "Pexels",
+    "Pixabay",
+    "Unsplash"
+  ],
+  "environment_variables": [
+    "ELEVENLABS_API_KEY",
+    "ELEVENLABS_VOICE_ID",
+    "OPENAI_API_KEY",
+    "PEXELS_API_KEY",
+    "PIXABAY_API_KEY",
+    "UNSPLASH_ACCESS_KEY"
+  ],
+  "components": [
+    {
+      "name": "Input",
+      "status": "works partially",
+      "main_files": [
+        "pipeline.py",
+        "src/news/models.py",
+        "src/channel_loader.py"
+      ],
+      "works": [
+        "topic/url/text/channel/local video inputs"
+      ],
+      "partial": [
+        "validation is fragmented"
+      ],
+      "missing": [
+        "product UI input flow"
+      ],
+      "criticality": "high"
+    },
+    {
+      "name": "Asset download",
+      "status": "requires fix",
+      "main_files": [
+        "src/news/stock_video_downloader.py",
+        "src/video_asset_engine.py",
+        "src/asset_finder.py"
+      ],
+      "works": [
+        "downloads in standalone and old flows"
+      ],
+      "partial": [
+        "some validation exists"
+      ],
+      "missing": [
+        "main news integrated download stage",
+        "unified retry and checksum"
+      ],
+      "criticality": "critical"
+    },
+    {
+      "name": "License tracking",
+      "status": "requires fix",
+      "main_files": [
+        "src/media_library.py",
+        "src/news/models.py"
+      ],
+      "works": [
+        "some source/provider fields"
+      ],
+      "partial": [
+        "license_note and rights flags are inconsistent"
+      ],
+      "missing": [
+        "proof-grade AssetLicense schema"
+      ],
+      "criticality": "critical"
+    },
+    {
+      "name": "Voice",
+      "status": "works partially",
+      "main_files": [
+        "src/audio/voice_workflow.py",
+        "src/audio/elevenlabs_provider.py",
+        "src/news/voice_stage.py",
+        "src/voice_engine.py"
+      ],
+      "works": [
+        "manual WAV and safe provider workflow"
+      ],
+      "partial": [
+        "multiple voice flows"
+      ],
+      "missing": [
+        "unified paid-call policy across all pipelines"
+      ],
+      "criticality": "high"
+    },
+    {
+      "name": "Rendering",
+      "status": "works partially",
+      "main_files": [
+        "src/news/final_renderer.py",
+        "src/video_renderer.py",
+        "src/production_plan/solar_vs_nuclear_render.py"
+      ],
+      "works": [
+        "FFmpeg/MoviePy based MP4 output"
+      ],
+      "partial": [
+        "center crop and separate renderers"
+      ],
+      "missing": [
+        "unified render service",
+        "dynamic crop for news stock"
+      ],
+      "criticality": "high"
+    }
+  ],
+  "critical_issues": [
+    "News asset search does not download selected provider assets",
+    "Final news renderer expects local file paths that selected assets may not have",
+    "News stock downloader is not connected to the main news pipeline",
+    "License/provenance schema is incomplete and inconsistent",
+    "Media library records lack author and rights_status fields",
+    "Provider and downloader code is duplicated across multiple modules",
+    "Visual matching is metadata-only and topic-biased",
+    "Pexels/Pixabay search is landscape-biased while Shorts output is vertical",
+    "No unified retry/backoff/rate-limit handling",
+    "Solar render can call paid ElevenLabs outside the safe approval flow",
+    "No manifest versioning or migrations",
+    "No atomic writes or locks for project state",
+    "No real UI for review/replacement/progress",
+    "News preview renderer depends on existing final output",
+    "CI/CD and packaging are absent"
+  ],
+  "high_priority_issues": [
+    "Define one primary pipeline",
+    "Create unified provider contract",
+    "Create unified asset/license schema",
+    "Add fake-provider end-to-end tests",
+    "Consolidate voice paid-call safety",
+    "Centralize FFmpeg helpers",
+    "Add schema validation and project repair diagnostics"
+  ],
+  "legacy_areas": [
+    "legacy",
+    "old documentary pipeline modules in root src",
+    "legacy/download_broll.py",
+    "src/voice_engine.py old TTS path",
+    "duplicated old image asset finder"
+  ],
+  "duplicate_implementations": [
+    "Pexels search/download in news asset_manager, news stock downloader, video_asset_engine, production plan renderer, legacy downloader",
+    "Pixabay search/download in news asset_manager, news stock downloader, video_asset_engine, music_engine, production plan renderer",
+    "ElevenLabs usage in src/audio, src/voice_engine.py, production plan renderer",
+    "Renderers in news, old pipeline, production plan, anime_factory",
+    "Subtitle generation in news, solar renderer, anime_factory"
+  ],
+  "files_reviewed": [
+    "pipeline.py",
+    "requirements.txt",
+    ".env.example",
+    "README.md",
+    "src/news/pipeline.py",
+    "src/news/models.py",
+    "src/news/project_store.py",
+    "src/news/asset_manager.py",
+    "src/news/stock_video_downloader.py",
+    "src/news/final_renderer.py",
+    "src/news/voice_stage.py",
+    "src/news/subtitles.py",
+    "src/assets/semantic_selection/models.py",
+    "src/assets/semantic_selection/scene_analyzer.py",
+    "src/assets/semantic_selection/query_generator.py",
+    "src/assets/semantic_selection/candidate_ranker.py",
+    "src/providers/pexels_provider.py",
+    "src/providers/pixabay_provider.py",
+    "src/providers/unsplash_provider.py",
+    "src/media_library.py",
+    "src/audio/voice_workflow.py",
+    "src/audio/elevenlabs_provider.py",
+    "src/video_asset_engine.py",
+    "src/video_renderer.py",
+    "src/production_plan/youtube_shorts.py",
+    "src/production_plan/solar_vs_nuclear_render.py",
+    "anime_factory/pipeline.py",
+    "legacy/main.py"
+  ],
+  "directories_reviewed": [
+    "src",
+    "src/news",
+    "src/assets",
+    "src/providers",
+    "src/audio",
+    "src/production_plan",
+    "apps",
+    "anime_factory",
+    "channels",
+    "config",
+    "content",
+    "projects",
+    "project_solar_vs_nuclear",
+    "assets/library/metadata",
+    "tests",
+    "docs",
+    "legacy"
+  ],
+  "areas_not_fully_reviewed": [
+    ".git internals",
+    "venv",
+    "__pycache__",
+    "MOSS_TTS_Nano full external engine and model weights",
+    "binary media files",
+    "rendered videos and audio content",
+    ".env secret values",
+    "live external API behavior",
+    "runtime test results"
+  ],
+  "report_files": [
+    "PROJECT_AUDIT_INDEX.md",
+    "PROJECT_AUDIT_OVERVIEW.md",
+    "PROJECT_AUDIT_ARCHITECTURE.md",
+    "PROJECT_AUDIT_PIPELINES.md",
+    "PROJECT_AUDIT_COMPONENTS.md",
+    "PROJECT_AUDIT_RISKS_TESTS.md",
+    "PROJECT_AUDIT_ROADMAP.md",
+    "PROJECT_AUDIT_SNAPSHOT.json"
+  ]
+}

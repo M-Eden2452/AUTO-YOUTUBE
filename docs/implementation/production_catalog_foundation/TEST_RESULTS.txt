@@ -1,0 +1,38 @@
+test_applications_inspect_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_applications_inspect_cli) ... ok
+test_applications_list_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_applications_list_cli) ... ok
+test_cli_via_subprocess_smoke (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_cli_via_subprocess_smoke) ... ok
+test_export_targets_list_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_export_targets_list_cli) ... ok
+test_formats_list_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_formats_list_cli) ... ok
+test_no_project_or_render_files_created_by_catalog_commands (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_no_project_or_render_files_created_by_catalog_commands) ... ok
+test_read_only_cli_does_not_call_network (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_read_only_cli_does_not_call_network) ... ok
+test_templates_inspect_canonical_id_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_templates_inspect_canonical_id_cli) ... ok
+test_templates_inspect_legacy_alias_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_templates_inspect_legacy_alias_cli) ... ok
+test_templates_list_cli (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_templates_list_cli) ... ok
+test_unknown_template_cli_exits_nonzero (tests.test_production_catalog_foundation.ProductionCatalogCliTests.test_unknown_template_cli_exits_nonzero) ... ok
+test_content_creator_registered_active_and_enabled (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_content_creator_registered_active_and_enabled) ... ok
+test_duplicate_alias_rejected (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_duplicate_alias_rejected) ... ok
+test_duplicate_template_id_rejected (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_duplicate_template_id_rejected) ... ok
+test_export_target_catalog_validation (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_export_target_catalog_validation) ... ok
+test_invalid_implementation_status_rejected (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_invalid_implementation_status_rejected) ... ok
+test_legacy_alias_resolves_to_canonical_id (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_legacy_alias_resolves_to_canonical_id) ... ok
+test_template_returned_by_canonical_id (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_template_returned_by_canonical_id) ... ok
+test_templates_filter_by_application_and_format (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_templates_filter_by_application_and_format) ... ok
+test_unknown_format_returns_clear_error (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_unknown_format_returns_clear_error) ... ok
+test_unknown_template_returns_clear_error (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_unknown_template_returns_clear_error) ... ok
+test_vertical_short_format_registered (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_vertical_short_format_registered) ... ok
+test_video_repurposer_registered_planned_and_disabled (tests.test_production_catalog_foundation.ProductionCatalogModelTests.test_video_repurposer_registered_planned_and_disabled) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 2.019s
+
+OK
+test_adaptive_layout_fills_card_and_protects_video (tests.test_story_card_short_renderer.StoryCardShortRendererTests.test_adaptive_layout_fills_card_and_protects_video) ... ok
+test_layout_keeps_card_inside_safe_zones (tests.test_story_card_short_renderer.StoryCardShortRendererTests.test_layout_keeps_card_inside_safe_zones) ... ok
+test_smoke_render_creates_vertical_mp4_and_preview (tests.test_story_card_short_renderer.StoryCardShortRendererTests.test_smoke_render_creates_vertical_mp4_and_preview) ... ok
+test_story_card_preset_contract (tests.test_story_card_short_renderer.StoryCardShortRendererTests.test_story_card_preset_contract) ... ok
+test_apps_entrypoints_exist_without_moving_legacy_modules (tests.test_apps_structure.AppsStructureTests.test_apps_entrypoints_exist_without_moving_legacy_modules) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 1.682s
+
+OK
