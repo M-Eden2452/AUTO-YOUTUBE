@@ -168,7 +168,7 @@ Application → Input Source → Format → Template → Channel(Presentation Pr
 | `apps/youtube_pipeline/main.py`, `apps/anime_factory/main.py` | обёртки-заглушки | по 9 строк, вызывают чужой `main()` |
 | `packages/` | planned | только README |
 | `subtitles/` в корне | пустая | — |
-| Корневые `PROJECT_AUDIT*.md` (8 файлов) | документация | место — `docs/audits/` |
+| Корневые `PROJECT_AUDIT*.md`/`IMPLEMENTATION_PROVIDER_FOUNDATION_*` | документация | **сделано в Stage S1-Light**: перемещены в `docs/audits/` и `docs/implementation/provider_foundation/` (`git mv`, история сохранена) |
 
 ---
 

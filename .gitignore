@@ -29,9 +29,11 @@ outputs/**/render_temp/
 /projects/
 anime_factory/episodes/*
 !anime_factory/episodes/.gitkeep
-project_solar_vs_nuclear/**/*.jpg
-project_solar_vs_nuclear/**/*.jpeg
-project_solar_vs_nuclear/**/*.png
+# Root-anchored (leading slash) so this rule never matches a same-named
+# directory nested elsewhere in the tree - see the /projects/ rule above,
+# which had exactly that bug before it was anchored. Confirmed (S1-Light)
+# to hold no Python code: this is local experiment data and stock previews.
+/project_solar_vs_nuclear/
 assets/*
 !assets/library/
 assets/library/videos/
