@@ -11,6 +11,7 @@ project with two meanings of "warning" is a project that reports neither.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -182,6 +183,9 @@ class SceneVisualPlan:
     duration_sec: float = 0.0
     notes: str = ""
     warnings: list[str] = field(default_factory=list)
+    # The author's explicit instruction, when they gave one. Set by the engine after
+    # the planner has run; ``None`` means the scene was planned by extraction alone.
+    brief: Any | None = None
 
     @property
     def primary_intent(self) -> VisualSearchIntent | None:
@@ -371,3 +375,60 @@ __all__ = [
     "VisualPlanValidationResult",
     "VisualSearchIntent",
 ]
+
+
+def rebuild_intents(scene: "SceneVisualPlan", *, language: str = "ru") -> list[VisualSearchIntent]:
+    """Intents for a scene whose fields were just replaced by an explicit brief.
+
+    The planner built its intents from extracted words; once a brief has overridden
+    the subject, action and place, those intents describe a scene that no longer
+    exists. Rebuilding them here keeps one intent shape for both paths instead of
+    giving briefed scenes a parallel query format.
+
+    ``requires_translation`` is decided per intent by the script the terms are written
+    in, not by the script's narration language: an English brief on a Russian video
+    produces English intents that need no adapter.
+    """
+    subject = scene.subject
+    secondary = list(scene.secondary_subjects)
+    place = scene.place
+    intents: list[VisualSearchIntent] = []
+    seen: set[tuple[str, ...]] = set()
+
+    def add(kind: str, subj: str, modifiers: list[str], context: list[str], level: int, notes: str) -> None:
+        if not subj:
+            return
+        intent = VisualSearchIntent(
+            kind=kind,
+            subject=subj,
+            modifiers=[item for item in modifiers if item],
+            context=[item for item in context if item],
+            language=_terms_language(subj, modifiers, context, default=language),
+            fallback_level=level,
+            notes=notes,
+        )
+        intent.requires_translation = _needs_translation(intent.terms)
+        key = tuple(term.casefold() for term in intent.terms)
+        if key and key not in seen:
+            seen.add(key)
+            intents.append(intent)
+
+    add(INTENT_PRIMARY, subject, [scene.action, scene.period], [place, *secondary[:1]], 1, "явный бриф сцены")
+    add(INTENT_ALTERNATIVE, subject, [], [place], 2, "предмет брифа без действия")
+    context_terms = [term for term in (place, *secondary) if term]
+    if context_terms:
+        add(INTENT_CONTEXT_FALLBACK, context_terms[0], [], context_terms[1:], 3, "место сцены без её предмета")
+    return intents
+
+
+def _terms_language(subject: str, modifiers: list[str], context: list[str], *, default: str) -> str:
+    terms = [subject, *modifiers, *context]
+    return default if _needs_translation(terms) else "en"
+
+
+def _needs_translation(terms: list[str]) -> bool:
+    """True when any term is written in a script an English index cannot match."""
+    return any(_CYRILLIC_RE.search(str(term or "")) for term in terms)
+
+
+_CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")

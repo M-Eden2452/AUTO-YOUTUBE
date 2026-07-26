@@ -7,7 +7,10 @@ from typing import Any, Protocol
 
 from PIL import Image
 
+from src.assets.generated_infographic import build_generated_asset, spec_from_scene
 from src.assets.provider_routing import route_providers
+from src.assets.query_adapter import STATUS_TRANSLATION_REQUIRED, build_scene_queries
+from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
 from src.assets.semantic_selection import analyze_scene, check_continuity, ordered_queries, rank_candidates, select_best_candidate
 from src.assets.download import sha256_file, validate_local_asset
 from src.assets.license_policy import apply_policy_to_candidate
@@ -94,12 +97,24 @@ def build_assets_manifest(
         candidates: list[dict[str, Any]] = []
         scene_provider_attempts: list[dict[str, Any]] = []
         manual_request: dict[str, Any] | None = None
+        provider_capabilities = _provider_capabilities(providers_by_name)
         routing_decision = route_providers(
             scene,
             provider_names=list(providers_by_name.keys()),
             provider_enabled={name: True for name in providers_by_name},
+            capabilities=provider_capabilities,
         )
         routing_decisions.append(routing_decision)
+        # One query plan per scene, built per provider: a provider that cannot be
+        # searched in the plan's language gets an English query or no request at all.
+        query_plan = build_scene_queries(
+            scene,
+            providers=list(routing_decision["ordered_providers"]),
+            intent_language=str(visual_plan.get("intent_language") or visual_plan.get("language") or "ru"),
+            capabilities=provider_capabilities,
+        )
+        source_class = str(routing_decision.get("source_class") or "")
+        required_duration = float(scene.get("target_duration_sec") or 0)
         preferred = set(scene.get("preferred_asset_ids") or [])
         user_ranked = _rank_user_assets(user_candidates, scene, preferred, used_asset_ids)
         candidates.extend(user_ranked)
@@ -108,17 +123,42 @@ def build_assets_manifest(
             ordered_provider_names = routing_decision["ordered_providers"] or list(providers_by_name)
             ordered_providers = [providers_by_name[name] for name in ordered_provider_names if name in providers_by_name]
             for provider in ordered_providers:
-                queries = ordered_queries(semantic_scene) or [
-                    {"kind": "primary", "fallback_level": 1, "query": scene.get("primary_query", "")}
+                planned = query_plan.for_provider(provider.name)
+                if not planned:
+                    # Either nothing could be written in a language this provider
+                    # indexes, or the scene needs no search at all. Either way a
+                    # request is not sent: a query in the wrong language returns
+                    # noise that then has to be rejected downstream.
+                    blocked = [
+                        item for item in query_plan.queries
+                        if item.provider == provider.name and item.status == STATUS_TRANSLATION_REQUIRED
+                    ]
+                    for item in blocked:
+                        skipped_attempt = {
+                            "scene_id": scene.get("scene_id", ""),
+                            "provider": provider.name,
+                            "query": "",
+                            "status": "skipped",
+                            "reason": STATUS_TRANSLATION_REQUIRED,
+                            "message": item.notes,
+                        }
+                        scene_provider_attempts.append(skipped_attempt)
+                        provider_attempts.append(skipped_attempt)
+                    continue
+                allowed_queries = [
+                    {"kind": item.kind, "fallback_level": item.fallback_level, "query": item.query, "language": item.language, "query_source": item.source}
+                    for item in planned
                 ]
-                allowed_queries = [query for query in queries if not _query_not_allowed_for_scene(semantic_scene, query)]
-                if not allowed_queries and scene.get("primary_query"):
-                    allowed_queries = [{"kind": "primary", "fallback_level": 1, "query": scene.get("primary_query", "")}]
+                allowed_queries = [
+                    query for query in allowed_queries if not _query_not_allowed_for_scene(semantic_scene, query)
+                ]
                 for query in allowed_queries:
                     attempt = {
                         "scene_id": scene.get("scene_id", ""),
                         "provider": provider.name,
                         "query": str(query["query"]),
+                        "query_language": str(query.get("language") or ""),
+                        "query_source": str(query.get("query_source") or ""),
                         "status": "started",
                     }
                     try:
@@ -149,11 +189,32 @@ def build_assets_manifest(
                         attempt.update({"status": "failed", "error": error})
                     scene_provider_attempts.append(attempt)
                     provider_attempts.append(attempt)
+        generated_asset: dict[str, Any] | None = None
+        if source_class == CLASS_DATA_INFOGRAPHIC and project_root_path and not dry_run:
+            # There is no footage of a statistic. Draw it from the scene's own numbers
+            # instead of accepting whatever a stock search returns for the words.
+            spec = spec_from_scene(scene)
+            if spec is not None:
+                generated_asset = build_generated_asset(
+                    spec,
+                    project_root=project_root_path,
+                    project_id=project_id or project_root_path.name,
+                    scene_id=str(scene.get("scene_id") or ""),
+                )
+                candidates.insert(0, generated_asset)
         if user_ranked:
             selected = sorted(user_ranked, key=lambda item: item.get("total_score", 0), reverse=True)[0]
             candidates.sort(key=lambda item: item.get("total_score", 0), reverse=True)
+        elif generated_asset is not None:
+            selected = generated_asset
         elif selection_config["mode"] == "semantic":
-            selected, ranked_candidates = select_best_candidate(semantic_scene, candidates, used_asset_ids=used_asset_ids)
+            selected, ranked_candidates = select_best_candidate(
+                semantic_scene,
+                candidates,
+                used_asset_ids=used_asset_ids,
+                required_duration_sec=required_duration,
+                require_provider_metadata=bool(routing_decision.get("requires_provider_metadata")),
+            )
             candidates = ranked_candidates
         else:
             candidates.sort(key=lambda item: item.get("total_score", 0), reverse=True)
@@ -227,17 +288,14 @@ def build_assets_manifest(
                 media_index=media_index,
                 max_attempts=max_download_attempts,
             )
-        elif project_root_path and candidates:
-            selected, download_attempts = _ensure_selected_asset_downloaded(
-                selected=candidates[0],
-                ranked_candidates=candidates,
-                providers_by_name=providers_by_name,
-                project_root=project_root_path,
-                project_id=project_id,
-                scene_id=str(scene.get("scene_id") or ""),
-                media_index=media_index,
-                max_attempts=max_download_attempts,
-            )
+        # There used to be a branch here that downloaded ``candidates[0]`` when nothing
+        # passed selection. It made every rejection meaningless: a candidate refused for
+        # missing the scene's subject was fetched and rendered anyway. A scene with no
+        # acceptable candidate is now left unresolved, which is the whole point of
+        # having a gate. The rights verdict is still reported - it is known from the
+        # licence policy before any request, so it never needed a download to discover.
+        elif candidates:
+            download_attempts = _rights_block_attempts(candidates, str(scene.get("scene_id") or ""))
         if download_attempts:
             provider_attempts.extend(download_attempts)
         if (
@@ -273,6 +331,13 @@ def build_assets_manifest(
                     "provider_attempts": scene_provider_attempts,
                     "download_attempts": download_attempts,
                     "manual_request": manual_request or {},
+                    "source_class": source_class,
+                    "asset_strategy": routing_decision.get("strategy", {}),
+                    "query_plan": query_plan.to_dict(),
+                    "untranslatable_providers": list(query_plan.untranslatable_providers),
+                    "rejected_reasons": sorted(
+                        {str(item.get("reject_reason") or "") for item in candidates if item.get("rejected")} - {""}
+                    ),
                     "reason": "manual_action_required" if manual_request else _missing_reason(dry_run, candidates, download_attempts),
                 }
             )
@@ -284,6 +349,10 @@ def build_assets_manifest(
                 "visual_type": scene.get("visual_type", ""),
                 "semantic_scene": semantic_scene.to_dict(),
                 "provider_routing": routing_decision,
+                "asset_strategy": routing_decision.get("strategy", {}),
+                "source_class": source_class,
+                "query_plan": query_plan.to_dict(),
+                "required_duration_sec": required_duration,
                 "selected_asset": selected,
                 "manual_request": manual_request or {},
                 "visual_review": visual_review_entry,
@@ -695,6 +764,25 @@ def _rank_local_assets(
     return ranked
 
 
+def _provider_capabilities(providers_by_name: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Capabilities as the router and the query adapter need them.
+
+    A provider that does not implement ``capabilities()`` (the older, simpler search
+    protocol) contributes nothing rather than a guess, so routing falls back to the
+    table in ``src.assets.query_adapter``.
+    """
+    result: dict[str, dict[str, Any]] = {}
+    for name, provider in providers_by_name.items():
+        getter = getattr(provider, "capabilities", None)
+        if not callable(getter):
+            continue
+        try:
+            result[name] = getter().to_dict()
+        except Exception:
+            continue
+    return result
+
+
 def _search_provider(
     provider: AssetProvider,
     query: str,
@@ -942,6 +1030,33 @@ def _query_not_allowed_for_scene(semantic_scene: Any, query: dict[str, str | int
     if semantic_scene.visual_priority in {"transition", "environment"}:
         return False
     return level >= 4
+
+
+def _rights_block_attempts(candidates: list[dict[str, Any]], scene_id: str) -> list[dict[str, Any]]:
+    """Record, without downloading, that a candidate's rights blocked it.
+
+    Same shape ``_ensure_selected_asset_downloaded`` writes, so the manifest reads the
+    same whether the block was found while selecting or while fetching.
+    """
+    attempts: list[dict[str, Any]] = []
+    for raw_candidate in candidates[:3]:
+        candidate = _with_policy_decision(raw_candidate)
+        if not (candidate.get("review_required") or not candidate.get("allowed_for_render", True)):
+            continue
+        policy_decision = candidate.get("policy_decision") if isinstance(candidate.get("policy_decision"), dict) else {}
+        attempts.append(
+            {
+                "asset_id": candidate.get("asset_id", ""),
+                "provider": candidate.get("provider", ""),
+                "scene_id": scene_id,
+                "search_query": candidate.get("search_query", ""),
+                "download_status": "blocked",
+                "reason": "license_review_required",
+                "policy_decision": policy_decision,
+                "error": f"Asset rights are not allowed for render: {policy_decision.get('reason', 'policy_blocked')}.",
+            }
+        )
+    return attempts
 
 
 def _missing_reason(dry_run: bool, candidates: list[dict[str, Any]], download_attempts: list[dict[str, Any]] | None = None) -> str:

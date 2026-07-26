@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -99,14 +100,21 @@ class PexelsStockProvider:
             provider_asset_id = str(video.get("id") or "")
             source_page = str(video.get("url") or "")
             author = video.get("user") or {}
+            # The videos endpoint returns no title and no description. The only real
+            # description Pexels gives is the slug in the page URL
+            # (".../video/stone-fragments-on-the-table-8516551/"), so that is used
+            # instead of echoing the query back and calling it metadata.
+            slug_title = _title_from_source_page(source_page)
+            api_description = str(video.get("description") or "").strip()
             candidate = AssetCandidate(
                 asset_id=f"pexels_video_{provider_asset_id}",
                 provider=self.name,
                 provider_asset_id=provider_asset_id,
                 media_type="video",
-                title=f"Pexels video {provider_asset_id}",
-                description=str(video.get("description") or request.query),
-                tags=_query_tags(request.query),
+                title=slug_title or f"Pexels video {provider_asset_id}",
+                description=api_description or slug_title,
+                tags=_slug_tags(slug_title) if slug_title else _query_tags(request.query),
+                tags_source="provider" if slug_title else "query_derived",
                 source_page_url=source_page,
                 preview_url=str(video.get("image") or ""),
                 download_url=str(best.get("link") or ""),
@@ -152,9 +160,10 @@ class PexelsStockProvider:
                 provider=self.name,
                 provider_asset_id=provider_asset_id,
                 media_type="image",
-                title=str(photo.get("alt") or f"Pexels photo {provider_asset_id}"),
-                description=str(photo.get("alt") or request.query),
-                tags=_query_tags(request.query),
+                title=str(photo.get("alt") or "").strip() or _title_from_source_page(str(photo.get("url") or "")) or f"Pexels photo {provider_asset_id}",
+                description=str(photo.get("alt") or "").strip(),
+                tags=_slug_tags(str(photo.get("alt") or "") or _title_from_source_page(str(photo.get("url") or ""))),
+                tags_source="provider" if (photo.get("alt") or photo.get("url")) else "query_derived",
                 source_page_url=str(photo.get("url") or ""),
                 preview_url=str(src.get("medium") or src.get("small") or ""),
                 download_url=str(src.get("original") or src.get("large2x") or src.get("large") or ""),
@@ -271,4 +280,22 @@ def _crop_score(width: int, height: int) -> float:
 
 
 def _query_tags(query: str) -> list[str]:
+    """Last resort only, and always paired with ``tags_source="query_derived"`` so the
+    ranker knows not to treat these as evidence about the asset."""
     return [part.strip().lower() for part in query.replace(",", " ").split() if part.strip()]
+
+
+def _title_from_source_page(url: str) -> str:
+    """Pexels page URLs carry the human title as a slug: ``/video/<slug>-<id>/``."""
+    path = str(url or "").rstrip("/").rsplit("/", 1)[-1]
+    if not path:
+        return ""
+    parts = [part for part in path.split("-") if part]
+    if parts and parts[-1].isdigit():
+        parts = parts[:-1]
+    words = [part for part in parts if part and not part.isdigit()]
+    return " ".join(words)
+
+
+def _slug_tags(title: str) -> list[str]:
+    return [word.lower() for word in re.split(r"[\s\-_,]+", str(title or "")) if word]

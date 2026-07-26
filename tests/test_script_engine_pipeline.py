@@ -26,7 +26,7 @@ import unittest
 from pathlib import Path
 
 from src.audio.scene_timeline import apply_timeline_to_script, build_scene_timeline
-from src.content.script_engine import from_legacy_script, validate_script
+from src.content.script_engine import SCRIPT_SCHEMA_VERSION, from_legacy_script, validate_script
 from src.content_creation.cli import main
 from src.news.models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, NewsJob
 from src.news.research_engine import build_research
@@ -358,7 +358,11 @@ class ExistingProjectsTest(unittest.TestCase):
                 data = json.loads(before.decode("utf-8"))
                 result = from_legacy_script(data)
                 self.assertTrue(result.scenes, "a stored script must yield scenes")
-                self.assertEqual(result.schema_version, 1, "pre-engine scripts are schema 1")
+                # 1 = written before the engine existed, 2 = written by it. Both must
+                # parse. This used to assert 1 outright, which was true only while no
+                # project had yet been created *through* the engine; the first real
+                # run made it false without anything being wrong.
+                self.assertIn(result.schema_version, (1, SCRIPT_SCHEMA_VERSION), "stored script schema must be known")
                 validate_script(result, expected_language=result.language or "ru")
                 self.assertEqual(Path(path).read_bytes(), before, "reading must not modify the file")
 

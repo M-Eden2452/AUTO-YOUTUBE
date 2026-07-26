@@ -67,6 +67,8 @@ def scene_to_legacy(scene: ScriptScene, *, include_engine_fields: bool = True) -
             data["source_refs"] = list(scene.source_refs)
         if scene.pause_after_sec is not None:
             data["pause_after_sec"] = scene.pause_after_sec
+        if scene.visual_brief:
+            data["visual_brief"] = dict(scene.visual_brief)
     return data
 
 
@@ -156,6 +158,7 @@ def from_legacy_script(data: dict[str, Any]) -> ScriptResult:
                 claim_ids=[str(item) for item in (raw.get("claim_ids") or [])],
                 source_refs=[str(item) for item in (raw.get("source_refs") or [])],
                 pause_after_sec=raw.get("pause_after_sec"),
+                visual_brief=dict(raw.get("visual_brief") or {}),
             )
         )
     return ScriptResult(

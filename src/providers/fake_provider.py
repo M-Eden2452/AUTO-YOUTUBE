@@ -39,7 +39,13 @@ class FakeStockProvider:
         self.mode = mode
 
     def capabilities(self) -> ProviderCapabilities:
-        return ProviderCapabilities(provider=self.name, media_types=["video", "image"], supports_orientation_filter=True)
+        # Matches on nothing, so the query language is irrelevant to it.
+        return ProviderCapabilities(
+            provider=self.name,
+            media_types=["video", "image"],
+            supports_orientation_filter=True,
+            query_languages=["en", "ru"],
+        )
 
     def search(self, request: AssetSearchRequest) -> list[AssetCandidate]:
         if self.mode == "rate_limit":
@@ -56,7 +62,9 @@ class FakeStockProvider:
             media_type=media_type,
             title=f"{request.query} fake {media_type} ocean whale nature science",
             description=f"Deterministic fake {media_type} for {request.query}",
-            tags=[part.lower() for part in request.query.split() if part] + ["fake", "ocean", "whale", "nature", "science"],
+            # The query is deliberately *not* echoed into the tags: this fixture stands
+            # in for a real provider, and a real provider's tags describe the asset.
+            tags=["fake", "ocean", "whale", "nature", "science"],
             source_page_url=f"https://fake.local/assets/{provider_asset_id}",
             preview_url=f"https://fake.local/previews/{provider_asset_id}.jpg",
             download_url=f"file:///{fixture.as_posix()}" if fixture else f"fake://{provider_asset_id}",
@@ -64,7 +72,11 @@ class FakeStockProvider:
             author_url="https://fake.local/author",
             width=width,
             height=height,
-            duration_sec=5.0 if media_type == "video" else 0.0,
+            # Long enough to cover any scene this fixture is asked to fill. It used to
+            # be 5s, which was shorter than most scenes - fine while nothing checked,
+            # but the duration gate now (correctly) refuses a clip that cannot cover
+            # its scene, and this fixture exists to stand in for one that can.
+            duration_sec=30.0 if media_type == "video" else 0.0,
             orientation=orientation_from_dimensions(width, height),
             search_query=request.query,
             project_id=request.project_id,

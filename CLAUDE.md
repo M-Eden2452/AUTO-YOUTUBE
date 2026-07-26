@@ -145,6 +145,17 @@ cd /g/Projects/AI-YouTube
 ## Известные ограничения (по состоянию на аудит 2026-07-25)
 
 - Экспорт под площадки — копии master MP4; `tiktok` и `stories` не создаются.
+- Визуальный поиск (после этапа Q2.1, карта —
+  `docs/implementation/visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md`): порядок
+  провайдеров задаёт `src/assets/scene_strategy.py` по классу сцены, запрос под
+  провайдера строит `src/assets/query_adapter.py`. **Слоя перевода по-прежнему нет**:
+  русский запрос в англоязычный провайдер не отправляется, сцена помечается
+  `query_translation_required` и остаётся `unresolved`, пока автор не задаст
+  `visual_brief` (английские `subject`/`place`/`exact_entities`/`provider_queries`).
+  Смысловая проверка кандидата опирается на метаданные провайдера, не на кадр:
+  платный Vision не подключён, локальная image-text модель не добавлена.
+  Сцена без подходящего материала остаётся `unresolved` — подставлять «похожий»
+  клип нельзя. Второй asset pipeline и второй планировщик создавать нельзя.
 - Музыка для `fullscreen_voiceover_v1` работает: `src/audio/music_manifest.py` пишет
   `assets/music/music_manifest.json`, который читает существующий микс с ducking в
   `src/news/final_renderer.py`. Права на пользовательский трек не проверяются автоматически.

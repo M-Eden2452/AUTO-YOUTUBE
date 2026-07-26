@@ -149,6 +149,11 @@ class ProviderCapabilities:
     supports_orientation_filter: bool = False
     supports_pagination: bool = False
     max_results: int = 20
+    # Languages this provider's index can actually be searched in. English-only is the
+    # honest default: none of the registered providers documents reliable retrieval for
+    # a Russian query, and posting one anyway is what returned 0 results from Wikimedia
+    # and NASA across the whole confirmed run.
+    query_languages: list[str] = field(default_factory=lambda: ["en"])
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -164,6 +169,11 @@ class AssetCandidate:
     title: str = ""
     description: str = ""
     tags: list[str] = field(default_factory=list)
+    # Where ``tags`` came from. "provider" means the API labelled the asset;
+    # "query_derived" means the adapter had nothing and echoed the search string back.
+    # Only the first kind is evidence that a result matches what was asked for - see
+    # src.assets.semantic_selection.candidate_ranker.
+    tags_source: str = "provider"
     source_page_url: str = ""
     preview_url: str = ""
     download_url: str = ""
@@ -209,6 +219,7 @@ class AssetCandidate:
             title=str(data.get("title") or ""),
             description=str(data.get("description") or data.get("caption") or ""),
             tags=_as_list(data.get("tags") or data.get("keywords")),
+            tags_source=str(data.get("tags_source") or "provider"),
             source_page_url=str(data.get("source_page_url") or data.get("source_page") or data.get("source_url") or ""),
             preview_url=str(data.get("preview_url") or data.get("thumbnail_url") or ""),
             download_url=str(data.get("download_url") or data.get("direct_download_url") or ""),
@@ -246,6 +257,7 @@ class AssetCandidate:
                 "title": self.title,
                 "description": self.description,
                 "tags": self.tags,
+                "tags_source": self.tags_source,
                 "source_page_url": self.source_page_url,
                 "preview_url": self.preview_url,
                 "download_url": self.download_url,

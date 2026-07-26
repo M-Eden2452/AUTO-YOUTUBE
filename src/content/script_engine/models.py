@@ -106,6 +106,19 @@ class ScriptRequest:
     cta_text: str = ""
     provider_id: str = ""
     provider_options: dict[str, Any] = field(default_factory=dict)
+    # Explicit "what to show" per scene, keyed by 1-based scene number as a string
+    # ("1", "2", ...) or by scene_id ("scene_001"). Additive and optional: a caller
+    # that supplies none gets exactly the previous behaviour. Only a provider that
+    # preserves the author's scene boundaries can honour these, which today means
+    # ``user_supplied``; see src.content.visual_planning.brief for the fields.
+    visual_briefs: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    def brief_for(self, index: int, scene_id: str = "") -> dict[str, Any]:
+        """The brief for one scene, looked up by number or by id. Empty when absent."""
+        for key in (str(index), scene_id, f"scene_{index:03d}"):
+            if key and isinstance(self.visual_briefs.get(key), dict):
+                return dict(self.visual_briefs[key])
+        return {}
 
     @property
     def target_duration_sec(self) -> float:
@@ -129,6 +142,7 @@ class ScriptRequest:
             "cta_text": self.cta_text,
             "provider_id": self.provider_id,
             "provider_options": dict(self.provider_options),
+            "visual_briefs": {key: dict(value) for key, value in self.visual_briefs.items()},
         }
 
 
@@ -151,6 +165,11 @@ class ScriptScene:
     source_refs: list[str] = field(default_factory=list)
     pause_after_sec: float | None = None
     notes: str = ""
+    # What to show, when the author says it explicitly. Never spoken: the voice stage
+    # reads ``narration`` only, so nothing here can reach the audio. Empty for every
+    # script written before this existed, and for every provider that does not set it.
+    # Consumed by src.content.visual_planning; see its ``brief`` module for the fields.
+    visual_brief: dict[str, Any] = field(default_factory=dict)
 
     @property
     def end_sec(self) -> float:
@@ -172,6 +191,7 @@ class ScriptScene:
             "source_refs": list(self.source_refs),
             "pause_after_sec": self.pause_after_sec,
             "notes": self.notes,
+            "visual_brief": dict(self.visual_brief),
         }
 
 

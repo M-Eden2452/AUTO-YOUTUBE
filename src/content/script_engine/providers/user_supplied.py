@@ -106,6 +106,10 @@ class UserSuppliedScriptProvider(BaseScriptProvider):
                     emotion=_emotion(role),
                     keywords=keywords(block),
                     source_refs=[f"user_block_{index:03d}"],
+                    # The author's own "what to show" for this block, if they wrote one.
+                    # Attached by position, which is meaningful here precisely because
+                    # this provider never reorders or merges the author's scenes.
+                    visual_brief=request.brief_for(index, f"scene_{index:03d}"),
                 )
             )
 

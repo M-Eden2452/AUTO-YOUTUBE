@@ -185,6 +185,17 @@ def scene_to_legacy(
             data["period"] = scene.period
         if scene.warnings:
             data["planning_warnings"] = list(scene.warnings)
+        if getattr(scene, "brief", None) is not None:
+            # Carried into the stored plan so the retrieval stage can see what the
+            # author actually asked for: the source class routes providers and the
+            # provider queries bypass query building entirely.
+            brief_data = scene.brief.to_dict()
+            if brief_data:
+                data["visual_brief"] = brief_data
+                if brief_data.get("source_class"):
+                    data["source_class"] = brief_data["source_class"]
+                if brief_data.get("provider_queries"):
+                    data["provider_queries"] = brief_data["provider_queries"]
     return data
 
 

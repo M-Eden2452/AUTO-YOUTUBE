@@ -32,6 +32,9 @@ class LocalLibraryStockProvider:
             supports_preview=True,
             supports_download=True,
             supports_license_metadata=True,
+            # Searched against this project's own records, which are written in the
+            # project's language rather than in English.
+            query_languages=["en", "ru"],
             notes="Uses current schema-safe local records only; legacy records require review.",
         )
 

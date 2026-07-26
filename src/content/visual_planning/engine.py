@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .brief import apply_brief, parse_brief
 from .contract import VisualPlanner, VisualPlannerError, VisualPlannerUnavailableError
 from .legacy_format import to_legacy_visual_plan
-from .models import VisualPlanRequest, VisualPlanResult, VisualPlanValidationResult
+from .models import VisualPlanRequest, VisualPlanResult, VisualPlanValidationResult, rebuild_intents
 from .registry import get_planner, resolve_planner_id
 from .validation import validate_visual_plan
 
@@ -62,6 +63,7 @@ def build_plan(
             f"Планировщик {requested_id!r} не может работать с этим сценарием.", planner=requested_id
         )
     result = engine.plan(request)
+    _apply_scene_briefs(result, request.script)
     validation = validate_visual_plan(result, script=request.script, source_text=source_text)
     return VisualPlanning(
         result=result,
@@ -69,6 +71,36 @@ def build_plan(
         planner_id=result.planner_id or requested_id,
         requested_planner_id=requested_id,
     )
+
+
+def _apply_scene_briefs(result: VisualPlanResult, script: dict[str, Any] | None) -> None:
+    """Let the author's explicit brief win over whatever was extracted.
+
+    Applied after the planner rather than inside it so every planner benefits and none
+    has to know the brief exists. A script with no briefs is untouched.
+    """
+    # ``script`` is a ScriptResult here and a plain dict when a plan is rebuilt from a
+    # stored script.json, so both shapes are read.
+    raw_scenes = script.get("scenes") if isinstance(script, dict) else getattr(script, "scenes", None)
+    briefs: dict[str, Any] = {}
+    for scene in raw_scenes or []:
+        if isinstance(scene, dict):
+            scene_id, brief = str(scene.get("scene_id") or ""), scene.get("visual_brief")
+        else:
+            scene_id, brief = str(getattr(scene, "scene_id", "") or ""), getattr(scene, "visual_brief", None)
+        if scene_id and brief:
+            briefs[scene_id] = brief
+    if not briefs:
+        return
+    for scene in result.scenes:
+        brief = parse_brief(briefs.get(scene.scene_id))
+        if brief.is_empty:
+            continue
+        apply_brief(scene, brief)
+        scene.brief = brief
+        # The intents were built from the extracted fields; rebuild them so the query
+        # actually carries the names the author insisted on.
+        scene.intents = rebuild_intents(scene, language=result.language)
 
 
 __all__ = ["VisualPlanning", "VisualPlannerError", "build_plan"]
