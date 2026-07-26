@@ -13,7 +13,11 @@ from .models import (
 )
 
 
-WHALE_NEGATIVES = ["desert", "mountain", "mountains", "canyon", "city", "road", "farm", "savanna"]
+# Landscapes that contradict an *ocean* scene. Named for what they are: this list is
+# only meaningful when the scene really is marine. It used to be applied to every
+# scene that had any subject at all, which meant a video about crows silently
+# refused footage of cities, roads and farms - the places crows actually live.
+MARINE_CONTEXT_NEGATIVES = ["desert", "mountain", "mountains", "canyon", "city", "road", "farm", "savanna"]
 OCEAN_TERMS = ["ocean", "sea", "coast", "coastline", "coastal", "water", "underwater"]
 CAMERA_TERMS = ["aerial", "drone", "underwater", "close"]
 ACTION_TERMS = ["resting", "swimming", "rolling", "floating", "nursing", "migration", "observed", "monitoring"]
@@ -117,8 +121,15 @@ def _must_include(priority: str, subject: list[str], environment: list[str]) -> 
 
 
 def _infer_must_not(subject: list[str], environment: list[str]) -> list[str]:
-    if subject or _has_ocean(environment):
-        return WHALE_NEGATIVES.copy()
+    """Landscape negatives, and only for a scene that is actually set at sea.
+
+    Inferring negatives from the mere presence of a subject cannot be right: what
+    contradicts a frame depends on what the frame is of, and that is knowledge this
+    keyword layer does not have. A planner that does know supplies ``must_not_include``
+    explicitly (``src.content.visual_planning``), and an explicit value always wins.
+    """
+    if _has_ocean(environment):
+        return MARINE_CONTEXT_NEGATIVES.copy()
     return []
 
 

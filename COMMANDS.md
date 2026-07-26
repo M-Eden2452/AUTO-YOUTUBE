@@ -436,6 +436,57 @@ machine-readable `{"status":"failed","error":...,"reason":...,"retryable":...}`.
   traceback - признак настоящего бага, а не ожидаемой ошибки ввода. Полный
   traceback можно получить намеренно через `--debug`.
 
+### 10.13. Сценарий: движки и проверка (этап Q1)
+
+Всё офлайн, бесплатно, ничего не пишется без `--out`.
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli script providers
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli script generate --text "Текст статьи..." --out out/script.json
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli script validate --script-file out/script.json
+```
+
+- `--provider legacy_template` вернёт прежний шаблонный сценарий из шести фраз;
+- `--source-kind user_script` означает, что вы передали **готовый** сценарий, и
+  ни одно слово в нём не будет переписано;
+- призыв к действию добавляется только с `--include-cta`.
+
+### 10.14. Визуальный план: что показывать в каждой сцене (этап Q2)
+
+Строит план по готовому `script.json`. Ничего не скачивает, не выбирает
+финальный файл, не запускает Vision и не рендерит.
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli visual-plan planners
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli visual-plan build --script-file out/script.json --claims-file out/claims.json --out out/visual_plan.json
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli visual-plan intents --plan-file out/visual_plan.json
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli visual-plan validate --plan-file out/visual_plan.json --script-file out/script.json
+```
+
+- `build` показывает для каждой сцены предмет, действие, место, эпоху, тип кадра
+  и цепочку запросов от точного к общему;
+- `intents` печатает только запросы — удобно, чтобы глазами проверить, что сцены
+  ищут разное;
+- `--claims-file` необязателен, но с ним точнее определяется главная тема видео;
+- запросы выводятся на языке сценария и помечаются `(нужен перевод)`: слоя
+  перевода в проекте нет, и подставлять приблизительный английский вместо
+  названного в тексте животного или страны система не будет.
+
 ## 11. ЗАПЛАНИРОВАНО, НО ПОКА НЕ РАБОТАЕТ
 
 Эти команды пока не существуют. Не пытайтесь их запускать - они будут

@@ -139,6 +139,25 @@ def build_parser() -> argparse.ArgumentParser:
     script_p.add_argument("--out", default="", help="Write a pipeline-compatible script.json here.")
     script_p.add_argument("--script-file", dest="script_json_path", default="", help="script.json for 'validate'.")
 
+    visual_p = subparsers.add_parser(
+        "visual-plan",
+        help="Visual planning: what each scene should show. Builds and checks plans offline.",
+        parents=[json_flag],
+    )
+    visual_p.add_argument("action", choices=["planners", "build", "validate", "intents"])
+    visual_p.add_argument("--planner", default="", help="Planner id (see `visual-plan planners`).")
+    visual_p.add_argument(
+        "--script-file", dest="script_json_path", default="", help="script.json to plan from."
+    )
+    visual_p.add_argument(
+        "--claims-file", dest="claims_json_path", default="", help="Optional research claims.json."
+    )
+    visual_p.add_argument(
+        "--plan-file", dest="plan_json_path", default="", help="visual_plan.json for 'validate'/'intents'."
+    )
+    visual_p.add_argument("--language", default="")
+    visual_p.add_argument("--out", default="", help="Write a pipeline-compatible visual_plan.json here.")
+
     subparsers.add_parser(
         "wizard", help="Interactive terminal wizard (same request/service as 'create').", parents=[json_flag]
     )
@@ -326,6 +345,9 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
 
     if command == "script":
         return _run_script_command(args)
+
+    if command == "visual-plan":
+        return _run_visual_plan_command(args)
 
     if command == "formats":
         catalog = get_default_catalog()
@@ -698,6 +720,143 @@ def _run_script_command(args: argparse.Namespace) -> int:
     if args.out:
         print(f"[script] script.json записан: {Path(args.out).resolve()}")
     return 0 if outcome.validation.valid else 1
+
+
+def _run_visual_plan_command(args: argparse.Namespace) -> int:
+    """`visual-plan` subcommand: see and check what each scene will show.
+
+    Reads a script.json, plans from it, and writes nothing except an explicit --out
+    file. No network, no downloads, no Vision, no render, no asset selection - by
+    construction, not by flag. Choosing the actual file stays a later stage.
+    """
+    from src.content.script_engine import from_legacy_script
+    from src.content.visual_planning import (
+        VisualPlanRequest,
+        build_plan,
+        from_legacy_visual_plan,
+        intent_to_query,
+        list_capabilities,
+        to_legacy_visual_plan,
+        validate_visual_plan,
+    )
+
+    if args.action == "planners":
+        data = [item.to_dict() for item in list_capabilities()]
+        if args.json_output:
+            _print_json(data)
+        else:
+            for item in data:
+                paid = "платный" if item["requires_paid_api"] else "бесплатный"
+                net = "нужна сеть" if item["requires_network"] else "офлайн"
+                print(
+                    f"[visual-plan] {item['planner_id']}: {item['display_name']} "
+                    f"({paid}, {net}, язык intent={item['intent_language']}, {item['implementation_status']})"
+                )
+                print(f"              {item['description']}")
+        return 0
+
+    if args.action in {"validate", "intents"}:
+        if not args.plan_json_path:
+            raise SystemExit(f"visual-plan {args.action} requires --plan-file <path to visual_plan.json>.")
+        path = Path(args.plan_json_path)
+        if not path.is_file():
+            raise SystemExit(f"Файл не найден: {path}")
+        plan = from_legacy_visual_plan(json.loads(path.read_text(encoding="utf-8")))
+
+        if args.action == "intents":
+            payload = [
+                {"scene_id": scene.scene_id, "intents": [intent.to_dict() for intent in scene.intents]}
+                for scene in plan.scenes
+            ]
+            if args.json_output:
+                _print_json(payload)
+            else:
+                for scene in plan.scenes:
+                    print(f"[visual-plan] {scene.scene_id} ({scene.shot_type})")
+                    for intent in scene.intents:
+                        mark = " (нужен перевод)" if intent.requires_translation else ""
+                        print(
+                            f"    {intent.kind:<22} ур.{intent.fallback_level} "
+                            f"[{intent.language}]{mark}  {intent_to_query(intent)}"
+                        )
+            return 0
+
+        script = None
+        if args.script_json_path and Path(args.script_json_path).is_file():
+            script = from_legacy_script(json.loads(Path(args.script_json_path).read_text(encoding="utf-8")))
+        validation = validate_visual_plan(plan, script=script)
+        payload = {"plan_file": str(path), "scene_count": len(plan.scenes), **validation.to_dict()}
+        if args.json_output:
+            _print_json(payload)
+        else:
+            _print_plan_validation(validation, scene_count=len(plan.scenes))
+        return 0 if validation.valid else 1
+
+    if not args.script_json_path:
+        raise SystemExit("visual-plan build requires --script-file <path to script.json>.")
+    script_path = Path(args.script_json_path)
+    if not script_path.is_file():
+        raise SystemExit(f"Файл не найден: {script_path}")
+    script_data = json.loads(script_path.read_text(encoding="utf-8"))
+    result = from_legacy_script(script_data)
+
+    research: dict[str, Any] = {}
+    if args.claims_json_path:
+        claims_path = Path(args.claims_json_path)
+        if not claims_path.is_file():
+            raise SystemExit(f"Файл не найден: {claims_path}")
+        research = json.loads(claims_path.read_text(encoding="utf-8"))
+
+    language = args.language or result.language or "ru"
+    planning = build_plan(
+        VisualPlanRequest(
+            script=result,
+            language=language,
+            topic=str(research.get("topic") or result.title or ""),
+            title=str(result.title or ""),
+            claims=list(research.get("claims") or []),
+            planner_id=args.planner,
+        ),
+        source_text=str(research.get("summary") or ""),
+    )
+    stored = to_legacy_visual_plan(planning.result, language=language, script=script_data)
+
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    if args.json_output:
+        _print_json({**planning.to_dict(), "written_to": args.out, "visual_plan_json": stored})
+        return 0 if planning.validation.valid else 1
+
+    plan = planning.result
+    print(f"[visual-plan] планировщик={planning.planner_id} тема={plan.topic_entity!r} язык={plan.language}")
+    for scene in plan.scenes:
+        print(f"  {scene.scene_id} [{scene.shot_type:<12}] {scene.preferred_media_kind:<15} {scene.meaning[:56]}")
+        print(
+            f"      предмет={scene.subject!r} действие={scene.action!r} "
+            f"место={scene.place!r} эпоха={scene.period!r}"
+        )
+        for intent in scene.intents:
+            print(f"      -> ур.{intent.fallback_level} {intent.kind:<22} {intent_to_query(intent)}")
+        for warning in scene.warnings:
+            print(f"      предупреждение: {warning}")
+    for warning in plan.warnings:
+        print(f"[visual-plan] предупреждение: {warning}")
+    _print_plan_validation(planning.validation, scene_count=len(plan.scenes))
+    if args.out:
+        print(f"[visual-plan] visual_plan.json записан: {Path(args.out).resolve()}")
+    return 0 if planning.validation.valid else 1
+
+
+def _print_plan_validation(validation, *, scene_count: int) -> None:
+    label = {"passed": "проверка пройдена", "needs_review": "нужна проверка", "failed": "не проходит"}
+    print(f"[visual-plan] {label.get(validation.status, validation.status)} (сцен: {scene_count})")
+    for issue in validation.issues:
+        mark = "ошибка " if issue.severity == "error" else "внимание"
+        where = f" [{issue.scene_id}]" if issue.scene_id else ""
+        print(f"  {mark}{where} {issue.code}: {issue.message}")
 
 
 def _print_validation(validation, *, scene_count: int) -> None:

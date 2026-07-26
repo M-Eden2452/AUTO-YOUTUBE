@@ -1,47 +1,78 @@
+"""Adapter between the news_to_short pipeline and the shared visual planning layer.
+
+This module used to *be* the planner: a four-branch ``if`` that returned one of four
+fixed English strings ("whale mother calf aerial ocean", "scientific researchers
+nature field observation", "ocean wildlife aerial waves", "nature science wildlife
+observation") for every video ever made, and a ``visual_type`` that alternated on
+``index % 3``.
+
+``build_visual_plan(script, language=..., user_assets=...)`` keeps its exact
+signature and still returns the ``visual_plan.json`` dict the rest of the pipeline
+reads, so ``asset_manager``, ``stock_video_downloader``, ``final_renderer`` and
+``visual_preview`` did not have to change.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
+from src.content.script_engine import from_legacy_script
+from src.content.visual_planning import (
+    VisualPlanRequest,
+    build_plan,
+    legacy_broad_query,
+)
 
-def build_visual_plan(script: dict[str, Any], *, language: str, user_assets: list[str] | None = None) -> dict[str, Any]:
-    scenes = []
-    user_assets = user_assets or []
-    for index, scene in enumerate(script.get("scenes", []), start=1):
-        query = make_stock_query(scene.get("visual_intent") or scene.get("narration", "nature science"))
-        scenes.append(
-            {
-                "scene_id": scene["scene_id"],
-                "narration": scene.get("narration", ""),
-                "target_duration_sec": scene.get("target_duration_sec", 3.5),
-                "visual_type": "video" if index % 3 else "animated_image",
-                "visual_description": scene.get("visual_intent", ""),
-                "primary_query": query,
-                "alternative_queries": [query.replace("scientific", "nature"), "wildlife observation close up"],
-                "negative_keywords": ["watermark", "logo", "low resolution"],
-                "preferred_asset_ids": [f"user_asset_{index:03d}"] if index <= len(user_assets) else [],
-                "allow_user_asset": True,
-                "allow_stock": True,
-                "allow_article_asset": False,
-                "fallback_type": "text_card" if index == 1 else "animated_image",
-                "camera_effect": "slow_zoom_in",
-                "transition": "cut",
-            }
-        )
-    return {
-        "language": language,
-        "aspect_ratio": "9:16",
-        "resolution": {"width": 1080, "height": 1920},
-        "scenes": scenes,
-    }
+__all__ = ["build_visual_plan", "build_visual_plan_result", "make_stock_query"]
+
+
+def build_visual_plan(
+    script: dict[str, Any],
+    *,
+    language: str,
+    user_assets: list[str] | None = None,
+    research: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """The visual_plan.json payload for this script. Signature unchanged since Stage AB.
+
+    ``research`` is optional and additive: claims sharpen which entity the video is
+    actually about, but the plan is built from the script alone when they are absent
+    (which is the case for every caller written before this stage).
+    """
+    planning = build_visual_plan_result(script, language=language, research=research)
+    return planning.to_legacy_plan(
+        language=language,
+        script=script,
+        user_assets=user_assets or [],
+    )
+
+
+def build_visual_plan_result(
+    script: dict[str, Any],
+    *,
+    language: str,
+    research: dict[str, Any] | None = None,
+):
+    """Full planning outcome (plan + validation), for callers that want both."""
+    research = research or {}
+    result = from_legacy_script(script or {})
+    request = VisualPlanRequest(
+        script=result,
+        language=language or result.language,
+        topic=str(research.get("topic") or result.title or ""),
+        title=str(result.title or ""),
+        claims=list(research.get("claims") or []),
+        format_id="vertical_short",
+        template_id="fullscreen_voiceover_v1",
+    )
+    return build_plan(request, source_text=str(research.get("summary") or ""))
 
 
 def make_stock_query(text: str) -> str:
-    lowered = text.lower()
-    if "кит" in lowered or "whale" in lowered:
-        return "whale mother calf aerial ocean"
-    if "учен" in lowered or "research" in lowered:
-        return "scientific researchers nature field observation"
-    if "океан" in lowered or "ocean" in lowered:
-        return "ocean wildlife aerial waves"
-    return "nature science wildlife observation"
+    """Deprecated: the pre-Q2 broad query.
 
+    Kept as a name because it was the module's public surface; the single
+    implementation now lives in ``src.content.visual_planning.legacy_format``, where
+    it is used only as the final English fallback appended after the real intents.
+    """
+    return legacy_broad_query(text)

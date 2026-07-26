@@ -251,7 +251,13 @@ def _dispatch_stage(
         return lang_root / "script.json"
     if stage_name == "visual_plan":
         script = store.read_json(root / "localizations" / job.language / "script" / "script.json")
-        plan = build_visual_plan(script, language=job.language, user_assets=job.user_assets)
+        # Claims sharpen which entity the video is about; the plan is still built
+        # from the script alone when an older project has no research on disk.
+        claims_path = root / "research" / "claims.json"
+        research = store.read_json(claims_path) if claims_path.is_file() else {}
+        plan = build_visual_plan(
+            script, language=job.language, user_assets=job.user_assets, research=research
+        )
         master = {**plan, "language": "master", "master_language": job.language}
         store.write_json(root / "master" / "master_visual_plan.json", master)
         lang_path = root / "localizations" / job.language / "visual" / "visual_plan.json"
