@@ -45,6 +45,8 @@ cd /g/Projects/AI-YouTube
 Полная актуальная карта: `docs/handoff/AUTONOMOUS_ARCHITECTURE_AUDIT.md`.
 
 - Content-creation CLI/Wizard: `src/content_creation/{cli,wizard,service,capabilities,models}.py`
+- Config resolution: `src/config_resolver/` (read-only, поверх каталога/`ChannelRegistry`/
+  `channel_config.json`/`AUDIO_POLICY_DEFAULTS`; карта — `docs/implementation/config_resolver/CONFIG_MAP.md`)
 - Production Catalog: `src/production_catalog/`
 - Project/Channel/Evidence Foundation: `src/project_foundation/`
 - Maintenance/legacy CLI: `pipeline.py`
@@ -103,7 +105,9 @@ cd /g/Projects/AI-YouTube
 ./venv/Scripts/python.exe -B pipeline.py --voice-action list --news-channel nature_science_news_ru
 ./venv/Scripts/python.exe -B pipeline.py --voice-action preflight --news-channel nature_science_news_ru --voice-profile <profile_id> --text "Короткий тест."
 ./venv/Scripts/python.exe -B pipeline.py --voice-action import-audio --job-id <job_id> --audio-file <path/to/manual.wav>
+./venv/Scripts/python.exe -m src.content_creation.cli channels show --channel nature_science_news_ru --explain
 ./venv/Scripts/python.exe -m unittest tests.test_capability_consistency -v
+./venv/Scripts/python.exe -m unittest tests.test_config_resolver tests.test_config_resolver_parity -v
 ./venv/Scripts/python.exe -m unittest tests.test_story_card_short_renderer -v
 ./venv/Scripts/python.exe -m unittest tests.test_temporal_video_analysis -v
 ./venv/Scripts/python.exe -m unittest tests.test_semantic_decision_policy -v
@@ -132,6 +136,12 @@ cd /g/Projects/AI-YouTube
 - Музыка для `fullscreen_voiceover_v1` работает: `src/audio/music_manifest.py` пишет
   `assets/music/music_manifest.json`, который читает существующий микс с ducking в
   `src/news/final_renderer.py`. Права на пользовательский трек не проверяются автоматически.
+- `src/config_resolver/` отвечает на вопрос «какое значение здесь действует и откуда»,
+  но **в пайплайн не подключён** (D1 намеренно ничего не менял). Его единственный
+  потребитель — `channels show --explain`. Бо́льшая часть `channel_config.json`
+  (`target_duration_sec`, `min/max_duration_sec`, `resolution`, `fps`, `language`,
+  `subtitles`, `music`, `languages`) по-прежнему **не читается пайплайном** —
+  подключение потребителей это этап D2.
 - В `projects/` сосуществуют две project-системы: `job.json` (news_to_short) и `project.json`
   (story_card). Общий **read-only** слой — `src/projects/` (`ProjectRepository` для статуса,
   `build_rights_report` для прав); он не является третьей системой и ничего не пишет.

@@ -487,6 +487,36 @@ machine-readable `{"status":"failed","error":...,"reason":...,"retryable":...}`.
   перевода в проекте нет, и подставлять приблизительный английский вместо
   названного в тексте животного или страны система не будет.
 
+### 10.15. Откуда берётся каждая настройка (этап D1)
+
+Показывает для канала таблицу «параметр → значение → откуда взято». Только чтение:
+ни сети, ни оплаты, ни записи файлов.
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli channels show --channel nature_science_news_ru --explain
+```
+
+С разбором по слоям и в JSON:
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli channels show --channel nature_science_news_ru --explain --trace
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli channels show --channel nature_science_news_ru --explain --json
+```
+
+Можно уточнить, для какого именно запуска считать: `--template`, `--format`,
+`--language`, `--project-id`.
+
+- стрелка `←` показывает победивший слой, а следом — файл, из которого значение взято;
+- `template_policy_overrode_channel` означает, что политика шаблона перекрыла
+  настройку канала (сейчас так работает `voice.fallback_policy`);
+- `no_consumer_yet` означает, что настройка в файле есть, но её пока никто не читает;
+- ключи API показываются только как «настроен / не настроен» — их значения система
+  не читает и никуда не выводит;
+- команда ничего не меняет в пайплайне: она объясняет то, что уже происходит.
+
 ## 11. ЗАПЛАНИРОВАНО, НО ПОКА НЕ РАБОТАЕТ
 
 Эти команды пока не существуют. Не пытайтесь их запускать - они будут

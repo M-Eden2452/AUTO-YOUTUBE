@@ -82,6 +82,18 @@ def build_parser() -> argparse.ArgumentParser:
     channels_p = subparsers.add_parser("channels", help="List/inspect channels.", parents=[json_flag])
     channels_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
     channels_p.add_argument("--channel", help="channel_id for 'show'.")
+    channels_p.add_argument(
+        "--explain",
+        action="store_true",
+        help="For 'show': print «параметр → значение → откуда взято» via the ConfigResolver. Read-only.",
+    )
+    channels_p.add_argument("--template", help="With --explain: template_id whose policy layer to apply.")
+    channels_p.add_argument("--format", dest="format_id", help="With --explain: format_id whose policy layer to apply.")
+    channels_p.add_argument("--language", help="With --explain: language whose localization layer to apply.")
+    channels_p.add_argument("--project-id", help="With --explain: project whose manifest layer to apply.")
+    channels_p.add_argument(
+        "--trace", action="store_true", help="With --explain: also print every layer that was considered."
+    )
 
     voices_p = subparsers.add_parser("voices", help="List voice providers/profiles.", parents=[json_flag])
     voices_p.add_argument("action", choices=["providers", "profiles", "show"])
@@ -257,6 +269,62 @@ def _print_json(data: Any) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
 
 
+def _channels_explain(args: argparse.Namespace) -> int:
+    """`channels show --channel X --explain`: which settings apply to a run on this
+    channel and where each one came from.
+
+    Read-only and free: the resolver opens configuration files and the catalog, and
+    reports credentials only as настроен/не настроен - it never reads a key's value.
+    Nothing here is wired into the pipeline; it explains what the current readers
+    already do.
+    """
+    from src.config_resolver import ConfigResolutionError, resolve_config
+
+    template_id = args.template or ""
+    if not template_id:
+        channel = next((c for c in capabilities.list_channels() if c["channel_id"] == args.channel), None)
+        supported = (channel or {}).get("supported_templates") or []
+        template_id = str((channel or {}).get("default_template") or "") or (supported[0] if supported else "")
+    format_id = args.format_id or ""
+    if not format_id and template_id:
+        try:
+            format_id = get_default_catalog().templates.get(template_id).format_id
+        except CatalogValidationError:
+            format_id = ""
+
+    try:
+        resolved = resolve_config(
+            channel_id=args.channel,
+            template_id=template_id,
+            format_id=format_id,
+            language=args.language or "",
+            project_id=args.project_id or "",
+        )
+    except ConfigResolutionError as exc:
+        if args.json_output:
+            _print_json({"status": "failed", "error": str(exc), "reason": exc.reason})
+        else:
+            print(f"[explain] error: {exc}")
+        return 1
+
+    if args.json_output:
+        _print_json(resolved.to_dict(include_trace=bool(args.trace)))
+        return 0
+
+    print(f"[explain] channel={args.channel} template={template_id or '-'} format={format_id or '-'} language={args.language or '-'}")
+    for row in resolved.explain_rows():
+        note = f"  ({', '.join(row['warnings'])})" if row["warnings"] else ""
+        value = row["value"] if len(row["value"]) <= 26 else row["value"][:23] + "..."
+        print(f"  {row['key']:<32} {value:<26} ← {row['resolved_from']:<22} {row['origin']}{note}")
+    if args.trace:
+        for layer in resolved.layers:
+            state = layer.note or f"{len(layer.values)} настроек"
+            print(f"  [layer {layer.priority:>2}] {layer.source:<22} {state}")
+    for warning in resolved.warnings:
+        print(f"  [!] {warning}")
+    return 0
+
+
 def _print_rights_lines(evidence: dict[str, Any], *, prefix: str = "") -> None:
     """Four-line rights summary for a finished run - the detail lives in
     `project rights-report`, which this deliberately does not duplicate."""
@@ -380,6 +448,8 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
         if args.action == "show":
             if not args.channel:
                 raise SystemExit("channels show requires --channel.")
+            if args.explain:
+                return _channels_explain(args)
             data = next((c for c in capabilities.list_channels() if c["channel_id"] == args.channel), None)
             if data is None:
                 raise SystemExit(f"Unknown channel_id: {args.channel!r}.")

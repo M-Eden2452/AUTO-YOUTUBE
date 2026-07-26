@@ -1309,6 +1309,158 @@ longform или repurposer смогут переиспользовать») за
 
 ---
 
+## Stage D1 — Единый ConfigResolver — ЗАВЕРШЁН
+
+Бриф: `docs/handoff/PRODUCT_VISION_AND_ROADMAP.md`, «Бриф 5 — D1. Единый ConfigResolver».
+Начат от коммита Q2 `66b2e13` при чистом дереве (932 теста, OK).
+
+### Что было проверено перед изменениями
+
+Полная карта — `docs/implementation/config_resolver/CONFIG_MAP.md`
+(настройка → источники → текущий приоритет → потребители). Главное:
+
+- **Похожего механизма в проекте не было.** `src/config_loader.py` — это legacy-загрузчик
+  `config/video_style.json` для старого пайплайна, а не резолвер. Ближайший
+  родственник — `src/audio/voice_policy.resolve_voice_policy`: четырёхслойное слияние,
+  но только для звука и без ответа «откуда взято». Он не заменён и не изменён — резолвер
+  строится **над** ним и обязан выдавать тот же результат.
+- **Порядок слоёв в брифе не совпадает с кодом.** `resolve_voice_policy` сливает
+  `channel_defaults`, затем `template_defaults` — то есть **шаблон перекрывает канал**,
+  а не наоборот. У `nature_science_news_ru` это реально работает:
+  `never_auto_fallback_to_paid: true` проигрывает шаблонному
+  `fallback_policy: manual_audio`.
+- **Бо́льшая часть `channel_config.json` не читается никем**: `target_duration_sec`,
+  `min/max_duration_sec`, `resolution`, `fps`, `language`, `subtitles`, `music`,
+  `languages`, `content`, `assets`, `approval`. Пайплайн берёт из этого файла только
+  `voice`, `voice_workflow` и `asset_selection`.
+- **Один и тот же параметр разрешается двумя разными способами.** `language`: story-card
+  путь — `request.language or channel.default_language`; news-путь —
+  `request.language or "ru"`, канальный `language` не смотрится вовсе.
+  `target_duration_sec`: `request → project_overrides → 55`, канальные 55 не при чём.
+- **Окружение в этом проекте — только провайдеры.** 44 чтения `os.getenv` в `src/`,
+  все до одного — ключи API и тюнинг эндпоинтов. Ни одна продуктовая настройка через
+  окружение не задаётся. `.env` не открывался (запрещено CLAUDE.md); список переменных
+  снят с кода.
+
+### Что сделано
+
+Создан `src/config_resolver/` — читающий слой поверх существующих компонентов.
+Ни один файл конфигурации не изменён, ни один старый читатель не удалён, в пайплайн
+резолвер **не подключён** (это следующий шаг, D2).
+
+- `keys.py` — реестр настроек. У каждой: тип, значение по умолчанию, **повторяющее тот
+  литерал, на который код падает сегодня**, и список модулей-потребителей. Настройка
+  без потребителей помечается предупреждением `no_consumer_yet` вместо того, чтобы
+  делать вид, что она на что-то влияет.
+- `models.py` — `ConfigSource` (9 констант с приоритетами), `ResolvedValue`,
+  `ResolutionStep`, `ResolvedConfig`, `ConfigResolutionRequest`, `ConfigResolutionError`.
+- `layers.py` — по одному читателю на слой: каталог форматов/шаблонов, `ChannelRegistry`,
+  `channel_config.json` (ровно тем же разбором, что `voice_policy_from_channel_config`),
+  `AUDIO_POLICY_DEFAULTS`, оба вида project-манифеста через `ProjectRepository`,
+  блок `languages.<lang>`, runtime-флаги, окружение.
+- `resolver.py` — приоритет, приведение типов, trace.
+- `adapters.py` — `to_voice_policy`, `to_render_settings`, `secret_presence`:
+  совместимость для постепенной миграции потребителей.
+- CLI: `channels show --channel <id> --explain [--trace] [--json]` — таблица
+  «параметр → значение → откуда взято». Только чтение, без сети и без оплаты.
+
+**Приоритет (слабый → сильный):**
+`global_default → format_policy → channel_profile → channel_config → template_policy
+→ project_override → localization_override → runtime_override` (+ `environment`,
+только секреты).
+
+### Секреты
+
+Ключ API не может попасть в резолвер физически: у секретных ключей тип
+`secret_presence`, и слой окружения хранит результат `bool(os.getenv(...))` — сам
+строковый ключ никуда не сохраняется. `ResolvedConfig.get()` для секретного ключа
+**отказывается** отвечать, `overrides` с секретом отклоняются, в JSON стоит `***`,
+в тексте — «настроен / не настроен». `--explain` можно без опаски вставлять в отчёт.
+Тест сериализует весь `ResolvedConfig` вместе с trace и убеждается, что подставленного
+секрета в выводе нет.
+
+### Осознанные отклонения от брифа
+
+1. **`template_policy` выше канальных слоёв, а не ниже** — как в коде сегодня. Порядок
+   из брифа поменял бы поведение озвучки, а D1 менять поведение не имеет права.
+   Конфликт не спрятан: перекрытое канальное значение получает предупреждение
+   `template_policy_overrode_channel`, и это ровно тот случай, который разбирается в D2.
+2. **Добавлен слой `runtime_override` выше локализации** — семь слоёв вместо шести.
+   Явный флаг CLI сегодня бьёт любой файл, и это место за ним сохранено.
+3. **`ConfigValidationResult` как отдельная сущность не заведена.** Ошибки — это
+   `ConfigResolutionError` с полем `reason` (`unknown_channel` / `unknown_template` /
+   `unknown_format` / `unknown_project` / `unknown_key` / `secret_override` /
+   `secret_access`), предупреждения живут на самих значениях и на `ResolvedConfig`.
+   Отдельный тип без потребителя был бы спекулятивным.
+4. **Секретами резолвер занимается только в объёме «настроен / не настроен» и только
+   для четырёх ключей.** Тюнинг эндпоинтов провайдеров (`WIKIMEDIA_*`, `NASA_IMAGES_*`,
+   `INTERNET_ARCHIVE_*`) не втянут: у него уже есть свой отчёт
+   `src/assets/provider_diagnostics.py`, и дублировать его — значит заводить вторую
+   систему.
+5. **`channel_config.json` разбирается на два слоя** (`channel_profile` для
+   `channel.json` и `channel_config` для `channel_config.json`), потому что это
+   физически два разных файла с разными схемами; сливать их в один «канальный» слой
+   означало бы врать в колонке «откуда взято».
+
+### Проверка вживую
+
+- `channels show --channel nature_science_news_ru --explain --trace` — 33 строки,
+  у каждой источник и путь к файлу; видно, что `voice.fallback_policy` пришёл от
+  шаблона и перекрыл канал, а `fps`/`min_duration_sec`/`max_duration_sec` разрешаются,
+  но ни на что не влияют.
+- То же для `nature_pulse` (канал только с `channel.json`, без `channel_config.json`) —
+  слои честно отчитываются, почему они пусты.
+- Неизвестный канал → понятное сообщение и код возврата 1, без traceback.
+- Все проекты в `projects/` обоих видов читаются как слой; байты `job.json`/`project.json`
+  сверены до и после — не изменились.
+
+### Тесты
+
+**Добавлено 54 теста в двух файлах** (существующие тесты не изменялись):
+
+- `tests/test_config_resolver.py` — 46: реестр ключей (значения по умолчанию сверяются
+  с `VoicePolicy()` и `NewsJob.create()`, а не выписаны от руки), приоритет на всех
+  семи слоях, trace, конфликт «шаблон перекрыл канал», пустая строка и пустой словарь
+  как «не задано», выключенный язык, приведение типов и невалидное значение, секреты
+  (8 тестов: слой окружения выдаёт только `bool`, presence вместо значения, отсутствие
+  секрета в сериализации и в `explain_rows`, redaction, запрет `get()` и `overrides`,
+  отключаемое чтение окружения), понятные ошибки на неизвестные
+  канал/шаблон/формат/проект/ключ и на нечитаемый `channel.json`, нечитаемый
+  `channel_config.json` трактуется как отсутствующий — так же, как это делает
+  `_load_channel_config`, все origin в posix-виде и на Windows, чтение
+  ничего не пишет и воспроизводимо, адаптеры, CLI `--explain`.
+- `tests/test_config_resolver_parity.py` — 8 характеристических: для **каждого**
+  канала на диске `to_voice_policy(resolve_config(...))` совпадает с
+  `resolve_voice_policy_for_channel(...)` **по всем 24 полям**; отдельный тест
+  доказывает, что это не совпадение — любое поле `VoicePolicy`, которое умеют задавать
+  `AUDIO_POLICY_DEFAULTS` или канальный адаптер, обязано быть ключом резолвера.
+  Плюс совпадение по `language`, `voice_profile`, геометрии формата и возможностям
+  шаблона, legacy-алиас `story_card_short_v1` и чтение всех 20 реальных проектов.
+
+**Полный набор: 986 тестов, OK** — было 932 на `66b2e13`, добавлено ровно 54.
+
+### Изменённые/созданные файлы
+
+Создано: `src/config_resolver/` (6 файлов), `tests/test_config_resolver.py`,
+`tests/test_config_resolver_parity.py`,
+`docs/implementation/config_resolver/CONFIG_MAP.md`.
+Изменено: `src/content_creation/cli.py` (флаги `--explain/--trace/--template/--format/
+--language/--project-id` у `channels show` и функция `_channels_explain`), `COMMANDS.md`,
+`CLAUDE.md`, эта страница и роадмап.
+
+**API/платные вызовы:** нет. **Сеть:** нет. **TTS/Vision/downloads/render:** нет.
+**Git write:** только локальный коммит этапа — без push/reset/rebase/clean.
+**`.env` не открывался** (список переменных снят с кода, не из файла). **Пользовательские
+проекты, медиа, `outputs/`, `assets/library/`, `assets/cache/`, `manual_assets/`,
+`music/`, файлы каналов — не тронуты.**
+
+**Рекомендуемый следующий этап:** D2 + E2 — голоса по языкам и стили субтитров канала.
+Слой `localization_override` уже есть и покрыт тестами; D2 — это подключение
+потребителей к нему и решение конфликта «шаблон перекрывает канал» для
+`fallback_policy`.
+
+---
+
 ## Git
 
 Baseline-коммит `chore: establish tested project baseline through B3` зафиксировал всю
