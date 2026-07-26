@@ -1,83 +1,116 @@
+"""Adapter between the news_to_short pipeline and the shared script engine.
+
+This module used to *be* the generator: six hard-coded phrases and the duration
+table ``[3.5, 7.0, 10.0, 13.0, 10.0, 8.0]``. That code still exists, unchanged, as
+``src.content.script_engine.providers.legacy_template`` - it is now one provider
+among several rather than the only way a script can be written.
+
+``build_script(job, research)`` keeps its exact signature and still returns the
+``script.json`` dict the rest of the pipeline reads, so ``visual_plan``,
+``voice_adapter``, ``subtitles``, ``final_renderer``, ``quality_check`` and
+``exporter`` did not have to change.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
-from .models import NewsJob
+from src.content.script_engine import (
+    DEFAULT_PROVIDER_ID,
+    SOURCE_NARRATION_TEXT,
+    SOURCE_RESEARCH,
+    SOURCE_TOPIC,
+    SOURCE_USER_SCRIPT,
+    ScriptConstraints,
+    ScriptGeneration,
+    ScriptRequest,
+    generate_script,
+    get_provider,
+    resolve_provider_id,
+)
+
+from .models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, NewsJob
+
+# Source kinds a job may declare in NewsJob.script_source. Empty means "work it
+# out from input_mode", which is what every pre-existing job.json does.
+JOB_SOURCE_KINDS = (SOURCE_RESEARCH, SOURCE_TOPIC, SOURCE_USER_SCRIPT, SOURCE_NARRATION_TEXT)
 
 
-EMOTIONS = ["intrigue", "context", "discovery", "explanation", "detail", "question"]
+def resolve_source_kind(job: NewsJob, research: dict[str, Any] | None = None) -> str:
+    """What the job's material actually is.
+
+    ``job.script_source`` is set by the caller that knows - the content-creation
+    service, which is the only place that can tell a pasted *article* from a
+    pasted *script* (``content_input_mode``). Without it we fall back to the
+    input mode, exactly as before.
+    """
+    declared = (getattr(job, "script_source", "") or "").strip()
+    if declared in JOB_SOURCE_KINDS:
+        return declared
+    if job.input_mode == INPUT_MODE_TOPIC and not (research or {}).get("claims"):
+        return SOURCE_TOPIC
+    if job.input_mode == INPUT_MODE_TEXT:
+        return SOURCE_RESEARCH
+    return SOURCE_RESEARCH
+
+
+def build_script_request(job: NewsJob, research: dict[str, Any]) -> ScriptRequest:
+    source_kind = resolve_source_kind(job, research)
+    if source_kind in {SOURCE_USER_SCRIPT, SOURCE_NARRATION_TEXT}:
+        # The user's own words are the material - never the research re-telling of them.
+        raw_text = job.input_text
+    else:
+        raw_text = _article_text(research)
+    return ScriptRequest(
+        source_kind=source_kind,
+        language=job.language,
+        title=job.title or "",
+        topic=research.get("topic") or job.topic or "",
+        raw_text=raw_text,
+        summary=str(research.get("summary") or ""),
+        claims=list(research.get("claims") or []),
+        source_urls=list(job.source_urls),
+        constraints=ScriptConstraints(target_duration_sec=float(job.target_duration_sec or 55)),
+        format_id="vertical_short",
+        template_id="fullscreen_voiceover_v1",
+        channel_id=job.channel_id,
+        include_cta=bool(getattr(job, "script_include_cta", False)),
+        cta_text=str(getattr(job, "script_cta_text", "") or ""),
+        provider_id=str(getattr(job, "script_provider", "") or ""),
+    )
+
+
+def generate_for_job(job: NewsJob, research: dict[str, Any]) -> ScriptGeneration:
+    """Full engine outcome (script + validation), for callers that want both.
+
+    A provider that needs the network or a paid API can fail for reasons the user
+    cannot do anything about mid-run, so the pipeline asks for a local fallback in
+    that one case. A local provider's failure is a real input problem (empty text,
+    unsupported source) and is left to surface.
+    """
+    request = build_script_request(job, research)
+    capabilities = get_provider(resolve_provider_id(request)).capabilities
+    remote = capabilities.requires_network or capabilities.requires_paid_api
+    return generate_script(request, fallback_provider_id=DEFAULT_PROVIDER_ID if remote else "")
 
 
 def build_script(job: NewsJob, research: dict[str, Any]) -> dict[str, Any]:
-    claims = [claim for claim in research.get("claims", []) if claim.get("safe_for_script", True)]
-    title = research.get("topic") or job.topic or "Научная новость"
-    hook = _make_hook(title)
-    scene_texts = _build_scene_texts(hook, claims, title)
-    scenes = []
-    target_durations = [3.5, 7.0, 10.0, 13.0, 10.0, 8.0]
-    start = 0.0
-    for index, narration in enumerate(scene_texts, start=1):
-        duration = target_durations[min(index - 1, len(target_durations) - 1)]
-        claim_ids = [claims[min(index - 1, len(claims) - 1)]["claim_id"]] if claims else []
-        scenes.append(
-            {
-                "scene_id": f"scene_{index:03d}",
-                "start_sec": round(start, 2),
-                "target_duration_sec": duration,
-                "narration": narration,
-                "claim_ids": claim_ids,
-                "visual_intent": _visual_intent(narration),
-                "on_screen_text": _screen_text(narration),
-                "emotion": EMOTIONS[min(index - 1, len(EMOTIONS) - 1)],
-            }
-        )
-        start += duration
-    narration_text = "\n".join(scene["narration"] for scene in scenes)
-    return {
-        "title": title,
-        "hook": hook,
-        "language": job.language,
-        "target_duration_sec": job.target_duration_sec,
-        "estimated_duration_sec": round(sum(scene["target_duration_sec"] for scene in scenes), 2),
-        "narration_text": narration_text,
-        "description": f"Короткий научный ролик: {title}",
-        "source_claim_ids": [claim["claim_id"] for claim in claims],
-        "scenes": scenes,
-    }
+    """The script.json payload for this job. Signature unchanged since Stage AB."""
+    outcome = generate_for_job(job, research)
+    script = outcome.to_legacy_script(target_duration_sec=job.target_duration_sec)
+    # The verdict travels with the script instead of being recomputed by every
+    # reader; quality_check keeps its own independent checks.
+    script["script_validation"] = outcome.validation.to_dict()
+    return script
 
 
-def _make_hook(title: str) -> str:
-    clean = title.strip().rstrip(".?!")
-    if clean.startswith("Почему"):
-        return f"{clean}?"
-    return f"{clean}: что здесь самое необычное?"
+def _article_text(research: dict[str, Any]) -> str:
+    """Claims carry the article's sentences already (research keeps the first eight,
+    which is more than a 55-second short can hold), so raw text is only needed when
+    research produced none."""
+    if research.get("claims"):
+        return ""
+    return str(research.get("summary") or "")
 
 
-def _build_scene_texts(hook: str, claims: list[dict[str, Any]], title: str) -> list[str]:
-    claim_texts = [claim.get("text", "") for claim in claims if claim.get("text")]
-    while len(claim_texts) < 5:
-        claim_texts.append(title)
-    return [
-        hook,
-        f"Наблюдение выглядит простым, но за ним стоит важная деталь: {claim_texts[0]}",
-        f"Исследователи связывают историю с проверяемыми фактами: {claim_texts[1]}",
-        _cautious_sentence(claims[2] if len(claims) > 2 else claims[0] if claims else None, claim_texts[2]),
-        f"Главное здесь не эффектная картинка, а то, как меняется наше понимание темы: {claim_texts[3]}",
-        "И пока появляются новые данные, самый интересный вопрос остается открытым: что мы упускаем в этой истории?",
-    ]
-
-
-def _cautious_sentence(claim: dict[str, Any] | None, text: str) -> str:
-    if claim and claim.get("claim_type") in {"hypothesis", "interpretation", "uncertain"}:
-        return f"Но это не доказанный факт: ученые предполагают, что {text}"
-    return f"Основное объяснение звучит осторожно и без преувеличений: {text}"
-
-
-def _visual_intent(narration: str) -> str:
-    return narration[:160]
-
-
-def _screen_text(narration: str) -> str:
-    words = narration.replace(":", "").split()
-    return " ".join(words[:5])
-
+__all__ = ["build_script", "build_script_request", "generate_for_job", "resolve_source_kind"]

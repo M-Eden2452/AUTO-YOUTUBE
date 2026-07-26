@@ -115,6 +115,30 @@ def build_parser() -> argparse.ArgumentParser:
     run_stage_p.add_argument("--projects-root", default="projects")
     run_stage_p.add_argument("--execute-voice", action="store_true")
 
+    script_p = subparsers.add_parser(
+        "script",
+        help="Script engine: list providers, generate a script offline, validate an existing one.",
+        parents=[json_flag],
+    )
+    script_p.add_argument("action", choices=["providers", "generate", "validate"])
+    script_p.add_argument(
+        "--source-kind",
+        default="",
+        choices=["", "topic", "research", "user_script", "narration_text"],
+        help="What the input is. Empty = infer from which of --topic/--text is given.",
+    )
+    script_p.add_argument("--provider", default="", help="Script provider id (see `script providers`).")
+    script_p.add_argument("--topic", default="")
+    script_p.add_argument("--text", default="", help="Article text, ready script, or ready narration.")
+    script_p.add_argument("--text-file", default="", help="Same as --text, read from a UTF-8 file.")
+    script_p.add_argument("--title", default="")
+    script_p.add_argument("--language", default="ru")
+    script_p.add_argument("--target-duration", dest="target_duration_sec", type=int, default=55)
+    script_p.add_argument("--include-cta", action="store_true", help="Add a call to action (never automatic).")
+    script_p.add_argument("--cta-text", default="")
+    script_p.add_argument("--out", default="", help="Write a pipeline-compatible script.json here.")
+    script_p.add_argument("--script-file", dest="script_json_path", default="", help="script.json for 'validate'.")
+
     subparsers.add_parser(
         "wizard", help="Interactive terminal wizard (same request/service as 'create').", parents=[json_flag]
     )
@@ -299,6 +323,9 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
             for channel in report["channels"]:
                 print(f"[capabilities] channel={channel['channel_id']} type={channel['channel_profile_type']}")
         return 0
+
+    if command == "script":
+        return _run_script_command(args)
 
     if command == "formats":
         catalog = get_default_catalog()
@@ -583,6 +610,103 @@ def _print_plain(data: Any) -> None:
             print(item)
     else:
         print(data)
+
+
+def _run_script_command(args: argparse.Namespace) -> int:
+    """`script` subcommand: the offline way to see and check a script.
+
+    Runs the real pipeline path (research engine -> script engine -> script.json),
+    but writes nothing except an explicit --out file. No network, no TTS, no
+    downloads, no render, no paid API - by construction, not by flag.
+    """
+    from src.content.script_engine import from_legacy_script, list_capabilities, validate_script
+    from src.news.models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, NewsJob
+    from src.news.research_engine import build_research
+    from src.news.script_generator import generate_for_job
+
+    if args.action == "providers":
+        data = [item.to_dict() for item in list_capabilities()]
+        if args.json_output:
+            _print_json(data)
+        else:
+            for item in data:
+                paid = "платный" if item["requires_paid_api"] else "бесплатный"
+                net = "нужна сеть" if item["requires_network"] else "офлайн"
+                print(f"[script] {item['provider_id']}: {item['display_name']} ({paid}, {net}, {item['implementation_status']})")
+                print(f"          {item['description']}")
+        return 0
+
+    if args.action == "validate":
+        if not args.script_json_path:
+            raise SystemExit("script validate requires --script-file <path to script.json>.")
+        path = Path(args.script_json_path)
+        if not path.is_file():
+            raise SystemExit(f"Файл не найден: {path}")
+        result = from_legacy_script(json.loads(path.read_text(encoding="utf-8")))
+        validation = validate_script(result, expected_language=result.language)
+        payload = {"script_file": str(path), "scene_count": len(result.scenes), **validation.to_dict()}
+        if args.json_output:
+            _print_json(payload)
+        else:
+            _print_validation(validation, scene_count=len(result.scenes))
+        return 0 if validation.valid else 1
+
+    text = args.text
+    if args.text_file:
+        text = Path(args.text_file).read_text(encoding="utf-8")
+    if not text and not args.topic:
+        raise SystemExit("script generate requires --topic, --text or --text-file.")
+
+    source_kind = args.source_kind or ("research" if text else "topic")
+    job = NewsJob.create(
+        channel_id="",
+        input_mode=INPUT_MODE_TEXT if text else INPUT_MODE_TOPIC,
+        title=args.title,
+        topic=args.topic,
+        input_text=text,
+        language=args.language,
+        target_duration_sec=args.target_duration_sec,
+        script_provider=args.provider,
+        script_source=source_kind,
+        script_include_cta=args.include_cta,
+        script_cta_text=args.cta_text,
+    )
+    research = build_research(job, {"title": args.topic or args.title, "text": text or args.topic})
+    outcome = generate_for_job(job, research)
+    script = outcome.to_legacy_script(target_duration_sec=job.target_duration_sec)
+
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(script, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    if args.json_output:
+        _print_json({**outcome.to_dict(), "written_to": args.out, "script_json": script})
+        return 0 if outcome.validation.valid else 1
+
+    result = outcome.result
+    print(f"[script] движок={outcome.provider_id} источник={result.source_kind} язык={result.language}")
+    if outcome.used_fallback:
+        print(f"[script] запрошен {outcome.requested_provider_id}, отработал {outcome.provider_id}")
+    print(f"[script] сцен={len(result.scenes)} расчётная длительность={result.estimated_duration_sec:.1f} с "
+          f"(цель {job.target_duration_sec} с)")
+    for scene in result.scenes:
+        print(f"  {scene.scene_id} [{scene.role:<11}] {scene.duration_sec:5.1f} с  {scene.narration[:70]}")
+    for warning in result.warnings:
+        print(f"[script] предупреждение: {warning}")
+    _print_validation(outcome.validation, scene_count=len(result.scenes))
+    if args.out:
+        print(f"[script] script.json записан: {Path(args.out).resolve()}")
+    return 0 if outcome.validation.valid else 1
+
+
+def _print_validation(validation, *, scene_count: int) -> None:
+    label = {"passed": "проверка пройдена", "needs_review": "нужна проверка", "failed": "не проходит"}
+    print(f"[script] {label.get(validation.status, validation.status)} (сцен: {scene_count})")
+    for issue in validation.issues:
+        mark = "ошибка " if issue.severity == "error" else "внимание"
+        where = f" [{issue.scene_id}]" if issue.scene_id else ""
+        print(f"  {mark}{where} {issue.code}: {issue.message}")
 
 
 def main(argv: list[str] | None = None) -> int:

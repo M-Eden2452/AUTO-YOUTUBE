@@ -121,6 +121,14 @@ class NewsJob:
     user_assets: list[str] = field(default_factory=list)
     language: str = "ru"
     target_duration_sec: int = 55
+    # Script engine selection (src.content.script_engine). All optional: a job.json
+    # written before the engine existed loads unchanged and resolves to the defaults.
+    # script_source says what input_text really is - only the caller that collected
+    # it can tell a pasted article from a pasted script.
+    script_provider: str = ""
+    script_source: str = ""
+    script_include_cta: bool = False
+    script_cta_text: str = ""
     aspect_ratio: str = "9:16"
     resolution: dict[str, int] = field(default_factory=lambda: {"width": 1080, "height": 1920})
     platforms: list[str] = field(default_factory=lambda: ["youtube_shorts", "instagram_reels", "facebook_reels"])
@@ -145,6 +153,10 @@ class NewsJob:
         user_assets: list[str] | None = None,
         language: str = "ru",
         target_duration_sec: int = 55,
+        script_provider: str = "",
+        script_source: str = "",
+        script_include_cta: bool = False,
+        script_cta_text: str = "",
         now: str | None = None,
         is_taken: Any = None,
     ) -> "NewsJob":
@@ -175,6 +187,10 @@ class NewsJob:
             user_assets=user_assets or [],
             language=language,
             target_duration_sec=target_duration_sec,
+            script_provider=script_provider,
+            script_source=script_source,
+            script_include_cta=script_include_cta,
+            script_cta_text=script_cta_text,
             created_at=created_at,
             updated_at=created_at,
             stages=stages,

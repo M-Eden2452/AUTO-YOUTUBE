@@ -43,6 +43,10 @@ def create_news_to_short_job(
     assets: list[str] | None = None,
     language: str = "ru",
     target_duration_sec: int = 55,
+    script_provider: str = "",
+    script_source: str = "",
+    script_include_cta: bool = False,
+    script_cta_text: str = "",
     now: str | None = None,
 ) -> NewsJob:
     source_urls = list(urls or [])
@@ -71,6 +75,10 @@ def create_news_to_short_job(
         user_assets=assets or [],
         language=language,
         target_duration_sec=target_duration_sec,
+        script_provider=script_provider,
+        script_source=script_source,
+        script_include_cta=script_include_cta,
+        script_cta_text=script_cta_text,
         now=now,
         is_taken=existing_ids,
     )

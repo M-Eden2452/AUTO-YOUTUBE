@@ -258,6 +258,19 @@ def _resolve_content_inputs(request: ContentCreationRequest) -> tuple[str | None
     return url, topic, text, text_file
 
 
+def _resolve_script_source(request: ContentCreationRequest) -> str:
+    """Map the UI's content_input_mode onto a script-engine source kind.
+
+    Only pasted_script/script_file are finished scripts. topic and article_url go
+    through research as before, so their behaviour is unchanged.
+    """
+    from src.content.script_engine import SOURCE_USER_SCRIPT
+
+    if request.content_input_mode in {"pasted_script", "script_file"}:
+        return SOURCE_USER_SCRIPT
+    return ""
+
+
 def _build_paid_preflight_summary(*, root: Path, job, request: ContentCreationRequest) -> dict[str, Any]:
     """Read-only, no-cost summary shown before the paid gate: resolves the profile
     through the same VoiceProfileRegistry used by _create_paid_voice_approval (global
@@ -452,6 +465,12 @@ def _create_fullscreen_voiceover(
             target_duration_sec=int(
                 request.target_duration_sec or request.project_overrides.get("target_duration_sec", 55)
             ),
+            # This is the only layer that knows whether pasted text is an article
+            # to write *about* or a script to speak. Before the script engine the
+            # distinction was lost, and a finished script was shredded into
+            # sentences and re-wrapped in the template generator's own phrases.
+            script_source=_resolve_script_source(request),
+            script_provider=str(request.project_overrides.get("script_provider", "") or ""),
         )
     root = store.project_root(job.job_id)
     _notify(progress_callback, "project_create", "completed")
