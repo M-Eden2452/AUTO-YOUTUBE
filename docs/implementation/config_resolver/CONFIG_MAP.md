@@ -111,3 +111,33 @@ global_default → format_policy → channel_profile → channel_config
 Пустая строка и пустой словарь считаются «не задано» — так же, как это читает любая
 цепочка `a or b or default` в существующем коде. Именно это не даёт
 `languages.en.voice.voice_id: ""` стереть голос канала.
+
+---
+
+## 6. Что изменилось в D2/E2 (голос и локализация)
+
+Порядок слоёв **не менялся**, включая `template_policy > channel_config`.
+Появились настоящие потребители и один новый производный контракт.
+
+| Ключ | Потребитель до D2 | Потребитель после D2 |
+|---|---|---|
+| `voice.provider` | `voice_adapter`, `narration_workflow` | + `src/localization/resolver.py`, `src/news/voice_stage.py` |
+| `voice.voice_profile` | `voice_adapter`, `voice_profile_registry` | + `src/localization/resolver.py` (единственный расчёт приоритета) |
+| `voice.model_id` | `voice_adapter`, `narration_workflow` | + `src/localization/resolver.py` |
+| `voice.fallback_policy` | **никто** (значение разрешалось, но не читалось) | `src/localization/resolver.py` — политика реально применяется |
+| `voice.provider_settings` | `narration_workflow` | + `src/localization/resolver.py` |
+| `secrets.elevenlabs_api_key` | `src/audio/tts/env.py`, `src/voice_engine.py` | + `src/localization/secrets.py` (только `bool`) |
+| `language` | `news.pipeline`, `project_foundation`, `content_creation.service` | + `src/localization/locales.py` (нормализация написаний) |
+
+Новых ключей резолвера D2/E2 не добавлял: язык/locale/источник озвучки — это не
+слои конфигурации, а производные runtime-значения, и живут они в
+`ResolvedLocalization` (`src/localization/models.py`).
+
+Блок `channel_config.json → languages.<id>.voice`, про который раздел 3 говорил
+«не читается никем», теперь читается — через уже существовавший слой
+`localization_override`. Остальные пункты раздела 3 (`target_duration_sec`,
+`min/max_duration_sec`, `resolution`, `fps`, `subtitles`, `music`, `localization`,
+`content`, `assets`, `approval`) по-прежнему без потребителей.
+
+Полная карта локализации и голоса —
+`docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`.

@@ -1461,6 +1461,188 @@ longform или repurposer смогут переиспользовать») за
 
 ---
 
+## Stage D2/E2 — Локализация и голос: подключение ConfigResolver — ЗАВЕРШЁН
+
+Бриф: `docs/handoff/PRODUCT_VISION_AND_ROADMAP.md`, «Бриф 6 — D2 + E2».
+Начат от коммита D1 `81e63e0` при чистом дереве (986 тестов, OK).
+
+### Фактическая архитектура локализации/голоса до изменений
+
+Карта — `docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`. Главное:
+
+- **Голос разрешался в трёх независимых местах.** `src/news/voice_stage.py`,
+  `src/content_creation/service._build_paid_preflight_summary` и
+  `service._create_paid_voice_approval` каждое само вызывали
+  `resolve_voice_policy_for_channel` + `load_voice_profile_for_channel`. Approval мог
+  быть записан против одного голоса, а сгенерирован другой.
+- **Поиск профиля был выписан трижды** — в `voice_adapter`, в
+  `capabilities.resolve_voice_profile` и через них в мастере, причём с разными
+  правилами глобального поиска.
+- **`channel_config.json → languages.<id>.voice` не читал никто** (слово `languages`
+  не встречалось ни в `src/news/`, ни в `src/audio/`).
+- **`voice.fallback_policy` не читал никто.** Значение разрешалось (D1), но ни один
+  модуль не принимал по нему решения: отсутствие ключа приводило к попытке платного
+  вызова, которая падала внутри `ElevenLabsProvider`.
+- **Язык нигде не нормализовался.** `ru`, `ru-RU`, `Russian` — три разных значения;
+  папка локализации и код языка были одним и тем же полем.
+- **Профиль не проверялся на язык.** Английскую локализацию можно было озвучить
+  русским голосом молча.
+- **`build_safe_voice_manifest` хардкодил русский голос** (`ru_dom`,
+  `hDfThiytYnsDMuVgm6Qy`, `Dom`, `eleven_multilingual_v2`) как значения по умолчанию.
+- **Готовая озвучка защищалась только вызывающим.** `service._completed_narration`
+  пропускал стадию, но сама стадия при повторном вызове перезаписывала манифест
+  заглушкой.
+- **`ELEVENLABS_VOICE_ID` перекрывал `voice_id` каждого elevenlabs-профиля** в любом
+  `voices.yaml` — то есть все языки говорили одним голосом.
+
+### Что переиспользовано, а не создано заново
+
+`src/config_resolver/` (все девять слоёв и порядок приоритета), `to_voice_policy`,
+`src/audio/voice_policy` (`VoicePolicy`, `AUDIO_POLICY_DEFAULTS`, `FALLBACK_POLICIES`,
+`OUTPUT_MODE_*`), `channels/*/voices.yaml` + `VoiceProfileRegistry`,
+`src/audio/voice_manifest` (в том числе терпимый `read_voice_manifest`),
+`src/audio/voice_workflow` (`import_manual_audio`, approval), `narration_workflow`,
+`scene_voice_generator.generation_output_paths`, `EXTENDED_VOICE_STATES` как словарь
+статусов, `NewsJob.localizations` как хранилище нескольких языковых версий.
+
+Второй системы локализаций, второго реестра голосов, второго контракта провайдера и
+второй конфигурационной системы не создано.
+
+### Что добавлено
+
+- **`src/localization/`** — runtime-контракт локализации поверх резолвера:
+  - `locales.py` — единственная таблица «код → locale → написания». Список языков
+    `src/content_creation/languages.py` теперь берётся отсюда, чтобы списка не стало два.
+  - `models.py` — `ResolvedLocalization`, `LocalizationIssue`, константы источников
+    озвучки и коды проблем. Статусы взяты из существующего
+    `EXTENDED_VOICE_STATES` — нового словаря статусов нет (проверяется тестом).
+  - `resolver.py` — `resolve_localization()`: единственное место, где решается язык,
+    locale, провайдер, профиль, `voice_id`, модель, fallback и источник озвучки.
+  - `secrets.py` — признак «ключ настроен», только `bool`.
+  - `validation.py` — проверки набора локализаций: дубли id, дубли путей вывода,
+    секрет в конфигурации, путь за пределами проекта, один активный источник.
+- **`src/audio/voice_profile_registry.lookup_profile`** — единственная реализация
+  поиска профиля; `voice_adapter` и `capabilities` теперь делегируют ей.
+- **`src/news/voice_adapter.resolve_localization_for_channel`** — compatibility-обёртка,
+  возвращающая `None` для канала, которого резолвер не знает.
+- **CLI `voices explain`** — read-only объяснение локализации/голоса.
+- **Сводка мастера** показывает разрешённый голос, откуда он взят, наличие ключа,
+  источник озвучки и причину, по которой TTS не будет запущен.
+
+### Потребители, переведённые на ConfigResolver
+
+`src/news/pipeline.py` (стадия `voice` — одна резолюция на стадию),
+`src/news/voice_stage.py` (выбор голоса, fallback, защита готовой озвучки),
+`src/news/voice_adapter.py`, `src/content_creation/service.py`
+(`_resolve_localization`, `_resolve_voice_inputs`, preflight-сводка, запись approval,
+определение готовой озвучки), `src/content_creation/cli.py`,
+`src/content_creation/wizard.py`, `src/content_creation/languages.py`.
+
+### Потребители, намеренно оставленные на compatibility path
+
+Story Card (шаблон без озвучки — `story_card_no_voice`), legacy channel pipeline
+(`pipeline.py --channel/--video`, `src/voice_engine.py` — своя система голосов),
+documentary, Anime Factory, `src/audio/voice_cli.py` (обслуживающий CLI).
+Причина одна и та же: их миграция расширяет scope этапа и ничего не добавляет к
+вертикальному пути «выбор пользователя → стадия озвучки». Подробнее — §8 карты.
+
+### Порядок разрешения
+
+Порядок D1 **не изменён**, включая `template_policy > channel_config`; конфликт
+по-прежнему помечается предупреждением `template_policy_overrode_channel`, и теперь
+оно печатается в `voices explain`. Явный выбор пользователя подаётся в резолвер как
+слой `runtime_override`, поэтому «runtime бьёт localization» — свойство резолвера.
+
+### Осознанные отклонения от промпта
+
+1. **Стили субтитров канала (`channels/*/subtitle_style.json`) не подключены.**
+   Роадмап относит их к E2, но этот промпт прямо запрещает менять subtitle renderer
+   и переходить к Q3. Передаётся только язык субтитров
+   (`ResolvedLocalization.subtitle_language`). Стили остаются задачей отдельного этапа.
+2. **Отдельного поля `voice_style` нет.** В проекте стиль подачи — это
+   `settings.style` ElevenLabs; отдельное поле означало бы хранить одно значение
+   дважды. Доступно как производное свойство и печатается в explain.
+3. **`narration_text` в контракт не вынесен.** Текст живёт в `script.json`, который и
+   так передаётся стадии; дублировать его в runtime-объекте не нужно.
+4. **`LocalizationState` (job.json) не получил новых полей.** Provider, профиль,
+   `voice_id` и признак платного вызова уже хранит `voice_manifest.json`; добавлять
+   их второй раз означало бы завести второй источник правды. `script_locale` теперь
+   поддерживается в актуальном виде.
+5. **`request.voice.provider` не подаётся как runtime-override.** У
+   `VoiceRequestConfig.provider` значение по умолчанию `"disabled"`, и трактовка
+   этого дефолта как явного выбора молча отключила бы озвучку у шаблона, который её
+   требует. Платный гейт по-прежнему смотрит на это поле, как и раньше.
+6. **Статус манифеста озвучки не изменён.** `status`/`voice_stage_status` остались
+   описанием результата стадии («ничего не сгенерировано»), потому что на этом смысле
+   держатся `quality_check`, `preview_render` и `project status`. Разрешённый план
+   лежит рядом, в новом поле `localization_status`.
+7. **Мастер по-прежнему спрашивает провайдера и голос.** Это не «уже известный»
+   ответ, а решение на конкретный запуск (нет озвучки / ручной WAV / платная
+   генерация). Убрано другое: голоса чужого языка больше не предлагаются, а вместо
+   тихого падения на `ru_dom` печатается понятное предупреждение.
+8. **Проверка наличия ключа не берётся из слоя окружения резолвера.** См. §6 карты:
+   иначе «ключ есть в `.env`, но процесс его не загрузил» выглядело бы как «ключа
+   нет» и ломало бы работающую сегодня генерацию.
+
+### Исправленные ошибки прежней архитектуры
+
+Шесть штук, перечислены в §9 карты. Существенные: env-переменная
+`ELEVENLABS_VOICE_ID` больше не перекрывает `voice_id` всех профилей;
+`fallback_policy` реально применяется; профиль проверяется на язык; стадия озвучки
+сама защищает готовый артефакт.
+
+### Тесты
+
+**Добавлен `tests/test_localization_voice_integration.py` — 42 теста**
+(существующие тесты не изменялись): нормализация языка и locale, единый список
+языков, `localization_id` не переименовывается; характеристическая проверка, что для
+каждого канала на диске разрешённый `selection` и `VoicePolicy` совпадают с
+пре-D2-читателями; неизменность порядка слоёв D1 и `template_policy > channel_config`;
+`localization_override` побеждает канал, `runtime_override` побеждает локализацию;
+секрет не сериализуется и не печатается (включая CLI и trace); отсутствие ключа даёт
+ожидаемый fallback без сети; manual audio и готовый артефакт не вызывают TTS; готовая
+озвучка переиспользуется, её манифест не перезаписывается (сверка байтов); артефакт
+чужого языка не переиспользуется; несовместимый профиль, неизвестный провайдер,
+`local_tts` без провайдера, `fallback_policy=none` дают понятные ошибки; несколько
+локализаций получают разные пути вывода, дубль пути и дубль id — ошибка; старые
+манифесты без новых полей читаются; все news-проекты на диске читаются, байты
+`job.json` сверены до и после; старые подписи стадии дают прежний результат;
+мастер предлагает только голоса выбранного языка; `voices explain` не раскрывает
+секрет и возвращает 1 на ошибочной локализации.
+
+**Полный набор: 1028 тестов, OK** — было 986 на `81e63e0`, добавлено ровно 42.
+
+### Проверка вживую
+
+- `voices explain --channel nature_science_news_ru --language ru` — видно, что
+  провайдер, профиль и модель пришли из `languages.ru` (слой, который до этого этапа
+  не читал никто), fallback — из шаблона с предупреждением, ключ показан как
+  «настроен», TTS будет вызван.
+- То же с `--language en` — явная ошибка «профиль `ru_dom` рассчитан на язык `ru`» и
+  код возврата 1 вместо тихого русского голоса.
+- Сеть, TTS, Vision, downloads, платные вызовы, рендер — не выполнялись.
+  Пользовательские проекты, медиа, `outputs/`, `assets/`, `music/`, `.env` — не
+  открывались и не изменялись (кроме read-only чтения `job.json` для проверки
+  совместимости, со сверкой байтов).
+
+### Изменённые/созданные файлы
+
+Создано: `src/localization/` (6 файлов),
+`tests/test_localization_voice_integration.py`,
+`docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`.
+Изменено: `src/audio/voice_profile_registry.py`, `src/audio/voice_cli.py`,
+`src/news/voice_adapter.py`, `src/news/voice_stage.py`, `src/news/pipeline.py`,
+`src/content_creation/{service,cli,wizard,languages,capabilities}.py`, `COMMANDS.md`,
+`docs/implementation/config_resolver/CONFIG_MAP.md`, `CLAUDE.md`, эта страница и роадмап.
+
+**API/платные вызовы:** нет. **Сеть:** нет. **TTS/Vision/downloads/render:** нет.
+**Git write:** только локальный коммит этапа — без push/reset/rebase/clean.
+
+**Рекомендуемый следующий этап:** Q3 (word-level subtitles) либо оставшаяся половина
+E2 — стили субтитров канала. Автоматически к Q3 не переходить.
+
+---
+
 ## Git
 
 Baseline-коммит `chore: establish tested project baseline through B3` зафиксировал всю

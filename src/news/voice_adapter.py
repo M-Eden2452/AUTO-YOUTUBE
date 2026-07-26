@@ -2,13 +2,25 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.audio.narration_models import NarrationRequest, build_narration_request_from_scenes
 from src.audio.tts.models import VoiceProfile
 from src.audio.voice_policy import AUDIO_POLICY_DEFAULTS, VoicePolicy, resolve_voice_policy, voice_policy_from_channel_config
-from src.audio.voice_profile_registry import VoiceProfileRegistry, VoiceProfileRegistryError
+from src.audio.voice_profile_registry import lookup_profile
+# Re-exported on purpose: load_voice_profile_for_channel() propagates it, and callers
+# have always been able to catch it from here.
+from src.audio.voice_profile_registry import VoiceProfileRegistryError as VoiceProfileRegistryError
 from src.audio.voice_workflow import VoiceApproval, voice_paths
+from src.localization.resolver import COMPAT_DEFAULT_VOICE_PROFILE
+
+if TYPE_CHECKING:  # pragma: no cover - import only for the annotation
+    from src.localization.models import ResolvedLocalization
+
+# News-to-Short carries no production_catalog ids of its own; these are the ones its
+# rendered output actually matches (see resolve_voice_policy_for_channel below).
+NEWS_TEMPLATE_ID = "fullscreen_voiceover_v1"
+NEWS_FORMAT_ID = "vertical_short"
 
 
 def resolve_voice_policy_for_channel(
@@ -40,22 +52,63 @@ def load_voice_profile_for_channel(
     genuinely registered elsewhere (e.g. ru_dom in nature_science_news_ru's
     voices.yaml) instead of raising FileNotFoundError. Without an override,
     behavior is unchanged: this channel's own voices.yaml is required.
-    """
-    query = profile_override or (channel_voice_config or {}).get("voice_profile") or "ru_dom"
-    voices_path = Path("channels") / channel_id / "voices.yaml"
-    if voices_path.is_file() or not profile_override:
-        registry = VoiceProfileRegistry.from_yaml(voices_path)
-        return registry.resolve(query)
 
-    for candidate in sorted(Path("channels").glob("*/voices.yaml")):
-        try:
-            return VoiceProfileRegistry.from_yaml(candidate).resolve(query)
-        except VoiceProfileRegistryError:
-            continue
-    raise VoiceProfileRegistryError(
-        f"Could not resolve voice profile {query!r} for channel {channel_id!r}: it has no "
-        "voices.yaml of its own, and no other channel's voices.yaml has this profile either."
-    )
+    The lookup itself now lives in
+    ``src.audio.voice_profile_registry.lookup_profile`` so that this function, the
+    UI layer and ``src.localization`` all use one implementation; the precedence
+    chain (override → channel default → "ru_dom") stays here, unchanged.
+    """
+    query = profile_override or (channel_voice_config or {}).get("voice_profile") or COMPAT_DEFAULT_VOICE_PROFILE
+    return lookup_profile(channel_id, query, allow_global=bool(profile_override))
+
+
+def resolve_localization_for_channel(
+    *,
+    channel_id: str,
+    language: str,
+    project_root: str | Path | None = None,
+    project_id: str = "",
+    projects_dir: str | Path = "projects",
+    template_id: str = NEWS_TEMPLATE_ID,
+    format_id: str = NEWS_FORMAT_ID,
+    voice_profile_override: str | None = None,
+    voice_provider_override: str | None = None,
+    manual_audio_path: str = "",
+    script_path: str = "",
+) -> "ResolvedLocalization | None":
+    """Compatibility wrapper: one resolved localization, or ``None`` if this channel
+    cannot be resolved at all.
+
+    News jobs carry no production_catalog template_id, so the same assumption
+    ``resolve_voice_policy_for_channel`` already documents is applied here:
+    News-to-Short's output is the ``fullscreen_voiceover_v1`` contract.
+
+    Returns ``None`` instead of raising when the channel is unknown to the resolver
+    (a directory with neither ``channel.json`` nor ``channel_config.json``). The old
+    readers treated that as "no configuration" and kept going
+    (``_load_channel_config`` returns ``{}``), so callers fall back to the legacy
+    path rather than a channel that used to work starting to fail.
+    """
+    from src.config_resolver import ConfigResolutionError
+    from src.localization import resolve_localization
+
+    try:
+        return resolve_localization(
+            channel_id=channel_id,
+            template_id=template_id,
+            format_id=format_id,
+            language=language,
+            localization_id=language,
+            project_id=project_id,
+            project_root=project_root,
+            projects_dir=str(projects_dir),
+            script_path=script_path,
+            manual_audio_path=manual_audio_path,
+            voice_profile_override=voice_profile_override or "",
+            voice_provider_override=voice_provider_override or "",
+        )
+    except ConfigResolutionError:
+        return None
 
 
 def load_approval(project_root: str | Path, language: str) -> VoiceApproval | None:
@@ -79,8 +132,8 @@ def script_to_narration_request(
     policy: VoicePolicy,
     voice_profile: VoiceProfile,
     approval: VoiceApproval | None,
-    format_id: str = "vertical_short",
-    template_id: str = "fullscreen_voiceover_v1",
+    format_id: str = NEWS_FORMAT_ID,
+    template_id: str = NEWS_TEMPLATE_ID,
 ) -> NarrationRequest:
     return build_narration_request_from_scenes(
         project_id=job_id,

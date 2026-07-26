@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-# Single source of truth for language choices across CLI, wizard, and any future
-# UI - nothing else in src.content_creation should hardcode a language list.
-LANGUAGES: list[dict[str, str]] = [
-    {"code": "ru", "display_name": "Русский"},
-    {"code": "en", "display_name": "English"},
-    {"code": "es", "display_name": "Español"},
-]
+from src.localization import locales
 
-_BY_CODE = {item["code"]: item for item in LANGUAGES}
+# The language choices offered by CLI, wizard and any future UI. Derived from
+# src.localization.locales, which is the single table of «код → locale → написания»
+# for the whole project - so the UI list and the runtime normalizer can never drift
+# apart. The shape of this list is unchanged.
+LANGUAGES: list[dict[str, str]] = [
+    {"code": item.code, "display_name": item.display_name} for item in locales.LANGUAGE_DEFINITIONS
+]
 
 
 def list_languages() -> list[dict[str, str]]:
@@ -18,12 +18,11 @@ def list_languages() -> list[dict[str, str]]:
 
 
 def is_known_language(code: str) -> bool:
-    return str(code or "").strip().lower() in _BY_CODE
+    return locales.is_known_language(code)
 
 
 def display_name(code: str) -> str:
-    item = _BY_CODE.get(str(code or "").strip().lower())
-    return item["display_name"] if item else code
+    return locales.display_name(code)
 
 
 def language_support_warnings(*, channel: dict[str, Any] | None, template_requires_voice: bool, voice_profiles: list[dict[str, Any]], language: str) -> list[str]:

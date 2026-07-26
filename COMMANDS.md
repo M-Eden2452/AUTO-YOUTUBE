@@ -169,6 +169,38 @@ Read-only, файлов не создают.
 Read-only, без сети (ElevenLabs здесь только проверяет наличие ключа в `.env`,
 не звонит в API).
 
+### 10.4.1. Какой голос будет у локализации и почему (этап D2/E2)
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli voices explain --channel nature_science_news_ru
+```
+
+Показывает для каждой языковой версии: язык, locale, язык субтитров, провайдера,
+профиль голоса, `voice_id`, модель, политику fallback, источник озвучки, наличие
+ключа («настроен / не настроен») и — если TTS не будет вызван — почему.
+
+Отдельный язык, конкретный проект, полный разбор по слоям, JSON:
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli voices explain --channel nature_science_news_ru --language en
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli voices explain --channel nature_science_news_ru --language ru --project-id <project_id>
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli voices explain --channel nature_science_news_ru --trace --json
+```
+
+- если у языка нет подходящего голоса, команда говорит об этом прямо и возвращает
+  код 1 — вместо того чтобы молча озвучить английский текст русским голосом;
+- если готовая озвучка уже лежит в проекте, видно, что она будет переиспользована
+  и повторная генерация не нужна;
+- значение ключа API не выводится ни в каком виде;
+- команда ничего не запускает и ничего не меняет: ни сети, ни TTS, ни рендера,
+  ни записи в проект.
+
 ### 10.5. Subtitle styles
 
 ```bash

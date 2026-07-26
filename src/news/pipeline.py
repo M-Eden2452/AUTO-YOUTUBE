@@ -19,6 +19,7 @@ from .research_engine import build_research
 from .script_generator import build_script
 from .subtitles import build_subtitles
 from .visual_plan import build_visual_plan
+from .voice_adapter import resolve_localization_for_channel
 from .voice_stage import build_or_generate_voice_manifest
 
 
@@ -274,6 +275,20 @@ def _dispatch_stage(
     if stage_name == "voice":
         script_path = root / "localizations" / job.language / "script" / "script.json"
         script = store.read_json(script_path)
+        # One resolution for the whole stage (D2): language, locale, provider, profile,
+        # voice_id, fallback policy and narration source all come from the same
+        # ConfigResolver answer instead of being recomputed per call site. Returns None
+        # for a channel the resolver does not know, and the legacy readers below are
+        # then used exactly as before.
+        localization = resolve_localization_for_channel(
+            channel_id=job.channel_id,
+            language=job.language,
+            project_root=root,
+            project_id=job.job_id,
+            projects_dir=store.projects_root,
+            voice_profile_override=voice_profile_override,
+            script_path=str(script_path),
+        )
         manifest = build_or_generate_voice_manifest(
             project_root=root,
             language=job.language,
@@ -284,7 +299,13 @@ def _dispatch_stage(
             job_id=job.job_id,
             execute=execute_voice,
             voice_profile_override=voice_profile_override,
+            localization=localization,
         )
+        if localization is not None and localization.locale:
+            # script_locale already exists on LocalizationState and was written once at
+            # create time; keeping it in step with the resolved locale costs nothing and
+            # is what a later multi-language run reads back.
+            job.localizations[job.language].script_locale = localization.locale
         # Write the real spoken timings back onto the script so the renderer and the
         # subtitle builder stop using the planned estimate. Both already prefer
         # actual_duration_sec; nothing wrote it before this, which is why a rendered

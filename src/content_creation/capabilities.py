@@ -6,7 +6,10 @@ from typing import Any
 from src.audio import voice_policy
 from src.audio.tts.audio_file_provider import AudioFileProvider
 from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
-from src.audio.voice_profile_registry import VoiceProfileRegistry, VoiceProfileRegistryError
+from src.audio.voice_profile_registry import VoiceProfileRegistry
+# Re-exported on purpose: resolve_voice_profile() below propagates it, and callers
+# (src/content_creation/wizard.py) catch it without importing src.audio themselves.
+from src.audio.voice_profile_registry import VoiceProfileRegistryError as VoiceProfileRegistryError
 from src.production_catalog.catalog import get_default_catalog
 from src.project_foundation.channels import ChannelRegistry
 from src.project_foundation.models import ProjectFoundationError
@@ -71,7 +74,9 @@ def list_voice_providers() -> list[dict[str, Any]]:
 
 
 def _voices_path(channel_id: str) -> Path:
-    return Path("channels") / channel_id / "voices.yaml"
+    from src.audio.voice_profile_registry import channel_voices_path
+
+    return channel_voices_path(channel_id)
 
 
 def _global_voice_registries() -> list[Path]:
@@ -82,11 +87,11 @@ def _global_voice_registries() -> list[Path]:
     use a profile that is genuinely registered elsewhere. Keeping the two in sync
     matters - when they disagreed, the wizard cleared a profile that the pipeline
     would in fact have resolved, and the user's voice choice was silently dropped.
+    Both now read the same helper in src.audio.voice_profile_registry.
     """
-    channels_dir = Path("channels")
-    if not channels_dir.is_dir():
-        return []
-    return sorted(channels_dir.glob("*/voices.yaml"))
+    from src.audio.voice_profile_registry import global_voices_paths
+
+    return global_voices_paths()
 
 
 def list_voice_profiles(channel_id: str, *, include_global: bool = True) -> list[dict[str, Any]]:
@@ -147,20 +152,13 @@ def resolve_voice_profile(channel_id: str, query: str) -> str:
     uses downstream: the channel's own voices.yaml first, then every other channel's.
     Before this matched, the UI layer rejected a profile that the pipeline would have
     accepted, so choosing a voice for a channel without its own voices.yaml silently
-    produced a run with no narration.
+    produced a run with no narration. Keeping them in step is no longer a matter of
+    discipline: both call the one implementation in
+    src.audio.voice_profile_registry.lookup_profile.
     """
-    own_path = _voices_path(channel_id)
-    if own_path.is_file():
-        return VoiceProfileRegistry.from_yaml(own_path).resolve(query).profile_id
-    for candidate in _global_voice_registries():
-        try:
-            return VoiceProfileRegistry.from_yaml(candidate).resolve(query).profile_id
-        except VoiceProfileRegistryError:
-            continue
-    raise VoiceProfileRegistryError(
-        f"Could not resolve voice profile {query!r} for channel {channel_id!r}: it has no "
-        "voices.yaml of its own, and no other channel's voices.yaml has this profile either."
-    )
+    from src.audio.voice_profile_registry import lookup_profile
+
+    return lookup_profile(channel_id, query, allow_global=True).profile_id
 
 
 # Only styles with a real, tested implementation are listed. src/news/subtitles.py is

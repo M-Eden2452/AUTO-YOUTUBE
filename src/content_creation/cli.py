@@ -95,10 +95,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--trace", action="store_true", help="With --explain: also print every layer that was considered."
     )
 
-    voices_p = subparsers.add_parser("voices", help="List voice providers/profiles.", parents=[json_flag])
-    voices_p.add_argument("action", choices=["providers", "profiles", "show"])
-    voices_p.add_argument("--channel", help="channel_id for 'profiles'/'show'.")
+    voices_p = subparsers.add_parser(
+        "voices", help="List voice providers/profiles, or explain a localization's voice.", parents=[json_flag]
+    )
+    voices_p.add_argument("action", choices=["providers", "profiles", "show", "explain"])
+    voices_p.add_argument("--channel", help="channel_id for 'profiles'/'show'/'explain'.")
     voices_p.add_argument("--voice-profile", help="Profile id, alias, or display name (e.g. \"Дом\") for 'show'.")
+    voices_p.add_argument("--language", help="With 'explain': localization to explain (default: every one).")
+    voices_p.add_argument("--template", help="With 'explain': template_id whose policy layer to apply.")
+    voices_p.add_argument("--format", dest="format_id", help="With 'explain': format_id whose policy layer to apply.")
+    voices_p.add_argument("--project-id", help="With 'explain': project whose manifest and narration to inspect.")
+    voices_p.add_argument("--projects-root", default="projects")
+    voices_p.add_argument("--voice-provider", help="With 'explain': provider as an explicit runtime override.")
+    voices_p.add_argument(
+        "--trace", action="store_true", help="With 'explain': also print every configuration layer considered."
+    )
 
     subtitles_p = subparsers.add_parser("subtitles", help="List/inspect subtitle styles.", parents=[json_flag])
     subtitles_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
@@ -280,17 +291,7 @@ def _channels_explain(args: argparse.Namespace) -> int:
     """
     from src.config_resolver import ConfigResolutionError, resolve_config
 
-    template_id = args.template or ""
-    if not template_id:
-        channel = next((c for c in capabilities.list_channels() if c["channel_id"] == args.channel), None)
-        supported = (channel or {}).get("supported_templates") or []
-        template_id = str((channel or {}).get("default_template") or "") or (supported[0] if supported else "")
-    format_id = args.format_id or ""
-    if not format_id and template_id:
-        try:
-            format_id = get_default_catalog().templates.get(template_id).format_id
-        except CatalogValidationError:
-            format_id = ""
+    template_id, format_id = _explain_template_and_format(args)
 
     try:
         resolved = resolve_config(
@@ -323,6 +324,120 @@ def _channels_explain(args: argparse.Namespace) -> int:
     for warning in resolved.warnings:
         print(f"  [!] {warning}")
     return 0
+
+
+def _explain_template_and_format(args: argparse.Namespace) -> tuple[str, str]:
+    """The template/format a run on this channel would use, for the explain commands."""
+    template_id = getattr(args, "template", "") or ""
+    if not template_id:
+        channel = next((c for c in capabilities.list_channels() if c["channel_id"] == args.channel), None)
+        supported = (channel or {}).get("supported_templates") or []
+        template_id = str((channel or {}).get("default_template") or "") or (supported[0] if supported else "")
+    format_id = getattr(args, "format_id", "") or ""
+    if not format_id and template_id:
+        try:
+            format_id = get_default_catalog().templates.get(template_id).format_id
+        except CatalogValidationError:
+            format_id = ""
+    return template_id, format_id
+
+
+def _explain_languages(args: argparse.Namespace) -> list[str]:
+    """Which localizations to explain: the one asked for, or every one the channel
+    declares (``channel.json:supported_languages``, then the known language list)."""
+    if args.language:
+        return [args.language]
+    channel = next((c for c in capabilities.list_channels() if c["channel_id"] == args.channel), None)
+    supported = list((channel or {}).get("supported_languages") or [])
+    if supported:
+        return supported
+    from src.localization import known_language_codes
+
+    return list(known_language_codes())
+
+
+def _voices_explain(args: argparse.Namespace) -> int:
+    """`voices explain --channel X [--language ru]`: the localization/voice
+    configuration that would actually be used, and where each part comes from.
+
+    Read-only and free. It resolves configuration, looks a profile up in voices.yaml
+    and inspects an existing voice_manifest.json - it never opens the network, never
+    calls a TTS provider, never downloads, never renders and never writes to the
+    project. A credential is reported only as настроен/не настроен; its value is not
+    read into the output at any point.
+    """
+    from src.config_resolver import ConfigResolutionError
+    from src.localization import resolve_localization, validate_localization_set
+
+    template_id, format_id = _explain_template_and_format(args)
+    project_root = None
+    if args.project_id:
+        project_root = Path(args.projects_root) / args.project_id
+
+    resolved = []
+    for language in _explain_languages(args):
+        try:
+            resolved.append(
+                resolve_localization(
+                    channel_id=args.channel,
+                    template_id=template_id,
+                    format_id=format_id,
+                    language=language,
+                    project_id=args.project_id or "",
+                    project_root=project_root,
+                    projects_dir=args.projects_root,
+                    voice_provider_override=getattr(args, "voice_provider", "") or "",
+                    voice_profile_override=args.voice_profile or "",
+                )
+            )
+        except ConfigResolutionError as exc:
+            if args.json_output:
+                _print_json({"status": "failed", "error": str(exc), "reason": exc.reason})
+            else:
+                print(f"[localization] error: {exc}")
+            return 1
+
+    issues = validate_localization_set(resolved)
+    if args.json_output:
+        _print_json(
+            {
+                "channel_id": args.channel,
+                "template_id": template_id,
+                "format_id": format_id,
+                "project_id": args.project_id or "",
+                "localizations": [
+                    item.to_dict(include_config=True, include_trace=bool(args.trace)) for item in resolved
+                ],
+                "issues": [issue.to_dict() for issue in issues],
+            }
+        )
+        return 0
+
+    for item in resolved:
+        print(
+            f"[localization] {item.localization_id} ({item.locale or '-'})  "
+            f"статус={item.status} источник_озвучки={item.narration_source}"
+        )
+        for row in item.explain_rows():
+            value = "—" if row["value"] in (None, "") else str(row["value"])
+            value = value if len(value) <= 26 else value[:23] + "..."
+            source = row["resolved_from"] or "-"
+            note = f"  ({', '.join(row['warnings'])})" if row["warnings"] else ""
+            print(f"    {row['key']:<24} {value:<26} ← {source:<22} {row['origin']}{note}")
+        if item.existing_narration_path:
+            reuse = "будет переиспользована" if item.reuse_existing_narration else "несовместима, не используется"
+            print(f"    готовая озвучка          {item.existing_narration_path} ({reuse})")
+        tts_line = "да" if item.tts_allowed else f"нет — {item.tts_blocked_reason or 'причина не указана'}"
+        print(f"    TTS будет вызван         {tts_line}")
+        if item.fallback_applied:
+            print(f"    fallback                 {item.fallback_reason}")
+        if args.trace and item.config is not None:
+            for layer in item.config.layers:
+                state = layer.note or f"{len(layer.values)} настроек"
+                print(f"    [layer {layer.priority:>2}] {layer.source:<22} {state}")
+    for issue in issues:
+        print(f"  [{issue.severity}] {issue.localization_id or '-'}: {issue.message}")
+    return 0 if all(not issue.is_error for issue in issues) else 1
 
 
 def _print_rights_lines(evidence: dict[str, Any], *, prefix: str = "") -> None:
@@ -459,6 +574,10 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
         return 0
 
     if command == "voices":
+        if args.action == "explain":
+            if not args.channel:
+                raise SystemExit("voices explain requires --channel.")
+            return _voices_explain(args)
         if args.action == "providers":
             data = capabilities.list_voice_providers()
         elif args.action == "profiles":

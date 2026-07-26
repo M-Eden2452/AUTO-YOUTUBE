@@ -245,6 +245,27 @@ CONTENT_INPUT_MODES = [
     ("script_file", "Файл со сценарием (.txt/.md)"),
 ]
 
+
+def _profiles_for_language(profiles: list[dict[str, Any]], language: str) -> list[dict[str, Any]]:
+    """Only the voices that can actually speak this localization.
+
+    A profile with no declared language is kept: voices.yaml allows omitting it, and
+    dropping such a profile would remove a voice that does work today. Comparison goes
+    through src.localization normalization, so "ru" and "ru-RU" are the same language.
+    """
+    from src.localization import normalize_language
+
+    target = normalize_language(language) or str(language or "")
+
+    def speaks_target(profile: dict[str, Any]) -> bool:
+        declared = str(profile.get("language") or "")
+        if not declared:
+            return True
+        return (normalize_language(declared) or declared) == target
+
+    return [profile for profile in profiles if speaks_target(profile)]
+
+
 def _voice_profile_label(profile: dict[str, Any], channel_id: str) -> str:
     """Show where a profile comes from when it is borrowed from another channel."""
     label = f"{profile['display_name']} ({profile['profile_id']})"
@@ -558,11 +579,26 @@ class _Wizard:
             state.voice_mode = "disabled"
             return
         if state.voice_provider == "elevenlabs":
-            profiles = capabilities.list_voice_profiles(state.channel_id)
+            profiles = _profiles_for_language(capabilities.list_voice_profiles(state.channel_id), state.language)
             if profiles:
                 profile_choices = [(p["profile_id"], _voice_profile_label(p, state.channel_id)) for p in profiles]
                 state.voice_profile = self._select("voice", "Голос:", profile_choices)
-            self._resolve_profile_display(state)
+                self._resolve_profile_display(state)
+            else:
+                # Before D2 the wizard fell through to the "ru_dom" default here, so an
+                # English localization was quietly given a Russian voice. Now it says so.
+                state.voice_profile = ""
+                state.voice_profile_display_name = ""
+                state.voice_profile_model_id = ""
+                print(
+                    _tag(
+                        self.icons,
+                        "warning",
+                        f"Нет голосового профиля для языка {state.language!r}. Добавьте голос в "
+                        f"channels/{state.channel_id}/voices.yaml и укажите его в channel_config.json → "
+                        f"languages.{state.language}.voice - иначе платная генерация не будет выполнена.",
+                    )
+                )
         elif state.voice_provider == "audio_file":
             state.audio_file = self._text("voice", "Путь к WAV-файлу озвучки:")
         # Output mode is a template policy decision, not a user choice: nothing in the
@@ -799,6 +835,7 @@ class _Wizard:
         if state.voice_profile_display_name:
             profile_label += f" (display_name={state.voice_profile_display_name}, model={state.voice_profile_model_id})"
         print(f"{icons['voice']} Озвучка: provider={state.voice_provider} profile={profile_label} mode={state.voice_mode}")
+        self._print_localization_lines(state)
         print(f"{icons['subtitles']} Субтитры: {state.subtitle_style}")
         print(f"{icons['music']} Музыка: {state.music_mode}" + (f" ({state.music_path})" if state.music_path else ""))
         print(f"{icons['timing']} Timing: {state.timing_mode or '-'}")
@@ -813,6 +850,53 @@ class _Wizard:
         print(f"Сетевые действия: {', '.join(network_actions) or 'нет'}")
         print(f"Платные действия: {', '.join(paid_actions) or 'нет'}")
         print("=" * 44)
+
+    def _print_localization_lines(self, state: _WizardState) -> None:
+        """Which voice will really be used, where each part of that answer comes from,
+        and why TTS will or will not run - resolved through src.localization, so the
+        summary cannot disagree with what the pipeline then does.
+
+        Read-only and free: no network, no provider call, no writes. A credential is
+        shown only as настроен/не настроен. Never raises: a summary that cannot be
+        built must not take the whole wizard down.
+        """
+        if not state.channel_id or state.voice_provider == "disabled":
+            return
+        try:
+            from src.localization import resolve_localization
+
+            resolved = resolve_localization(
+                channel_id=state.channel_id,
+                template_id=state.template_id,
+                format_id=state.format_id,
+                language=state.language,
+                voice_profile_override=state.voice_profile or "",
+                manual_audio_path=state.audio_file or "",
+            )
+        except Exception:  # noqa: BLE001 - сводка не имеет права ломать мастер
+            return
+        print(
+            f"    Локализация: {resolved.localization_id} / locale={resolved.locale or '-'} / "
+            f"субтитры={resolved.subtitle_language or '-'}"
+        )
+        print(
+            f"    Голос: {resolved.voice_name or '-'} ({resolved.voice_profile_id or '-'}), "
+            f"voice_id={resolved.resolved_voice_id or '-'}, model={resolved.tts_model or '-'}"
+        )
+        source = resolved.config.source_of("voice.voice_profile") if resolved.config is not None else ""
+        print(f"    Откуда взят голос: {source or '-'}")
+        secret_state = "настроен" if resolved.secret_configured else "не настроен"
+        required = "требуется" if resolved.secret_required else "не требуется"
+        print(f"    Ключ провайдера: {required}, {secret_state}")
+        print(
+            f"    Источник озвучки: {resolved.narration_source} (fallback={resolved.fallback_policy or '-'})"
+        )
+        if resolved.reuse_existing_narration:
+            print(f"    Готовая озвучка будет переиспользована: {resolved.existing_narration_path}")
+        if not resolved.tts_allowed:
+            print(f"    TTS не будет запущен: {resolved.tts_blocked_reason or '-'}")
+        for issue in resolved.issues:
+            print(_tag(self.icons, "warning", f"{issue.severity}: {issue.message}"))
 
     def review_edit_loop(self, state: _WizardState) -> bool:
         """Returns True to proceed to creation, False if the user cancelled."""

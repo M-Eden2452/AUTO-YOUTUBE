@@ -21,11 +21,25 @@ def load_voice_profiles(path: str | Path) -> dict[str, VoiceProfile]:
     profiles: dict[str, VoiceProfile] = {}
     for profile_id, item in (data.get("voices") or {}).items():
         env = load_elevenlabs_env()
+        # ELEVENLABS_VOICE_ID is a *fallback* for a profile that declares no voice_id
+        # of its own - the same direction src/production_plan/solar_vs_nuclear_render.py
+        # already reads it (`os.getenv(...) or VOICE_ID_DOM`).
+        #
+        # It used to be the other way round: the environment variable replaced the
+        # voice_id of every elevenlabs profile in every voices.yaml. With more than one
+        # profile that means every language speaks with the same voice - an English
+        # profile silently got the Russian voice_id - which is exactly the thing D2 is
+        # supposed to make impossible. For the one channel configured today the two
+        # values are identical, so nothing changes for it.
+        declared_voice_id = str(item.get("voice_id", "") or "")
+        voice_id = declared_voice_id
+        if not voice_id and item.get("provider") == "elevenlabs" and env.voice_id:
+            voice_id = env.voice_id
         profiles[profile_id] = VoiceProfile(
             profile_id=profile_id,
             display_name=item.get("display_name", profile_id),
             provider=item.get("provider", ""),
-            voice_id=env.voice_id if item.get("provider") == "elevenlabs" and env.voice_id else item.get("voice_id", ""),
+            voice_id=voice_id,
             model_id=item.get("model_id", item.get("model", "")),
             language=item.get("language", ""),
             enabled=bool(item.get("enabled", True)),

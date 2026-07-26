@@ -271,16 +271,47 @@ def _resolve_script_source(request: ContentCreationRequest) -> str:
     return ""
 
 
-def _build_paid_preflight_summary(*, root: Path, job, request: ContentCreationRequest) -> dict[str, Any]:
-    """Read-only, no-cost summary shown before the paid gate: resolves the profile
-    through the same VoiceProfileRegistry used by _create_paid_voice_approval (global
-    fallback included), then reuses the existing, unmodified
-    src.audio.narration_workflow.prepare_final for display_name/model_id/character_count/
-    scene_count/cache state and a provider preflight (confirmed read-only for
-    ElevenLabsProvider elsewhere in this codebase - never calls the synthesis endpoint).
-    Also adds target_duration_sec/estimated_duration_sec/word_count read straight off
-    script.json, and expected_credits (eleven_multilingual_v2 only: 1 character = 1
-    credit per ElevenLabs pricing; None for any other model since the rate is unknown).
+def _resolve_localization(*, root: Path, job, request: ContentCreationRequest):
+    """The one resolved localization this whole workflow uses.
+
+    Before D2 the policy and the voice profile were resolved separately in three
+    places (the voice stage, the preflight summary, the approval writer), so a
+    channel-language voice could in principle disagree between them. They now all
+    read this. Returns None only when the channel is unknown to the resolver, in
+    which case each call site keeps its own legacy readers.
+
+    ``request.voice.provider`` is deliberately NOT passed as a runtime override:
+    ``VoiceRequestConfig.provider`` defaults to "disabled", and treating that default
+    as an explicit choice would silently switch off narration on a template that
+    requires it. The paid-approval gate below still keys on it, exactly as before.
+    """
+    from src.news.voice_adapter import resolve_localization_for_channel
+
+    projects_root = Path(request.project_overrides.get("projects_root", "projects"))
+    return resolve_localization_for_channel(
+        channel_id=request.channel_id,
+        language=job.language,
+        project_root=root,
+        project_id=job.job_id,
+        projects_dir=projects_root,
+        voice_profile_override=request.voice.profile or None,
+        manual_audio_path=request.voice.audio_file or "",
+        script_path=str(root / "localizations" / job.language / "script" / "script.json"),
+    )
+
+
+def _build_paid_preflight_summary(
+    *, root: Path, job, request: ContentCreationRequest, localization=None
+) -> dict[str, Any]:
+    """Read-only, no-cost summary shown before the paid gate: takes the profile and the
+    policy from the resolved localization (src.localization), then reuses the existing,
+    unmodified src.audio.narration_workflow.prepare_final for display_name/model_id/
+    character_count/scene_count/cache state and a provider preflight (confirmed
+    read-only for ElevenLabsProvider elsewhere in this codebase - never calls the
+    synthesis endpoint). Also adds target_duration_sec/estimated_duration_sec/word_count
+    read straight off script.json, and expected_credits (eleven_multilingual_v2 only:
+    1 character = 1 credit per ElevenLabs pricing; None for any other model since the
+    rate is unknown).
 
     Returns {} if it can't be built yet (script not written, no resolvable profile) -
     this is purely informational and must never block or crash the approval-gate result.
@@ -289,28 +320,16 @@ def _build_paid_preflight_summary(*, root: Path, job, request: ContentCreationRe
     from src.audio.tts.audio_file_provider import AudioFileProvider
     from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
     from src.audio.tts.provider_manager import TTSProviderManager
-    from src.audio.voice_profile_registry import VoiceProfileRegistryError
-    from src.news.pipeline import _load_channel_voice_config, _load_channel_workflow_config
-    from src.news.voice_adapter import (
-        load_approval,
-        load_voice_profile_for_channel,
-        resolve_voice_policy_for_channel,
-        script_to_narration_request,
-    )
+    from src.news.voice_adapter import load_approval, script_to_narration_request
 
     script_path = root / "localizations" / job.language / "script" / "script.json"
     if not script_path.is_file():
         return {}
 
-    channel_voice_config = _load_channel_voice_config(request.channel_id)
-    channel_workflow_config = _load_channel_workflow_config(request.channel_id)
-    policy = resolve_voice_policy_for_channel(channel_voice_config, channel_workflow_config)
-    try:
-        profile = load_voice_profile_for_channel(
-            request.channel_id, channel_voice_config, profile_override=request.voice.profile or None
-        )
-    except VoiceProfileRegistryError:
+    resolved = _resolve_voice_inputs(root=root, job=job, request=request, localization=localization)
+    if resolved is None:
         return {}
+    policy, profile = resolved
 
     script_data = json.loads(script_path.read_text(encoding="utf-8"))
     approval = load_approval(root, job.language)
@@ -338,10 +357,44 @@ def _build_paid_preflight_summary(*, root: Path, job, request: ContentCreationRe
     summary["expected_credits"] = (
         summary.get("character_count", 0) if summary.get("model_id") == "eleven_multilingual_v2" else None
     )
+    if localization is not None:
+        # Why the paid call is or is not possible, in the same summary the CLI prints -
+        # secret presence is a bool, never the key itself.
+        summary["language"] = localization.language
+        summary["locale"] = localization.locale
+        summary["narration_source"] = localization.narration_source
+        summary["fallback_policy"] = localization.fallback_policy
+        summary["secret_configured"] = localization.secret_configured
+        summary["tts_blocked_reason"] = localization.tts_blocked_reason
     return summary
 
 
-def _create_paid_voice_approval(*, root: Path, job, request: ContentCreationRequest) -> str:
+def _resolve_voice_inputs(*, root: Path, job, request: ContentCreationRequest, localization=None):
+    """``(policy, voice_profile)`` for this run, or None if no profile resolves.
+
+    Prefers the resolved localization; falls back to the pre-D2 readers for a channel
+    the resolver does not know, so a channel that worked before keeps working.
+    """
+    from src.audio.voice_profile_registry import VoiceProfileRegistryError
+    from src.news.pipeline import _load_channel_voice_config, _load_channel_workflow_config
+    from src.news.voice_adapter import load_voice_profile_for_channel, resolve_voice_policy_for_channel
+
+    if localization is not None and localization.policy is not None and localization.voice_profile is not None:
+        return localization.policy, localization.voice_profile
+
+    channel_voice_config = _load_channel_voice_config(request.channel_id)
+    channel_workflow_config = _load_channel_workflow_config(request.channel_id)
+    policy = resolve_voice_policy_for_channel(channel_voice_config, channel_workflow_config)
+    try:
+        profile = load_voice_profile_for_channel(
+            request.channel_id, channel_voice_config, profile_override=request.voice.profile or None
+        )
+    except VoiceProfileRegistryError:
+        return None
+    return policy, profile
+
+
+def _create_paid_voice_approval(*, root: Path, job, request: ContentCreationRequest, localization=None) -> str:
     """Write the approval.json that src.audio.voice_workflow/narration_workflow actually
     gate on (is_final_generation_approved / approval_covers_request).
 
@@ -361,29 +414,21 @@ def _create_paid_voice_approval(*, root: Path, job, request: ContentCreationRequ
     An explicit request.voice.profile (e.g. --voice-profile ru_dom from the CLI/wizard)
     always takes priority over the channel's own configured default, and is resolved
     globally (see src.news.voice_adapter.load_voice_profile_for_channel) - a channel
-    with no voices.yaml of its own (e.g. nature_pulse) can still use it.
+    with no voices.yaml of its own (e.g. nature_pulse) can still use it. Since D2 the
+    profile and the policy come from the same resolved localization the voice stage
+    uses, so the approval can no longer be written against a different voice than the
+    one that will actually be generated.
     """
     from datetime import datetime, timezone
 
     from src.audio.narration_workflow import _combined_settings
-    from src.audio.voice_profile_registry import VoiceProfileRegistryError
     from src.audio.voice_workflow import create_voice_approval_record
-    from src.news.pipeline import _load_channel_voice_config, _load_channel_workflow_config
-    from src.news.voice_adapter import (
-        load_voice_profile_for_channel,
-        resolve_voice_policy_for_channel,
-        script_to_narration_request,
-    )
+    from src.news.voice_adapter import script_to_narration_request
 
-    channel_voice_config = _load_channel_voice_config(request.channel_id)
-    channel_workflow_config = _load_channel_workflow_config(request.channel_id)
-    policy = resolve_voice_policy_for_channel(channel_voice_config, channel_workflow_config)
-    try:
-        profile = load_voice_profile_for_channel(
-            request.channel_id, channel_voice_config, profile_override=request.voice.profile or None
-        )
-    except VoiceProfileRegistryError as exc:
-        return f"Could not resolve a voice profile for channel {request.channel_id!r}: {exc}"
+    resolved = _resolve_voice_inputs(root=root, job=job, request=request, localization=localization)
+    if resolved is None:
+        return f"Could not resolve a voice profile for channel {request.channel_id!r}."
+    policy, profile = resolved
 
     script_path = root / "localizations" / job.language / "script" / "script.json"
     script_data = json.loads(script_path.read_text(encoding="utf-8")) if script_path.is_file() else {}
@@ -506,7 +551,14 @@ def _create_fullscreen_voiceover(
     # --approve-paid-generation, matching src.audio.voice_workflow.import_manual_audio's own
     # no-approval design.
     voice_manifest_path = root / "localizations" / job.language / "voice" / "voice_manifest.json"
-    existing_voice = _completed_narration(store, voice_manifest_path)
+    # One resolution for the rest of this workflow (D2). It also answers "is there
+    # already narration on disk", by manifest and not by a bare file check, so the
+    # existing-narration protection and the paid gate agree with the voice stage.
+    localization = _resolve_localization(root=root, job=job, request=request)
+    if localization is not None:
+        existing_voice = localization.existing_narration_path
+    else:
+        existing_voice = _completed_narration(store, voice_manifest_path)
 
     requires_paid_approval = request.voice.provider == "elevenlabs" and not existing_voice
     approve_paid = bool(request.voice.approve_paid_generation) and requires_paid_approval
@@ -518,7 +570,9 @@ def _create_fullscreen_voiceover(
         # build_or_generate_voice_manifest(execute=True) requires an approval.json on
         # disk (checked via src.audio.voice_workflow.is_final_generation_approved) and
         # we never wrote one, so it silently fell back to the unconfigured stub.
-        approval_warning = _create_paid_voice_approval(root=root, job=job, request=request)
+        approval_warning = _create_paid_voice_approval(
+            root=root, job=job, request=request, localization=localization
+        )
 
     if existing_voice:
         # Resuming a project whose narration is already generated. Running the voice
@@ -566,17 +620,23 @@ def _create_fullscreen_voiceover(
             # Free, read-only summary shown before the paid gate: resolved
             # display_name/model/character count/scene count/cache state, plus a
             # provider preflight - see _build_paid_preflight_summary docstring.
-            preflight_summary = _build_paid_preflight_summary(root=root, job=job, request=request)
+            preflight_summary = _build_paid_preflight_summary(
+                root=root, job=job, request=request, localization=localization
+            )
+        gate_warnings = [
+            "Paid ElevenLabs generation was NOT performed. Re-run with --approve-paid-generation "
+            "to synthesize scene audio and continue to final_render.",
+        ]
+        if localization is not None and localization.fallback_reason:
+            # Never let a missing key look like a silent no-op: say why, and what to do.
+            gate_warnings.append(localization.fallback_reason)
         return ContentCreationResult(
             status="prepared_awaiting_paid_approval",
             project_id=job.job_id,
             project_root=str(root),
             stages=stages,
             output_paths={"voice_manifest": str(voice_manifest_path)},
-            warnings=[
-                "Paid ElevenLabs generation was NOT performed. Re-run with --approve-paid-generation "
-                "to synthesize scene audio and continue to final_render.",
-            ],
+            warnings=gate_warnings,
             evidence={
                 "character_count": voice_manifest.get("character_count", 0),
                 "provider": request.voice.provider,

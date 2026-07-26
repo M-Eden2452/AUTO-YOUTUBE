@@ -739,6 +739,18 @@ studio check <project>     # права + готовность к публика
 Модули: `channels/*/channel_config.json` (`languages.*.voice`),
 `channels/*/subtitle_style.json`, `src/news/{voice_adapter,subtitles}.py`.
 **З:** D1.
+**СДЕЛАНА ГОЛОСОВАЯ ЧАСТЬ (D2)** — `src/localization/` поверх ConfigResolver:
+блок `languages.<id>.voice` читается (слой `localization_override`), `fallback_policy`
+впервые реально применяется, профиль проверяется на язык (английская локализация
+больше не получает русский голос молча), готовая озвучка защищена от перезаписи,
+язык/locale нормализуются без миграции старых проектов. Приёмка —
+`voices explain --channel <id> [--language <lang>]`. Порядок слоёв D1, включая
+`template_policy > channel_config`, не изменён. Карта —
+`docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`, отклонения —
+`AUTONOMOUS_PROGRESS.md`, раздел «Stage D2/E2».
+**ОСТАЛОСЬ (E2):** стили субтитров канала (`channels/*/subtitle_style.json`) — этап
+D2/E2 их не подключал, потому что запрет на изменение subtitle renderer был прямым
+условием задания; передаётся только язык субтитров.
 
 ---
 

@@ -6,6 +6,10 @@ from .tts.models import VoiceProfile
 from .voice_cli import load_voice_profiles
 
 
+DEFAULT_CHANNELS_DIR = "channels"
+VOICES_FILENAME = "voices.yaml"
+
+
 # Small in-code seed table (lowercased query -> profile_id). Kept in-code rather than in
 # voices.yaml because there is currently exactly one channel/one profile; if a second
 # channel introduces its own aliases this should move to a `voice_aliases:` block in
@@ -71,6 +75,52 @@ class VoiceProfileRegistry:
 
     def enabled_profiles(self) -> dict[str, VoiceProfile]:
         return {profile_id: profile for profile_id, profile in self._profiles.items() if profile.enabled}
+
+
+def channel_voices_path(channel_id: str, channels_dir: str | Path = DEFAULT_CHANNELS_DIR) -> Path:
+    return Path(channels_dir) / channel_id / VOICES_FILENAME
+
+
+def global_voices_paths(channels_dir: str | Path = DEFAULT_CHANNELS_DIR) -> list[Path]:
+    """Every voices.yaml on disk, in a deterministic order."""
+    root = Path(channels_dir)
+    if not root.is_dir():
+        return []
+    return sorted(root.glob(f"*/{VOICES_FILENAME}"))
+
+
+def lookup_profile(
+    channel_id: str,
+    query: str,
+    *,
+    channels_dir: str | Path = DEFAULT_CHANNELS_DIR,
+    allow_global: bool = False,
+) -> VoiceProfile:
+    """Resolve one profile id/alias/display name to a VoiceProfile.
+
+    The single implementation of the lookup that used to be written out three times
+    (src.news.voice_adapter.load_voice_profile_for_channel,
+    src.content_creation.capabilities.resolve_voice_profile, and the wizard through
+    it). Behaviour is unchanged in both directions:
+
+    * a channel that has its own voices.yaml is resolved against that file only -
+      borrowing another channel's profile silently would hide a typo;
+    * a channel without one falls back to every other channel's voices.yaml, but
+      only when ``allow_global`` is set, i.e. when the caller passed an explicit
+      profile override rather than reading the channel's configured default.
+    """
+    own_path = channel_voices_path(channel_id, channels_dir)
+    if own_path.is_file() or not allow_global:
+        return VoiceProfileRegistry.from_yaml(own_path).resolve(query)
+    for candidate in global_voices_paths(channels_dir):
+        try:
+            return VoiceProfileRegistry.from_yaml(candidate).resolve(query)
+        except VoiceProfileRegistryError:
+            continue
+    raise VoiceProfileRegistryError(
+        f"Could not resolve voice profile {query!r} for channel {channel_id!r}: it has no "
+        "voices.yaml of its own, and no other channel's voices.yaml has this profile either."
+    )
 
 
 def validate_no_conflicting_voice_ids(profiles: dict[str, VoiceProfile]) -> list[str]:

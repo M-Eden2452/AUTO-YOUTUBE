@@ -47,6 +47,9 @@ cd /g/Projects/AI-YouTube
 - Content-creation CLI/Wizard: `src/content_creation/{cli,wizard,service,capabilities,models}.py`
 - Config resolution: `src/config_resolver/` (read-only, поверх каталога/`ChannelRegistry`/
   `channel_config.json`/`AUDIO_POLICY_DEFAULTS`; карта — `docs/implementation/config_resolver/CONFIG_MAP.md`)
+- Localization/voice runtime: `src/localization/` (read-only, поверх `config_resolver` +
+  `voices.yaml` + `voice_manifest.json`; карта —
+  `docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`)
 - Production Catalog: `src/production_catalog/`
 - Project/Channel/Evidence Foundation: `src/project_foundation/`
 - Maintenance/legacy CLI: `pipeline.py`
@@ -108,6 +111,8 @@ cd /g/Projects/AI-YouTube
 ./venv/Scripts/python.exe -m src.content_creation.cli channels show --channel nature_science_news_ru --explain
 ./venv/Scripts/python.exe -m unittest tests.test_capability_consistency -v
 ./venv/Scripts/python.exe -m unittest tests.test_config_resolver tests.test_config_resolver_parity -v
+./venv/Scripts/python.exe -m unittest tests.test_localization_voice_integration -v
+./venv/Scripts/python.exe -m src.content_creation.cli voices explain --channel nature_science_news_ru
 ./venv/Scripts/python.exe -m unittest tests.test_story_card_short_renderer -v
 ./venv/Scripts/python.exe -m unittest tests.test_temporal_video_analysis -v
 ./venv/Scripts/python.exe -m unittest tests.test_semantic_decision_policy -v
@@ -136,12 +141,13 @@ cd /g/Projects/AI-YouTube
 - Музыка для `fullscreen_voiceover_v1` работает: `src/audio/music_manifest.py` пишет
   `assets/music/music_manifest.json`, который читает существующий микс с ducking в
   `src/news/final_renderer.py`. Права на пользовательский трек не проверяются автоматически.
-- `src/config_resolver/` отвечает на вопрос «какое значение здесь действует и откуда»,
-  но **в пайплайн не подключён** (D1 намеренно ничего не менял). Его единственный
-  потребитель — `channels show --explain`. Бо́льшая часть `channel_config.json`
-  (`target_duration_sec`, `min/max_duration_sec`, `resolution`, `fps`, `language`,
-  `subtitles`, `music`, `languages`) по-прежнему **не читается пайплайном** —
-  подключение потребителей это этап D2.
+- `src/config_resolver/` подключён к пайплайну **только по части голоса и локализации**
+  (этап D2/E2, через `src/localization/`): стадия `voice`, `voice_adapter`,
+  content-creation service, CLI и мастер берут язык, locale, провайдера, профиль,
+  `voice_id`, модель и `fallback_policy` из него. Остальное из `channel_config.json`
+  (`target_duration_sec`, `min/max_duration_sec`, `resolution`, `fps`, `subtitles`,
+  `music`) по-прежнему **не читается пайплайном**. Блок `languages.<id>.voice`
+  читается. Стили субтитров канала (`subtitle_style.json`) — не подключены.
 - В `projects/` сосуществуют две project-системы: `job.json` (news_to_short) и `project.json`
   (story_card). Общий **read-only** слой — `src/projects/` (`ProjectRepository` для статуса,
   `build_rights_report` для прав); он не является третьей системой и ничего не пишет.
