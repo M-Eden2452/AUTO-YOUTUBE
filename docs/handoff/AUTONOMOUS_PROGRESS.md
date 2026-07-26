@@ -1643,6 +1643,145 @@ E2 — стили субтитров канала. Автоматически к
 
 ---
 
+## Stage Q3 — Единый движок субтитров с локализацией — ЗАВЕРШЁН
+
+Бриф: `docs/handoff/PRODUCT_VISION_AND_ROADMAP.md`, «Q3. Субтитры по словам».
+Начат от коммита D2/E2 `3973f27` при чистом дереве (1028 тестов, OK).
+Полная карта: `docs/implementation/subtitle_engine/SUBTITLE_ENGINE_MAP.md`.
+
+### Фактическая архитектура субтитров до изменений
+
+Весь движок — 98 строк в `src/news/subtitles.py`:
+
+```
+scene["on_screen_text"] или scene["narration"]  (первое непустое)
+  → куски строго по 5 слов
+  → длительность сцены / число кусков (равномерно, включая паузу)
+  → subtitles.srt + subtitles.ass (ASS-заголовок зашит в код)
+  → final_renderer вжигает ass_path
+```
+
+Ни валидации, ни resume, ни ссылки на озвучку или сценарий, ни знания о
+предложениях и пунктуации. Стиль канала (`channels/*/subtitle_style.json`) не
+читался — оставшаяся половина этапа E2.
+
+Реализации субтитров в репозитории на момент аудита: `src/news/subtitles.py`
+(продуктовый путь), `src/layout_renderer.py` (текст на кадре в legacy channel
+pipeline), `src/production_plan/solar_vs_nuclear_render.py` (свой ASS-писатель для
+одного зафиксированного ролика), `anime_factory/` (Whisper → SRT, отдельное
+приложение). В продуктовом пайплайне движок был ровно один — второго Q3 не создал.
+
+### Найденные и исправленные дефекты
+
+1. **W2 из аудита V1 закрыт: в кадре была только первая пятёрка слов сцены.**
+   `on_screen_text` читался раньше `narration`, а провайдеры сценария заполняют его
+   через `text_analysis.first_words` (первые 5 слов). Одна реплика висела всю сцену —
+   после B1 до 14.8 с. Теперь субтитр — полная реплика сцены; полнота покрытия
+   проверяется валидатором (`text_not_covered`) и тестами по токенам.
+2. **Реплика висела и в паузе между сценами.** Раньше нарезка делила
+   `scene_render_duration` целиком, включая `pause_after_sec`. Теперь текст живёт
+   внутри речевого отрезка (`speech_duration_sec`), пауза остаётся без субтитра.
+3. **Равномерное деление игнорировало длину кусков.** Теперь время распределяется
+   пропорционально числу символов — тому же предсказателю, что уже используется в
+   `text_analysis.estimate_duration_sec`.
+4. **Стиль канала был мёртв (остаток E2).** `subtitle_style.json` подключён через
+   `src/subtitles/style.py`. Значения по умолчанию дают байт-идентичную строку
+   `Style:` тому, что вжигалось до Q3, и для `nature_science_news_ru` файл канала с
+   ними совпадает — картинка не изменилась (проверяется тестом).
+5. **Ничего не проверялось.** Появились ошибки/предупреждения со стабильными кодами:
+   пересечения, выход за сцену и за озвучку, NaN/отрицательное время, потерянный или
+   продублированный текст, чужой язык, скорость чтения, длина строк.
+6. **Стадия перегенерировала субтитры каждый запуск.** Появился resume по
+   `script_fingerprint` + `narration_fingerprint`; защищённый пользовательский
+   артефакт (`"protected": true`) не перезаписывается никогда.
+
+### Что переиспользовано, а не написано заново
+
+- Границы сцен — только `src/audio/scene_timeline.py` (B1): `build_scene_timeline`,
+  `scene_render_duration`, `SceneTiming`. Второго расчёта длительностей нет.
+- Язык и язык субтитров — `ResolvedLocalization` из `src/localization/` (D2/E2),
+  через тот же `resolve_localization_for_channel`, что использует стадия voice.
+- Список существующих стилей — по-прежнему один,
+  `capabilities.list_subtitle_styles`; второго реестра не появилось.
+- Имена файлов (`subtitles.srt`, `subtitles.ass`), путь
+  `localizations/<id>/subtitles/` и все ключи манифеста, которые читают
+  `final_renderer`, `quality_check` и `exporter`, — без изменений.
+
+### Новые контракты
+
+`src/subtitles/`: `models.py` (`SubtitleCue`, `SubtitleSegment`, `SubtitlePolicy`,
+`SubtitleStyle`, `SubtitleRequest`, `SubtitleResult`, `SubtitleValidationResult`,
+`SubtitleIssue`, коды), `segmentation.py`, `timing.py` (`SceneSpan`,
+`SceneTimingPlan`), `validation.py`, `style.py`, `serialization.py`, `manifest.py`
+(`SubtitleArtifact`, `SubtitleResumeDecision`), `engine.py`.
+
+`src/news/subtitles.py` стал адаптером: `build_subtitles(script, output_dir)`
+сохранила подпись и все ключи результата, добавлена
+`build_subtitles_for_localization(...)` для пайплайна.
+
+### Иерархия источников тайминга (фактическая)
+
+`word_timestamps` → `segment_timestamps` → `scene_timeline` → `legacy_planned`.
+
+Первые два уровня **не имеет ни одного производителя** в репозитории (проверено
+поиском по `src/`). Читатели включаются только при физическом наличии данных и
+совпадении числа слов со сценой; любая некорректность отбрасывает уровень целиком.
+Ручной WAV даёт длительность, но не потайминги слов — это уровень сцены.
+Whisper, forced alignment и скачивание моделей в Q3 не входили и не появились.
+
+### Что переведено, а что осталось на compat-пути
+
+Переведено: стадия `subtitles` пайплайна News-to-Short, `capabilities`,
+CLI (`subtitles explain` / `subtitles validate`). Потребители артефакта
+(`final_renderer`, `quality_check`, `exporter`, `preview_renderer`,
+`content_creation/service`) не менялись вообще — контракт файла тот же.
+
+Осталось как было (осознанно): `src/layout_renderer.py` — это текст на кадре, а не
+файл субтитров; `src/production_plan/solar_vs_nuclear_render.py` — зафиксированный
+исторический ролик; `anime_factory/` — отдельное приложение со своим STT-путём;
+Story Card — субтитров не имеет (`subtitles_allowed=false`).
+
+### Совместимость
+
+Прочитано read-only 7 исторических манифестов и 7 SRT из `projects/`: все читаются,
+ошибок валидации — 0 (только предупреждения, включая
+`legacy_artifact_without_metadata`). Ни один файл в `projects/` не изменён.
+Артефакт до Q3 не считается совместимым для resume и пересоздаётся текущим движком —
+но читать и валидировать его можно.
+
+### Тесты
+
+`tests/test_subtitle_engine.py` (42) и `tests/test_subtitle_pipeline_integration.py`
+(9) — 51 новый тест. Regression: `test_news_to_short_scene_timing`,
+`test_news_to_short_delivery`, `test_news_to_short_pipeline`,
+`test_news_to_short_quality_check`, `test_news_to_short_renderer`,
+`test_final_renderer_end_tail`, `test_scene_timeline`,
+`test_capability_consistency`, `test_content_creation_{cli,service}`,
+`test_config_resolver_parity`, `test_localization_voice_integration` — OK.
+
+**Полный набор: 1079 тестов, OK** — было 1028 на `3973f27`, добавлено ровно 51.
+
+### Осознанные отклонения от брифа
+
+- Название этапа в роадмапе — «субтитры по словам», но потаймингов слов в проекте
+  физически нет. Цель («субтитры совпадают с голосом») достигнута уровнем сцены из
+  реального timeline B1; уровень слов оставлен как включаемый читатель без
+  производителя, потому что выдумывать потайминги запрещено, а STT/alignment — вне Q3.
+- `safe_zone_bottom` канала (320) не превращён в ASS `MarginV` (260): это сдвинуло бы
+  уже принятый пользователем кадр. Отступ меняется только явным `margin_v`.
+- CLI получил только `subtitles explain` и `subtitles validate` (оба read-only).
+  `subtitles generate` не добавлен: генерация уже есть у стадии пайплайна, а вторая
+  команда, пишущая в `projects/`, полезной работы не добавляет.
+- VTT не поддержан: его в репозитории не читает ничто.
+
+**API/платные вызовы:** нет. **Сеть:** нет. **TTS/STT/Vision/alignment/downloads/
+render:** нет. **Git write:** только локальный коммит этапа.
+
+**Рекомендуемый следующий этап:** F1 (`narrated_documentary_16x9_v1`, зависел от Q3)
+либо W1-класса ремонт экспорта под площадки. Автоматически не переходить.
+
+---
+
 ## Git
 
 Baseline-коммит `chore: establish tested project baseline through B3` зафиксировал всю

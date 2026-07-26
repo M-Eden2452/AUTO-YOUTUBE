@@ -111,9 +111,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--trace", action="store_true", help="With 'explain': also print every configuration layer considered."
     )
 
-    subtitles_p = subparsers.add_parser("subtitles", help="List/inspect subtitle styles.", parents=[json_flag])
-    subtitles_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
+    subtitles_p = subparsers.add_parser(
+        "subtitles",
+        help="List subtitle styles, or explain/validate a project's subtitles (read-only).",
+        parents=[json_flag],
+    )
+    subtitles_p.add_argument("action", choices=["list", "show", "explain", "validate"], nargs="?", default="list")
     subtitles_p.add_argument("--style", help="style_id for 'show'.")
+    subtitles_p.add_argument("--project-id", help="Required for 'explain'/'validate'.")
+    subtitles_p.add_argument("--language", help="Localization id (default: the project's own).")
+    subtitles_p.add_argument("--projects-root", default="projects")
+    subtitles_p.add_argument(
+        "--cues", action="store_true", help="With 'explain': print every cue, not just the per-scene summary."
+    )
 
     project_p = subparsers.add_parser("project", help="Inspect existing projects.", parents=[json_flag])
     project_p.add_argument("action", choices=["list", "status", "validate", "rights-report"])
@@ -440,6 +450,195 @@ def _voices_explain(args: argparse.Namespace) -> int:
     return 0 if all(not issue.is_error for issue in issues) else 1
 
 
+def _subtitle_project_context(args: argparse.Namespace) -> tuple[Path, str, str, dict[str, Any], dict[str, Any] | None]:
+    """Пути и данные одного проекта для subtitle-команд. Только чтение.
+
+    Возвращает ``(project_root, localization_id, channel_id, script, voice_manifest)``.
+    Работает через тот же read-only ``src.projects``, что и ``project status``,
+    поэтому понимает оба хранилища в ``projects/``.
+    """
+    import json as _json
+
+    from src.projects import ProjectNotFoundError, ProjectRepository
+
+    try:
+        view = ProjectRepository(args.projects_root).get(args.project_id)
+    except ProjectNotFoundError as exc:
+        raise SystemExit(f"[subtitles] {exc}")
+    root = Path(view.project_root)
+    localization = str(getattr(args, "language", "") or view.language or "")
+    if not localization:
+        raise SystemExit("[subtitles] У проекта не указан язык; передайте --language.")
+    script_path = root / "localizations" / localization / "script" / "script.json"
+    if not script_path.is_file():
+        raise SystemExit(f"[subtitles] Нет сценария: {script_path}")
+    script = _json.loads(script_path.read_text(encoding="utf-8"))
+    voice_path = root / "localizations" / localization / "voice" / "voice_manifest.json"
+    voice = _json.loads(voice_path.read_text(encoding="utf-8")) if voice_path.is_file() else None
+    return root, localization, view.channel_id, script, voice
+
+
+def _subtitle_result_for_project(args: argparse.Namespace):
+    """Собрать cues в памяти. Ни записи, ни рендера, ни сети, ни TTS."""
+    import json as _json
+
+    from src.news.subtitles import NEWS_FORMAT_ID
+    from src.news.voice_adapter import resolve_localization_for_channel
+    from src.subtitles import (
+        SubtitlePolicy,
+        SubtitleRequest,
+        build_subtitle_result,
+        resolve_subtitle_style,
+    )
+
+    root, localization_id, channel_id, script, voice = _subtitle_project_context(args)
+    resolved = resolve_localization_for_channel(
+        channel_id=channel_id,
+        language=localization_id,
+        project_root=root,
+        project_id=args.project_id,
+        projects_dir=args.projects_root,
+    )
+    visual_path = root / "localizations" / localization_id / "visual" / "visual_plan.json"
+    visual = _json.loads(visual_path.read_text(encoding="utf-8")) if visual_path.is_file() else {}
+    style = resolve_subtitle_style(channel_id=channel_id, resolution=visual.get("resolution"))
+    subtitle_language = str(getattr(resolved, "subtitle_language", "") or "")
+    result = build_subtitle_result(
+        SubtitleRequest(
+            script=script,
+            localization_id=localization_id,
+            language=subtitle_language or str(getattr(resolved, "language", "") or localization_id),
+            subtitle_language=subtitle_language,
+            voice_manifest=voice,
+            policy=SubtitlePolicy.from_style(style),
+            style=style,
+            format_id=NEWS_FORMAT_ID,
+        )
+    )
+    return root, localization_id, result
+
+
+def _subtitles_explain(args: argparse.Namespace) -> int:
+    """`subtitles explain --project-id X`: какие субтитры получатся и почему.
+
+    Строит cues в памяти, показывает источник тайминга, раскладку «сцена → cues»,
+    путь будущего артефакта и решение resume. Не пишет в проект, не рендерит, не
+    вызывает TTS, не ходит в сеть.
+    """
+    from src.subtitles import artifact_paths, explain_scene_mapping, manifest_path, plan_resume, read_manifest
+
+    root, localization_id, result = _subtitle_result_for_project(args)
+    existing = read_manifest(manifest_path(root, localization_id))
+    decision = plan_resume(existing, result, project_root=root, localization_id=localization_id)
+    paths = {name: str(path) for name, path in artifact_paths(root, localization_id, result.formats).items()}
+    mapping = explain_scene_mapping(result)
+
+    if args.json_output:
+        _print_json(
+            {
+                "project_id": args.project_id,
+                "localization_id": localization_id,
+                "subtitle_language": result.language,
+                "timing_source": result.timing_source,
+                "scene_timeline_source": result.scene_timeline_source,
+                "narration_duration_sec": round(result.narration_duration_sec, 3),
+                "cue_count": len(result.cues),
+                "paths": paths,
+                "resume": decision.to_dict(),
+                "style": result.style.to_dict(),
+                "policy": result.policy.to_dict(),
+                "validation": result.validation.to_dict(),
+                "scenes": mapping,
+            }
+        )
+        return 0 if result.validation.ok else 1
+
+    print(f"[subtitles] локализация={localization_id} язык_субтитров={result.language or '-'}")
+    print(f"[subtitles] источник тайминга={result.timing_source} (границы сцен: {result.scene_timeline_source})")
+    print(f"[subtitles] озвучка={result.narration_duration_sec:.3f} с; cues={len(result.cues)}; сцен={result.scene_count}")
+    print(f"[subtitles] стиль={result.style.source} {result.style.origin or '(значения по умолчанию)'}")
+    for name, path in paths.items():
+        print(f"[subtitles] {name}: {path}")
+    print(f"[subtitles] resume: {'да' if decision.reuse else 'нет'} — {decision.message}")
+    for row in mapping:
+        print(
+            f"    {row['scene_id']:<14} cues={row['cue_count']:<3} "
+            f"[{row['start_sec']:7.3f} → {row['end_sec']:7.3f}] {row['timing_source']}"
+        )
+        if args.cues:
+            for cue in row["cues"]:
+                text = cue["text"].replace("\n", " ⏎ ")
+                print(f"        {cue['start_sec']:7.3f}-{cue['end_sec']:7.3f}  {text}")
+    for issue in result.validation.issues:
+        print(f"  [{issue.severity}] {issue.code}: {issue.message}")
+    return 0 if result.validation.ok else 1
+
+
+def _subtitles_validate(args: argparse.Namespace) -> int:
+    """`subtitles validate --project-id X`: проверить артефакт, который уже на диске.
+
+    Читает манифест и, если его нет, сам SRT. Старый артефакт без метаданных Q3
+    тоже проверяется - по времени, порядку и пересечениям. Только чтение.
+    """
+    from src.subtitles import (
+        SubtitlePolicy,
+        manifest_cues,
+        manifest_path,
+        read_manifest,
+        read_srt,
+        resolve_subtitle_style,
+        subtitle_dir,
+        validate_cues,
+    )
+
+    root, localization_id, _channel_id, script, _voice = _subtitle_project_context(args)
+    target = manifest_path(root, localization_id)
+    manifest = read_manifest(target)
+    cues = manifest_cues(manifest)
+    source = str(target)
+    if not cues:
+        srt_path = subtitle_dir(root, localization_id) / "subtitles.srt"
+        if not srt_path.is_file():
+            print(f"[subtitles] Артефакта нет: ни {target}, ни {srt_path}.")
+            return 1
+        cues = read_srt(srt_path, language=str(manifest.get("language") or ""))
+        source = str(srt_path)
+
+    style = resolve_subtitle_style(channel_id=_channel_id)
+    policy = SubtitlePolicy.from_style(style)
+    scene_order = tuple(
+        str(scene.get("scene_id") or "") for scene in (script.get("scenes") or []) if isinstance(scene, dict)
+    )
+    # scene_texts не передаётся: проверка полноты покрытия имеет смысл только для
+    # артефакта, созданного из этого же сценария, а у старого файла связи со
+    # сценарием нет вообще - объявить его «неполным» было бы неправдой.
+    result = validate_cues(
+        cues,
+        policy=policy,
+        language=str(manifest.get("subtitle_language") or manifest.get("language") or ""),
+        scene_order=scene_order if any(cue.scene_id for cue in cues) else (),
+        narration_duration_sec=float(manifest.get("narration_duration_sec") or 0.0),
+    )
+    if args.json_output:
+        _print_json(
+            {
+                "project_id": args.project_id,
+                "localization_id": localization_id,
+                "artifact": source,
+                "schema_version": manifest.get("schema_version") or 0,
+                "cue_count": len(cues),
+                "validation": result.to_dict(),
+            }
+        )
+        return 0 if result.ok else 1
+    print(f"[subtitles] артефакт={source}")
+    print(f"[subtitles] схема={manifest.get('schema_version') or 'до Q3 (метаданных нет)'} cues={len(cues)}")
+    print(f"[subtitles] результат={result.status}")
+    for issue in result.issues:
+        print(f"  [{issue.severity}] {issue.code}: {issue.message}")
+    return 0 if result.ok else 1
+
+
 def _print_rights_lines(evidence: dict[str, Any], *, prefix: str = "") -> None:
     """Four-line rights summary for a finished run - the detail lives in
     `project rights-report`, which this deliberately does not duplicate."""
@@ -593,6 +792,10 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
         return 0
 
     if command == "subtitles":
+        if args.action in {"explain", "validate"}:
+            if not args.project_id:
+                raise SystemExit(f"subtitles {args.action} requires --project-id.")
+            return _subtitles_explain(args) if args.action == "explain" else _subtitles_validate(args)
         styles = capabilities.list_subtitle_styles()
         if args.action == "show":
             if not args.style:

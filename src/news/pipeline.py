@@ -17,7 +17,7 @@ from .project_store import NewsProjectStore
 from .quality_check import run_quality_check
 from .research_engine import build_research
 from .script_generator import build_script
-from .subtitles import build_subtitles
+from .subtitles import build_subtitles_for_localization
 from .visual_plan import build_visual_plan
 from .voice_adapter import resolve_localization_for_channel
 from .voice_stage import build_or_generate_voice_manifest
@@ -125,6 +125,7 @@ def run_news_to_short_job(
             dry_run=dry_run,
             execute_voice=execute_voice,
             voice_profile_override=voice_profile_override,
+            force_stage=force_stage,
         )
         ran.append(stage_name)
         if stage_name == stop_stage:
@@ -193,6 +194,7 @@ def _run_stage(
     dry_run: bool,
     execute_voice: bool = False,
     voice_profile_override: str | None = None,
+    force_stage: bool = False,
 ) -> None:
     store.update_stage(job, stage_name, status="running", settings={"dry_run": dry_run})
     try:
@@ -204,6 +206,7 @@ def _run_stage(
             dry_run=dry_run,
             execute_voice=execute_voice,
             voice_profile_override=voice_profile_override,
+            force_stage=force_stage,
         )
     except Exception as exc:
         store.update_stage(job, stage_name, status="failed", error=str(exc))
@@ -220,6 +223,7 @@ def _dispatch_stage(
     dry_run: bool,
     execute_voice: bool = False,
     voice_profile_override: str | None = None,
+    force_stage: bool = False,
 ) -> Path:
     if stage_name == "input":
         return root / "input" / "input.json"
@@ -321,10 +325,31 @@ def _dispatch_stage(
         store.save_job(job)
         return root / "localizations" / job.language / "voice" / "voice_manifest.json"
     if stage_name == "subtitles":
-        script = store.read_json(root / "localizations" / job.language / "script" / "script.json")
-        manifest = build_subtitles(script, root / "localizations" / job.language / "subtitles")
-        store.write_json(root / "localizations" / job.language / "subtitles" / "subtitles_manifest.json", manifest)
-        return root / "localizations" / job.language / "subtitles" / "subtitles_manifest.json"
+        script_path = root / "localizations" / job.language / "script" / "script.json"
+        script = store.read_json(script_path)
+        voice_path = root / "localizations" / job.language / "voice" / "voice_manifest.json"
+        visual_path = root / "localizations" / job.language / "visual" / "visual_plan.json"
+        # Одна и та же разрешённая локализация, что у стадии voice (D2/E2): язык
+        # субтитров приходит оттуда, а не из script.json.
+        localization = resolve_localization_for_channel(
+            channel_id=job.channel_id,
+            language=job.language,
+            project_root=root,
+            project_id=job.job_id,
+            projects_dir=store.projects_root,
+            script_path=str(script_path),
+        )
+        artifact = build_subtitles_for_localization(
+            project_root=root,
+            localization_id=job.language,
+            script=script,
+            voice_manifest=store.read_json(voice_path) if voice_path.exists() else None,
+            channel_id=job.channel_id,
+            localization=localization,
+            visual_plan=store.read_json(visual_path) if visual_path.exists() else None,
+            resume=not force_stage,
+        )
+        return artifact.manifest_path
     if stage_name == "preview_render":
         script = store.read_json(root / "localizations" / job.language / "script" / "script.json")
         voice_path = root / "localizations" / job.language / "voice" / "voice_manifest.json"

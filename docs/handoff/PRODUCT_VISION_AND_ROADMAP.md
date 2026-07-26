@@ -115,7 +115,7 @@ Application → Input Source → Format → Template → Channel(Presentation Pr
 | **Тайминг сцен по реальной озвучке** | `src/audio/scene_timeline.py` | targeted_tested | да | `test_scene_timeline` | **нет** | **сделано в этой сессии, живым рендером не проверено** |
 | **Музыка + ducking** | `src/audio/music_manifest.py` + `final_renderer.py` | targeted_tested | да | `test_music_manifest` | **нет** | то же самое |
 | Хвост ролика (end tail) | `src/audio/end_tail_policy.py` | targeted_tested | да | 2 модуля | нет | — |
-| Субтитры (вжигание) | `src/news/subtitles.py` | mock_tested | да | да | да | **ФАКТ: тайминг арифметический — длительность сцены / число чанков по 5 слов. Не привязан к словам озвучки.** |
+| Субтитры (вжигание) | `src/subtitles/` + адаптер `src/news/subtitles.py` | targeted_tested | да | 2 модуля (51 тест) | да | **Q3: тайминг из реального scene timeline B1, текст — вся реплика сцены, стиль канала подключён. Потаймингов слов в проекте нет ни у одного провайдера — уровень слов остаётся выключённым читателем.** |
 | Финальный рендер FFmpeg | `src/news/final_renderer.py` | live_tested | да | `test_news_to_short_renderer` | да | — |
 | Quality check | `src/news/quality_check.py` | production_ready | да | да | да | — |
 | **Экспорт под площадки** | `src/news/exporter.py` + `_copy_platform_outputs` | **partially_implemented** | да | да | да | **ФАКТ: youtube/instagram/facebook/stories — побайтные копии master MP4. Разных версий не создаётся.** |
@@ -141,7 +141,7 @@ Application → Input Source → Format → Template → Channel(Presentation Pr
 | EvidenceBundle | `src/project_foundation/evidence.py` | **architecture_supported** | **ФАКТ: `add()`/`save()` не вызывает ни один production-код** |
 | ChannelProfile (`channel.json`) | `src/project_foundation/channels.py` | targeted_tested | 1 канал (`nature_pulse`) |
 | Channel output policy | `policies.py` | targeted_tested | — |
-| **`channels/*/subtitle_style.json`** | — | **architecture_supported** | **ФАКТ: читается только `src/channel_loader.py` (legacy). Новый subtitle-renderer его не открывает.** |
+| `channels/*/subtitle_style.json` | `src/subtitles/style.py` (+ legacy `src/channel_loader.py`) | targeted_tested | Подключено этапом Q3. `safe_zone_*` только показывается: отступ меняется явным `margin_v`, чтобы не сдвигать уже принятый кадр. |
 | **`channel_config.json → languages.<lang>.voice`** | — | **architecture_supported** | **ФАКТ: слово `languages` не встречается ни в `src/news/`, ни в `src/audio/`. Конфиг мёртвый.** |
 
 ### 2.5 Video Repurposer (anime_factory)
@@ -710,6 +710,15 @@ studio check <project>     # права + готовность к публика
 **Р:** субтитры совпадают с голосом.
 Модули: `src/news/subtitles.py`, `src/audio/scene_timeline.py`.
 **З:** V1.
+**СДЕЛАНО** — единый движок `src/subtitles/` (нарезка, тайминг, валидация, стиль,
+сериализация, манифест, resume); `src/news/subtitles.py` стал адаптером и сохранил
+подпись. Границы сцен берутся только из `src/audio/scene_timeline.py` (B1), язык
+субтитров — из `ResolvedLocalization` (D2/E2). Закрыт дефект W2 (в кадре была только
+первая пятёрка слов сцены) и подключены стили канала — оставшаяся половина E2.
+Приёмка: `subtitles explain --project-id <id>` и `subtitles validate --project-id <id>`.
+Карта — `docs/implementation/subtitle_engine/SUBTITLE_ENGINE_MAP.md`; осознанные
+отклонения (уровень слов без производителя, `safe_zone_bottom` не двигает `MarginV`,
+без VTT и без `subtitles generate`) — в `AUTONOMOUS_PROGRESS.md`, раздел «Stage Q3».
 
 ---
 
@@ -748,9 +757,9 @@ studio check <project>     # права + готовность к публика
 `template_policy > channel_config`, не изменён. Карта —
 `docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`, отклонения —
 `AUTONOMOUS_PROGRESS.md`, раздел «Stage D2/E2».
-**ОСТАЛОСЬ (E2):** стили субтитров канала (`channels/*/subtitle_style.json`) — этап
-D2/E2 их не подключал, потому что запрет на изменение subtitle renderer был прямым
-условием задания; передаётся только язык субтитров.
+**ОСТАВАЛОСЬ (E2):** стили субтитров канала (`channels/*/subtitle_style.json`) —
+этап D2/E2 их не подключал, потому что запрет на изменение subtitle renderer был
+прямым условием задания. **Закрыто этапом Q3** (`src/subtitles/style.py`).
 
 ---
 
@@ -958,6 +967,10 @@ target_duration_sec = 55      resolved_from = channel_config
 ---
 
 ### Бриф 6 — D2 + E2. Голоса по языкам и стили субтитров канала
+
+> **Состояние:** голосовая часть закрыта этапом D2/E2 (`src/localization/`), стили
+> субтитров канала — этапом Q3 (`src/subtitles/style.py`). Контекст ниже описывает
+> положение дел **до** этих этапов и сохранён как история постановки задачи.
 
 **Контекст (проверено).** `channels/nature_science_news_ru/channel_config.json` содержит
 блок `languages.ru/en/es.voice`, но слово `languages` не встречается ни в `src/news/`,

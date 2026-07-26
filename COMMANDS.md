@@ -206,10 +206,55 @@ Read-only, без сети (ElevenLabs здесь только проверяе�
 ```bash
 ./venv/Scripts/python.exe -m src.content_creation.cli subtitles list
 ```
-Реально существуют только `disabled` и `documentary` (арифметическая нарезка
-без привязки к реальному таймингу озвучки, `src/news/subtitles.py`). Стили
+Реально существуют только `disabled` и `documentary` (единый движок
+`src/subtitles/`, тайминг из реальной озвучки). Стили
 `phrase`/`shorts_large`/`word_by_word` не реализованы и намеренно не
 показываются.
+
+### 10.5.1. Какие субтитры получатся и почему (этап Q3)
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli subtitles explain --project-id <project_id>
+```
+
+Показывает для проекта: язык субтитров, источник тайминга, откуда взяты границы
+сцен, длительность озвучки, раскладку «сцена → её cues», путь будущих файлов,
+стиль (и из какого файла канала он прочитан) и решение о переиспользовании —
+будут ли субтитры пересозданы или взяты готовые.
+
+Каждый cue целиком, конкретная локализация, JSON:
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli subtitles explain --project-id <project_id> --cues
+```
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli subtitles explain --project-id <project_id> --language ru --json
+```
+
+Проверить артефакт, который уже лежит в проекте:
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli subtitles validate --project-id <project_id>
+```
+
+- обе команды **только читают**: ни рендера, ни TTS, ни сети, ни записи в проект;
+- `explain` работает и до того, как субтитры созданы — он строит их в памяти;
+- `validate` читает старые артефакты (созданные до этапа Q3) тоже: у них нет
+  метаданных, и команда говорит об этом прямо, а не объявляет файл сломанным;
+- ошибки (пересечения, выход за сцену или за озвучку, потерянный текст, чужой язык)
+  отделены от предупреждений (быстро читать, длинная строка, плановый тайминг);
+- код возврата 1 означает, что есть ошибки.
+
+Пересоздать субтитры принудительно (единственная команда, которая пишет):
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli run-stage --project-id <project_id> --stage subtitles
+```
+
+Обычный повторный запуск ничего не перезаписывает, если сценарий и озвучка не
+менялись. Файл с флагом `"protected": true` в `subtitles_manifest.json` не
+перезаписывается никогда.
 
 ### 10.6. Story Card create (dry-run, безопасно)
 

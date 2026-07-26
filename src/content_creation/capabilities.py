@@ -161,13 +161,16 @@ def resolve_voice_profile(channel_id: str, query: str) -> str:
     return lookup_profile(channel_id, query, allow_global=True).profile_id
 
 
-# Only styles with a real, tested implementation are listed. src/news/subtitles.py is
-# the sole real engine wired into a template (fullscreen_voiceover_v1 via
-# news_to_short); its output is a fixed 5-words-per-chunk burn-in with no per-word
-# timing source. "phrase" / "shorts_large" / "word_by_word" do not exist in the
-# codebase (confirmed by repo-wide search) and are deliberately NOT listed here -
-# see CLAUDE.md "не документировать выдуманные команды".
+# Only styles with a real, tested implementation are listed. src.subtitles is the sole
+# real engine wired into a template (fullscreen_voiceover_v1 via news_to_short);
+# src/news/subtitles.py is its adapter. "phrase" / "shorts_large" / "word_by_word" do
+# not exist in the codebase (confirmed by repo-wide search) and are deliberately NOT
+# listed here - see CLAUDE.md "не документировать выдуманные команды".
 def list_subtitle_styles() -> list[dict[str, Any]]:
+    from src.subtitles import SubtitlePolicy, resolve_subtitle_style
+
+    documentary = resolve_subtitle_style(style_id="documentary")
+    policy = SubtitlePolicy.from_style(documentary)
     return [
         {
             "style_id": "disabled",
@@ -184,15 +187,20 @@ def list_subtitle_styles() -> list[dict[str, Any]]:
             "style_id": "documentary",
             "display_name": "Документальные субтитры (burned-in)",
             "supported_formats": ["vertical_short"],
-            "renderer": "src.news.subtitles.build_subtitles",
+            "renderer": "src.subtitles.engine.build_subtitle_result",
             "position": "bottom_safe_zone",
-            "max_lines": 1,
-            "max_characters": None,
-            "timing_source": "scene_duration_arithmetic_split",
-            "status": "mock_tested",
+            "max_lines": documentary.max_lines,
+            "max_characters": policy.max_characters_per_cue,
+            # Фактическая иерархия этапа Q3. word_timestamps в контракте есть, но их
+            # сегодня не пишет ни один модуль репозитория, поэтому здесь их нет.
+            "timing_source": "scene_timeline",
+            "timing_source_fallbacks": ["legacy_planned"],
+            "status": "targeted_tested",
             "notes": (
-                "Тайминг рассчитан арифметически (длительность сцены / число чанков по 5 слов), "
-                "не привязан к реальной длительности озвучки."
+                "Тайминг берётся из реальной длительности озвучки через общий scene timeline "
+                "(src.audio.scene_timeline). Текст — полная реплика сцены, разбитая по "
+                "предложениям и пунктуации. Стиль читается из channels/<id>/subtitle_style.json. "
+                "Потайминги отдельных слов не поддерживаются: их не пишет ни один провайдер."
             ),
         },
     ]

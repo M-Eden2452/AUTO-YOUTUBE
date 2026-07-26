@@ -50,6 +50,10 @@ cd /g/Projects/AI-YouTube
 - Localization/voice runtime: `src/localization/` (read-only, поверх `config_resolver` +
   `voices.yaml` + `voice_manifest.json`; карта —
   `docs/implementation/localization_voice/LOCALIZATION_VOICE_MAP.md`)
+- Subtitle engine: `src/subtitles/` (единственный движок субтитров; границы сцен берёт
+  из `src/audio/scene_timeline.py`, язык — из `src/localization/`; адаптер пайплайна —
+  `src/news/subtitles.py`; карта —
+  `docs/implementation/subtitle_engine/SUBTITLE_ENGINE_MAP.md`)
 - Production Catalog: `src/production_catalog/`
 - Project/Channel/Evidence Foundation: `src/project_foundation/`
 - Maintenance/legacy CLI: `pipeline.py`
@@ -113,6 +117,9 @@ cd /g/Projects/AI-YouTube
 ./venv/Scripts/python.exe -m unittest tests.test_config_resolver tests.test_config_resolver_parity -v
 ./venv/Scripts/python.exe -m unittest tests.test_localization_voice_integration -v
 ./venv/Scripts/python.exe -m src.content_creation.cli voices explain --channel nature_science_news_ru
+./venv/Scripts/python.exe -m src.content_creation.cli subtitles explain --project-id <project_id>
+./venv/Scripts/python.exe -m src.content_creation.cli subtitles validate --project-id <project_id>
+./venv/Scripts/python.exe -m unittest tests.test_subtitle_engine tests.test_subtitle_pipeline_integration -v
 ./venv/Scripts/python.exe -m unittest tests.test_story_card_short_renderer -v
 ./venv/Scripts/python.exe -m unittest tests.test_temporal_video_analysis -v
 ./venv/Scripts/python.exe -m unittest tests.test_semantic_decision_policy -v
@@ -147,7 +154,13 @@ cd /g/Projects/AI-YouTube
   `voice_id`, модель и `fallback_policy` из него. Остальное из `channel_config.json`
   (`target_duration_sec`, `min/max_duration_sec`, `resolution`, `fps`, `subtitles`,
   `music`) по-прежнему **не читается пайплайном**. Блок `languages.<id>.voice`
-  читается. Стили субтитров канала (`subtitle_style.json`) — не подключены.
+  читается. Стили субтитров канала (`subtitle_style.json`) подключены этапом Q3
+  через `src/subtitles/style.py` — но не через `config_resolver`, а напрямую из файла
+  канала; `safe_zone_bottom` намеренно не двигает ASS `MarginV`.
+- Субтитры: единственный движок — `src/subtitles/`. Второй создавать нельзя.
+  Границы сцен берутся только из `src/audio/scene_timeline.py`; уровень потаймингов
+  слов существует в контракте, но **ни один модуль их не пишет** — выдумывать их
+  запрещено (STT/alignment — отдельный этап).
 - В `projects/` сосуществуют две project-системы: `job.json` (news_to_short) и `project.json`
   (story_card). Общий **read-only** слой — `src/projects/` (`ProjectRepository` для статуса,
   `build_rights_report` для прав); он не является третьей системой и ничего не пишет.

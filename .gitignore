@@ -45,7 +45,11 @@ assets/library/metadata/media_index.json
 !assets/library/metadata/media_index.example.json
 assets/cache/
 music/*
-subtitles/
+# Только корневая выходная папка. Без ведущего слэша шаблон совпадал с любой
+# директорией "subtitles" на любом уровне - в том числе с исходниками
+# src/subtitles/ (движок субтитров, этап Q3). Выходные субтитры проектов и так
+# не попадают в историю: /projects/ игнорируется целиком.
+/subtitles/
 __pycache__/
 *.pyc
 *.mp4
