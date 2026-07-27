@@ -218,6 +218,92 @@ def build_scene_queries(
     return plan
 
 
+# --- Targeted per-slot queries (stage Q2.3) ----------------------------------
+# Composite assembly may find that the *general* per-scene query above covered some
+# semantic slots but not others. A targeted query is built from exactly the brief
+# fields that slot means - never a new translation source, only a narrower read of
+# the same English evidence ``_english_queries`` already draws the combined query
+# from.
+SLOT_QUERY_FIELDS: dict[str, tuple[str, ...]] = {
+    "subject": ("exact_entities", "subject"),
+    "action": ("subject", "action"),
+    "location": ("place",),
+    "context": ("subject", "must_include"),
+}
+
+
+def build_slot_queries(
+    scene: dict[str, Any],
+    slot_name: str,
+    *,
+    providers: list[str],
+    capabilities: dict[str, dict[str, Any]] | None = None,
+) -> SceneQueryPlan:
+    """One targeted query per provider for exactly the semantic slot ``slot_name``.
+
+    Built only from the author's own English brief fields, restricted to the ones
+    ``SLOT_QUERY_FIELDS`` says that slot means. A provider that cannot search English,
+    or a brief with nothing English to say about this slot, gets an explicit
+    ``query_translation_required`` entry rather than a guessed or repeated query - the
+    same honesty rule ``build_scene_queries`` already applies to the general query.
+    """
+    caps = capabilities or {}
+    plan = SceneQueryPlan(scene_id=str(scene.get("scene_id") or ""), intent_language="en")
+    query_text = " ".join(_slot_english_terms(scene, slot_name))
+    for provider in providers:
+        languages = provider_query_languages(provider, caps.get(provider))
+        if not query_text or "en" not in languages:
+            plan.queries.append(
+                ProviderQuery(
+                    provider=provider,
+                    query="",
+                    language="en",
+                    kind=f"slot_{slot_name}",
+                    status=STATUS_TRANSLATION_REQUIRED,
+                    source=SOURCE_BRIEF_FIELDS,
+                    notes=(
+                        f"Нет английских терминов брифа для слота '{slot_name}'."
+                        if not query_text
+                        else "Провайдер не ищет по-английски."
+                    ),
+                )
+            )
+            plan.untranslatable_providers.append(provider)
+            continue
+        plan.queries.append(
+            ProviderQuery(
+                provider=provider,
+                query=query_text,
+                language="en",
+                kind=f"slot_{slot_name}",
+                fallback_level=1,
+                source=SOURCE_BRIEF_FIELDS,
+            )
+        )
+    return plan
+
+
+def _slot_english_terms(scene: dict[str, Any], slot_name: str) -> list[str]:
+    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
+    fields = SLOT_QUERY_FIELDS.get(slot_name, ())
+    parts: list[str] = []
+    if "exact_entities" in fields:
+        parts.extend(
+            str(item).strip()
+            for item in (brief.get("exact_entities") or [])
+            if str(item).strip() and not _CYRILLIC_RE.search(str(item))
+        )
+    if "subject" in fields:
+        parts.append(_english_only(str(brief.get("subject") or "")))
+    if "action" in fields:
+        parts.append(_english_only(str(brief.get("action") or "")))
+    if "place" in fields:
+        parts.append(_english_only(str(brief.get("place") or brief.get("location") or "")))
+    if "must_include" in fields:
+        parts.extend(_english_only(str(item)) for item in (brief.get("must_include") or []))
+    return _terms([part for part in parts if part])
+
+
 def _explicit_provider_queries(scene: dict[str, Any], provider: str) -> list[dict[str, Any]]:
     """Queries the author wrote, either for this provider by name or for all of them."""
     brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
@@ -347,6 +433,7 @@ def _terms(values: list[str]) -> list[str]:
 __all__ = [
     "GLOSSARY",
     "PROVIDER_QUERY_LANGUAGES",
+    "SLOT_QUERY_FIELDS",
     "SOURCE_BRIEF_FIELDS",
     "SOURCE_EXPLICIT",
     "SOURCE_GLOSSARY",
@@ -357,5 +444,6 @@ __all__ = [
     "ProviderQuery",
     "SceneQueryPlan",
     "build_scene_queries",
+    "build_slot_queries",
     "provider_query_languages",
 ]

@@ -2125,6 +2125,78 @@ AI image generation, обязательный live Vision, YouTube publishing и
 принятие CC BY-SA. Реальный пользовательский E2E, TTS, provider network search,
 платные API и push в рамках этапа не выполнялись.
 
+## Stage Q2.3 — Slot-Aware Targeted Retrieval — ЗАВЕРШЁН
+
+Продолжение Q2.2B: composite assembly раньше могла комбинировать только то, что уже
+вернул **один** per-scene поисковый запрос. Для сцены с длинным комбинированным
+запросом (subject+action+place) это часто означало, что часть требований отвечена, а
+недостающая часть никогда отдельно не запрашивалась.
+
+### Что добавлено
+
+- `unfilled_semantic_slots` (`src/assets/completion/ladder.py`): по уже собранной
+  assembly определяет, какие из четырёх semantic slots (subject/action/location/
+  context) не закрыты **ни одним** слотом сборки. Важно: берётся разница между тем,
+  что помечено «missing» хоть у одного слота, и тем, что помечено «matched» у
+  какого‑либо другого слота той же сборки — иначе location‑only слот в composite
+  всегда репортил бы «subject отсутствует», даже когда соседний slot его закрывает.
+  Тест на эту конкретную ошибку:
+  `test_a_slot_covered_by_its_sibling_is_not_reported_as_unfilled`.
+- `build_slot_queries`/`SLOT_QUERY_FIELDS` (`src/assets/query_adapter.py`): один
+  targeted-запрос на provider для ОДНОГО slot, построенный из ограниченного набора
+  полей `visual_brief` (subject→exact_entities+subject; action→subject+action;
+  location→place; context→subject+must_include). Никакого нового источника перевода;
+  пустой результат честно помечается `query_translation_required`, как и у общего
+  запроса.
+- `_targeted_slot_search`/обновлённый `_complete_scene_assembly`
+  (`src/news/asset_manager.py`): после первого успешного скачивания composite/single
+  slot assembly, если она не publish-ready, ровно один раз проверяются незакрытые
+  slots и для них отправляется точечный запрос. Дедупликация — против всех уже
+  отправленных пар (provider, query), включая общий поиск и другие slots этого же
+  прохода. Найденное проходит через `rank_candidates` (получает настоящее
+  `SelectionDecision`, иначе ладдер читал бы пустое решение) и один раз пересобирает
+  assembly. Если ничего не нашлось — сцена остаётся с тем, что было, slot попадает в
+  replacement report как раньше.
+
+### Побочно исправленная ошибка Q2.2B
+
+Composite-скачивание падало молча: `_ensure_selected_asset_downloaded` отбрасывает
+кандидатов с `rejected=True`, а secondary-ассет composite почти всегда несёт этот флаг
+(его проставляет single-winner strict-ранжировщик, который может назвать «победителем»
+только один кандидат из всех). До Q2.3 это не проявлялось, потому что тесты Q2.2B
+почти всегда подавали уже-локальные ассеты (in-memory `path`), минуя реальную загрузку.
+Исправление: per-slot download в `_complete_scene_assembly` явно сбрасывает
+`rejected` на копии кандидата перед вызовом — ладдер уже принял собственное,
+независимое решение о пригодности через `blocking_reasons`/`evaluate_usability`, и флаг
+от другого, более раннего этапа отбора здесь не применим.
+
+### Safety и режимы
+
+- `strict` не изменён: путь вызывается только внутри `_complete_scene_assembly`,
+  которая сама достижима лишь при `completion_mode == draft_complete`.
+- Ни один существующий gate не ослаблен: targeted-результат проходит те же
+  `blocking_reasons`/`evaluate_usability`, что и любой другой кандидат.
+- Максимум один pass на сцену, максимум один query на (slot, provider) — оба
+  зафиксированы тестами (`test_targeted_search_runs_at_most_once_per_scene...`).
+
+### Проверка
+
+Новый файл `tests/test_slot_aware_retrieval.py`: 12 тестов (query building, slot-gap
+detection, полный `build_assets_manifest` end-to-end через query-aware fake provider,
+rights-blocked targeted result, strict-mode isolation). Плюс регрессия по
+`test_autonomous_completion_core`, `test_autonomous_completion_pipeline`,
+`test_news_to_short_assets`, `test_news_to_short_provider_integration`,
+`test_manual_asset_replacement`, `test_semantic_slot_decisions`,
+`test_visual_retrieval_wiring` — 152 теста, OK.
+
+Offline dry-run (временная директория, без сети) проверен в обоих режимах.
+
+Полный suite перед commit: **1302 теста, OK**.
+
+Не реализовано: multi-provider параллельный targeted search, retry с другой
+формулировкой запроса при пустом результате, targeted search в strict-режиме (по
+дизайну — strict не должен автоматически расширять поиск).
+
 
 ---
 

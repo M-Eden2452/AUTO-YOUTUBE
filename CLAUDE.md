@@ -159,6 +159,26 @@ cd /g/Projects/AI-YouTube
   Script adaptation — максимум **один** durable pass, только по слабым сценам, под
   fact locks (`src/content/script_engine/fact_locks.py`); если покрытие не улучшилось,
   исходный script остаётся активным. Платного adapter/Vision здесь нет.
+- Slot-Aware Targeted Retrieval (этап Q2.3, только в `draft_complete`): после того как
+  composite assembly собран из общего per-scene пула, `unfilled_semantic_slots`
+  (`src/assets/completion/ladder.py`) определяет, какие из четырёх semantic slots
+  (subject/action/location/context) не закрыты **ни одним** слотом сборки (не просто
+  не закрыты каждым слотом по отдельности — сосед может уже покрывать slot). Только
+  для них `_targeted_slot_search` (`src/news/asset_manager.py`) отправляет **один**
+  запрос на slot на provider, построенный `build_slot_queries`
+  (`src/assets/query_adapter.py`) из ограниченного набора полей `visual_brief`
+  (`SLOT_QUERY_FIELDS`) — без нового источника перевода. Дедупликация против уже
+  отправленных query/provider пар (включая общий поиск) обязательна. Пас выполняется
+  **не более одного раза за сцену**, независимо от того, сколько slots не закрыто и
+  помог ли он. Результаты идут через тот же `rank_candidates`/decision pipeline и те же
+  rights/technical/must_avoid/conflicting gates — targeted-результат не имеет
+  отдельного авторитета. В `strict` не вызывается вообще (гейт — только внутри
+  `_complete_scene_assembly`, которая сама вызывается только при `draft_complete`).
+  Второй planner/pipeline не заводить.
+  Попутно исправлена связанная ошибка Q2.2B: composite-сборка со свежескачиваемым
+  secondary asset падала в `_ensure_selected_asset_downloaded`, потому что secondary
+  почти всегда несёт `rejected=True` от strict single-winner ранжировщика — теперь
+  per-slot download явно игнорирует этот флаг (ладдер уже принял независимое решение).
 - Экспорт под площадки — копии master MP4; `tiktok` и `stories` не создаются.
 - Визуальный поиск (после этапа Q2.1, карта —
   `docs/implementation/visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md`): порядок

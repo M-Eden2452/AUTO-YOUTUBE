@@ -18,11 +18,12 @@ from src.assets.completion import (
     evaluate_usability,
     normalize_mode,
     read_assembly,
+    unfilled_semantic_slots,
 )
 from src.assets.completion.modes import PRIORITY_RANK, TIER_RANK
 from src.assets.generated_infographic import backdrop_spec_for_scene, build_generated_asset, spec_from_scene
 from src.assets.provider_routing import route_providers
-from src.assets.query_adapter import STATUS_TRANSLATION_REQUIRED, build_scene_queries
+from src.assets.query_adapter import STATUS_OK, STATUS_TRANSLATION_REQUIRED, build_scene_queries, build_slot_queries
 from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
 from src.assets.semantic_selection import analyze_scene, check_continuity, ordered_queries, rank_candidates, select_best_candidate
 from src.assets.semantic_selection.candidate_ranker import SUPPORT_RANK
@@ -421,6 +422,9 @@ def build_assets_manifest(
                 dry_run=dry_run,
                 project_pool=list(project_pool),
                 source_class=source_class,
+                routing_decision=routing_decision,
+                provider_capabilities=provider_capabilities,
+                scene_provider_attempts=scene_provider_attempts,
             )
             download_attempts.extend(ladder_attempts)
         if scene_review_bundle is not None:
@@ -842,12 +846,22 @@ def _complete_scene_assembly(
     dry_run: bool,
     project_pool: list[dict[str, Any]],
     source_class: str,
+    routing_decision: dict[str, Any] | None = None,
+    provider_capabilities: dict[str, dict[str, Any]] | None = None,
+    scene_provider_attempts: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     """Fill one scene under ``draft_complete``, downloading whatever the ladder chose.
 
     A download that fails removes that candidate and the ladder is walked again, so a
     dead provider link degrades the fragment rather than the video. The reuse ledger is
     only updated when an attempt actually succeeds.
+
+    Stage Q2.3 adds exactly one bounded, automatic pass in between: once the ladder has
+    a downloaded, non-publish-ready result, whichever semantic slots it still could not
+    answer (``unfilled_semantic_slots``) get one targeted search each, restricted to
+    provider/query pairs the general per-scene search has not already sent. This never
+    replaces the general pool - it only adds to it - and it happens at most once per
+    scene regardless of how that pass turns out.
     """
     scene_id = str(scene.get("scene_id") or "")
     attempts: list[dict[str, Any]] = []
@@ -873,9 +887,25 @@ def _complete_scene_assembly(
             target, project_root=project_root, project_id=project_id
         )
 
+    ordered_providers = [
+        providers_by_name[name]
+        for name in ((routing_decision or {}).get("ordered_providers") or list(providers_by_name))
+        if name in providers_by_name
+    ]
+    # Every (provider, query) pair the general per-scene search already sent, so a
+    # targeted pass never repeats it - rule 7 of stage Q2.3.
+    sent_queries = {
+        (str(item.get("provider") or ""), str(item.get("query") or "").strip().lower())
+        for item in (scene_provider_attempts or [])
+    }
+    targeted_search_done = False
+    triggered_slots: list[str] = []
+
     excluded: set[str] = set()
     assembly = SceneVisualAssembly(scene_id=scene_id, scene_duration_sec=duration)
-    for _attempt in range(4):
+    # One extra iteration of headroom for the single targeted-search retry, so it never
+    # eats into the four attempts already budgeted for a failed download.
+    for _attempt in range(5):
         pool = [
             candidate
             for candidate in (*candidates, *pool_candidates)
@@ -903,8 +933,20 @@ def _complete_scene_assembly(
             if _has_local_file(asset):
                 downloaded = asset
             else:
+                # ``rejected`` is the strict single-winner ranker's "this was not the
+                # one candidate it picked" - true for almost everything, since only
+                # one candidate can ever be the winner. The ladder makes its own,
+                # independent eligibility decision (``blocking_reasons`` /
+                # ``evaluate_usability``, already checked above this loop), so a
+                # composite slot's own asset - especially a secondary slot, which by
+                # construction is never the strict winner - must not be silently
+                # refused a download because of a flag from a different selection
+                # process. ``ranked_candidates=[]`` already means there is no
+                # fallback list to search here regardless.
+                download_candidate = dict(asset)
+                download_candidate["rejected"] = False
                 downloaded, slot_attempts = _ensure_selected_asset_downloaded(
-                    selected=asset,
+                    selected=download_candidate,
                     ranked_candidates=[],
                     providers_by_name=providers_by_name,
                     project_root=project_root,
@@ -946,12 +988,130 @@ def _complete_scene_assembly(
             )
             slot.usability = usability
         if not failed_asset_id:
+            if not targeted_search_done and not dry_run and project_root is not None and ordered_providers:
+                # Spent whether or not it finds anything: this is a one-shot pass, not
+                # a loop that keeps trying until the scene is perfect (rule 10).
+                targeted_search_done = True
+                missing = unfilled_semantic_slots(assembly)
+                if missing:
+                    found, targeted_attempts = _targeted_slot_search(
+                        scene=scene,
+                        semantic_scene=semantic_scene,
+                        slot_names=missing,
+                        ordered_providers=ordered_providers,
+                        provider_capabilities=provider_capabilities or {},
+                        project_id=project_id,
+                        sent_queries=sent_queries,
+                    )
+                    attempts.extend(targeted_attempts)
+                    if found:
+                        # A fresh provider result carries no selection decision yet -
+                        # the general search only gets one because it is piped through
+                        # ``select_best_candidate``/``rank_candidates`` before reaching
+                        # here. Without this, ``build_scene_assembly`` would read an
+                        # empty ``SelectionDecision`` off it and treat it as
+                        # unsupported no matter what it shows.
+                        found = rank_candidates(
+                            semantic_scene,
+                            found,
+                            used_asset_ids=set(),
+                            required_duration_sec=duration,
+                            require_provider_metadata=False,
+                            source_class=source_class,
+                        )
+                        triggered_slots = missing
+                        candidates = [*candidates, *found]
+                        continue
+            if triggered_slots:
+                assembly.ladder_trace.append(
+                    "Q2.3:targeted_slot_search:" + ",".join(triggered_slots)
+                )
             reuse.adopt(trial)
             primary = assembly.primary_asset
             return (primary or strict_selection or None), assembly, attempts
         excluded.add(failed_asset_id)
         assembly.ladder_trace.append(f"download_failed:{failed_asset_id}")
     return None, assembly, attempts
+
+
+def _targeted_slot_search(
+    *,
+    scene: dict[str, Any],
+    semantic_scene: Any,
+    slot_names: list[str],
+    ordered_providers: list[AssetProvider],
+    provider_capabilities: dict[str, dict[str, Any]],
+    project_id: str,
+    sent_queries: set[tuple[str, str]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """One bounded targeted search pass: at most one query per (slot, provider) pair.
+
+    ``sent_queries`` is both read and updated in place, so a second slot in the same
+    pass never repeats a query the first slot (or the general per-scene search before
+    it) already sent - the whole point of a targeted pass is to ask for what the
+    general search did not already ask, not to spend another provider call on the same
+    words (rules 6 and 7). Every result returned here still has to pass through the
+    same ``build_scene_assembly`` -> ``blocking_reasons``/``evaluate_usability`` gates
+    as any other candidate; nothing here grants it any authority of its own (rule 8).
+    """
+    new_candidates: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    provider_names = [provider.name for provider in ordered_providers]
+    for slot_name in slot_names:
+        plan = build_slot_queries(
+            scene, slot_name, providers=provider_names, capabilities=provider_capabilities
+        )
+        for item in plan.queries:
+            if item.status != STATUS_OK:
+                continue
+            key = (item.provider, item.query.strip().lower())
+            if key in sent_queries:
+                continue
+            sent_queries.add(key)
+            provider = next((candidate for candidate in ordered_providers if candidate.name == item.provider), None)
+            if provider is None:
+                continue
+            attempt = {
+                "scene_id": str(scene.get("scene_id") or ""),
+                "provider": provider.name,
+                "query": item.query,
+                "query_language": item.language,
+                "query_source": item.source,
+                "kind": item.kind,
+                "status": "started",
+            }
+            try:
+                provider_results = _search_provider(
+                    provider,
+                    item.query,
+                    scene,
+                    semantic_scene.to_dict(),
+                    project_id=project_id,
+                    limit=5,
+                )
+                new_candidates.extend(
+                    _rank_provider_results(provider_results, scene, item.query, fallback_level=10)
+                )
+                attempt.update({"status": "completed", "result_count": len(provider_results)})
+            except ProviderError as exc:
+                error = exc.to_dict()
+                error.update({"scene_id": scene.get("scene_id", ""), "query": item.query})
+                attempt.update({"status": "failed", "error": error})
+            except Exception as exc:
+                attempt.update(
+                    {
+                        "status": "failed",
+                        "error": {
+                            "code": "provider_unexpected_error",
+                            "provider": provider.name,
+                            "scene_id": scene.get("scene_id", ""),
+                            "query": item.query,
+                            "message": str(exc),
+                        },
+                    }
+                )
+            attempts.append(attempt)
+    return new_candidates, attempts
 
 
 def _ensure_decision(asset: dict[str, Any] | None, *, scene_id: str, source_class: str) -> dict[str, Any] | None:

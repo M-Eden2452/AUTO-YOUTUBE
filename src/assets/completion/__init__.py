@@ -37,12 +37,14 @@ from .assembly import (
     slot_windows,
 )
 from .ladder import (
+    SEMANTIC_SLOT_ORDER,
     ReuseLedger,
     build_scene_assembly,
     order_candidates,
     quality_tier_for,
     reuse_identity,
     tie_break_key,
+    unfilled_semantic_slots,
 )
 from .modes import (
     BLOCK_FACTUALLY_MISLEADING,
@@ -97,6 +99,7 @@ __all__ = [
     "PRIORITY_MEDIUM",
     "PRIORITY_NONE",
     "QUALITY_TIERS",
+    "SEMANTIC_SLOT_ORDER",
     "SLOT_DETAIL",
     "SLOT_ESTABLISHING",
     "SLOT_FALLBACK",
@@ -128,5 +131,6 @@ __all__ = [
     "reuse_identity",
     "slot_windows",
     "tie_break_key",
+    "unfilled_semantic_slots",
     "write_replacement_report",
 ]

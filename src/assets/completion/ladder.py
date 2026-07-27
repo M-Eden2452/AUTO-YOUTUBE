@@ -824,10 +824,49 @@ def _add_recommendations(assembly: SceneVisualAssembly) -> None:
         )
 
 
+# --- Slot-aware targeted retrieval (stage Q2.3) ------------------------------
+# Fixed, deterministic order so a report or a log line never varies with dict/set
+# iteration order between runs.
+SEMANTIC_SLOT_ORDER = ("subject", "action", "location", "context")
+
+
+def unfilled_semantic_slots(assembly: SceneVisualAssembly) -> list[str]:
+    """Which of the four semantic slot kinds no slot of this assembly answers.
+
+    Each slot's own ``missing``/``missing_required`` limitations describe what *that
+    one asset* does not cover on its own - a location-only asset in a two-slot
+    composite always lists "subject" as missing, even when the sibling slot answers
+    subject perfectly well. Reading limitations alone would make a composite chase a
+    targeted search for slots its own other half already covers. What is actually
+    unfilled is the set difference: named missing by some slot, and matched by no
+    slot's own decision.
+
+    A publish-ready assembly has nothing left to ask for, by definition. The caller
+    (``src.news.asset_manager``) uses this to decide whether one bounded targeted
+    search pass is worth attempting; this module itself never searches for anything -
+    see the package docstring.
+    """
+    if assembly.publish_ready:
+        return []
+    reported_missing: set[str] = set()
+    covered: set[str] = set()
+    for slot in assembly.slots:
+        for item in slot.usability.limitations:
+            for prefix in ("missing_required:", "missing:"):
+                if item.startswith(prefix):
+                    reported_missing.add(item[len(prefix):])
+        decision_slots = read_decision(slot.selected_asset).slots
+        if isinstance(decision_slots, dict):
+            covered.update(str(name) for name in (decision_slots.get("matched_slots") or []))
+    still_unfilled = reported_missing - covered
+    return [name for name in SEMANTIC_SLOT_ORDER if name in still_unfilled]
+
+
 __all__ = [
     "DEFAULT_MAX_USES_PER_ASSET",
     "DEFAULT_MIN_SCENE_GAP",
     "REUSE_PENALTY_PER_USE",
+    "SEMANTIC_SLOT_ORDER",
     "ReuseLedger",
     "build_scene_assembly",
     "eligible_candidates",
@@ -836,4 +875,5 @@ __all__ = [
     "reuse_identity",
     "stable_candidate_id",
     "tie_break_key",
+    "unfilled_semantic_slots",
 ]
