@@ -6,10 +6,28 @@ from typing import Any
 
 
 def export_asset_sources(*, project_root: str | Path, assets_manifest: dict[str, Any]) -> dict[str, str]:
+    from src.assets.completion import read_assembly
+
     root = Path(project_root)
     output_dir = root / "assets"
     output_dir.mkdir(parents=True, exist_ok=True)
-    assets = [_source_record(scene.get("selected_asset") or {}, str(scene.get("scene_id") or "")) for scene in assets_manifest.get("scenes", [])]
+    assets: list[dict[str, Any]] = []
+    for scene in assets_manifest.get("scenes", []):
+        if not isinstance(scene, dict):
+            continue
+        assembly = read_assembly(
+            scene,
+            scene_duration_sec=float(scene.get("required_duration_sec") or 0.0),
+        )
+        assets.extend(
+            _source_record(
+                slot.selected_asset,
+                str(scene.get("scene_id") or ""),
+                slot_id=slot.slot_id,
+            )
+            for slot in assembly.slots
+            if slot.selected_asset
+        )
     assets = [asset for asset in assets if asset.get("provider")]
     sources_json = output_dir / "sources.json"
     attribution_md = output_dir / "ATTRIBUTION.md"
@@ -24,7 +42,7 @@ def export_asset_sources(*, project_root: str | Path, assets_manifest: dict[str,
     }
 
 
-def _source_record(asset: dict[str, Any], scene_id: str) -> dict[str, Any]:
+def _source_record(asset: dict[str, Any], scene_id: str, *, slot_id: str = "") -> dict[str, Any]:
     license_data = asset.get("license") if isinstance(asset.get("license"), dict) else {}
     policy = asset.get("policy_decision") if isinstance(asset.get("policy_decision"), dict) else {}
     source_page = asset.get("source_page_url") or asset.get("source_page") or asset.get("source_url") or ""
@@ -40,6 +58,7 @@ def _source_record(asset: dict[str, Any], scene_id: str) -> dict[str, Any]:
         "selected_filename": local_name or asset.get("original_filename", ""),
         "project_id": asset.get("project_id") or (asset.get("provenance") or {}).get("project_id", ""),
         "scene_id": asset.get("scene_id") or scene_id,
+        "slot_id": slot_id,
     }
     if record["provider"] == "nasa_images" and not record["attribution_text"]:
         record["attribution_text"] = "Source: NASA"

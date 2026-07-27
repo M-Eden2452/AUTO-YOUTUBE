@@ -551,13 +551,25 @@ def build_rights_report(
         if assets_manifest is None:
             report.warnings.append(f"{SOURCE_ASSETS_MANIFEST}: файл повреждён и не прочитан как JSON.")
         else:
+            from src.assets.completion import read_assembly
+
             for scene in assets_manifest.get("scenes") or []:
                 if not isinstance(scene, dict):
                     continue
-                selected = scene.get("selected_asset")
-                if not isinstance(selected, dict) or not selected:
-                    continue
-                dedup.add(_visual_item_from_selected_asset(selected, str(scene.get("scene_id") or "")))
+                assembly = read_assembly(
+                    scene,
+                    scene_duration_sec=float(scene.get("required_duration_sec") or 0.0),
+                )
+                for slot in assembly.slots:
+                    selected = slot.selected_asset
+                    if not isinstance(selected, dict) or not selected:
+                        continue
+                    dedup.add(
+                        _visual_item_from_selected_asset(
+                            selected,
+                            str(scene.get("scene_id") or ""),
+                        )
+                    )
 
     # 2. Scenes with no material at all - never hidden.
     missing_path = root / "assets" / "missing_assets.json"

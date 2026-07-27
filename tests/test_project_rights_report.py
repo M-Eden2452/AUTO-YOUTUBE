@@ -112,6 +112,72 @@ class NewsAssetsTests(unittest.TestCase):
             self.assertFalse(report.has_blocking_problems)
             self.assertEqual([item.scene_id for item in report.items], ["scene_001", "scene_002"])
 
+    def test_secondary_slot_rights_and_attribution_are_not_hidden_by_primary(self) -> None:
+        from src.assets.attribution_export import export_asset_sources
+
+        for expected_status in ("blocked", "unknown"):
+            with self.subTest(secondary_status=expected_status), tempfile.TemporaryDirectory() as tmp:
+                primary = _selected_asset(
+                    "scene_001", asset_id="primary_asset", provider_asset_id="111",
+                    source_page="https://www.pexels.com/video/primary-111/", checksum="a" * 64,
+                )
+                primary["author"] = "Primary Author"
+                secondary = _selected_asset(
+                    "scene_001", asset_id=f"secondary_{expected_status}", provider="wikimedia",
+                    provider_asset_id="222", license_name="CC BY 4.0",
+                    source_page="https://commons.wikimedia.org/wiki/File:Secondary.webm",
+                    checksum="b" * 64, allowed=expected_status != "blocked",
+                )
+                secondary["author"] = "Secondary Author"
+                if expected_status == "unknown":
+                    secondary.update(license_name="", source_page_url="", checksum_sha256="")
+                    secondary["license"]["license_name"] = ""
+                    secondary.pop("allowed_for_render")
+                    secondary.pop("review_required")
+                slots = [
+                    {
+                        "slot_id": f"scene_001_slot_{index:03d}",
+                        "purpose": "primary_visual" if index == 1 else "supporting_broll",
+                        "start_offset_sec": float((index - 1) * 2),
+                        "end_offset_sec": float(index * 2),
+                        "selected_asset": asset,
+                    }
+                    for index, asset in enumerate((primary, secondary), start=1)
+                ]
+                scene = {
+                    "scene_id": "scene_001",
+                    "required_duration_sec": 4.0,
+                    "selected_asset": primary,
+                    "visual_assembly": {
+                        "schema_version": 1,
+                        "scene_id": "scene_001",
+                        "scene_duration_sec": 4.0,
+                        "assembly_status": "composite",
+                        "slots": slots,
+                    },
+                }
+                project_root = _news_project(Path(tmp), "news_one", [scene])
+                report = build_rights_report(project_id="news_one", project_root=project_root)
+                self.assertEqual(report.summary.total, 2)
+                self.assertEqual(report.summary.visual_items, 2)
+                self.assertEqual(
+                    {item.asset_id: item.verification_status for item in report.items},
+                    {"primary_asset": "verified", f"secondary_{expected_status}": expected_status},
+                )
+                self.assertEqual(report.overall_status, expected_status)
+
+                exported = export_asset_sources(
+                    project_root=project_root, assets_manifest={"scenes": [scene]}
+                )
+                sources = json.loads(Path(exported["sources_json"]).read_text(encoding="utf-8"))
+                attribution = Path(exported["attribution_md"]).read_text(encoding="utf-8")
+                self.assertEqual(
+                    {item["slot_id"] for item in sources["assets"]},
+                    {"scene_001_slot_001", "scene_001_slot_002"},
+                )
+                self.assertIn("Primary Author", attribution)
+                self.assertIn("Secondary Author", attribution)
+
     def test_unselected_candidates_are_not_counted_as_used(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -14,6 +14,24 @@
     "notes": "Unknown or incomplete license metadata is blocked until reviewed. This project policy is not legal advice."
   },
   "providers": {
+    "generated": {
+      "enabled": true,
+      "owner_review_required": false,
+      "owner_approval_status": "project_owned",
+      "provider_terms_url": "",
+      "rules": [
+        {
+          "media_type": "*",
+          "license_name": "project_generated",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": false,
+          "notes": "Deterministic media generated locally from project-owned scene data."
+        }
+      ]
+    },
     "fake": {
       "enabled": true,
       "owner_review_required": false,

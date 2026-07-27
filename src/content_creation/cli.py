@@ -130,6 +130,27 @@ def build_parser() -> argparse.ArgumentParser:
     project_p.add_argument("--project-id", help="Required for every action except 'list'.")
     project_p.add_argument("--projects-root", default="projects")
 
+    assets_p = subparsers.add_parser(
+        "assets", help="Manage visual slots in an existing news project.", parents=[json_flag]
+    )
+    assets_p.add_argument("action", choices=["replace"])
+    assets_p.add_argument("--project-id", required=True)
+    assets_p.add_argument("--scene-id", required=True)
+    assets_p.add_argument("--slot-id", required=True)
+    assets_p.add_argument(
+        "--file",
+        required=True,
+        help="Local media to import without modifying the original.",
+    )
+    assets_p.add_argument("--source-url", default="", help="Optional provenance URL.")
+    assets_p.add_argument("--license-file", default="", help="Optional local rights/license proof.")
+    assets_p.add_argument(
+        "--confirm-user-owned",
+        action="store_true",
+        help="Explicitly confirm that you own or control the supplied media rights.",
+    )
+    assets_p.add_argument("--projects-root", default="projects")
+
     create_p = subparsers.add_parser(
         "create", help="Create one piece of content (flag-driven, non-interactive).", parents=[json_flag]
     )
@@ -252,6 +273,18 @@ def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--prepare-only", action="store_true", help="Stop before any paid TTS call.")
     parser.add_argument("--approve-paid-generation", action="store_true", help="Explicitly allow paid ElevenLabs synthesis.")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--completion-mode",
+        choices=["strict", "draft_complete"],
+        default="",
+        help="strict (default) or opt-in autonomous draft completion.",
+    )
+    parser.add_argument(
+        "--script-adaptation",
+        choices=["none", "light"],
+        default="",
+        help="Asset-aware adaptation; empty keeps the project/default setting.",
+    )
     parser.add_argument("--projects-root", default="projects")
 
 
@@ -282,6 +315,8 @@ def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
         source_asset_path=args.source_asset_path,
         topic=args.topic,
         visual_briefs=_load_visual_briefs(getattr(args, "visual_brief_path", "")),
+        completion_mode=getattr(args, "completion_mode", ""),
+        script_adaptation=getattr(args, "script_adaptation", ""),
         voice=VoiceRequestConfig(
             provider=args.voice_provider,
             profile=voice_profile,
@@ -829,6 +864,9 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
     if command == "project":
         return _run_project(args)
 
+    if command == "assets":
+        return _run_assets(args)
+
     if command == "create" or command == "resume":
         if command == "resume":
             args.resume = True
@@ -850,6 +888,49 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
         return _run_wizard(args)
 
     raise SystemExit(f"Unknown command: {command!r}")
+
+
+def _run_assets(args: argparse.Namespace) -> int:
+    """Replace one visual slot without re-running research or asset search."""
+    from src.assets.completion.replacement import replace_visual_slot
+
+    try:
+        result = replace_visual_slot(
+            projects_root=args.projects_root,
+            project_id=args.project_id,
+            scene_id=args.scene_id,
+            slot_id=args.slot_id,
+            source_file=args.file,
+            source_url=args.source_url,
+            license_file=args.license_file,
+            confirm_user_owned=args.confirm_user_owned,
+        )
+    except Exception as exc:
+        if getattr(args, "debug", False):
+            raise
+        if args.json_output:
+            _print_json(
+                {
+                    "status": "failed",
+                    "code": str(getattr(exc, "code", "") or "assets_replace_failed"),
+                    "error": str(exc),
+                }
+            )
+        else:
+            print(f"[assets replace] error: {exc}")
+        return 1
+    if args.json_output:
+        _print_json(result)
+    else:
+        print(f"[assets replace] status={result.get('status', 'completed')}")
+        print(f"[assets replace] project_id={args.project_id}")
+        print(f"[assets replace] scene_id={args.scene_id} slot_id={args.slot_id}")
+        print(
+            f"[assets replace] imported_path="
+            f"{result.get('imported_path') or result.get('asset_path') or ''}"
+        )
+        print(f"[assets replace] checksum_sha256={result.get('checksum_sha256', '')}")
+    return 0
 
 
 def _run_project(args: argparse.Namespace) -> int:

@@ -144,6 +144,21 @@ cd /g/Projects/AI-YouTube
 
 ## Известные ограничения (по состоянию на аудит 2026-07-25)
 
+- Autonomous completion (этап Q2.2B): у пайплайна два режима. `strict` — default и
+  прежнее поведение: одна неотвеченная сцена останавливает ролик. `draft_complete`
+  включается только явным `--completion-mode draft_complete` и собирает **черновик**
+  из partial/fallback материала. Модули: `src/assets/completion/` (modes, assembly,
+  ladder, replacement, report) и `src/news/draft_completion.py`. Третий режим,
+  второй contract готовности и второй ladder заводить нельзя.
+  Что режим **не** ослабляет ни при каких условиях: rights-blocked, unknown license,
+  `must_avoid`, declared conflicting context и factually misleading материал
+  fail closed в обоих режимах (`src/assets/completion/modes.py:blocking_reasons`).
+  `publish_ready` в draft всегда `false`; выход — `draft_1080x1920.mp4`.
+  Сцена = `visual_assembly.slots` (1–4 slots); старый scene-level `selected_asset`
+  без assembly читается как один slot на всю сцену, миграции на диске нет.
+  Script adaptation — максимум **один** durable pass, только по слабым сценам, под
+  fact locks (`src/content/script_engine/fact_locks.py`); если покрытие не улучшилось,
+  исходный script остаётся активным. Платного adapter/Vision здесь нет.
 - Экспорт под площадки — копии master MP4; `tiktok` и `stories` не создаются.
 - Визуальный поиск (после этапа Q2.1, карта —
   `docs/implementation/visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md`): порядок

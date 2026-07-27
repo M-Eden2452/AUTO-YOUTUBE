@@ -49,6 +49,138 @@ class NewsToShortAssetTests(unittest.TestCase):
             self.assertTrue(selected["policy_decision"]["allowed_for_render"])
             self.assertEqual(manifest["missing_scenes"], [])
 
+    def test_confirmed_user_asset_cannot_bypass_must_avoid_in_draft(self) -> None:
+        from src.assets.completion import MODE_DRAFT_COMPLETE, read_assembly
+        from src.news.asset_manager import build_assets_manifest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            user_image = root / "penguin.jpg"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(user_image)
+            manifest = build_assets_manifest(
+                visual_plan={
+                    "scenes": [
+                        {
+                            "scene_id": "scene_001",
+                            "visual_type": "image",
+                            "target_duration_sec": 4.0,
+                            "primary_query": "Antarctic research sample",
+                            "visual_brief": {
+                                "subject": "research sample",
+                                "must_avoid": ["penguin"],
+                            },
+                        }
+                    ]
+                },
+                user_assets=[
+                    {
+                        "path": str(user_image),
+                        "rights_declaration": {
+                            "confirmation_status": "approved",
+                            "license_name": "user_owned",
+                            "rights_status": "user_owned",
+                            "owner_approval_status": "approved",
+                        },
+                    }
+                ],
+                media_index={"version": 1, "items": []},
+                providers=[],
+                dry_run=False,
+                project_root=root,
+                project_id="must_avoid_fixture",
+                completion_mode=MODE_DRAFT_COMPLETE,
+            )
+
+            scene = manifest["scenes"][0]
+            assembly = read_assembly(scene, scene_duration_sec=4.0)
+
+        self.assertTrue(assembly.usable_in_draft)
+        self.assertTrue(assembly.slots)
+        self.assertTrue(all(slot.selected_asset["provider"] != "user" for slot in assembly.slots))
+        rejected = next(
+            item for item in scene["ranked_candidates"] if item["provider"] == "user"
+        )
+        self.assertIn("must_avoid_match:penguin", rejected["reject_reason"])
+
+    def test_visual_support_summary_uses_the_weakest_secondary_slot(self) -> None:
+        from src.assets.completion import (
+            ASSEMBLY_COMPOSITE,
+            MODE_DRAFT_COMPLETE,
+            SLOT_PRIMARY,
+            SLOT_SUPPORTING,
+            TIER_EXACT,
+            TIER_PARTIAL,
+            SceneVisualAssembly,
+            attach_assembly,
+            evaluate_usability,
+        )
+        from src.assets.completion.assembly import slot_from_asset
+        from src.assets.semantic_selection.decision import SUPPORT_PARTIAL
+        from src.news.asset_manager import refresh_manifest_summaries
+        from tests.test_autonomous_completion_pipeline import _asset, _png
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exact = _asset(
+                path=_png(root / "exact.png", 1),
+                scene_id="scene_001",
+            )
+            partial = _asset(
+                path=_png(root / "partial.png", 2),
+                scene_id="scene_001",
+                support=SUPPORT_PARTIAL,
+                missing=["instrument_action"],
+            )
+            assembly = SceneVisualAssembly(
+                scene_id="scene_001",
+                scene_duration_sec=4.0,
+                assembly_status=ASSEMBLY_COMPOSITE,
+                completion_mode=MODE_DRAFT_COMPLETE,
+                slots=[
+                    slot_from_asset(
+                        exact,
+                        slot_id="scene_001_slot_001",
+                        purpose=SLOT_PRIMARY,
+                        start_offset_sec=0.0,
+                        end_offset_sec=2.0,
+                        quality_tier=TIER_EXACT,
+                        usability=evaluate_usability(
+                            exact,
+                            mode=MODE_DRAFT_COMPLETE,
+                            quality_tier=TIER_EXACT,
+                            require_local_file=True,
+                        ),
+                    ),
+                    slot_from_asset(
+                        partial,
+                        slot_id="scene_001_slot_002",
+                        purpose=SLOT_SUPPORTING,
+                        start_offset_sec=2.0,
+                        end_offset_sec=4.0,
+                        quality_tier=TIER_PARTIAL,
+                        usability=evaluate_usability(
+                            partial,
+                            mode=MODE_DRAFT_COMPLETE,
+                            quality_tier=TIER_PARTIAL,
+                            require_local_file=True,
+                        ),
+                    ),
+                ],
+            )
+            scene = {"scene_id": "scene_001", "required_duration_sec": 4.0}
+            attach_assembly(scene, assembly)
+            manifest = {
+                "scenes": [scene],
+                "missing_scenes": [],
+                "completion": {"mode": MODE_DRAFT_COMPLETE},
+            }
+            refresh_manifest_summaries(manifest, mode=MODE_DRAFT_COMPLETE)
+
+        summary = manifest["visual_support"]
+        self.assertEqual(summary["full_support"], 0)
+        self.assertEqual(summary["by_support_status"][SUPPORT_PARTIAL], 1)
+        self.assertEqual(summary["scenes_needing_review"], ["scene_001"])
+
     def test_reference_only_assets_are_not_selected_for_render(self) -> None:
         from src.news.asset_manager import build_assets_manifest
 

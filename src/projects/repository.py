@@ -114,7 +114,11 @@ class ProjectView:
 
     @property
     def blocking_stages(self) -> list[str]:
-        return [stage.stage for stage in self.stages if stage.status in {"failed", "needs_review", "blocked"}]
+        return [
+            stage.stage
+            for stage in self.stages
+            if stage.status in {"failed", "needs_review", "blocked", "stale"}
+        ]
 
     def to_dict(self) -> dict[str, Any]:
         return {

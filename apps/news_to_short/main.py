@@ -24,6 +24,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stage")
     parser.add_argument("--force-stage", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--completion-mode", choices=["strict", "draft_complete"], default="")
+    parser.add_argument("--script-adaptation", choices=["none", "light"], default="")
     args = parser.parse_args(argv)
 
     if args.action == "create":
@@ -37,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
             assets=args.assets,
             language=args.language,
             target_duration_sec=args.target_duration,
+            completion_mode=args.completion_mode,
+            script_adaptation=args.script_adaptation,
         )
         job_id = job.job_id
     else:
@@ -52,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
         stage=args.stage,
         resume=args.action == "resume",
         force_stage=args.force_stage,
+        completion_mode=args.completion_mode,
+        script_adaptation=args.script_adaptation,
     )
     print(f"[news-to-short-app] job_id={result.job_id}")
     print(f"[news-to-short-app] status={result.status}")

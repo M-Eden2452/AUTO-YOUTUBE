@@ -43,7 +43,15 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
     mood = _stated(explicit, "mood", [])
     must_include = _stated(explicit, "must_include", _must_include(priority, subject, environment))
     should_include = _stated(explicit, "should_include", secondary + location + camera)
-    must_not = _stated(explicit, "must_not_include", _infer_must_not(subject, environment))
+    if "must_not_include" in explicit:
+        must_not = _as_list(explicit.get("must_not_include"))
+    elif "must_avoid" in brief:
+        # ``visual_brief.must_avoid`` is the author's canonical wording. Older and
+        # hand-written plans may not duplicate it into the semantic block, but that
+        # must never make the prohibition disappear for candidate selection.
+        must_not = _as_list(brief.get("must_avoid"))
+    else:
+        must_not = _infer_must_not(subject, environment)
     fallback_level = int(scene.get("fallback_level") or explicit.get("fallback_level") or _default_fallback_level(priority))
     # Nothing below is ever inferred. A context the author did not state constrains
     # nothing, and a contradiction nobody declared is not a contradiction.

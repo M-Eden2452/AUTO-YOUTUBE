@@ -65,6 +65,34 @@ def asdict_clean(value: Any) -> Any:
     return value
 
 
+def build_completion_state(*, mode: str = "", script_adaptation: str = "") -> dict[str, Any]:
+    """The job's completion settings, normalized. Defaults are the pre-Q2.2B behaviour.
+
+    ``draft_complete`` turns on light script adaptation unless the caller switched it
+    off explicitly; ``strict`` never adapts, because in strict mode an unanswerable
+    scene is meant to stop the run and be looked at.
+    """
+    from src.assets.completion import MODE_DRAFT_COMPLETE, normalize_mode
+    from src.content.script_engine.adaptation import ADAPT_LIGHT, ADAPT_NONE, normalize_adaptation_mode
+
+    resolved_mode = normalize_mode(mode)
+    if str(script_adaptation or "").strip():
+        adaptation = normalize_adaptation_mode(script_adaptation)
+    else:
+        adaptation = ADAPT_LIGHT if resolved_mode == MODE_DRAFT_COMPLETE else ADAPT_NONE
+    return {"mode": resolved_mode, "script_adaptation": adaptation, "adaptation_pass": 0}
+
+
+def completion_settings(job: "NewsJob") -> dict[str, Any]:
+    """A job's completion settings, filled in for a job.json written before they existed."""
+    stored = job.completion if isinstance(job.completion, dict) else {}
+    defaults = build_completion_state(
+        mode=str(stored.get("mode") or ""), script_adaptation=str(stored.get("script_adaptation") or "")
+    )
+    defaults["adaptation_pass"] = int(stored.get("adaptation_pass") or 0)
+    return defaults
+
+
 @dataclass
 class StageState:
     stage: str
@@ -133,6 +161,12 @@ class NewsJob:
     # Optional and additive: a job.json written before this exists simply has none, and
     # ``from_dict`` fills the default. Never spoken - the voice stage reads narration.
     visual_briefs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # How far the project is allowed to go on its own when a scene has no perfect
+    # material (stage Q2.2B). Optional and additive: a job.json written before this
+    # field existed loads with the strict default, which is the pre-Q2.2B behaviour.
+    # Keys: mode (src.assets.completion.MODE_*), script_adaptation
+    # (src.content.script_engine.adaptation.ADAPT_*), adaptation_pass (int).
+    completion: dict[str, Any] = field(default_factory=dict)
     aspect_ratio: str = "9:16"
     resolution: dict[str, int] = field(default_factory=lambda: {"width": 1080, "height": 1920})
     platforms: list[str] = field(default_factory=lambda: ["youtube_shorts", "instagram_reels", "facebook_reels"])
@@ -162,6 +196,8 @@ class NewsJob:
         script_include_cta: bool = False,
         script_cta_text: str = "",
         visual_briefs: dict[str, dict[str, Any]] | None = None,
+        completion_mode: str = "",
+        script_adaptation: str = "",
         now: str | None = None,
         is_taken: Any = None,
     ) -> "NewsJob":
@@ -197,6 +233,7 @@ class NewsJob:
             script_include_cta=script_include_cta,
             script_cta_text=script_cta_text,
             visual_briefs={str(key): dict(value) for key, value in (visual_briefs or {}).items()},
+            completion=build_completion_state(mode=completion_mode, script_adaptation=script_adaptation),
             created_at=created_at,
             updated_at=created_at,
             stages=stages,

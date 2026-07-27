@@ -70,7 +70,15 @@ _NON_VISUAL = {
     "when", "which", "that", "there", "here", "very", "more", "less", "many", "much",
     "подряд", "никогда", "всегда", "снова", "сразу", "обычно", "именно", "точно",
     "полностью", "действительно", "например", "кстати", "конечно", "вообще",
+    # Reporting/relationship verbs describe how a claim is framed, not a
+    # filmable action that stock footage must literally verify.
+    "связывают",
 }
+
+# A small disambiguation list for actor nouns that happen to end like Russian
+# past-tense verbs. Keep them filmable as entities, but never turn them into an
+# action requirement.
+_NON_ACTION = {"исследователи"}
 
 _YEAR_RE = re.compile(r"\b(\d{3,4})\s*(?:год|году|года|г\.)", re.IGNORECASE)
 _CENTURY_RE = re.compile(r"\b([IVXLC]+|\d{1,2})\s*(?:век|века|веке)", re.IGNORECASE)
@@ -160,7 +168,10 @@ def extract_actions(text: str) -> list[str]:
     lowercase: list[str] = []
     capitalised: list[str] = []
     for token in _TOKEN_RE.findall(text or ""):
-        if not (looks_like_verb(token) and is_filmable(token)):
+        if (
+            not (looks_like_verb(token) and is_filmable(token))
+            or token.lower() in _NON_ACTION
+        ):
             continue
         bucket = capitalised if token[:1].isupper() else lowercase
         if token not in bucket:

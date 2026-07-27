@@ -42,6 +42,45 @@ python -B pipeline.py --news-to-short --news-action resume --job-id <job_id> --d
 python -B pipeline.py --news-to-short --news-action run --job-id <job_id> --stage asset_search --dry-run
 ```
 
+### Strict и autonomous draft completion
+
+`strict` остаётся default и сохраняет прежний publish gate. Opt-in draft:
+
+```bash
+python -B pipeline.py --news-to-short --news-action resume --job-id <job_id> \
+  --completion-mode draft_complete --script-adaptation light
+```
+
+`--script-adaptation none` отключает единственный adaptation pass. Штатный `light`
+работает offline и детерминированно; не вызывает LLM. Draft допускает честный
+`partial_support`, но никогда неизвестные/запрещённые права, `must_avoid`, конфликт,
+misleading content или технически непригодный файл. Итоговый MP4 имеет имя
+`draft_1080x1920.mp4` и `publish_ready=false`.
+
+Слабые slots перечислены в:
+
+```text
+replacement/replacement_report.json
+replacement/replacement_report.html
+replacement/replacement_queue.json
+replacement/timeline_replacement_map.csv
+```
+
+Заменить один slot, не повторяя research/script/search:
+
+```bash
+python -m src.content_creation.cli assets replace \
+  --project-id <job_id> --scene-id <scene_id> --slot-id <slot_id> \
+  --file <local-image-or-video> \
+  --source-url <optional-url> --license-file <optional-proof>
+```
+
+Операция сохраняет checksum/provenance и помечает downstream quality/render как
+`stale`. Команда одновременно является явной декларацией права пользователя на этот
+локальный файл; `--license-file` прикладывает дополнительное подтверждение.
+Если голос не настроен, draft run возвращает `voice_provider_required`,
+сохраняя visual assembly и replacement reports; после импорта WAV используйте resume.
+
 ## Visual preview / semantic inspect
 
 Подготовить visual preview для одной сцены в offline/cache режиме:
@@ -145,4 +184,3 @@ Planned, пока не поддерживается текущим `pipeline.py`
 python -B pipeline.py story-card create ...
 python -B pipeline.py story-card batch --queue <queue.json>
 ```
-

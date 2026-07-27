@@ -121,6 +121,13 @@ class EntityExtractionTest(unittest.TestCase):
         """'Исследователи' ends in a verb-like suffix; 'надевали' is the real verb."""
         actions = extract_actions("Исследователи надевали маску и ловили птиц.")
         self.assertEqual(actions[0], "надевали")
+        self.assertNotIn("Исследователи", actions)
+
+    def test_abstract_reporting_relation_is_not_a_filmable_action(self) -> None:
+        actions = extract_actions(
+            "Исследователи связывают историю с проверяемыми фактами."
+        )
+        self.assertEqual(actions, [])
 
     def test_periods_are_read_only_when_written(self) -> None:
         for text, expected in (

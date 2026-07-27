@@ -6,12 +6,27 @@ from pathlib import Path
 from typing import Any
 
 from src.audio.scene_timeline import apply_timeline_to_script, build_scene_timeline
+from src.assets.completion import MODE_DRAFT_COMPLETE, normalize_mode
 
 from .article_ingestor import ArticleIngestionError, ingest_article, load_text_file
 from .asset_manager import build_news_asset_manifest
+from .draft_completion import (
+    REASON_VOICE_REQUIRED,
+    evaluate_draft_render_gate,
+    reuse_ledger_from_manifest,
+    run_adaptation_pass,
+    write_completion_report,
+)
 from .exporter import export_localization
 from .final_renderer import render_final_video
-from .models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, INPUT_MODE_URL, NEWS_TO_SHORT_STAGES, NewsJob
+from .models import (
+    INPUT_MODE_TEXT,
+    INPUT_MODE_TOPIC,
+    INPUT_MODE_URL,
+    NEWS_TO_SHORT_STAGES,
+    NewsJob,
+    completion_settings,
+)
 from .preview_renderer import render_preview
 from .project_store import NewsProjectStore
 from .quality_check import run_quality_check
@@ -49,6 +64,8 @@ def create_news_to_short_job(
     script_include_cta: bool = False,
     script_cta_text: str = "",
     visual_briefs: dict[str, dict[str, Any]] | None = None,
+    completion_mode: str = "",
+    script_adaptation: str = "",
     now: str | None = None,
 ) -> NewsJob:
     source_urls = list(urls or [])
@@ -82,6 +99,8 @@ def create_news_to_short_job(
         script_include_cta=script_include_cta,
         script_cta_text=script_cta_text,
         visual_briefs=visual_briefs,
+        completion_mode=completion_mode,
+        script_adaptation=script_adaptation,
         now=now,
         is_taken=existing_ids,
     )
@@ -100,18 +119,40 @@ def run_news_to_short_job(
     force_stage: bool = False,
     execute_voice: bool = False,
     voice_profile_override: str | None = None,
+    completion_mode: str = "",
+    script_adaptation: str = "",
 ) -> NewsPipelineResult:
     store = NewsProjectStore(projects_root)
     job = store.load_job(job_id)
+    _apply_completion_overrides(
+        store,
+        job,
+        completion_mode=completion_mode,
+        script_adaptation=script_adaptation,
+    )
     root = store.project_root(job_id)
     stop_stage = until_stage or ("asset_search" if dry_run else None)
     stages = [stage] if stage else NEWS_TO_SHORT_STAGES
     completed = store.completed_stage_names(job)
     ran: list[str] = []
+    terminal_status = ""
     for stage_name in stages:
         if stage_name not in NEWS_TO_SHORT_STAGES:
             raise ValueError(f"Unknown news_to_short stage: {stage_name}")
+        # If the requested stopping point was completed by an earlier run, resume
+        # stops there. Previously the generic resume `continue` won first and the
+        # pipeline accidentally ran every later stage.
+        if stage_name == stop_stage and stage_name in completed and not force_stage:
+            break
         if resume and stage_name in completed and not force_stage:
+            if (
+                stage_name == "voice"
+                and normalize_mode(completion_settings(job).get("mode")) == MODE_DRAFT_COMPLETE
+                and not _voice_audio_exists(root, job.language, store)
+            ):
+                write_completion_report(root=root, job=job)
+                terminal_status = REASON_VOICE_REQUIRED
+                break
             continue
         if not force_stage and stage_name in completed and not stage:
             if stage_name == stop_stage:
@@ -130,18 +171,51 @@ def run_news_to_short_job(
             force_stage=force_stage,
         )
         ran.append(stage_name)
+        if (
+            stage_name == "voice"
+            and normalize_mode(completion_settings(job).get("mode")) == MODE_DRAFT_COMPLETE
+            and not _voice_audio_exists(root, job.language, store)
+        ):
+            write_completion_report(root=root, job=job)
+            terminal_status = REASON_VOICE_REQUIRED
+            break
         if stage_name == stop_stage:
             break
-    if not dry_run:
+    mode = normalize_mode(completion_settings(job).get("mode"))
+    if terminal_status:
+        job.status = terminal_status
+    elif not dry_run:
         quality_path = root / "quality" / "quality_report.json"
         final_render_path = root / "render" / "final_render_manifest.json"
-        if quality_path.exists():
+        final_render = store.read_json(final_render_path) if final_render_path.exists() else {}
+        final_render_completed = (
+            job.stages.get("final_render") is not None
+            and job.stages["final_render"].status == "completed"
+        )
+        has_final_output = (
+            final_render_completed
+            and bool(final_render.get("output_path"))
+            and Path(final_render.get("output_path", "")).exists()
+        )
+        if has_final_output:
+            if mode == MODE_DRAFT_COMPLETE:
+                job.status = "draft_completed"
+            else:
+                quality_status = store.read_json(quality_path).get("status") if quality_path.exists() else ""
+                job.status = "completed" if quality_status == "passed" else "needs_review"
+        elif quality_path.exists() and (
+            job.stages.get("quality_check") is None
+            or job.stages["quality_check"].status != "stale"
+        ):
+            # A quality report on disk keeps its say over the job status - that is how
+            # a blocked final render has always surfaced as needs_review. Only an
+            # explicit invalidation (completion settings changed under it) makes the
+            # stored verdict untrustworthy; a stage that simply has not run yet does
+            # not, because the report is still the newest thing anyone measured.
             quality_status = store.read_json(quality_path).get("status")
-            final_render = store.read_json(final_render_path) if final_render_path.exists() else {}
-            has_final_output = bool(final_render.get("output_path")) and Path(final_render.get("output_path", "")).exists()
-            job.status = "completed" if quality_status == "passed" and has_final_output else "needs_review"
+            job.status = "needs_review" if quality_status else "in_progress"
         else:
-            job.status = "completed"
+            job.status = "in_progress"
     else:
         job.status = "dry_run_completed"
     if stop_stage and stop_stage not in ran and stop_stage in completed:
@@ -164,6 +238,8 @@ def run_news_to_short_cli(args: Any) -> NewsPipelineResult:
             assets=getattr(args, "assets", None),
             language=getattr(args, "language", "ru"),
             target_duration_sec=getattr(args, "target_duration", 55),
+            completion_mode=getattr(args, "completion_mode", ""),
+            script_adaptation=getattr(args, "script_adaptation", ""),
         )
     else:
         job_id = getattr(args, "job_id", None)
@@ -184,6 +260,8 @@ def run_news_to_short_cli(args: Any) -> NewsPipelineResult:
         # Was silently dropped here, so `pipeline.py --news-to-short --voice-profile X`
         # ran with the channel default instead of the profile the user asked for.
         voice_profile_override=getattr(args, "voice_profile", None) or None,
+        completion_mode=getattr(args, "completion_mode", ""),
+        script_adaptation=getattr(args, "script_adaptation", ""),
     )
 
 
@@ -197,7 +275,7 @@ def _run_stage(
     execute_voice: bool = False,
     voice_profile_override: str | None = None,
     force_stage: bool = False,
-) -> None:
+) -> Path:
     store.update_stage(job, stage_name, status="running", settings={"dry_run": dry_run})
     try:
         result_path = _dispatch_stage(
@@ -213,7 +291,19 @@ def _run_stage(
     except Exception as exc:
         store.update_stage(job, stage_name, status="failed", error=str(exc))
         raise
-    store.update_stage(job, stage_name, status="completed", result_path=str(result_path))
+    result_status = "completed"
+    if result_path.suffix.lower() == ".json" and result_path.is_file():
+        payload = store.read_json(result_path)
+        if payload.get("status") == "blocked":
+            result_status = "blocked"
+        if (
+            stage_name == "voice"
+            and normalize_mode(completion_settings(job).get("mode")) == MODE_DRAFT_COMPLETE
+            and not _voice_audio_exists(root, job.language, store)
+        ):
+            result_status = "blocked"
+    store.update_stage(job, stage_name, status=result_status, result_path=str(result_path))
+    return result_path
 
 
 def _dispatch_stage(
@@ -277,6 +367,29 @@ def _dispatch_stage(
         manifest = build_asset_search_manifest(job, plan, dry_run=dry_run, project_root=root)
         store.write_json(root / "assets" / "assets_manifest.json", manifest)
         store.write_json(root / "assets" / "missing_assets.json", {"missing_scenes": manifest["missing_scenes"]})
+        if normalize_mode(completion_settings(job).get("mode")) == MODE_DRAFT_COMPLETE:
+            if not dry_run:
+                initial_manifest = manifest
+
+                def _research_changed_scenes(plan_subset: dict[str, Any]) -> dict[str, Any]:
+                    return build_asset_search_manifest(
+                        job,
+                        plan_subset,
+                        dry_run=False,
+                        project_root=root,
+                        reuse_ledger=reuse_ledger_from_manifest(initial_manifest),
+                    )
+
+                run_adaptation_pass(
+                    store=store,
+                    job=job,
+                    root=root,
+                    research_scenes=_research_changed_scenes,
+                )
+            # The adaptation pass only writes a replacement when coverage improves.
+            # Always report the final on-disk manifest, including the no-improvement
+            # fallback case.
+            write_completion_report(root=root, job=job)
         return root / "assets" / "assets_manifest.json"
     if stage_name == "voice":
         script_path = root / "localizations" / job.language / "script" / "script.json"
@@ -383,31 +496,67 @@ def _dispatch_stage(
             assets_manifest=assets,
             voice_manifest=store.read_json(voice_path) if voice_path.exists() else None,
             subtitles_manifest=store.read_json(subtitles_path) if subtitles_path.exists() else None,
+            completion_mode=str(completion_settings(job).get("mode") or ""),
         )
         store.write_json(root / "quality" / "quality_report.json", report)
         return root / "quality" / "quality_report.json"
     if stage_name == "final_render":
+        mode = normalize_mode(completion_settings(job).get("mode"))
         quality = store.read_json(root / "quality" / "quality_report.json")
-        if quality.get("status") != "passed":
+        if mode != MODE_DRAFT_COMPLETE and quality.get("status") != "passed":
             manifest = {
                 "status": "blocked",
                 "reason": "quality_check_requires_review",
                 "output_path": "",
+                "completion_mode": mode,
             }
         else:
             script = store.read_json(root / "localizations" / job.language / "script" / "script.json")
             visual = store.read_json(root / "localizations" / job.language / "visual" / "visual_plan.json")
             assets = store.read_json(root / "assets" / "assets_manifest.json")
             voice = store.read_json(root / "localizations" / job.language / "voice" / "voice_manifest.json")
-            manifest = render_final_video(
-                project_root=root,
-                language=job.language,
-                script=script,
-                visual_plan=visual,
-                assets_manifest=assets,
-                voice_manifest=voice,
-            )
+            if mode == MODE_DRAFT_COMPLETE:
+                subtitles_path = root / "localizations" / job.language / "subtitles" / "subtitles_manifest.json"
+                gate = evaluate_draft_render_gate(
+                    script=script,
+                    assets_manifest=assets,
+                    voice_manifest=voice,
+                    subtitles_manifest=store.read_json(subtitles_path) if subtitles_path.exists() else None,
+                )
+                if gate.get("status") != "allowed":
+                    manifest = {
+                        "status": "blocked",
+                        "reason": gate.get("reason") or "draft_render_gate_blocked",
+                        "output_path": "",
+                        "completion_mode": mode,
+                        "publish_ready": False,
+                        "draft_render_gate": gate,
+                    }
+                else:
+                    manifest = render_final_video(
+                        project_root=root,
+                        language=job.language,
+                        script=script,
+                        visual_plan=visual,
+                        assets_manifest=assets,
+                        voice_manifest=voice,
+                        completion_mode=mode,
+                    )
+                    manifest["draft_render_gate"] = gate
+                    manifest["publish_ready"] = False
+            else:
+                manifest = render_final_video(
+                    project_root=root,
+                    language=job.language,
+                    script=script,
+                    visual_plan=visual,
+                    assets_manifest=assets,
+                    voice_manifest=voice,
+                    completion_mode=mode,
+                )
         store.write_json(root / "render" / "final_render_manifest.json", manifest)
+        if mode == MODE_DRAFT_COMPLETE:
+            write_completion_report(root=root, job=job)
         return root / "render" / "final_render_manifest.json"
     if stage_name == "export":
         script = store.read_json(root / "localizations" / job.language / "script" / "script.json")
@@ -433,6 +582,7 @@ def build_asset_search_manifest(
     *,
     dry_run: bool,
     project_root: str | Path | None = None,
+    reuse_ledger: Any | None = None,
 ) -> dict[str, Any]:
     channel_config = _load_channel_config(job.channel_id)
     manifest = build_news_asset_manifest(
@@ -443,8 +593,91 @@ def build_asset_search_manifest(
         asset_selection=channel_config.get("asset_selection", {}),
         project_root=project_root,
         project_id=job.job_id,
+        completion_mode=str(completion_settings(job).get("mode") or ""),
+        reuse_ledger=reuse_ledger,
     )
     return {"mode": job.mode, **manifest}
+
+
+def _apply_completion_overrides(
+    store: NewsProjectStore,
+    job: NewsJob,
+    *,
+    completion_mode: str,
+    script_adaptation: str,
+) -> None:
+    """Apply only explicit runtime overrides; an empty CLI flag preserves job.json."""
+    if not completion_mode and not script_adaptation:
+        return
+    from .models import build_completion_state
+
+    current = completion_settings(job)
+    requested_mode = completion_mode or str(current["mode"])
+    requested_adaptation = (
+        script_adaptation
+        if script_adaptation
+        else "" if completion_mode else str(current["script_adaptation"])
+    )
+    updated = build_completion_state(
+        mode=requested_mode,
+        script_adaptation=requested_adaptation,
+    )
+    updated["adaptation_pass"] = int(current.get("adaptation_pass") or 0)
+    settings_changed = any(
+        str(updated[key]) != str(current[key])
+        for key in ("mode", "script_adaptation")
+    )
+    if settings_changed:
+        _invalidate_completion_dependent_stages(
+            job,
+            previous=current,
+            updated=updated,
+        )
+    job.completion = updated
+    store.save_job(job)
+
+
+def _invalidate_completion_dependent_stages(
+    job: NewsJob,
+    *,
+    previous: dict[str, Any],
+    updated: dict[str, Any],
+) -> None:
+    """Make a stored asset result impossible to reuse under different semantics.
+
+    Completion mode and script adaptation first take effect inside ``asset_search``.
+    Every later stage may consume either its visual assembly or an adapted script, so
+    all of them have to be rerun on resume.  Result paths remain as audit evidence but
+    their stage states are explicitly stale.
+    """
+    first = NEWS_TO_SHORT_STAGES.index("asset_search")
+    metadata = {
+        "stale_reason": "completion_settings_changed",
+        "previous_completion_mode": str(previous.get("mode") or ""),
+        "completion_mode": str(updated.get("mode") or ""),
+        "previous_script_adaptation": str(previous.get("script_adaptation") or ""),
+        "script_adaptation": str(updated.get("script_adaptation") or ""),
+    }
+    for stage_name in NEWS_TO_SHORT_STAGES[first:]:
+        state = job.stages.get(stage_name)
+        if state is None:
+            continue
+        state.status = "stale"
+        state.started_at = None
+        state.finished_at = None
+        state.error = None
+        state.settings = {**dict(state.settings or {}), **metadata}
+    job.status = "in_progress"
+    job.current_stage = "asset_search"
+
+
+def _voice_audio_exists(root: Path, language: str, store: NewsProjectStore) -> bool:
+    path = root / "localizations" / language / "voice" / "voice_manifest.json"
+    if not path.is_file():
+        return False
+    manifest = store.read_json(path)
+    audio_path = str(manifest.get("audio_path") or "")
+    return bool(audio_path) and Path(audio_path).is_file()
 
 
 def _write_placeholder_stage(store: NewsProjectStore, root: Path, stage_name: str) -> Path:

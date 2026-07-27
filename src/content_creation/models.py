@@ -136,6 +136,10 @@ class ContentCreationRequest:
     # flag, which reads one JSON file into this field. Optional: without it every
     # command behaves exactly as before.
     visual_briefs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Empty values keep a stored setting on resume and resolve to strict/none for a
+    # newly created project. Autonomous completion is never enabled implicitly.
+    completion_mode: str = ""
+    script_adaptation: str = ""
     project_overrides: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -155,6 +159,8 @@ class ContentCreationRequest:
             "topic": self.topic,
             "target_duration_sec": self.target_duration_sec,
             "visual_briefs": {key: dict(value) for key, value in self.visual_briefs.items()},
+            "completion_mode": self.completion_mode,
+            "script_adaptation": self.script_adaptation,
             "voice": self.voice.to_dict(),
             "subtitles": self.subtitles.to_dict(),
             "music": self.music.to_dict(),

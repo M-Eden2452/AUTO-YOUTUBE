@@ -1,8 +1,9 @@
 # Команды AI-YouTube
 
-Короткая шпаргалка на человеческом языке. Все команды безопасны: они ничего
-не скачивают, не платят и не создают новых видео — только показывают, что
-уже есть в системе.
+Короткая шпаргалка на человеческом языке. Read-only команды ниже подписаны явно.
+`create`, `resume`, asset search и render могут записывать проект, скачивать разрешённые
+материалы и создавать видео. Платный TTS/Vision по-прежнему не запускается без
+отдельного явного approval.
 
 Две точки входа:
 
@@ -563,6 +564,69 @@ machine-readable `{"status":"failed","error":...,"reason":...,"retryable":...}`.
 - запросы выводятся на языке сценария и помечаются `(нужен перевод)`: слоя
   перевода в проекте нет, и подставлять приблизительный английский вместо
   названного в тексте животного или страны система не будет.
+
+### 10.14.1. Autonomous draft completion (этап Q2.2B)
+
+По умолчанию действует `strict`: незакрытая или только частично поддержанная сцена
+блокирует финальный render. Старые команды, `job.json` без поля `completion` и старый
+`selected_asset` читаются в этом режиме без миграции.
+
+Автономное завершение включается только явно:
+
+```bash
+./venv/Scripts/python.exe -B pipeline.py --news-to-short --news-action resume \
+  --job-id <job_id> --completion-mode draft_complete --script-adaptation light
+```
+
+`--script-adaptation none` полностью отключает адаптацию. `light` допускает только один
+проход по проблемным сценам: штатный offline-адаптер детерминированно делит сцену на
+визуальные части и уточняет brief, не вызывает LLM и не переписывает факты. Для любого
+адаптера проверяются fact locks: числа, даты, измерения, имена/география, уровень
+неопределённости, причинность и утверждения вроде «впервые/единственный/самый».
+Не улучшившая покрытие попытка откатывается к исходному сценарию и fallback.
+
+В `draft_complete` сцена хранит от 1 до 4 visual slots в
+`visual_assembly.slots`. Лестница заполняет их в порядке:
+`A_exact → B_composite → C_good_context → D_partial → E_generated → F_emergency`.
+`partial_support` разрешён только для draft и всегда остаётся рекомендацией на замену.
+Повтор материала штрафуется, ограничен двумя использованиями, не допускается подряд и
+попадает в отчёт с альтернативным crop/pan/zoom.
+
+Даже в draft fail closed сохраняется для неизвестных/запрещённых прав, битых или
+технически непроверенных файлов, `must_avoid`, conflicting context и фактически
+вводящего в заблуждение материала. `generated` здесь означает только локальную
+детерминированную PNG-инфографику/текстовую карточку или нейтральный backdrop,
+а не AI image generation.
+
+Успешный результат называется draft, не publish-ready:
+
+```text
+localizations/<language>/output/draft_1080x1920.mp4
+replacement/replacement_report.json
+replacement/replacement_report.html
+replacement/replacement_queue.json
+replacement/timeline_replacement_map.csv
+```
+
+Если narration audio отсутствует, процесс завершается без traceback со статусом
+`voice_provider_required`; visual assembly и четыре replacement-артефакта сохраняются.
+После импорта/настройки голоса обычный `resume` продолжает тот же проект.
+
+Заменить один visual slot без повторного research/script/asset search:
+
+```bash
+./venv/Scripts/python.exe -m src.content_creation.cli assets replace \
+  --project-id <job_id> --scene-id <scene_id> --slot-id <slot_id> \
+  --file <path/to/replacement.png> \
+  --source-url <optional-source-url> --license-file <optional-proof-file>
+```
+
+Файл копируется в проект без изменения оригинала, проходит техническую проверку,
+получает checksum/provenance/rights record и заменяет только указанный slot.
+Запуск этой команды является явной декларацией, что пользователь вправе использовать
+переданный локальный файл; `--license-file` сохраняет дополнительное подтверждение.
+Downstream `preview_render`, `quality_check`, `final_render` и `export` помечаются
+`stale`; затем выполните обычный `resume`.
 
 ### 10.15. Откуда берётся каждая настройка (этап D1)
 

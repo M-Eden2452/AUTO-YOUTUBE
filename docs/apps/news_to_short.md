@@ -2,7 +2,10 @@
 
 ## Назначение
 
-`news_to_short` - новый режим для создания вертикальных роликов из новости, идеи, текста и пользовательских материалов. Первая фаза A+B создает структуру проекта, исследование, сценарий и визуальный план без платных API, озвучки и финального рендера.
+`news_to_short` — режим создания вертикальных роликов из новости, идеи, текста и
+пользовательских материалов. Он сохраняет строгий production gate по умолчанию и
+поддерживает явно включаемый autonomous draft completion для сборки проверяемого
+черновика, когда идеальный материал найден не для каждой сцены.
 
 ## Структура проекта
 
@@ -15,6 +18,7 @@ projects/<job_id>/
   research/
   assets/
   master/
+  replacement/
   localizations/
     ru/
       script/
@@ -54,15 +58,42 @@ projects/<job_id>/
 - `quality/quality_report.json`.
 - Финальный vertical MP4 renderer `news_to_short_final_renderer_v1`, который собирает 1080x1920 видео из локальных ассетов или безопасных авто text-card сцен.
 - Export manifest, `description.txt`, `sources.json` и копии субтитров в `localizations/<language>/output/`.
+- Два completion mode: backward-compatible `strict` (default) и явный
+  `draft_complete`.
+- `visual_assembly.slots`: от 1 до 4 визуальных отрезков на общей scene timeline;
+  старый `selected_asset` читается как один полноэкранный slot без миграции.
+- Fallback ladder `A_exact → B_composite → C_good_context → D_partial →
+  E_generated → F_emergency` с детерминированным выбором и контролируемым reuse.
+- Раздельные флаги draft/publish readiness. `partial_support` может попасть в draft,
+  но не становится publish-ready и получает рекомендацию на замену.
+- `--script-adaptation none|light`: максимум один проход только по проблемным сценам.
+  Штатный light-адаптер offline/deterministic, не вызывает LLM; fact locks защищают
+  числа, даты, измерения, имена/географию, uncertainty, causality и superlatives.
+- Draft renderer создаёт `draft_1080x1920.mp4` и явно сохраняет
+  `publish_ready=false`.
+- Четыре артефакта замены: JSON, self-contained HTML, ordered queue и CSV timeline map
+  в `replacement/`.
+- Штатная замена одного slot через `assets replace`; исходник не меняется, операция
+  сохраняет checksum/provenance/rights и помечает downstream render stages как stale.
+- При отсутствии narration audio сохраняются visual assembly и replacement reports,
+  а job завершается понятным статусом `voice_provider_required`.
+- Rights/unknown license, `must_avoid`, conflicting/misleading content и технически
+  непригодные файлы блокируются в обоих режимах.
 
 ## Что пока не реализовано
 
 - Полноценная AI-локализация сценария.
 - Автоматический поиск первоисточников.
-- Интеграция Storyblocks/Envato.
-- Скачивание исходников из внешних провайдеров для этого режима.
-- ElevenLabs audition/final synthesis.
-- Продвинутый финальный render с реальными скачанными video clips, переходами, burn-in ASS и музыкой.
+- Автоматическая интеграция и скачивание Storyblocks/Envato.
+- AI image generation: tier E/F сейчас использует только детерминированные локальные
+  инфографики, текстовые карточки и backdrop.
+- Обязательный live Vision gate; Q2.2B опирается на уже сохранённые semantic decisions
+  и не выполняет Vision-вызовы.
+- Автоматическая публикация на YouTube.
+- Автоматическое принятие CC BY-SA: такие лицензии остаются под действующей policy и
+  manual review.
+- Голос остаётся configuration/approval dependent; draft completion не подменяет TTS.
+- Продвинутые переходы, burn-in ASS и music mix в финальном render.
 
 ## Команды
 
@@ -73,7 +104,37 @@ projects/<job_id>/
 .\venv\Scripts\python.exe pipeline.py --news-to-short --news-action run --job-id "<JOB_ID>" --until-stage export
 ```
 
-Если quality check возвращает `needs_review`, `final_render` сохраняет блокирующий manifest вместо того, чтобы создавать финальный MP4 с неожиданно неполными ассетами или голосом.
+В `strict`, если quality check возвращает `needs_review`, `final_render` сохраняет
+блокирующий manifest. В `draft_complete` вместо publish gate применяется отдельный
+draft gate: каждый narration scene должен иметь безопасный usable slot и существующее
+narration audio.
+
+Явный autonomous draft (без флага остаётся `strict`):
+
+```powershell
+.\venv\Scripts\python.exe pipeline.py --news-to-short --news-action resume `
+  --job-id "<JOB_ID>" --completion-mode draft_complete --script-adaptation light
+```
+
+Отключить adaptation, не выключая draft completion:
+
+```powershell
+.\venv\Scripts\python.exe pipeline.py --news-to-short --news-action resume `
+  --job-id "<JOB_ID>" --completion-mode draft_complete --script-adaptation none
+```
+
+Заменить ровно один visual slot без повторного research/script/asset search:
+
+```powershell
+.\venv\Scripts\python.exe -m src.content_creation.cli assets replace `
+  --project-id "<JOB_ID>" --scene-id "scene_006" --slot-id "scene_006_slot_001" `
+  --file "path\to\replacement.png" --source-url "https://optional.example/source" `
+  --license-file "path\to\optional-proof.pdf"
+```
+
+После замены выполните обычный resume: stale `preview_render`, `quality_check`,
+`final_render` и `export` будут построены заново, а research и asset search останутся
+нетронутыми.
 
 Импорт ручной озвучки:
 

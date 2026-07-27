@@ -489,6 +489,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                     channel_id="nature_science_news_ru",
                     template_id="fullscreen_voiceover_v1",
                     language="ru",
+                    completion_mode="draft_complete",
                     voice=VoiceRequestConfig(provider="elevenlabs", profile="ru_dom"),
                     execution=ExecutionFlags(resume=True),
                     project_overrides={"projects_root": tmp},
@@ -500,6 +501,11 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
 
             self.assertEqual(resume_result.project_id, project_id)
             self.assertEqual(resume_result.status, "prepared_awaiting_paid_approval")
+            self.assertIn("asset_search", [stage["stage"] for stage in resume_result.stages])
+            stored = json.loads(
+                Path(tmp, project_id, "job.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(stored["completion"]["mode"], "draft_complete")
 
     def test_voice_disabled_runs_through_quality_check(self) -> None:
         from src.content_creation.models import SubtitleRequestConfig
@@ -556,6 +562,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 template_id="fullscreen_voiceover_v1",
                 language="ru",
                 topic="Почему у зебр полосы",
+                completion_mode="draft_complete",
                 voice=VoiceRequestConfig(provider="audio_file", audio_file=str(audio_path)),
                 project_overrides={"projects_root": tmp},
             )
@@ -572,6 +579,12 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
             manifest = json.loads(voice_manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["provider"], "audio_file")
             self.assertAlmostEqual(manifest["duration_sec"], 2.0, places=2)
+            from src.news.project_store import NewsProjectStore
+
+            stored = NewsProjectStore(tmp).load_job(result.project_id)
+            self.assertEqual(stored.stages["voice"].status, "completed")
+            self.assertIsNotNone(stored.stages["voice"].finished_at)
+            self.assertEqual(stored.localizations["ru"].voice_status, "completed")
 
 
 class MusicWiringTests(unittest.TestCase):

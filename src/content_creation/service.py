@@ -519,13 +519,21 @@ def _create_fullscreen_voiceover(
             # Reaches user_supplied before script.json is written, which is the only
             # point where a brief can be attached to the author's own scenes.
             visual_briefs=dict(request.visual_briefs),
+            completion_mode=request.completion_mode,
+            script_adaptation=request.script_adaptation,
         )
     root = store.project_root(job.job_id)
     _notify(progress_callback, "project_create", "completed")
     stages: list[dict[str, Any]] = []
 
     if dry_run:
-        result = run_news_to_short_job(projects_root=projects_root, job_id=job.job_id, dry_run=True)
+        result = run_news_to_short_job(
+            projects_root=projects_root,
+            job_id=job.job_id,
+            dry_run=True,
+            completion_mode=request.completion_mode,
+            script_adaptation=request.script_adaptation,
+        )
         return ContentCreationResult(
             status="dry_run_completed",
             project_id=job.job_id,
@@ -539,7 +547,12 @@ def _create_fullscreen_voiceover(
     _notify(progress_callback, "script_and_research", "running")
     try:
         result = run_news_to_short_job(
-            projects_root=projects_root, job_id=job.job_id, until_stage="asset_search", resume=True
+            projects_root=projects_root,
+            job_id=job.job_id,
+            until_stage="asset_search",
+            resume=True,
+            completion_mode=request.completion_mode,
+            script_adaptation=request.script_adaptation,
         )
     except ArticleIngestionError as exc:
         _notify(progress_callback, "script_and_research", "failed")
@@ -547,6 +560,10 @@ def _create_fullscreen_voiceover(
             str(exc), reason=exc.reason, retryable=exc.reason in _RETRYABLE_ARTICLE_REASONS
         ) from exc
     stages.extend({"stage": stage, "status": "completed"} for stage in result.completed_stages)
+    # The pipeline owns job-stage mutation. Reload before this service changes any
+    # terminal or voice state, otherwise a stale in-memory job can overwrite the
+    # stages that the resumed pipeline just completed.
+    job = store.load_job(job.job_id)
     _notify(progress_callback, "script_and_research", "completed")
 
     # Only elevenlabs is a paid provider (src.audio.tts.elevenlabs_provider.ElevenLabsProvider.paid
@@ -593,6 +610,7 @@ def _create_fullscreen_voiceover(
             execute_voice=execute_voice,
             voice_profile_override=request.voice.profile or None,
         )
+        job = store.load_job(job.job_id)
 
     if request.voice.provider == "audio_file" and request.voice.audio_file:
         from src.audio.voice_workflow import import_manual_audio
@@ -605,7 +623,25 @@ def _create_fullscreen_voiceover(
     voice_manifest = store.read_json(voice_manifest_path) if voice_manifest_path.exists() else {}
     # Only report the voice stage as done if a real audio file actually exists now -
     # never show a checkmark for the safe/unconfigured stub manifest.
-    voice_has_audio = bool(voice_manifest.get("audio_path"))
+    voice_audio_path = str(voice_manifest.get("audio_path") or "")
+    voice_has_audio = bool(voice_audio_path) and Path(voice_audio_path).is_file()
+    if voice_has_audio:
+        # A manual import happens after the safe voice preflight. In draft mode that
+        # preflight is deliberately recorded as blocked, so synchronize the durable
+        # job state now that a real narration file exists.
+        job = store.load_job(job.job_id)
+        voice_status = str(voice_manifest.get("voice_stage_status") or "completed")
+        localization_state = job.localizations.get(job.language)
+        if localization_state is not None:
+            localization_state.voice_status = voice_status
+        if job.status == "voice_provider_required":
+            job.status = "in_progress"
+        store.update_stage(
+            job,
+            "voice",
+            status="completed",
+            result_path=str(voice_manifest_path),
+        )
     if existing_voice:
         voice_stage_status = "skipped_existing_audio"
     else:
@@ -675,6 +711,32 @@ def _create_fullscreen_voiceover(
             rerun_commands=[_fullscreen_rerun_command(request, job.job_id, approve=True)],
         )
 
+    from src.assets.completion import MODE_DRAFT_COMPLETE
+    from src.news.models import completion_settings
+
+    if completion_settings(job).get("mode") == MODE_DRAFT_COMPLETE and not voice_has_audio:
+        from src.news.draft_completion import write_completion_report
+
+        report_paths = write_completion_report(root=root, job=job)
+        job.status = "voice_provider_required"
+        store.save_job(job)
+        return ContentCreationResult(
+            status="voice_provider_required",
+            project_id=job.job_id,
+            project_root=str(root),
+            stages=stages,
+            output_paths={
+                "voice_manifest": str(voice_manifest_path),
+                "replacement_report": report_paths.get("json_path", ""),
+                "replacement_report_html": report_paths.get("html_path", ""),
+            },
+            warnings=[
+                "Visual assembly and replacement report are saved. Configure a voice "
+                "provider or import narration audio, then resume rendering."
+            ],
+            rerun_commands=[_fullscreen_rerun_command(request, job.job_id)],
+        )
+
     if request.subtitles.style != "disabled":
         _notify(progress_callback, "subtitles", "running")
         run_news_to_short_job(projects_root=projects_root, job_id=job.job_id, stage="subtitles")
@@ -727,6 +789,13 @@ def _create_fullscreen_voiceover(
     if render_ok:
         output_paths["final_video"] = final_manifest["output_path"]
         output_paths["outputs"] = final_manifest.get("outputs", {})
+    replacement_root = root / "replacement"
+    replacement_json = replacement_root / "replacement_report.json"
+    replacement_html = replacement_root / "replacement_report.html"
+    if replacement_json.is_file():
+        output_paths["replacement_report"] = str(replacement_json)
+    if replacement_html.is_file():
+        output_paths["replacement_report_html"] = str(replacement_html)
 
     return ContentCreationResult(
         status=final_result.status,
@@ -749,6 +818,14 @@ def _fullscreen_rerun_command(request: ContentCreationRequest, job_id: str, *, a
         f"--language {request.language}",
         f"--resume --project-id {job_id}",
     ]
+    if request.completion_mode:
+        parts.append(f"--completion-mode {request.completion_mode}")
+    if request.script_adaptation:
+        parts.append(f"--script-adaptation {request.script_adaptation}")
+    if request.voice.provider:
+        parts.append(f"--voice-provider {request.voice.provider}")
+    if request.voice.profile:
+        parts.append(f'--voice-profile "{request.voice.profile}"')
     if approve:
         parts.append("--approve-paid-generation")
     return " ".join(parts)

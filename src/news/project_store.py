@@ -71,7 +71,7 @@ class NewsProjectStore:
         if status == "running":
             state.started_at = utc_now_iso()
             state.attempts += 1
-        if status in {"completed", "failed", "skipped", "needs_review"}:
+        if status in {"completed", "failed", "skipped", "needs_review", "blocked"}:
             state.finished_at = utc_now_iso()
         if result_path:
             state.result_path = result_path

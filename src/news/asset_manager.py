@@ -7,11 +7,25 @@ from typing import Any, Protocol
 
 from PIL import Image
 
-from src.assets.generated_infographic import build_generated_asset, spec_from_scene
+from src.assets.completion import (
+    MODE_DRAFT_COMPLETE,
+    ReuseLedger,
+    SceneVisualAssembly,
+    assembly_from_selected_asset,
+    attach_assembly,
+    blocking_reasons,
+    build_scene_assembly,
+    evaluate_usability,
+    normalize_mode,
+    read_assembly,
+)
+from src.assets.completion.modes import PRIORITY_RANK, TIER_RANK
+from src.assets.generated_infographic import backdrop_spec_for_scene, build_generated_asset, spec_from_scene
 from src.assets.provider_routing import route_providers
 from src.assets.query_adapter import STATUS_TRANSLATION_REQUIRED, build_scene_queries
 from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
 from src.assets.semantic_selection import analyze_scene, check_continuity, ordered_queries, rank_candidates, select_best_candidate
+from src.assets.semantic_selection.candidate_ranker import SUPPORT_RANK
 from src.assets.semantic_selection.decision import (
     DECISION_KEY,
     NEEDS_MANUAL_CONFIRMATION,
@@ -70,7 +84,11 @@ def build_assets_manifest(
     project_root: str | Path | None = None,
     project_id: str = "",
     max_download_attempts: int = 3,
+    completion_mode: str = "",
+    reuse_ledger: ReuseLedger | None = None,
 ) -> dict[str, Any]:
+    completion_mode = normalize_mode(completion_mode)
+    reuse = reuse_ledger if reuse_ledger is not None else ReuseLedger()
     visual_preview_config = load_visual_preview_config()
     semantic_visual_config = load_semantic_visual_config()
     selection_config = {
@@ -107,6 +125,9 @@ def build_assets_manifest(
     scene_entries: list[dict[str, Any]] = []
     missing_scenes: list[dict[str, Any]] = []
     used_asset_ids: set[str] = set()
+    # Material already placed in this video. Only ever offered to a later scene as a
+    # reuse candidate, re-judged against that scene like any other candidate.
+    project_pool: list[dict[str, Any]] = []
     providers_by_name = {provider.name: provider for provider in providers or []}
     project_root_path = Path(project_root) if project_root else None
     review_bundles = []
@@ -221,10 +242,62 @@ def build_assets_manifest(
                     project_id=project_id or project_root_path.name,
                     scene_id=str(scene.get("scene_id") or ""),
                 )
+                # Stated in its own terms straight away rather than only when selected:
+                # the completion ladder reads decisions off candidates, and a drawn
+                # figure with no decision would look like unverified stock footage.
+                _ensure_decision(
+                    generated_asset, scene_id=str(scene.get("scene_id") or ""), source_class=source_class
+                )
                 candidates.insert(0, generated_asset)
         if user_ranked:
-            selected = sorted(user_ranked, key=lambda item: item.get("total_score", 0), reverse=True)[0]
-            candidates.sort(key=lambda item: item.get("total_score", 0), reverse=True)
+            # User material keeps first refusal/right of use, but never skips the
+            # canonical semantic decision. In particular, a filename/tag matching a
+            # scene's must_avoid list must remain disqualifying in draft_complete.
+            evaluated_user = rank_candidates(
+                semantic_scene,
+                user_ranked,
+                used_asset_ids=used_asset_ids,
+                required_duration_sec=required_duration,
+                require_provider_metadata=False,
+                source_class=source_class,
+            )
+            safe_user = next(
+                (
+                    item
+                    for item in evaluated_user
+                    if not blocking_reasons(item, require_local_file=False)
+                ),
+                None,
+            )
+            selected = dict(safe_user) if safe_user is not None else None
+            if selected is not None:
+                # Missing contextual terms remain visible as partial/manual support,
+                # but an explicit author-supplied file keeps its historical priority.
+                # Only mode-independent safety objections above can remove it.
+                selected["rejected"] = False
+                selected["selected_by"] = "user_asset_priority_manual"
+            user_ids = {str(item.get("asset_id") or "") for item in user_ranked}
+            candidates = [
+                *evaluated_user,
+                *[
+                    item
+                    for item in candidates
+                    if str(item.get("asset_id") or "") not in user_ids
+                ],
+            ]
+            if selected is None and generated_asset is not None:
+                selected = generated_asset
+            elif selected is None and selection_config["mode"] == "semantic":
+                selected, candidates = select_best_candidate(
+                    semantic_scene,
+                    candidates,
+                    used_asset_ids=used_asset_ids,
+                    required_duration_sec=required_duration,
+                    require_provider_metadata=bool(
+                        routing_decision.get("requires_provider_metadata")
+                    ),
+                    source_class=source_class,
+                )
         elif generated_asset is not None:
             selected = generated_asset
         elif selection_config["mode"] == "semantic":
@@ -328,6 +401,28 @@ def build_assets_manifest(
         # licence policy before any request, so it never needed a download to discover.
         elif candidates:
             download_attempts = _rights_block_attempts(candidates, str(scene.get("scene_id") or ""))
+        # Autonomous completion (Q2.2B). The strict path above has already had its
+        # answer; this only runs when the caller asked for a complete draft, and it can
+        # only ever *add* material, never remove a fully supported choice.
+        assembly: SceneVisualAssembly | None = None
+        if completion_mode == MODE_DRAFT_COMPLETE:
+            selected, assembly, ladder_attempts = _complete_scene_assembly(
+                scene=scene,
+                semantic_scene=semantic_scene,
+                candidates=candidates,
+                strict_selection=selected,
+                scene_index=len(scene_entries),
+                duration=required_duration,
+                reuse=reuse,
+                providers_by_name=providers_by_name,
+                project_root=project_root_path,
+                project_id=project_id,
+                media_index=media_index,
+                dry_run=dry_run,
+                project_pool=list(project_pool),
+                source_class=source_class,
+            )
+            download_attempts.extend(ladder_attempts)
         if scene_review_bundle is not None:
             attach_selected_asset(scene_review_bundle, selected)
         if download_attempts:
@@ -353,9 +448,28 @@ def build_assets_manifest(
                 limit=int(selection_config.get("envato_manual_query_limit") or 6),
                 open_browser=False,
             )
+        if assembly is None:
+            # Strict mode, and every project written before Q2.2B: one asset, one slot.
+            assembly = assembly_from_selected_asset(
+                {"scene_id": str(scene.get("scene_id") or ""), "selected_asset": selected or {}},
+                scene_duration_sec=required_duration,
+                completion_mode=completion_mode,
+            )
+        for slot in assembly.slots:
+            if slot.asset_id:
+                used_asset_ids.add(slot.asset_id)
+            if slot.selected_asset and not any(
+                str(item.get("asset_id") or "") == slot.asset_id for item in project_pool
+            ):
+                project_pool.append(dict(slot.selected_asset))
         if selected:
             used_asset_ids.add(selected["asset_id"])
-        else:
+        scene_unresolved = (
+            not assembly.usable_in_draft
+            if completion_mode == MODE_DRAFT_COMPLETE
+            else not selected
+        )
+        if scene_unresolved:
             missing_scenes.append(
                 {
                     "scene_id": scene.get("scene_id"),
@@ -376,7 +490,7 @@ def build_assets_manifest(
                     # keeps its vocabulary; ``resolution_status`` is the machine-readable
                     # answer and the one new code should read.
                     "resolution_status": scene_resolution_status(
-                        selected=None,
+                        selected=selected,
                         candidates=candidates,
                         source_class=source_class,
                         manual_request=bool(manual_request),
@@ -384,14 +498,15 @@ def build_assets_manifest(
                     "reason": (
                         "manual_action_required"
                         if manual_request
+                        else "selected_asset_not_publish_ready"
+                        if selected
                         else "unresolved_generator_failed"
                         if source_class == CLASS_DATA_INFOGRAPHIC
                         else _missing_reason(dry_run, candidates, download_attempts)
                     ),
                 }
             )
-        scene_entries.append(
-            {
+        scene_entry = {
                 "scene_id": scene.get("scene_id"),
                 "primary_query": scene.get("primary_query", ""),
                 "queries": ordered_queries(semantic_scene),
@@ -420,8 +535,12 @@ def build_assets_manifest(
                 "ranked_candidates": [_public_candidate(candidate) for candidate in candidates[:10]],
                 "candidates": [_public_candidate(candidate) for candidate in candidates[:5]],
                 "rejected_candidates": [_public_candidate(candidate) for candidate in candidates if candidate.get("rejected")][:5],
+                "visual_brief": scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {},
             }
-        )
+        # Slots travel beside ``selected_asset``, which keeps its old meaning (the
+        # scene's headline material) so every existing reader is untouched.
+        attach_assembly(scene_entry, assembly)
+        scene_entries.append(scene_entry)
     continuity = check_continuity(scene_entries)
     if continuity["status"] == "failed":
         for issue in continuity["issues"]:
@@ -453,6 +572,7 @@ def build_assets_manifest(
         "scenes": scene_entries,
         "missing_scenes": missing_scenes,
         "visual_support": _visual_support_summary(scene_entries, missing_scenes),
+        "completion": _completion_summary(scene_entries, mode=completion_mode, reuse=reuse),
         "continuity": continuity,
         "provider_attempts": provider_attempts,
         "provider_errors": provider_errors,
@@ -482,6 +602,8 @@ def build_news_asset_manifest(
     asset_selection: dict[str, Any] | None = None,
     project_root: str | Path | None = None,
     project_id: str = "",
+    completion_mode: str = "",
+    reuse_ledger: ReuseLedger | None = None,
 ) -> dict[str, Any]:
     media_index = {"version": 1, "items": []} if dry_run else load_media_index(media_index_path or "assets/library/metadata/media_index.json")
     providers = [] if dry_run else create_default_asset_providers()
@@ -496,6 +618,8 @@ def build_news_asset_manifest(
         asset_selection=asset_selection,
         project_root=project_root,
         project_id=project_id,
+        completion_mode=completion_mode,
+        reuse_ledger=reuse_ledger,
     )
 
 
@@ -526,22 +650,308 @@ def _visual_support_summary(
     requirements: dict[str, int] = {}
     scenes_needing_review: list[str] = []
     for entry in scene_entries:
-        decision = read_decision(entry.get("selected_asset"))
-        status = decision.support_status if entry.get("selected_asset") else "unresolved"
+        assembly = read_assembly(
+            entry,
+            scene_duration_sec=float(entry.get("required_duration_sec") or 0.0),
+        )
+        decisions = [
+            read_decision(slot.selected_asset)
+            for slot in assembly.slots
+            if slot.selected_asset
+        ]
+        statuses = [decision.support_status or "unresolved" for decision in decisions]
+        status = (
+            min(statuses, key=lambda value: SUPPORT_RANK.get(value, 0))
+            if statuses
+            else "unresolved"
+        )
         by_status[status] = by_status.get(status, 0) + 1
-        for requirement in decision.support_requirements:
-            requirements[requirement] = requirements.get(requirement, 0) + 1
-        if entry.get("selected_asset") and status != SUPPORT_FULL:
+        for decision in decisions:
+            for requirement in decision.support_requirements:
+                requirements[requirement] = requirements.get(requirement, 0) + 1
+        if status != SUPPORT_FULL or not assembly.publish_ready:
             scenes_needing_review.append(str(entry.get("scene_id") or ""))
     return {
         "scene_count": len(scene_entries),
         "full_support": by_status.get(SUPPORT_FULL, 0),
-        "resolved": sum(1 for entry in scene_entries if entry.get("resolution_status") == RESOLVED),
+        "resolved": sum(
+            1
+            for entry in scene_entries
+            if read_assembly(
+                entry,
+                scene_duration_sec=float(entry.get("required_duration_sec") or 0.0),
+            ).publish_ready
+        ),
         "unresolved": len(missing_scenes),
         "by_support_status": by_status,
         "requirements": requirements,
         "scenes_needing_review": scenes_needing_review,
     }
+
+
+def _completion_summary(
+    scene_entries: list[dict[str, Any]], *, mode: str, reuse: ReuseLedger
+) -> dict[str, Any]:
+    """How complete this video is, counted per scene and per slot.
+
+    Read by ``project status``, by the draft render gate and by the replacement report,
+    so that "the draft is finished" and "the draft is publishable" can never be the same
+    sentence again.
+    """
+    tiers: dict[str, int] = {}
+    statuses: dict[str, int] = {}
+    draft_usable: list[str] = []
+    publish_ready: list[str] = []
+    unresolved: list[str] = []
+    slot_count = 0
+    timeline_problems: list[str] = []
+    for entry in scene_entries:
+        assembly = read_assembly(entry, scene_duration_sec=float(entry.get("required_duration_sec") or 0.0))
+        statuses[assembly.assembly_status] = statuses.get(assembly.assembly_status, 0) + 1
+        slot_count += len(assembly.slots)
+        for slot in assembly.slots:
+            tiers[slot.quality_tier] = tiers.get(slot.quality_tier, 0) + 1
+        scene_id = str(entry.get("scene_id") or "")
+        (draft_usable if assembly.usable_in_draft else unresolved).append(scene_id)
+        if assembly.publish_ready:
+            publish_ready.append(scene_id)
+        timeline_problems.extend(f"{scene_id}:{problem}" for problem in assembly.validate())
+    return {
+        "mode": mode,
+        "scene_count": len(scene_entries),
+        "slot_count": slot_count,
+        "scenes_usable_in_draft": len(draft_usable),
+        "scenes_publish_ready": len(publish_ready),
+        "unresolved_scenes": unresolved,
+        "quality_tiers": tiers,
+        "assembly_statuses": statuses,
+        "timeline_problems": timeline_problems,
+        "reuse": reuse.to_dict(),
+        "draft_complete": bool(scene_entries) and not unresolved and not timeline_problems,
+        "publish_ready": bool(scene_entries) and len(publish_ready) == len(scene_entries),
+    }
+
+
+def refresh_manifest_summaries(
+    manifest: dict[str, Any],
+    *,
+    mode: str = "",
+    reuse: ReuseLedger | None = None,
+) -> dict[str, Any]:
+    """Recompute the one canonical set of scene/slot readiness summaries.
+
+    Adaptation and manual replacement mutate a small subset of ``scenes``. They call
+    this helper instead of maintaining parallel, subtly different summary contracts.
+    """
+    scenes = [
+        entry for entry in (manifest.get("scenes") or []) if isinstance(entry, dict)
+    ]
+    missing = [
+        entry for entry in (manifest.get("missing_scenes") or []) if isinstance(entry, dict)
+    ]
+    stored_completion = (
+        manifest.get("completion")
+        if isinstance(manifest.get("completion"), dict)
+        else {}
+    )
+    ledger = reuse or _reuse_from_summary(stored_completion.get("reuse"))
+    resolved_mode = normalize_mode(mode or str(stored_completion.get("mode") or ""))
+    manifest["visual_support"] = _visual_support_summary(scenes, missing)
+    manifest["completion"] = _completion_summary(
+        scenes,
+        mode=resolved_mode,
+        reuse=ledger,
+    )
+    return manifest
+
+
+def _reuse_from_summary(value: Any) -> ReuseLedger:
+    stored = value if isinstance(value, dict) else {}
+    ledger = ReuseLedger(
+        max_uses=int(stored.get("max_uses") or ReuseLedger.max_uses),
+        min_scene_gap=int(stored.get("min_scene_gap") or ReuseLedger.min_scene_gap),
+    )
+    ledger.uses = {
+        str(asset_id): [int(index) for index in (indexes or [])]
+        for asset_id, indexes in (stored.get("uses") or {}).items()
+    }
+    ledger.scenes = {
+        str(asset_id): [str(scene_id) for scene_id in (scene_ids or [])]
+        for asset_id, scene_ids in (stored.get("scenes") or {}).items()
+    }
+    return ledger
+
+
+def _has_local_file(asset: dict[str, Any] | None) -> bool:
+    if not isinstance(asset, dict):
+        return False
+    for key in ("path", "local_path", "downloaded_path"):
+        value = asset.get(key)
+        if value:
+            path = Path(str(value))
+            try:
+                if path.is_file() and path.stat().st_size > 0:
+                    return True
+            except OSError:
+                continue
+    return False
+
+
+def _emergency_backdrop(
+    scene: dict[str, Any], *, project_root: Path, project_id: str
+) -> dict[str, Any] | None:
+    """The last rung: a neutral card the project draws itself.
+
+    It claims nothing - no number, no place, no event - carries project-owned rights and
+    is always technically valid, which is what makes "every scene is filled" a promise
+    the pipeline can keep without ever showing wrong footage. It is always marked as a
+    stand-in with a high replacement priority.
+    """
+    scene_id = str(scene.get("scene_id") or "")
+    # Only text the author already wrote. Never the narration: that is on screen as
+    # subtitles, and repeating it would double the text.
+    label = str(scene.get("on_screen_text") or "").strip()
+    spec = backdrop_spec_for_scene(scene, label=label)
+    try:
+        asset = build_generated_asset(
+            spec,
+            project_root=project_root,
+            project_id=project_id or project_root.name,
+            scene_id=scene_id,
+            variant="backdrop",
+        )
+    except Exception:
+        return None
+    asset["selected_by"] = "emergency_neutral_backdrop"
+    return _ensure_decision(asset, scene_id=scene_id, source_class="")
+
+
+def _complete_scene_assembly(
+    *,
+    scene: dict[str, Any],
+    semantic_scene: Any,
+    candidates: list[dict[str, Any]],
+    strict_selection: dict[str, Any] | None,
+    scene_index: int,
+    duration: float,
+    reuse: ReuseLedger,
+    providers_by_name: dict[str, AssetProvider],
+    project_root: Path | None,
+    project_id: str,
+    media_index: dict[str, Any],
+    dry_run: bool,
+    project_pool: list[dict[str, Any]],
+    source_class: str,
+) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
+    """Fill one scene under ``draft_complete``, downloading whatever the ladder chose.
+
+    A download that fails removes that candidate and the ladder is walked again, so a
+    dead provider link degrades the fragment rather than the video. The reuse ledger is
+    only updated when an attempt actually succeeds.
+    """
+    scene_id = str(scene.get("scene_id") or "")
+    attempts: list[dict[str, Any]] = []
+    pool_candidates: list[dict[str, Any]] = []
+    known_ids = {str(item.get("asset_id") or "") for item in candidates}
+    reusable = [dict(item) for item in project_pool if str(item.get("asset_id") or "") not in known_ids]
+    if reusable:
+        # A reused frame is judged against *this* scene, by the same ranker - which is
+        # what keeps a must_avoid subject (the penguin) out of a scene that forbids it,
+        # however well it served the scene it came from.
+        pool_candidates = rank_candidates(
+            semantic_scene,
+            reusable,
+            used_asset_ids=set(),
+            required_duration_sec=duration,
+            require_provider_metadata=False,
+            source_class=source_class,
+        )
+
+    emergency_factory = None
+    if project_root is not None and not dry_run:
+        emergency_factory = lambda target: _emergency_backdrop(  # noqa: E731 - one-line adapter
+            target, project_root=project_root, project_id=project_id
+        )
+
+    excluded: set[str] = set()
+    assembly = SceneVisualAssembly(scene_id=scene_id, scene_duration_sec=duration)
+    for _attempt in range(4):
+        pool = [
+            candidate
+            for candidate in (*candidates, *pool_candidates)
+            if str(candidate.get("asset_id") or "") not in excluded
+        ]
+        trial = reuse.copy()
+        assembly = build_scene_assembly(
+            scene=scene,
+            ranked_candidates=pool,
+            scene_duration_sec=duration,
+            mode=MODE_DRAFT_COMPLETE,
+            scene_index=scene_index,
+            reuse=trial,
+            emergency_asset_factory=emergency_factory,
+            requested_slot_count=len([part for part in (scene.get("visual_parts") or []) if part]),
+        )
+        if not assembly.slots:
+            reuse.adopt(trial)
+            return None, assembly, attempts
+        failed_asset_id = ""
+        for slot in assembly.slots:
+            asset = slot.selected_asset
+            if dry_run or project_root is None:
+                continue
+            if _has_local_file(asset):
+                downloaded = asset
+            else:
+                downloaded, slot_attempts = _ensure_selected_asset_downloaded(
+                    selected=asset,
+                    ranked_candidates=[],
+                    providers_by_name=providers_by_name,
+                    project_root=project_root,
+                    project_id=project_id,
+                    scene_id=scene_id,
+                    media_index=media_index,
+                    max_attempts=1,
+                )
+                attempts.extend(slot_attempts)
+                if downloaded:
+                    carry_decision(asset, downloaded)
+            if not downloaded:
+                failed_asset_id = str(asset.get("asset_id") or "")
+                break
+            reasons = blocking_reasons(downloaded, require_local_file=True)
+            usability = evaluate_usability(
+                downloaded,
+                mode=MODE_DRAFT_COMPLETE,
+                quality_tier=slot.quality_tier,
+                require_local_file=True,
+            )
+            if reasons or not usability.usable_in_draft:
+                attempts.append(
+                    {
+                        "scene_id": scene_id,
+                        "asset_id": str(downloaded.get("asset_id") or ""),
+                        "status": "rejected_after_download",
+                        "reason": ",".join(reasons or usability.block_reasons),
+                    }
+                )
+                failed_asset_id = str(downloaded.get("asset_id") or asset.get("asset_id") or "")
+                break
+            slot.selected_asset = downloaded
+            slot.provenance = dict(downloaded.get("provenance") or {})
+            slot.rights = (
+                dict(downloaded.get("license") or {})
+                if isinstance(downloaded.get("license"), dict)
+                else {}
+            )
+            slot.usability = usability
+        if not failed_asset_id:
+            reuse.adopt(trial)
+            primary = assembly.primary_asset
+            return (primary or strict_selection or None), assembly, attempts
+        excluded.add(failed_asset_id)
+        assembly.ladder_trace.append(f"download_failed:{failed_asset_id}")
+    return None, assembly, attempts
 
 
 def _ensure_decision(asset: dict[str, Any] | None, *, scene_id: str, source_class: str) -> dict[str, Any] | None:

@@ -101,6 +101,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-stage", action="store_true", help="Force regeneration of the requested news_to_short stage.")
     parser.add_argument("--dry-run", action="store_true", help="Create cheap news_to_short artifacts without paid APIs or heavy downloads.")
     parser.add_argument(
+        "--completion-mode",
+        choices=["strict", "draft_complete"],
+        default="",
+        help="strict (default) or opt-in autonomous draft completion.",
+    )
+    parser.add_argument(
+        "--script-adaptation",
+        choices=["none", "light"],
+        default="",
+        help="Asset-aware script adaptation; empty keeps the project/default setting.",
+    )
+    parser.add_argument(
         "--execute-voice",
         action="store_true",
         help="Allow the news_to_short voice stage to run real generation. Still requires an existing approval record; without one the safe stub manifest is produced.",

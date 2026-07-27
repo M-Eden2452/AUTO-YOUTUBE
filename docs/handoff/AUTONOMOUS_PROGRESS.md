@@ -2036,6 +2036,95 @@ Vision, ML-моделей и multi-asset сборки нет.
 **API/платные вызовы:** нет. **Сеть:** нет. **TTS/Vision/render:** нет. **E2E:** не
 запускался. **Git write:** только локальный коммит этапа.
 
+## Stage Q2.2B — Autonomous Completion Mode — ЗАВЕРШЁН
+
+Этап начат с аудита крупной незакоммиченной реализации, а не с переписывания с нуля.
+Сохранены совместимые части и завершена проводка через `NewsJob`, оба CLI,
+asset manager, quality/render gates, renderer и replacement workflow.
+
+### Режимы и совместимость
+
+- `strict` остаётся default. Unresolved и `partial_support` не проходят publish gate.
+- `draft_complete` включается только через `--completion-mode draft_complete`.
+- `job.json` без `completion` читается как `strict` + adaptation `none`.
+- Старый scene-level `selected_asset` без `visual_assembly` читается как один slot на
+  всю сцену; обязательной миграции старых manifests нет.
+- Readiness больше не сводится к одному `render_ready`: отдельно сохраняются
+  `usable_in_draft`, `automatic_render_allowed`, `publish_ready`, рекомендации/
+  требования ручной замены и блокирующие причины.
+
+### Visual assembly и fallback
+
+- Каноническая запись — `visual_assembly.slots`, 1–4 contiguous slots на существующей
+  scene timeline. Каждый slot хранит offsets, purpose, asset, semantic support,
+  quality tier, provenance/rights, crop decision и replacement priority.
+- Renderer масштабирует сохранённые slot boundaries к фактической длительности
+  narration и одновременно поддерживает legacy single-asset scenes.
+- Лестница качества: `A_exact`, `B_composite`, `C_good_context`, `D_partial`,
+  `E_generated`, `F_emergency`. Tier не заменяет semantic/rights/technical verdict.
+- Selection и tie-break детерминированы и не зависят от порядка ответа provider.
+- Reuse имеет penalty, максимум два использования, запрет немедленного повтора,
+  альтернативный crop/pan/zoom и обязательную запись в replacement report.
+- Generated/emergency media — локальные детерминированные PNG-инфографики,
+  текстовые карточки или нейтральный backdrop с project-owned rights. Это не AI image
+  generation.
+
+### Controlled adaptation
+
+- `--script-adaptation none|light`; максимум один durable pass только по слабым сценам.
+- Штатный light adapter offline/deterministic: делит визуальные требования и уточняет
+  brief без LLM-вызова. Платный adapter требует отдельного opt-in.
+- Fact locks сохраняют числа, даты, измерения, named entities/geography, uncertainty
+  level, causality и superlative/first/only claims.
+- Original script, attempted adapted script, scene diff, причины и validation report
+  сохраняются. Если повторный поиск не улучшил покрытие или adapter/provider упал,
+  исходный script/manifest остаются активными, а fallback продолжает сборку.
+
+### Safety, draft output и ручная замена
+
+- Unknown/blocked rights, review-required license, broken/unvalidated local file,
+  `must_avoid`, declared conflicting context и factually misleading material fail
+  closed во всех tiers и в обоих режимах.
+- Draft render получает отдельный gate: все narration scenes должны иметь безопасный
+  usable slot и существующее narration audio. Успех создаёт
+  `draft_1080x1920.mp4`, `render_status=draft_completed`,
+  `publish_ready=false`.
+- Если audio ещё нет, pipeline без traceback возвращает
+  `voice_provider_required`, сохраняя visual assembly и replacement artifacts.
+- Пишутся четыре файла: `replacement_report.json`, `replacement_report.html`,
+  `replacement_queue.json`, `timeline_replacement_map.csv`. Они содержат timecodes,
+  narration, provenance/license, weakness/missing info, priority, English queries,
+  replace command, reuse и script diff.
+- Команда `content_creation.cli assets replace` с `--project-id`, `--scene-id`,
+  `--slot-id` и `--file` импортирует копию, валидирует media, считает SHA-256,
+  сохраняет provenance/rights и optional license proof, меняет один slot и помечает
+  `preview_render`, `quality_check`, `final_render`, `export` как stale. Research,
+  script и provider search повторно не запускаются.
+
+### Проверка и ограничения
+
+Targeted verification: offline 8-scene nanoplastic-style fixture (8/8 draft-usable, без
+rights/misleading/must_avoid violations, слабые сцены в report) плюс адресные прогоны по
+completion core, pipeline, manual replacement и script adaptation.
+
+Полный suite перед commit: **1290 tests, OK**. Первый полный прогон нашёл одну регрессию,
+которую адресные тесты пропустили: статус job после заблокированного final_render.
+Условие требовало `quality_check.status == "completed"`, из-за чего проект с
+`needs_review` в quality-отчёте, но без формально выполненной стадии, отдавал
+`in_progress` и терял сигнал ревью. Исправлено: on-disk quality-отчёт снова определяет
+статус, и только явная инвалидация (`stale`, после смены completion-настроек) лишает его
+голоса. Различие закреплено тестом
+`test_only_an_invalidated_quality_report_loses_its_say_over_job_status`.
+
+Offline dry-run (во временной директории, без сети и платных вызовов) проверен в обоих
+режимах: `strict` даёт `strict/none`, `draft_complete` — `draft_complete/light` и пишет
+все четыре replacement-артефакта.
+
+Не реализованы и не объявляются готовыми: automated Envato/Storyblocks integration,
+AI image generation, обязательный live Vision, YouTube publishing и автоматическое
+принятие CC BY-SA. Реальный пользовательский E2E, TTS, provider network search,
+платные API и push в рамках этапа не выполнялись.
+
 
 ---
 

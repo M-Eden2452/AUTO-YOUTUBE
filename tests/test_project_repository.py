@@ -128,11 +128,35 @@ class NewsJobReadingTests(unittest.TestCase):
             data["stages"]["voice"]["status"] = "needs_review"
             data["stages"]["final_render"]["status"] = "failed"
             data["stages"]["final_render"]["error"] = "quality_check_requires_review"
+            data["stages"]["preview_render"]["status"] = "stale"
             _write(project_root / "job.json", data)
             view = ProjectRepository(root).get("news_one")
 
-            self.assertEqual(sorted(view.blocking_stages), ["final_render", "voice"])
+            self.assertEqual(
+                sorted(view.blocking_stages),
+                ["final_render", "preview_render", "voice"],
+            )
             self.assertEqual(view.status, "needs_review")
+
+    def test_blocked_stage_records_a_finished_timestamp(self) -> None:
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _make_news_job(root, "news_one", status="in_progress", with_video=False)
+            store = NewsProjectStore(root)
+            job = store.load_job("news_one")
+
+            store.update_stage(
+                job,
+                "voice",
+                status="blocked",
+                result_path=str(root / "news_one" / "voice_manifest.json"),
+            )
+
+            stored = store.load_job("news_one")
+            self.assertEqual(stored.stages["voice"].status, "blocked")
+            self.assertIsNotNone(stored.stages["voice"].finished_at)
 
     def test_unreadable_job_json_does_not_raise(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

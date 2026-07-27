@@ -13,6 +13,7 @@ def run_quality_check(
     assets_manifest: dict[str, Any],
     voice_manifest: dict[str, Any] | None,
     subtitles_manifest: dict[str, Any] | None,
+    completion_mode: str = "",
 ) -> dict[str, Any]:
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
@@ -37,7 +38,13 @@ def run_quality_check(
         checks.append({"check": "claims", "message": "No unsafe claims are marked for script use."})
 
     if int(assets_manifest.get("schema_version") or 0) >= 1:
-        _check_schema_v1_assets(assets_manifest, errors, warnings, checks)
+        _check_schema_v1_assets(
+            assets_manifest,
+            errors,
+            warnings,
+            checks,
+            completion_mode=completion_mode,
+        )
     else:
         _check_legacy_assets(assets_manifest, errors, warnings, checks)
 
@@ -60,46 +67,119 @@ def _check_schema_v1_assets(
     errors: list[dict[str, str]],
     warnings: list[dict[str, str]],
     checks: list[dict[str, str]],
+    *,
+    completion_mode: str = "",
 ) -> None:
+    from src.assets.completion import (
+        MODE_DRAFT_COMPLETE,
+        assembly_from_selected_asset,
+        evaluate_usability,
+        normalize_mode,
+        read_assembly,
+    )
+    from src.assets.semantic_selection.decision import has_decision
+
+    mode = normalize_mode(completion_mode)
     missing_assets = assets_manifest.get("missing_scenes", [])
     scenes = assets_manifest.get("scenes", [])
     selected_count = 0
     for scene in scenes:
         scene_id = str(scene.get("scene_id", ""))
-        selected = scene.get("selected_asset") or {}
-        if not selected:
-            errors.append({"check": "asset_coverage", "message": f"Scene {scene_id} has no selected asset."})
-            continue
-        selected_count += 1
-        if not selected.get("allowed_for_render") or selected.get("review_required"):
-            errors.append({"check": "asset_rights", "message": f"Scene {scene_id} selected asset is not cleared for render."})
-        policy_decision = evaluate_asset_policy(selected)
-        if policy_decision.review_required or not policy_decision.allowed_for_render:
+        explicit_assembly = isinstance(scene.get("visual_assembly"), dict)
+        duration = float(scene.get("required_duration_sec") or 0.0)
+        assembly = (
+            read_assembly(scene, scene_duration_sec=duration)
+            if isinstance(scene.get("visual_assembly"), dict)
+            else assembly_from_selected_asset(
+                scene,
+                scene_duration_sec=duration,
+                completion_mode=mode,
+            )
+        )
+        # A pre-Q2.2B selected_asset had no slot timeline at all. Its zero duration
+        # cannot become a new validation failure merely because the compatibility
+        # reader exposes it as a single slot.
+        timeline_problems = assembly.validate() if explicit_assembly else []
+        for problem in timeline_problems:
             errors.append(
                 {
-                    "check": "asset_policy",
-                    "message": f"Scene {scene_id} selected asset is blocked by license policy: {policy_decision.reason}.",
+                    "check": "asset_slot_timeline",
+                    "message": f"Scene {scene_id} visual slot timeline is invalid: {problem}.",
                 }
             )
-        license_data = selected.get("license") if isinstance(selected.get("license"), dict) else {}
-        if not license_data:
-            errors.append({"check": "asset_license", "message": f"Scene {scene_id} selected asset has no license object."})
-        elif license_data.get("review_required") or not license_data.get("allowed_for_render"):
-            errors.append({"check": "asset_license", "message": f"Scene {scene_id} selected asset license requires review."})
-        provenance = selected.get("provenance") if isinstance(selected.get("provenance"), dict) else {}
-        if not provenance or not provenance.get("provider") or not provenance.get("source_page_url"):
-            errors.append({"check": "asset_provenance", "message": f"Scene {scene_id} selected asset lacks provider/source provenance."})
-        local_path = selected.get("path") or selected.get("local_path") or selected.get("downloaded_path")
-        if not local_path or not Path(local_path).exists():
-            errors.append({"check": "asset_local_file", "message": f"Scene {scene_id} selected asset local file is missing."})
-        else:
-            checks.append({"check": "asset_local_file", "message": f"Scene {scene_id} has a local renderable file."})
-        if not selected.get("checksum_sha256"):
-            errors.append({"check": "asset_checksum", "message": f"Scene {scene_id} selected asset has no SHA-256 checksum."})
-        validation = selected.get("technical_validation") if isinstance(selected.get("technical_validation"), dict) else {}
-        if validation.get("status") != "passed":
-            errors.append({"check": "asset_validation", "message": f"Scene {scene_id} selected asset has no passing technical validation."})
-        _check_selection_decision(scene_id, selected, errors, warnings, checks)
+        if not assembly.slots:
+            errors.append({"check": "asset_coverage", "message": f"Scene {scene_id} has no selected asset."})
+            continue
+        for slot in assembly.slots:
+            selected = slot.selected_asset or {}
+            label = f"Scene {scene_id} slot {slot.slot_id}"
+            if not selected:
+                errors.append({"check": "asset_coverage", "message": f"{label} has no selected asset."})
+                continue
+            selected_count += 1
+            if not selected.get("allowed_for_render") or selected.get("review_required"):
+                errors.append({"check": "asset_rights", "message": f"{label} is not cleared for render."})
+            policy_decision = evaluate_asset_policy(selected)
+            if policy_decision.review_required or not policy_decision.allowed_for_render:
+                errors.append(
+                    {
+                        "check": "asset_policy",
+                        "message": f"{label} is blocked by license policy: {policy_decision.reason}.",
+                    }
+                )
+            license_data = selected.get("license") if isinstance(selected.get("license"), dict) else {}
+            if not license_data:
+                errors.append({"check": "asset_license", "message": f"{label} has no license object."})
+            elif license_data.get("review_required") or not license_data.get("allowed_for_render"):
+                errors.append({"check": "asset_license", "message": f"{label} license requires review."})
+            provenance = selected.get("provenance") if isinstance(selected.get("provenance"), dict) else {}
+            if not provenance or not provenance.get("provider") or not provenance.get("source_page_url"):
+                errors.append({"check": "asset_provenance", "message": f"{label} lacks provider/source provenance."})
+            local_path = selected.get("path") or selected.get("local_path") or selected.get("downloaded_path")
+            if not local_path or not Path(local_path).is_file():
+                errors.append({"check": "asset_local_file", "message": f"{label} local file is missing."})
+            else:
+                checks.append({"check": "asset_local_file", "message": f"{label} has a local renderable file."})
+            if not selected.get("checksum_sha256"):
+                errors.append({"check": "asset_checksum", "message": f"{label} has no SHA-256 checksum."})
+            validation = (
+                selected.get("technical_validation")
+                if isinstance(selected.get("technical_validation"), dict)
+                else {}
+            )
+            if validation.get("status") != "passed":
+                errors.append({"check": "asset_validation", "message": f"{label} has no passing technical validation."})
+            _check_selection_decision(f"{scene_id}/{slot.slot_id}", selected, errors, warnings, checks)
+
+            # Old manifests had no semantic decision and are grandfathered: their
+            # historical strict behaviour remains the rights/technical gate above.
+            # Once a decision or assembly exists, strict means publish-ready.
+            semantic_contract_present = explicit_assembly or has_decision(selected)
+            readiness = evaluate_usability(
+                selected,
+                mode=mode,
+                quality_tier=slot.quality_tier,
+                require_local_file=True,
+            )
+            if mode == MODE_DRAFT_COMPLETE:
+                if not readiness.usable_in_draft:
+                    errors.append(
+                        {"check": "asset_draft_readiness", "message": f"{label} is not usable in a draft."}
+                    )
+                elif not readiness.publish_ready:
+                    warnings.append(
+                        {
+                            "check": "asset_publish_readiness",
+                            "message": f"{label} is draft-only and requires replacement before publication.",
+                        }
+                    )
+            elif semantic_contract_present and not readiness.publish_ready:
+                errors.append(
+                    {
+                        "check": "asset_publish_readiness",
+                        "message": f"{label} is not publish-ready in strict mode.",
+                    }
+                )
     if missing_assets:
         warnings.append({"check": "asset_coverage", "message": f"{len(missing_assets)} scene(s) still need approved assets."})
     if selected_count and not any(error["check"].startswith("asset_") for error in errors):

@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-import subprocess
+import math
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import imageio_ffmpeg
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageOps
 
+from src.assets.completion.modes import (
+    DEFAULT_COMPLETION_MODE,
+    MODE_DRAFT_COMPLETE,
+    evaluate_usability,
+    normalize_mode,
+)
 from src.audio.end_tail_policy import (
     DEFAULT_TAIL_SEC,
     END_POLICY_NARRATION_PLUS_TAIL,
@@ -28,7 +35,15 @@ def render_final_video(
     voice_manifest: dict[str, Any],
     end_policy_id: str = END_POLICY_NARRATION_PLUS_TAIL,
     tail_sec: float = DEFAULT_TAIL_SEC,
+    completion_mode: str = DEFAULT_COMPLETION_MODE,
 ) -> dict[str, Any]:
+    completion_mode = normalize_mode(completion_mode)
+    is_draft = completion_mode == MODE_DRAFT_COMPLETE
+    completion_summary = (
+        assets_manifest.get("completion")
+        if isinstance(assets_manifest.get("completion"), dict)
+        else {}
+    )
     root = Path(project_root)
     output_dir = root / "localizations" / language / "output"
     render_dir = root / "render"
@@ -44,12 +59,13 @@ def render_final_video(
         height=height,
         script=script,
         assets_manifest=assets_manifest,
+        completion_mode=completion_mode,
     )
     concat_path = render_dir / "frames.txt"
     _write_concat_file(concat_path, segments)
     silent_video = render_dir / "silent_master.mp4"
-    master = output_dir / "master_1080x1920.mp4"
-    no_subtitles = output_dir / "no_subtitles.mp4"
+    master = output_dir / ("draft_1080x1920.mp4" if is_draft else "master_1080x1920.mp4")
+    no_subtitles = output_dir / ("draft_no_subtitles.mp4" if is_draft else "no_subtitles.mp4")
     _run_ffmpeg(
         [
             "-y",
@@ -100,12 +116,31 @@ def render_final_video(
         subtitles_embedded = True
     else:
         shutil.copyfile(no_subtitles, master)
-    outputs = _copy_platform_outputs(master, no_subtitles, output_dir)
+    outputs = _copy_platform_outputs(master, no_subtitles, output_dir, draft=is_draft)
     return {
         "status": "completed",
+        "render_status": "draft_completed" if is_draft else "completed",
+        "completion_mode": completion_mode,
+        "output_kind": "draft" if is_draft else "standard",
+        "publish_ready": False if is_draft else bool(completion_summary.get("publish_ready", True)),
         "output_path": str(master),
         "outputs": outputs,
-        "scene_count": len(segments),
+        # One segment per visual slot since Q2.2B; for a single-asset video these are
+        # the same number, which is what every earlier project and test sees.
+        "scene_count": len({str(item.get("scene_id") or item["path"]) for item in segments}),
+        "segment_count": len(segments),
+        "segments": [
+            {
+                "scene_id": str(item.get("scene_id") or ""),
+                "slot_id": str(item.get("slot_id") or ""),
+                "duration_sec": round(float(item.get("duration") or 0.0), 3),
+                "start_offset_sec": round(float(item.get("start_offset_sec") or 0.0), 3),
+                "end_offset_sec": round(float(item.get("end_offset_sec") or 0.0), 3),
+                "quality_tier": str(item.get("quality_tier") or ""),
+                "crop_decision": dict(item.get("crop_decision") or {}),
+            }
+            for item in segments
+        ],
         "resolution": {"width": width, "height": height},
         "audio_path": str(audio_path),
         "music_path": str(music_path),
@@ -127,34 +162,110 @@ def _create_scene_segments(
     height: int,
     script: dict[str, Any],
     assets_manifest: dict[str, Any],
+    completion_mode: str = DEFAULT_COMPLETION_MODE,
 ) -> list[dict[str, Any]]:
-    asset_by_scene = {
-        scene.get("scene_id"): (scene.get("selected_asset") or {})
-        for scene in assets_manifest.get("scenes", [])
+    """One segment per visual slot, laid on the scene's own timeline.
+
+    A scene written before stage Q2.2B carries one ``selected_asset`` and is read as a
+    one-slot assembly, which produces exactly the segment this function always produced.
+    A multi-slot scene keeps its stored relative boundaries and scales them to the
+    scene's *real* duration here, because the assembly was built while only the planned
+    duration was known and the voice stage may have replaced it since.
+    """
+    from src.assets.completion import read_assembly
+    from src.assets.completion.assembly import scaled_slot_windows
+
+    completion_mode = normalize_mode(completion_mode)
+    is_draft = completion_mode == MODE_DRAFT_COMPLETE
+    entry_by_scene = {
+        str(entry.get("scene_id") or ""): entry for entry in assets_manifest.get("scenes", []) if isinstance(entry, dict)
     }
     segments: list[dict[str, Any]] = []
     for index, scene in enumerate(script.get("scenes", []), start=1):
-        scene_id = scene.get("scene_id", f"scene_{index:03d}")
-        selected = asset_by_scene.get(scene_id, {})
-        source_path = selected.get("path") or selected.get("local_path") or selected.get("downloaded_path") or ""
-        if not source_path or not Path(source_path).exists():
-            raise RuntimeError(f"Scene {scene_id} has no renderable visual asset.")
+        scene_id = str(scene.get("scene_id") or f"scene_{index:03d}")
         # actual_duration_sec (written by the voice stage from the real narration)
         # wins over the planned target_duration_sec; see src.audio.scene_timeline.
         duration = scene_render_duration(scene)
-        segment_path = segments_dir / f"{scene_id}.mp4"
-        if selected.get("type") == "video" or Path(source_path).suffix.lower() in {".mp4", ".mov", ".m4v"}:
-            _render_video_segment(Path(source_path), segment_path, duration, width, height)
-        else:
-            frame_path = segments_dir / f"{scene_id}.png"
-            _base_frame(source_path, width, height).save(frame_path)
-            _render_image_segment(frame_path, segment_path, duration, width, height)
-        segments.append({"path": segment_path, "duration": duration})
+        assembly = read_assembly(entry_by_scene.get(scene_id, {}), scene_duration_sec=duration)
+        if not assembly.slots:
+            raise RuntimeError(f"Scene {scene_id} has no renderable visual asset.")
+        problems = assembly.validate()
+        if problems:
+            raise RuntimeError(f"Scene {scene_id} has an invalid visual assembly: {', '.join(problems)}")
+        try:
+            timed_slots = scaled_slot_windows(assembly, duration)
+        except ValueError as exc:
+            raise RuntimeError(f"Scene {scene_id} has an invalid visual assembly: {exc}") from exc
+        for position, (slot, start_offset, end_offset) in enumerate(timed_slots, start=1):
+            source_path = slot.media_path
+            if not source_path or not Path(source_path).is_file():
+                raise RuntimeError(f"Scene {scene_id} slot {slot.slot_id} has no renderable file: {source_path}")
+            if is_draft:
+                # Never trust the serialized slot verdict as a render authorization.
+                # Files, rights metadata, and nested policy records can change after an
+                # assembly was written, so the final boundary re-evaluates the asset.
+                readiness = evaluate_usability(
+                    slot.selected_asset,
+                    mode=MODE_DRAFT_COMPLETE,
+                    quality_tier=slot.quality_tier,
+                    require_local_file=True,
+                    reuse_count=1 if slot.reuse_of_asset else 0,
+                )
+                if not readiness.usable_in_draft or not readiness.automatic_render_allowed:
+                    detail = ",".join(readiness.block_reasons) or "slot_not_usable_in_draft"
+                    raise RuntimeError(f"Scene {scene_id} slot {slot.slot_id} is blocked: {detail}")
+            slot_duration = round(end_offset - start_offset, 3)
+            if not math.isfinite(slot_duration) or slot_duration <= 0:
+                raise RuntimeError(
+                    f"Scene {scene_id} slot {slot.slot_id} has a non-positive "
+                    f"render duration: {slot_duration}"
+                )
+            suffix = "" if len(timed_slots) == 1 else f"_{position:03d}"
+            segment_path = segments_dir / f"{scene_id}{suffix}.mp4"
+            media_type = str(slot.selected_asset.get("type") or slot.selected_asset.get("media_type") or "")
+            if media_type == "video" or Path(source_path).suffix.lower() in {".mp4", ".mov", ".m4v"}:
+                _render_video_segment(
+                    Path(source_path),
+                    segment_path,
+                    slot_duration,
+                    width,
+                    height,
+                    crop_decision=slot.crop_decision,
+                )
+            else:
+                frame_path = segments_dir / f"{scene_id}{suffix}.png"
+                _base_frame(
+                    source_path,
+                    width,
+                    height,
+                    crop_decision=slot.crop_decision,
+                ).save(frame_path)
+                _render_image_segment(frame_path, segment_path, slot_duration, width, height)
+            segments.append(
+                {
+                    "path": segment_path,
+                    "duration": slot_duration,
+                    "start_offset_sec": start_offset,
+                    "end_offset_sec": end_offset,
+                    "scene_id": scene_id,
+                    "slot_id": slot.slot_id,
+                    "quality_tier": slot.quality_tier,
+                    "crop_decision": dict(slot.crop_decision),
+                }
+            )
     return segments
 
 
-def _render_video_segment(source: Path, target: Path, duration: float, width: int, height: int) -> None:
-    vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30,format=yuv420p"
+def _render_video_segment(
+    source: Path,
+    target: Path,
+    duration: float,
+    width: int,
+    height: int,
+    *,
+    crop_decision: dict[str, Any] | None = None,
+) -> None:
+    vf = _video_filter(width, height, crop_decision=crop_decision)
     _run_ffmpeg(
         [
             "-y",
@@ -207,11 +318,37 @@ def _render_image_segment(source: Path, target: Path, duration: float, width: in
     )
 
 
-def _base_frame(source_path: str, width: int, height: int) -> Image.Image:
+def _base_frame(
+    source_path: str,
+    width: int,
+    height: int,
+    *,
+    crop_decision: dict[str, Any] | None = None,
+) -> Image.Image:
     try:
         image = Image.open(source_path).convert("RGB")
     except Exception as exc:
         raise RuntimeError(f"Image asset could not be opened: {source_path}") from exc
+    transform = _reuse_transform(crop_decision)
+    if transform:
+        # Reuse must be visibly different, not just differently labelled in a report.
+        # Fit the source toward the requested anchor, then crop a deterministic zoomed
+        # frame. This is local Pillow work and is identical on every provider order.
+        zoom = transform["zoom"]
+        scaled_width = max(width, _even_ceil(width * zoom))
+        scaled_height = max(height, _even_ceil(height * zoom))
+        anchor = transform["anchor"]
+        center_x = 0.0 if anchor == "left" else 1.0 if anchor == "right" else 0.5
+        center_y = 0.0 if anchor == "top" else 1.0 if anchor == "bottom" else 0.5
+        fitted = ImageOps.fit(
+            image,
+            (scaled_width, scaled_height),
+            method=Image.Resampling.LANCZOS,
+            centering=(center_x, center_y),
+        )
+        left = 0 if anchor == "left" else scaled_width - width if anchor == "right" else (scaled_width - width) // 2
+        top = 0 if anchor == "top" else scaled_height - height if anchor == "bottom" else (scaled_height - height) // 2
+        return fitted.crop((left, top, left + width, top + height)).convert("RGB")
     image.thumbnail((width, height), Image.Resampling.LANCZOS)
     bg = image.resize((width, height)).filter(ImageFilter.GaussianBlur(28))
     x = (width - image.width) // 2
@@ -220,15 +357,89 @@ def _base_frame(source_path: str, width: int, height: int) -> Image.Image:
     return bg
 
 
+def _video_filter(
+    width: int,
+    height: int,
+    *,
+    crop_decision: dict[str, Any] | None = None,
+) -> str:
+    """FFmpeg filter with a real alternate crop for a reused visual.
+
+    The no-transform branch stays byte-for-byte compatible with the pre-Q2.2B
+    renderer. A reuse transform scales past the output frame and anchors the crop at a
+    deterministic edge, so two uses no longer render the same pixels.
+    """
+
+    transform = _reuse_transform(crop_decision)
+    if not transform:
+        return (
+            f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},setsar=1,fps=30,format=yuv420p"
+        )
+    zoom = transform["zoom"]
+    scaled_width = max(width, _even_ceil(width * zoom))
+    scaled_height = max(height, _even_ceil(height * zoom))
+    anchor = transform["anchor"]
+    crop_x = "0" if anchor == "left" else "iw-ow" if anchor == "right" else "(iw-ow)/2"
+    crop_y = "0" if anchor == "top" else "ih-oh" if anchor == "bottom" else "(ih-oh)/2"
+    return (
+        f"scale={scaled_width}:{scaled_height}:force_original_aspect_ratio=increase,"
+        f"crop={width}:{height}:{crop_x}:{crop_y},"
+        "setsar=1,fps=30,format=yuv420p"
+    )
+
+
+def _reuse_transform(crop_decision: dict[str, Any] | None) -> dict[str, Any]:
+    decision = crop_decision if isinstance(crop_decision, dict) else {}
+    raw = decision.get("reuse_transform")
+    if not isinstance(raw, dict):
+        return {}
+    anchor = str(raw.get("anchor") or "").strip().lower()
+    if anchor not in {"left", "right", "top", "bottom"}:
+        return {}
+    try:
+        zoom = float(raw.get("zoom") or 1.0)
+    except (TypeError, ValueError, OverflowError):
+        return {}
+    if not math.isfinite(zoom):
+        return {}
+    return {"anchor": anchor, "zoom": min(1.25, max(1.01, zoom))}
+
+
+def _even_ceil(value: float) -> int:
+    rounded = int(math.ceil(float(value)))
+    return rounded if rounded % 2 == 0 else rounded + 1
+
+
 def _write_concat_file(path: Path, segments: list[dict[str, Any]]) -> None:
     lines: list[str] = []
     for item in segments:
         normalized = str(Path(item["path"]).resolve()).replace("\\", "/")
-        lines.append(f"file '{normalized}'")
+        # FFmpeg's concat demuxer uses its own quoting rules, not shell quoting. A
+        # literal apostrophe must close the quoted token, be backslash-escaped, then
+        # reopen it. This matters for ordinary Windows profile/project names such as
+        # ``D:/O'Brien/video.mp4``.
+        escaped = normalized.replace("'", "'\\''")
+        lines.append(f"file '{escaped}'")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _copy_platform_outputs(master: Path, no_subtitles: Path, output_dir: Path) -> dict[str, str]:
+def _copy_platform_outputs(
+    master: Path,
+    no_subtitles: Path,
+    output_dir: Path,
+    *,
+    draft: bool = False,
+) -> dict[str, str]:
+    if draft:
+        draft_no_subtitles = output_dir / "draft_no_subtitles.mp4"
+        if no_subtitles.resolve() != draft_no_subtitles.resolve():
+            shutil.copyfile(no_subtitles, draft_no_subtitles)
+        return {
+            "draft_1080x1920": str(master),
+            "draft_no_subtitles": str(draft_no_subtitles),
+        }
+
     outputs = {"master_1080x1920": str(master)}
     for name in ("youtube_shorts.mp4", "instagram_reels.mp4", "facebook_reels.mp4"):
         target = output_dir / name

@@ -8,6 +8,14 @@ Git write-операции не выполнялись.
 Маркировка: **ФАКТ** — проверено чтением кода/файлов. **ВЫВОД** — логическое следствие.
 **РЕКОМЕНДАЦИЯ** — предложение. **НЕИЗВЕСТНО** — требует отдельной проверки.
 
+> **Актуализация 2026-07-27.** Основной текст ниже сохранён как исторический аудит на
+> указанном HEAD. После Q2.2A/Q2.2A-2 завершён Q2.2B Autonomous Completion Mode:
+> backward-compatible `strict` остаётся default, а явный `draft_complete` собирает
+> безопасный непубликационный draft из 1–4 visual slots, пишет replacement reports и
+> останавливается со статусом `voice_provider_required`, если narration audio ещё нет.
+> Это не означает готовность Envato automation, AI image generation, live Vision,
+> YouTube publishing или automatic CC BY-SA acceptance.
+
 ---
 
 ## Раздел 1. Моя продуктовая модель
@@ -704,6 +712,24 @@ studio check <project>     # права + готовность к публика
 через блок `semantic`, ни один провайдер не переписан. Подробности и осознанные
 отклонения (язык запросов, отсутствие LLM-планировщика) — в
 `AUTONOMOUS_PROGRESS.md`, раздел «Stage Q2».
+
+**Q2.2B. Autonomous Completion Mode**
+Цель: получить готовый проверяемый черновик даже при неполном визуальном покрытии, не
+ослабляя права, техническую проверку и factual safety.
+**СДЕЛАНО** — opt-in `--completion-mode draft_complete`; strict default и старые
+projects/manifests сохранены. Реализованы `visual_assembly.slots` (1–4),
+детерминированная лестница A–F, controlled reuse, one-pass offline/light adaptation с
+fact locks, отдельные draft/publish gates, multi-slot renderer, draft MP4,
+четыре replacement artifacts и точечный `assets replace` со stale downstream stages.
+Unknown/blocked rights, `must_avoid`, conflicting/misleading content и technical
+failure блокируются в любом режиме. Без голоса сохраняются visual/report artifacts и
+возвращается `voice_provider_required`.
+
+**Границы Q2.2B:** generated tiers — только deterministic infographic/text card/
+backdrop, не AI image generation; штатный offline adapter не делает свободный
+LLM-парафраз; automated Envato, live Vision, YouTube upload и automatic CC BY-SA
+acceptance остаются будущими задачами. Подробности — `AUTONOMOUS_PROGRESS.md`, раздел
+«Stage Q2.2B».
 
 **Q3. Субтитры по словам**
 Цель: тайминг из реальной озвучки, а не арифметический.
