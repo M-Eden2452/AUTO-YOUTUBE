@@ -49,6 +49,11 @@ class VisualBrief:
     provider_queries: dict[str, list[str]] = field(default_factory=dict)
     # What to do when nothing is found: "unresolved" | "generated_infographic".
     fallback_visual: str = ""
+    # Values for a figure the project draws itself (headline, sample counts, layers).
+    # Passed through untouched to src.assets.generated_infographic - this layer never
+    # reads, rounds or reinterprets them, because a number the pipeline adjusted on its
+    # own would be a claim the script never made.
+    infographic: dict[str, Any] = field(default_factory=dict)
     notes: str = ""
 
     @property
@@ -58,7 +63,7 @@ class VisualBrief:
                 self.visual_description, self.subject, self.action, self.place,
                 self.exact_entities, self.must_include, self.must_avoid, self.shot_type,
                 self.media_types, self.source_class, self.provider_queries,
-                self.fallback_visual, self.notes,
+                self.fallback_visual, self.infographic, self.notes,
             ]
         )
 
@@ -76,6 +81,7 @@ class VisualBrief:
             "source_class": self.source_class,
             "provider_queries": {key: list(value) for key, value in self.provider_queries.items()},
             "fallback_visual": self.fallback_visual,
+            "infographic": dict(self.infographic),
             "notes": self.notes,
         }
         return {key: value for key, value in data.items() if value}
@@ -105,6 +111,7 @@ def parse_brief(data: dict[str, Any] | None) -> VisualBrief:
         source_class=str(data.get("source_class") or "").strip(),
         provider_queries=_as_query_map(data.get("provider_queries")),
         fallback_visual=str(data.get("fallback_visual") or "").strip(),
+        infographic=dict(data.get("infographic") or {}),
         notes=str(data.get("notes") or "").strip(),
     )
 

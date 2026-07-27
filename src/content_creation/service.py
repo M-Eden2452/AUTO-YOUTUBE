@@ -516,6 +516,9 @@ def _create_fullscreen_voiceover(
             # sentences and re-wrapped in the template generator's own phrases.
             script_source=_resolve_script_source(request),
             script_provider=str(request.project_overrides.get("script_provider", "") or ""),
+            # Reaches user_supplied before script.json is written, which is the only
+            # point where a brief can be attached to the author's own scenes.
+            visual_briefs=dict(request.visual_briefs),
         )
     root = store.project_root(job.job_id)
     _notify(progress_callback, "project_create", "completed")

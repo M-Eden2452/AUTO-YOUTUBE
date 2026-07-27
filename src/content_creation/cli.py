@@ -171,6 +171,12 @@ def build_parser() -> argparse.ArgumentParser:
     script_p.add_argument("--cta-text", default="")
     script_p.add_argument("--out", default="", help="Write a pipeline-compatible script.json here.")
     script_p.add_argument("--script-file", dest="script_json_path", default="", help="script.json for 'validate'.")
+    script_p.add_argument(
+        "--visual-brief",
+        dest="visual_brief_path",
+        default="",
+        help="The same brief JSON as `create --visual-brief`. Offline: writes nothing unless --out is given.",
+    )
 
     visual_p = subparsers.add_parser(
         "visual-plan",
@@ -209,6 +215,17 @@ def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source-asset", dest="source_asset_path", default="", help="Local video file (story_card_text_only_v1).")
     parser.add_argument("--source-url", default="", help="Article URL (fullscreen_voiceover_v1).")
     parser.add_argument("--script-file", dest="script_path", default="")
+    parser.add_argument(
+        "--visual-brief",
+        dest="visual_brief_path",
+        default="",
+        help=(
+            "JSON with an explicit per-scene visual brief, keyed by scene number or scene_id: "
+            "subject / action / place / exact_entities / must_include / must_avoid / shot_type / "
+            "media_types / source_class / provider_queries / infographic. Never spoken - it only "
+            "steers what is shown. Optional."
+        ),
+    )
     parser.add_argument("--pasted-script", default="", help="Full script text pasted directly (fullscreen_voiceover_v1).")
     parser.add_argument(
         "--input-mode",
@@ -264,6 +281,7 @@ def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
         text=text,
         source_asset_path=args.source_asset_path,
         topic=args.topic,
+        visual_briefs=_load_visual_briefs(getattr(args, "visual_brief_path", "")),
         voice=VoiceRequestConfig(
             provider=args.voice_provider,
             profile=voice_profile,
@@ -1018,6 +1036,18 @@ def _run_rights_report(args: argparse.Namespace, repository) -> int:
     return 1 if report.has_blocking_problems else 0
 
 
+def _load_visual_briefs(path: str) -> dict[str, dict]:
+    """Read the one visual brief file, or nothing. Validated before it is trusted."""
+    if not str(path or "").strip():
+        return {}
+    from src.content_creation import input_validation
+
+    result = input_validation.validate_visual_brief_file(path)
+    if not result.valid:
+        raise SystemExit(f"--visual-brief: {result.message}")
+    return input_validation.load_visual_briefs(path)
+
+
 def _print_plain(data: Any) -> None:
     if isinstance(data, list):
         for item in data:
@@ -1084,6 +1114,7 @@ def _run_script_command(args: argparse.Namespace) -> int:
         script_source=source_kind,
         script_include_cta=args.include_cta,
         script_cta_text=args.cta_text,
+        visual_briefs=_load_visual_briefs(getattr(args, "visual_brief_path", "")),
     )
     research = build_research(job, {"title": args.topic or args.title, "text": text or args.topic})
     outcome = generate_for_job(job, research)
@@ -1106,6 +1137,18 @@ def _run_script_command(args: argparse.Namespace) -> int:
           f"(цель {job.target_duration_sec} с)")
     for scene in result.scenes:
         print(f"  {scene.scene_id} [{scene.role:<11}] {scene.duration_sec:5.1f} с  {scene.narration[:70]}")
+        if scene.visual_brief:
+            brief = scene.visual_brief
+            print(
+                f"      визуал: класс={brief.get('source_class') or '-'} "
+                f"предмет={brief.get('subject') or '-'} место={brief.get('place') or brief.get('location') or '-'}"
+            )
+            if brief.get("exact_entities"):
+                print(f"      точные сущности: {', '.join(str(item) for item in brief['exact_entities'])}")
+            if brief.get("must_avoid"):
+                print(f"      запрещено: {', '.join(str(item) for item in brief['must_avoid'])}")
+            if brief.get("infographic"):
+                print(f"      инфографика: {json.dumps(brief['infographic'], ensure_ascii=False)}")
     for warning in result.warnings:
         print(f"[script] предупреждение: {warning}")
     _print_validation(outcome.validation, scene_count=len(result.scenes))

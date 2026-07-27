@@ -77,6 +77,13 @@ def build_script_request(job: NewsJob, research: dict[str, Any]) -> ScriptReques
         include_cta=bool(getattr(job, "script_include_cta", False)),
         cta_text=str(getattr(job, "script_cta_text", "") or ""),
         provider_id=str(getattr(job, "script_provider", "") or ""),
+        # The author's explicit "what to show", carried from the job to the provider
+        # that can honour it. Empty for every job written before Q2.2A.
+        visual_briefs={
+            str(key): dict(value)
+            for key, value in (getattr(job, "visual_briefs", None) or {}).items()
+            if isinstance(value, dict)
+        },
     )
 
 

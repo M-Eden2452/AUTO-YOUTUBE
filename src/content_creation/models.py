@@ -131,6 +131,11 @@ class ContentCreationRequest:
     timing: TimingRequestConfig = field(default_factory=TimingRequestConfig)
     render: RenderRequestConfig = field(default_factory=RenderRequestConfig)
     execution: ExecutionFlags = field(default_factory=ExecutionFlags)
+    # Explicit per-scene "what to show", keyed by 1-based scene number or scene_id.
+    # The single supported entry point for a visual brief - see the `--visual-brief`
+    # flag, which reads one JSON file into this field. Optional: without it every
+    # command behaves exactly as before.
+    visual_briefs: dict[str, dict[str, Any]] = field(default_factory=dict)
     project_overrides: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -149,6 +154,7 @@ class ContentCreationRequest:
             "source_asset_path": self.source_asset_path,
             "topic": self.topic,
             "target_duration_sec": self.target_duration_sec,
+            "visual_briefs": {key: dict(value) for key, value in self.visual_briefs.items()},
             "voice": self.voice.to_dict(),
             "subtitles": self.subtitles.to_dict(),
             "music": self.music.to_dict(),

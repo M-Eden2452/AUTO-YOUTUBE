@@ -48,6 +48,7 @@ def create_news_to_short_job(
     script_source: str = "",
     script_include_cta: bool = False,
     script_cta_text: str = "",
+    visual_briefs: dict[str, dict[str, Any]] | None = None,
     now: str | None = None,
 ) -> NewsJob:
     source_urls = list(urls or [])
@@ -80,6 +81,7 @@ def create_news_to_short_job(
         script_source=script_source,
         script_include_cta=script_include_cta,
         script_cta_text=script_cta_text,
+        visual_briefs=visual_briefs,
         now=now,
         is_taken=existing_ids,
     )

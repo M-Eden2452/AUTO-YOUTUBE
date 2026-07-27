@@ -129,6 +129,10 @@ class NewsJob:
     script_source: str = ""
     script_include_cta: bool = False
     script_cta_text: str = ""
+    # Explicit "what to show" per scene, keyed by 1-based scene number or scene_id.
+    # Optional and additive: a job.json written before this exists simply has none, and
+    # ``from_dict`` fills the default. Never spoken - the voice stage reads narration.
+    visual_briefs: dict[str, dict[str, Any]] = field(default_factory=dict)
     aspect_ratio: str = "9:16"
     resolution: dict[str, int] = field(default_factory=lambda: {"width": 1080, "height": 1920})
     platforms: list[str] = field(default_factory=lambda: ["youtube_shorts", "instagram_reels", "facebook_reels"])
@@ -157,6 +161,7 @@ class NewsJob:
         script_source: str = "",
         script_include_cta: bool = False,
         script_cta_text: str = "",
+        visual_briefs: dict[str, dict[str, Any]] | None = None,
         now: str | None = None,
         is_taken: Any = None,
     ) -> "NewsJob":
@@ -191,6 +196,7 @@ class NewsJob:
             script_source=script_source,
             script_include_cta=script_include_cta,
             script_cta_text=script_cta_text,
+            visual_briefs={str(key): dict(value) for key, value in (visual_briefs or {}).items()},
             created_at=created_at,
             updated_at=created_at,
             stages=stages,
@@ -217,7 +223,10 @@ class NewsJob:
         data["localizations"] = {
             key: LocalizationState(**value) for key, value in data.get("localizations", {}).items()
         }
-        return cls(**data)
+        # A job.json from before a field existed simply lacks it; unknown keys from a
+        # newer writer are dropped rather than crashing an older reader.
+        known = {field.name for field in dataclasses.fields(cls)}
+        return cls(**{key: value for key, value in data.items() if key in known})
 
     def to_dict(self) -> dict[str, Any]:
         return asdict_clean(self)

@@ -306,7 +306,9 @@ class HonestMetadataScoreTests(unittest.TestCase):
         candidate = _candidate("blank", "", tags=[], description="")
         ranked = rank_candidates(scene, [candidate], require_provider_metadata=True)
         self.assertTrue(ranked[0]["rejected"])
-        self.assertIn("no_semantic_evidence", ranked[0]["reject_reason"])
+        # Q2.2A made this the universal gate: nothing unverified may be auto-selected,
+        # so the reason is now the stricter one rather than the exacting-class one.
+        self.assertIn("semantic_unverified", ranked[0]["reject_reason"])
 
     def test_scores_stay_separate_instead_of_one_blended_number(self) -> None:
         scene = SemanticScene(scene_id="s", subject=["antarctica"], visual_priority="environment")

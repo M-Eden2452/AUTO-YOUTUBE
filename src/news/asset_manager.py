@@ -277,7 +277,12 @@ def build_assets_manifest(
                 "html_path": "" if bool(preview_settings.get("no_html", False)) else str(project_root_path / "assets" / "review" / "visual_review_board.html"),
             }
         download_attempts: list[dict[str, Any]] = []
-        if selected:
+        if generated_asset is not None and selected is generated_asset:
+            # Already a real local file with its own checksum and provenance; there is
+            # nothing to fetch, and sending it through the download path only fails
+            # because no provider owns it.
+            download_attempts = []
+        elif selected:
             selected, download_attempts = _ensure_selected_asset_downloaded(
                 selected=selected,
                 ranked_candidates=candidates,
@@ -338,7 +343,13 @@ def build_assets_manifest(
                     "rejected_reasons": sorted(
                         {str(item.get("reject_reason") or "") for item in candidates if item.get("rejected")} - {""}
                     ),
-                    "reason": "manual_action_required" if manual_request else _missing_reason(dry_run, candidates, download_attempts),
+                    "reason": (
+                        "manual_action_required"
+                        if manual_request
+                        else "unresolved_generator_failed"
+                        if source_class == CLASS_DATA_INFOGRAPHIC
+                        else _missing_reason(dry_run, candidates, download_attempts)
+                    ),
                 }
             )
         scene_entries.append(

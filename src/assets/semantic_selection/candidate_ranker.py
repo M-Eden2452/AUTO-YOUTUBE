@@ -43,6 +43,15 @@ EXACT_SUBJECT_MIN_SCORE = 75.0
 # or holding the last frame. Beyond this the scene is left unresolved instead.
 DURATION_TOLERANCE_SEC = 0.35
 
+# A vertical short is 1080x1920. A landscape frame cropped to 9:16 keeps only its
+# middle strip, and the question is how far that strip has to be stretched to fill the
+# frame. 540px is a 2x upscale - soft but usable for b-roll; below that the picture is
+# gone. 1280x720 crops to 405px (2.7x) and is refused; 1920x1080 crops to 607px and is
+# not. The retest accepted a 405px strip because nothing checked the crop at all - only
+# the aspect *deviation*, which is a score and not a gate.
+TARGET_ASPECT_RATIO = "9:16"
+MIN_SHORT_EDGE_PX = 540
+
 METADATA_AVAILABLE = "available"
 METADATA_UNAVAILABLE = "unavailable"
 METADATA_QUERY_DERIVED = "query_derived_only"
@@ -76,6 +85,8 @@ def rank_candidates(
     used_asset_ids: set[str] | None = None,
     required_duration_sec: float = 0.0,
     require_provider_metadata: bool = False,
+    target_aspect_ratio: str = TARGET_ASPECT_RATIO,
+    min_short_edge: int = MIN_SHORT_EDGE_PX,
 ) -> list[dict[str, Any]]:
     used = used_asset_ids or set()
     ranked = [
@@ -85,6 +96,8 @@ def rank_candidates(
             used,
             required_duration_sec=required_duration_sec,
             require_provider_metadata=require_provider_metadata,
+            target_aspect_ratio=target_aspect_ratio,
+            min_short_edge=min_short_edge,
         )
         for candidate in candidates
     ]
@@ -98,6 +111,8 @@ def select_best_candidate(
     used_asset_ids: set[str] | None = None,
     required_duration_sec: float = 0.0,
     require_provider_metadata: bool = False,
+    target_aspect_ratio: str = TARGET_ASPECT_RATIO,
+    min_short_edge: int = MIN_SHORT_EDGE_PX,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     ranked = rank_candidates(
         scene,
@@ -105,6 +120,8 @@ def select_best_candidate(
         used_asset_ids=used_asset_ids,
         required_duration_sec=required_duration_sec,
         require_provider_metadata=require_provider_metadata,
+        target_aspect_ratio=target_aspect_ratio,
+        min_short_edge=min_short_edge,
     )
     for candidate in ranked:
         if not candidate.get("rejected"):
@@ -119,6 +136,8 @@ def _score_candidate(
     *,
     required_duration_sec: float = 0.0,
     require_provider_metadata: bool = False,
+    target_aspect_ratio: str = TARGET_ASPECT_RATIO,
+    min_short_edge: int = MIN_SHORT_EDGE_PX,
 ) -> dict[str, Any]:
     text = _provider_evidence_text(candidate)
     tokens = _tokens(text)
@@ -206,6 +225,7 @@ def _score_candidate(
     else:
         min_score = MIN_SCORE
     duration_check = _duration_check(candidate, required_duration_sec)
+    framing_check = _framing_check(candidate, target_aspect_ratio=target_aspect_ratio, min_short_edge=min_short_edge)
 
     # "matched" requires evidence. Anything else is unverified, and an exacting scene
     # refuses an unverified candidate rather than guessing.
@@ -228,8 +248,28 @@ def _score_candidate(
         reject_reasons.append("must_avoid_match:" + ",".join(negative_matches))
     if set(vision_tags) & set(scene.must_not_include):
         reject_reasons.append("vision_mismatch")
-    if require_provider_metadata and (not has_evidence or semantic_match_status != "matched"):
+    # A candidate may only be chosen automatically once the scene's *requirements* have
+    # actually been checked against it. Two things make that impossible: the provider
+    # said nothing about the asset at all, or a required term is written in a script its
+    # metadata cannot contain. Either way there is no evidence the requirement is met,
+    # and selecting anyway is how a photograph of Mars answered a scene stating a
+    # percentage - it was chosen while its own record said the requirement was
+    # unverifiable.
+    #
+    # An incidental field that could not be checked (an auto-extracted verb, a camera
+    # move a stock library never labels) is reported in ``semantic_match_status`` but is
+    # not disqualifying: refusing a candidate whose stated requirements are all met,
+    # because a word nobody asked for could not be compared, rejects good material for
+    # a fact that was never required.
+    if not has_evidence or must_undecidable:
+        detail = ",".join(must_undecidable) or metadata_status
+        reject_reasons.append(f"semantic_unverified:{detail}")
+    elif require_provider_metadata and semantic_match_status != "matched":
         reject_reasons.append(f"no_semantic_evidence:{metadata_status}")
+    if framing_check["status"] == "unusable":
+        reject_reasons.append(
+            f"framing_unusable:{framing_check['effective_width']}x{framing_check['effective_height']}"
+        )
     if scene.visual_priority not in {SCENE_ENVIRONMENT, SCENE_TRANSITION} and fallback_level >= 4:
         reject_reasons.append("fallback_level_not_allowed")
     if final_score < min_score:
@@ -261,6 +301,8 @@ def _score_candidate(
         "rights_status": str(candidate.get("rights_status") or ""),
         "duration_check": duration_check,
         "duration_status": duration_check["status"],
+        "framing_check": framing_check,
+        "framing_status": framing_check["status"],
         "semantic_evidence": has_evidence,
         "semantic_match_status": semantic_match_status,
         "undecidable_fields": undecidable_fields,
@@ -511,3 +553,55 @@ def _why_selected(
         f"action={action_match:.0f}, environment={environment_match:.0f}, "
         f"metadata={metadata_status}"
     )
+
+
+def _framing_check(
+    candidate: dict[str, Any], *, target_aspect_ratio: str = TARGET_ASPECT_RATIO, min_short_edge: int = MIN_SHORT_EDGE_PX
+) -> dict[str, Any]:
+    """What is left of this asset after cropping it to the target aspect ratio.
+
+    Reported for every candidate, and disqualifying only when the crop cannot fill the
+    frame. This is deliberately not a score: no amount of semantic relevance makes a
+    405-pixel-wide strip usable in a 1080-wide video.
+    """
+    width = _int(candidate.get("width"))
+    height = _int(candidate.get("height"))
+    ratio = _aspect_ratio(target_aspect_ratio)
+    if not width or not height or ratio <= 0:
+        return {
+            "status": "unknown", "target_aspect_ratio": target_aspect_ratio,
+            "source_width": width, "source_height": height,
+            "effective_width": 0, "effective_height": 0,
+            "min_short_edge": min_short_edge,
+        }
+    if width / height > ratio:
+        effective_height = height
+        effective_width = int(height * ratio)
+    else:
+        effective_width = width
+        effective_height = int(width / ratio)
+    status = "usable" if effective_width >= min_short_edge else "unusable"
+    return {
+        "status": status,
+        "target_aspect_ratio": target_aspect_ratio,
+        "source_width": width,
+        "source_height": height,
+        "effective_width": effective_width,
+        "effective_height": effective_height,
+        "min_short_edge": min_short_edge,
+    }
+
+
+def _aspect_ratio(value: str) -> float:
+    try:
+        left, right = str(value).split(":", 1)
+        return float(left) / float(right)
+    except (ValueError, ZeroDivisionError):
+        return 0.0
+
+
+def _int(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0

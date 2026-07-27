@@ -73,6 +73,11 @@ EXACTING_CLASSES = frozenset(
 # Classes that must never be answered by a general stock library, whatever it returns.
 NO_GENERIC_STOCK = frozenset({CLASS_DATA_INFOGRAPHIC, CLASS_MANUAL_REQUIRED})
 
+# Classes whose provider list is exhaustive rather than merely preferred. Nothing
+# outside PROVIDER_PRIORITY may be asked, however many providers happen to be
+# registered - see the note in build_strategy.
+RESTRICTED_TO_PREFERRED = frozenset({CLASS_DATA_INFOGRAPHIC, CLASS_MANUAL_REQUIRED})
+
 _MANUAL_FALLBACK_PROVIDERS = ("envato_manual",)
 
 # --- Evidence vocabulary -----------------------------------------------------
@@ -192,8 +197,19 @@ def build_strategy(
 
     # Preferred order first, then anything else still available, so a newly registered
     # provider is used rather than silently dropped.
+    #
+    # Except for the restricted classes. Their priority list is not a preference, it is
+    # the whole permitted set: a scene whose picture the project draws itself has no
+    # business asking a photo archive. Appending "everything else available" here is
+    # what sent the 54% statistic to Wikimedia, NASA and the Internet Archive in the
+    # confirmed retest and brought back a photograph of Mars.
     ranked = [name for name in preferred if name in available]
-    ranked += [name for name in available if name not in preferred and name not in _MANUAL_FALLBACK_PROVIDERS]
+    if source_class not in RESTRICTED_TO_PREFERRED:
+        ranked += [name for name in available if name not in preferred and name not in _MANUAL_FALLBACK_PROVIDERS]
+    else:
+        for name in available:
+            if name not in preferred and name not in _MANUAL_FALLBACK_PROVIDERS:
+                skipped[name] = f"not_permitted_for_{source_class}"
 
     for name in ranked:
         if enabled.get(name, True) is False:
@@ -325,6 +341,7 @@ __all__ = [
     "EXACTING_CLASSES",
     "NO_GENERIC_STOCK",
     "PROVIDER_PRIORITY",
+    "RESTRICTED_TO_PREFERRED",
     "SOURCE_CLASSES",
     "SceneAssetStrategy",
     "build_strategy",
