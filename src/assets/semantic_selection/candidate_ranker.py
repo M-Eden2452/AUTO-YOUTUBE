@@ -37,6 +37,12 @@ from .decision import (
     DECISION_KEY,
     EXACTING_CLASSES,
     FRAMING_HARD_REJECT,
+    SUPPORT_FULL,
+    SUPPORT_MANUAL,
+    SUPPORT_PARTIAL,
+    SUPPORT_RIGHTS_BLOCKED,
+    SUPPORT_UNSUPPORTED,
+    SUPPORT_UNVERIFIED,
     SelectionDecision,
     build_slot_verdict,
     framing_decision,
@@ -61,6 +67,38 @@ from .models import (
 
 MIN_SCORE = 60.0
 EXACT_SUBJECT_MIN_SCORE = 75.0
+
+# The averaged relevance score is the oldest gate in this file and the one least able
+# to say what it objects to. Once the slot layer has judged the candidate against every
+# requirement the scene states and found the scene *partly* supported, that average may
+# no longer overrule it: the retest dropped three clips whose only fault was a number
+# (a close-up of plastic bottles answering a scene about plastic, `score_below_60`)
+# while the slot record for the same clip read "requirement:plastic matched, subject and
+# context missing" - which is not a refusal, it is a description of what still has to be
+# found. Such a candidate is now kept and carried into the project as partial support,
+# never as render-ready.
+#
+# Only the score thresholds are softened. Everything the slot layer itself refuses -
+# a missing required slot, a declared conflict, a must_avoid hit, unverifiable evidence,
+# an unusable crop, blocked rights - stays a refusal, because those are the checks this
+# stage exists to make.
+SOFT_REJECT_PREFIXES: tuple[str, ...] = ("score_below_",)
+
+# Which support statuses may keep a candidate despite a soft objection. A candidate the
+# slot layer could not verify at all is not rescued by lowering a threshold.
+SOFT_REJECT_ELIGIBLE = frozenset({SUPPORT_FULL, SUPPORT_PARTIAL})
+
+# How good an answer each status is, when several candidates survive. Selection used to
+# be "first one that was not rejected, by score"; with partial support now selectable, a
+# fully supported candidate must not lose to a partial one that happens to score higher.
+SUPPORT_RANK: dict[str, int] = {
+    SUPPORT_FULL: 5,
+    SUPPORT_PARTIAL: 4,
+    SUPPORT_MANUAL: 3,
+    SUPPORT_RIGHTS_BLOCKED: 2,
+    SUPPORT_UNVERIFIED: 1,
+    SUPPORT_UNSUPPORTED: 0,
+}
 
 # Fraction of a scene a clip may fall short by and still be usable by slowing it down
 # or holding the last frame. Beyond this the scene is left unresolved instead.
@@ -116,7 +154,21 @@ def rank_candidates(
         )
         for candidate in candidates
     ]
-    return sorted(ranked, key=lambda item: (not item.get("rejected", False), item.get("final_score", 0)), reverse=True)
+    return sorted(ranked, key=_ranking_key, reverse=True)
+
+
+def _ranking_key(item: dict[str, Any]) -> tuple[int, int, float]:
+    """Best answer first: usable before refused, better supported before higher scoring.
+
+    The support rank sits above the score on purpose. Since a partially supported
+    candidate can now be selected, ordering by score alone could hand a scene to a
+    partial match while a fully supported one waited two places below it.
+    """
+    return (
+        0 if item.get("rejected", False) else 1,
+        SUPPORT_RANK.get(str(item.get("support_status") or ""), 0),
+        float(item.get("final_score") or 0.0),
+    )
 
 
 def select_best_candidate(
@@ -328,6 +380,16 @@ def _score_candidate(
         provider=str(candidate.get("provider") or ""),
         semantically_disqualified=bool(negative_matches) or semantic_match_status == "mismatched",
     )
+    # An objection that the slot verdict has already answered stops being a refusal and
+    # becomes advisory. Both lists are kept: a reviewer must still see that the average
+    # was low, and ``reject_reasons`` on the stored decision stays complete.
+    advisory_reasons = [
+        reason
+        for reason in reject_reasons
+        if reason.startswith(SOFT_REJECT_PREFIXES) and support in SOFT_REJECT_ELIGIBLE
+    ]
+    blocking_reasons = [reason for reason in reject_reasons if reason not in advisory_reasons]
+
     decision = SelectionDecision(
         scene_id=scene.scene_id,
         asset_id=str(candidate.get("asset_id") or ""),
@@ -386,8 +448,12 @@ def _score_candidate(
         "fallback_level": fallback_level,
         "scene_match_score": round(max(0.0, min(100.0, final_score)), 3),
         "final_score": round(final_score, 3),
-        "rejected": bool(reject_reasons),
+        "rejected": bool(blocking_reasons),
+        # The full list, unchanged: existing readers assert on these strings, and a
+        # reviewer is entitled to every objection raised, not only the fatal ones.
         "reject_reason": ";".join(reject_reasons),
+        "blocking_reject_reasons": blocking_reasons,
+        "advisory_reject_reasons": advisory_reasons,
         "why_selected": _why_selected(scene, subject_match, action_match, environment_match, metadata_status),
         "semantic_scene": scene.to_dict(),
         "vision_tags": candidate.get("vision_tags", []),

@@ -396,5 +396,84 @@ def nasa_search_item(nasa_id: str, *, title: str, media_type: str = "image", key
     }
 
 
+class ShareAlikeReviewTests(unittest.TestCase):
+    """CC BY-SA reaches the operator instead of vanishing, and only they can clear it.
+
+    ShareAlike is not an attribution formality: using such a frame can oblige the
+    finished video to be released under the same licence. So it is never cleared by the
+    policy table alone - a per-asset written acceptance is the only thing that unlocks
+    it. Before this, the licence was not in the rules at all, so a complete and perfectly
+    readable CC BY-SA 3.0 record was reported as "unknown_license" with a note about
+    incomplete metadata.
+    """
+
+    PAGE = "https://commons.wikimedia.org/wiki/File:PTR-TOF1000.jpg"
+
+    def _candidate(self, declaration: dict | None = None, *, license_name: str = "CC BY-SA 3.0"):
+        from src.assets.license_policy import evaluate_asset_policy
+        from src.assets.models import ASSET_SCHEMA_VERSION, AssetCandidate, AssetLicense, AssetProvenance
+
+        candidate = AssetCandidate(
+            schema_version=ASSET_SCHEMA_VERSION,
+            asset_id="wikimedia_ptr_tof",
+            provider="wikimedia",
+            provider_asset_id="PTR-TOF1000",
+            media_type="image",
+            title="PTR-TOF1000 Ultra Ionicon mass spectrometer",
+            source_page_url=self.PAGE,
+            download_url=self.PAGE,
+            author_name="Wojciech Wojnowski",
+            license=AssetLicense(
+                license_name=license_name,
+                license_url="https://creativecommons.org/licenses/by-sa/3.0",
+                attribution_text="Wojciech Wojnowski, CC BY-SA 3.0",
+            ),
+            provenance=AssetProvenance(
+                provider="wikimedia", provider_asset_id="PTR-TOF1000", source_page_url=self.PAGE
+            ),
+            rights_declaration=(declaration or {}),
+        )
+        return evaluate_asset_policy(candidate)
+
+    def test_share_alike_is_blocked_but_not_called_unknown(self) -> None:
+        decision = self._candidate()
+        self.assertFalse(decision.allowed_for_render)
+        self.assertIn("share_alike_review_required", decision.reason)
+        self.assertNotIn("unknown_license", decision.reason)
+        self.assertTrue(decision.share_alike)
+
+    def test_the_attribution_the_licence_needs_survives(self) -> None:
+        decision = self._candidate()
+        self.assertTrue(decision.attribution_required)
+        self.assertIn("Wojciech Wojnowski", decision.required_attribution)
+        self.assertTrue(decision.license_url)
+
+    def test_a_plain_confirmation_does_not_clear_share_alike(self) -> None:
+        """Confirming the rights is not the same as accepting the SA obligation."""
+        decision = self._candidate({"confirmed": True})
+        self.assertFalse(decision.allowed_for_render)
+        self.assertIn("share_alike_review_required", decision.reason)
+
+    def test_a_written_share_alike_acceptance_clears_it(self) -> None:
+        decision = self._candidate({"confirmed": True, "share_alike_accepted": True, "reviewed_by": "owner"})
+        self.assertTrue(decision.allowed_for_render)
+        self.assertFalse(decision.review_required)
+        self.assertEqual(decision.reason, "policy_rule_allowed")
+        # The obligation itself is still recorded on the asset.
+        self.assertTrue(decision.share_alike)
+        self.assertTrue(decision.modification_notice_required)
+
+    def test_a_genuinely_unknown_licence_is_still_unknown(self) -> None:
+        decision = self._candidate(license_name="unknown")
+        self.assertIn("unknown_license", decision.reason)
+        self.assertFalse(decision.allowed_for_render)
+
+    def test_a_recognised_licence_with_no_rule_is_not_reported_as_unknown(self) -> None:
+        decision = self._candidate(license_name="CC BY-ND 4.0")
+        self.assertFalse(decision.allowed_for_render)
+        self.assertIn("license_not_in_policy", decision.reason)
+        self.assertNotIn("unknown_license", decision.reason)
+
+
 if __name__ == "__main__":
     unittest.main()

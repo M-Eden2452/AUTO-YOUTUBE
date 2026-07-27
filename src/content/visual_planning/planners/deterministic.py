@@ -177,8 +177,18 @@ def _plan_scene(
     shot_type = _shot_type(role=role, action=action, place=place, claim_ids=claim_ids, text=narration)
     preferred, allowed = _media_kinds(subject=subject, period=period, place=place, shot_type=shot_type)
 
-    must_include = [subject] if subject else []
-    if shot_type in {SHOT_ESTABLISHING, SHOT_EVIDENCE} and place:
+    # ``must_include`` is a hard requirement: the term has to reach the provider query
+    # verbatim *and* be found in the returned metadata, or the candidate is refused.
+    # A term this planner extracted from Russian narration can do neither - every remote
+    # provider is English-only (src.assets.query_adapter), so the word is never sent and
+    # can never appear in an answer. Promoting it anyway made the requirement
+    # unverifiable by construction, and an unverifiable requirement refuses *every*
+    # candidate: the retest left scene_002 and scene_008 empty over `долинах` and
+    # `пластик`, words the author never asked for. The extracted subject and place stay
+    # where they can still be judged - the subject and location slots, which score
+    # partial evidence instead of demanding a literal hit.
+    must_include = [subject] if subject and is_latin(subject) else []
+    if shot_type in {SHOT_ESTABLISHING, SHOT_EVIDENCE} and place and is_latin(place):
         must_include.append(place)
 
     warnings: list[str] = []

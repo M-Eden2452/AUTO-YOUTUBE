@@ -108,7 +108,12 @@ def evaluate_asset_policy(
     if not license_name or license_name == "unknown":
         reason_parts.append("unknown_license")
     elif isinstance(provider_config, dict) and not rule:
-        reason_parts.append("unknown_license")
+        # The licence is stated and readable, it simply has no rule yet. Calling that
+        # "unknown_license" made an accurate CC BY-SA 3.0 record - author, licence URL
+        # and source page all present - indistinguishable from a file that says nothing
+        # about its rights, and the operator was told to review "incomplete metadata"
+        # that was not incomplete. Both still block; only one of them is a mystery.
+        reason_parts.append("license_not_in_policy")
 
     if not source_url:
         reason_parts.append("missing_source")
@@ -333,7 +338,10 @@ def _provider_specific_policy_reasons(
     if provider in {"pexels", "pixabay"}:
         return _stock_provider_reasons(candidate, raw, provider_config, policy_context)
     if provider == "wikimedia":
-        return _wikimedia_reasons(candidate, raw, license_name, source_url, provider_asset_id)
+        return _wikimedia_reasons(
+            candidate, raw, license_name, source_url, provider_asset_id,
+            share_alike_accepted=_share_alike_accepted(_manual_declaration(candidate, raw)),
+        )
     if provider == "nasa_images":
         return _nasa_reasons(candidate, raw, source_url, provider_asset_id, policy_context)
     if provider == "internet_archive":
@@ -362,7 +370,33 @@ def _stock_provider_reasons(candidate: AssetCandidate, raw: dict[str, Any], prov
     return reasons
 
 
-def _wikimedia_reasons(candidate: AssetCandidate, raw: dict[str, Any], license_name: str, source_url: str, provider_asset_id: str) -> list[str]:
+def _share_alike_accepted(declaration: dict[str, Any]) -> bool:
+    """Has a person accepted ShareAlike for this one file, in writing?
+
+    ShareAlike is not an attribution formality: it can oblige the finished video to be
+    released under the same licence. So it is never cleared by a rule in the policy
+    table, by a provider being trusted, or by the licence simply being recognised - only
+    by an explicit, per-asset declaration that says both "confirmed" and "we accept the
+    ShareAlike terms for this asset". Anything less leaves the asset flagged.
+    """
+    if not _manual_declaration_is_confirmed(declaration):
+        return False
+    return bool(
+        declaration.get("share_alike_accepted")
+        or declaration.get("sharealike_accepted")
+        or declaration.get("accepts_share_alike")
+    )
+
+
+def _wikimedia_reasons(
+    candidate: AssetCandidate,
+    raw: dict[str, Any],
+    license_name: str,
+    source_url: str,
+    provider_asset_id: str,
+    *,
+    share_alike_accepted: bool = False,
+) -> list[str]:
     reasons: list[str] = []
     metadata = candidate.raw_metadata if isinstance(candidate.raw_metadata, dict) else {}
     key = _license_key(license_name)
@@ -381,7 +415,9 @@ def _wikimedia_reasons(candidate: AssetCandidate, raw: dict[str, Any], license_n
     if not key or key in {"unknown", "unknown license"}:
         reasons.append("unknown_license")
     elif "cc by sa" in key or "cc by-sa" in key or "sharealike" in key:
-        reasons.append("share_alike_review_required")
+        # Cleared only by a written per-asset acceptance; see _share_alike_accepted.
+        if not share_alike_accepted:
+            reasons.append("share_alike_review_required")
     elif "gfdl" in key or "gnu free documentation" in key:
         reasons.append("gfdl_review_required")
     elif "free art license" in key or key == "fal":

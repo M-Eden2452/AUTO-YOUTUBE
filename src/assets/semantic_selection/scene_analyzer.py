@@ -34,16 +34,16 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
         for key in ("primary_query", "visual_description", "visual_intent", "narration", "visual_type")
     ).lower()
     priority = str(scene.get("visual_priority") or explicit.get("visual_priority") or _infer_priority(text))
-    subject = list(explicit.get("subject") or _infer_subject(text, priority))
-    secondary = list(explicit.get("secondary_subjects") or _infer_secondary(text))
-    action = list(explicit.get("action") or _infer_terms(text, ACTION_TERMS))
-    environment = list(explicit.get("environment") or _infer_environment(text))
-    location = list(explicit.get("location") or _infer_location(text))
-    camera = list(explicit.get("camera") or _infer_terms(text, CAMERA_TERMS))
-    mood = list(explicit.get("mood") or [])
-    must_include = list(explicit.get("must_include") or _must_include(priority, subject, environment))
-    should_include = list(explicit.get("should_include") or secondary + location + camera)
-    must_not = list(explicit.get("must_not_include") or _infer_must_not(subject, environment))
+    subject = _stated(explicit, "subject", _infer_subject(text, priority))
+    secondary = _stated(explicit, "secondary_subjects", _infer_secondary(text))
+    action = _stated(explicit, "action", _infer_terms(text, ACTION_TERMS))
+    environment = _stated(explicit, "environment", _infer_environment(text))
+    location = _stated(explicit, "location", _infer_location(text))
+    camera = _stated(explicit, "camera", _infer_terms(text, CAMERA_TERMS))
+    mood = _stated(explicit, "mood", [])
+    must_include = _stated(explicit, "must_include", _must_include(priority, subject, environment))
+    should_include = _stated(explicit, "should_include", secondary + location + camera)
+    must_not = _stated(explicit, "must_not_include", _infer_must_not(subject, environment))
     fallback_level = int(scene.get("fallback_level") or explicit.get("fallback_level") or _default_fallback_level(priority))
     # Nothing below is ever inferred. A context the author did not state constrains
     # nothing, and a contradiction nobody declared is not a contradiction.
@@ -70,6 +70,24 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
         visual_priority=priority,
         fallback_level=fallback_level,
     )
+
+
+def _stated(explicit: dict[str, Any], key: str, fallback: list[str]) -> list[str]:
+    """An explicit plan answers for every key it carries - including with silence.
+
+    ``explicit.get(key) or fallback`` cannot tell "the planner said nothing" from "the
+    planner said there is nothing", and the difference decides whether this layer is
+    allowed to guess. It matters most for ``must_include``: once the planner stopped
+    promoting a Russian stem into a hard requirement, the same stem came straight back
+    here, re-derived from the scene's own subject, and every candidate was refused for a
+    requirement no author ever wrote.
+
+    A scene with no ``semantic`` block at all is untouched - the keyword inference below
+    still serves hand-written fixtures and plans written before the planner existed.
+    """
+    if key in explicit:
+        return _as_list(explicit.get(key))
+    return [str(item) for item in fallback]
 
 
 def _as_list(value: Any) -> list[str]:

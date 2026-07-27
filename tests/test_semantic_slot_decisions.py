@@ -26,7 +26,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.assets.review_bundle import create_scene_review_bundle
+from src.assets.review_bundle import create_scene_review_bundle, write_review_bundle
 from src.assets.semantic_selection import analyze_scene, rank_candidates, select_best_candidate
 from src.assets.semantic_selection.decision import (
     DECISION_KEY,
@@ -45,8 +45,9 @@ from src.assets.semantic_selection.decision import (
     validate_decision,
 )
 from src.assets.scene_strategy import build_strategy
-from src.content.visual_planning.brief import parse_brief
+from src.content.visual_planning.brief import apply_brief, parse_brief
 from src.news.asset_manager import _ensure_selected_asset_downloaded, build_assets_manifest
+from src.news.visual_plan import build_visual_plan
 
 PROVIDERS = ["local_library", "pexels", "pixabay", "wikimedia", "nasa_images", "internet_archive"]
 
@@ -649,6 +650,234 @@ class OfflineManifestTests(unittest.TestCase):
             self.assertEqual(manifest["missing_scenes"][0]["resolution_status"], "unresolved_no_candidate")
             # Nothing was fetched, so nothing was written outside the manifest itself.
             self.assertFalse((root / "assets" / "downloaded").exists())
+
+
+class ExtractedRequirementTests(unittest.TestCase):
+    """A requirement only the planner invented must not refuse every candidate.
+
+    The Q2.2A-2 retest left three scenes permanently empty over `долинах`, `грунте` and
+    `пластик` - words extracted from Russian narration and promoted to hard
+    requirements. Every remote provider is English-only, so such a term is never sent
+    and can never come back in an answer: the requirement is unverifiable by
+    construction, and an unverifiable requirement refuses everything.
+    """
+
+    def test_a_russian_stem_is_not_promoted_to_a_hard_requirement(self) -> None:
+        plan = build_visual_plan(
+            {
+                "language": "ru",
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "narration": "В январе они собрали образцы в Сухих долинах Мак-Мердо.",
+                        "target_duration_sec": 7.9,
+                    }
+                ],
+            },
+            language="ru",
+        )
+        must_include = plan["scenes"][0]["semantic"]["must_include"]
+        self.assertEqual([term for term in must_include if not term.isascii()], [], must_include)
+
+    def test_a_latin_name_is_still_required(self) -> None:
+        """The gate is not switched off: a name a provider can actually return stays."""
+        plan = build_visual_plan(
+            {
+                "language": "ru",
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "narration": "Прибор PTR-TOF работает в лаборатории.",
+                        "target_duration_sec": 7.0,
+                    }
+                ],
+            },
+            language="ru",
+        )
+        planned = plan["scenes"][0]["semantic"]["must_include"]
+        self.assertTrue(all(term.isascii() for term in planned), planned)
+
+    def test_an_explicitly_empty_requirement_is_not_guessed_back(self) -> None:
+        """The asset layer used to re-derive must_include from the scene's own subject.
+
+        ``explicit.get(key) or fallback`` cannot tell "nothing was said" from "there is
+        nothing", so the stem the planner had just stopped promoting came straight back.
+        """
+        scene = {
+            "scene_id": "scene_002",
+            "narration": "Учёные собрали образцы в Сухих долинах.",
+            "semantic": {"subject": ["долинах"], "must_include": [], "visual_priority": "exact_subject"},
+        }
+        self.assertEqual(analyze_scene(scene).must_include, [])
+
+    def test_a_scene_without_a_plan_still_gets_the_old_inference(self) -> None:
+        """Hand-written fixtures and pre-planner projects keep their behaviour."""
+        scene = {"scene_id": "scene_x", "primary_query": "whale in the ocean", "narration": "whale"}
+        self.assertIn("whale", analyze_scene(scene).must_include)
+
+    def test_a_brief_that_names_the_subject_replaces_the_extracted_requirement(self) -> None:
+        """An author who described the shot has answered - including with silence."""
+        from src.content.visual_planning.models import SceneVisualPlan
+
+        plan = SceneVisualPlan(scene_id="scene_002", index=2, subject="долинах", must_include=["долинах"])
+        apply_brief(plan, parse_brief({"subject": "Antarctic field researchers"}))
+        self.assertEqual(plan.must_include, [])
+
+
+class SoftScoreThresholdTests(unittest.TestCase):
+    """The averaged score may no longer overrule the slot verdict.
+
+    The retest dropped three clips whose only objection was ``score_below_60`` while
+    their own slot record read "requirement matched, context missing" - a description of
+    what is still owed, not a refusal.
+    """
+
+    # The scene as its author really wrote it: a long subject phrase listing several
+    # materials, of which the clip shows one. The phrase overlap is what drags the
+    # average under the threshold; the author's own requirement is met exactly.
+    SCENE = {
+        "scene_id": "scene_005",
+        "narration": "Среди частиц были полиэтилен, ПЭТ, полистирол, ПВХ и следы износа шин.",
+        "visual_type": "video",
+        "target_duration_sec": 6.04,
+        "semantic": {
+            "subject": ["common plastic products and tire wear"],
+            "action": ["showing plastic materials and rubber abrasion"],
+            "location": [],
+            "environment": [],
+            "context": ["several different material examples"],
+            "conflicting_context": [],
+            "must_include": ["plastic"],
+            "must_not_include": [],
+            "source_class": "generic_broll",
+            "visual_priority": "environment",
+        },
+    }
+
+    def _thin_plastic_clip(self) -> dict:
+        return _candidate(
+            "plastic_containers",
+            asset_id="pexels_bottles",
+            provider_asset_id="pexels_bottles",
+            title="close up shot of plastic bottles",
+            description="",
+            tags=["plastic"],
+            media_type="video",
+            type="video",
+            width=2160,
+            height=4096,
+            duration_sec=20.0,
+        )
+
+    def _rank(self, candidate: dict) -> dict:
+        return rank_candidates(
+            analyze_scene(self.SCENE),
+            [candidate],
+            required_duration_sec=float(self.SCENE["target_duration_sec"]),
+            source_class="generic_broll",
+        )[0]
+
+    def _pick(self, candidates: list[dict]):
+        return select_best_candidate(
+            analyze_scene(self.SCENE),
+            candidates,
+            required_duration_sec=float(self.SCENE["target_duration_sec"]),
+            source_class="generic_broll",
+        )
+
+    def test_a_low_score_alone_no_longer_refuses_a_partly_supported_clip(self) -> None:
+        ranked = self._rank(self._thin_plastic_clip())
+        self.assertEqual(ranked[DECISION_KEY]["support_status"], SUPPORT_PARTIAL)
+        self.assertTrue(
+            [reason for reason in ranked["advisory_reject_reasons"] if reason.startswith("score_below_")],
+            ranked["reject_reason"],
+        )
+        self.assertFalse(ranked["rejected"], ranked["reject_reason"])
+
+    def test_the_objection_is_still_recorded(self) -> None:
+        """Softened is not hidden: the reviewer still sees the score was low."""
+        ranked = self._rank(self._thin_plastic_clip())
+        self.assertIn("score_below_", ranked["reject_reason"])
+        self.assertIn("score_below_", ";".join(ranked[DECISION_KEY]["reject_reasons"]))
+
+    def test_a_partly_supported_clip_is_never_render_ready(self) -> None:
+        selected, ranked = self._pick([self._thin_plastic_clip()])
+        self.assertIsNotNone(selected, ranked[0]["reject_reason"])
+        decision = selected[DECISION_KEY]
+        self.assertEqual(decision["support_status"], SUPPORT_PARTIAL)
+        self.assertFalse(decision["render_ready"])
+        self.assertIn(NEEDS_ADDITIONAL_ASSET, decision["support_requirements"])
+        self.assertEqual(validate_decision(read_decision(selected)), [])
+
+    def test_an_unverifiable_candidate_is_not_rescued_by_the_same_rule(self) -> None:
+        """Only a judged, partly supported candidate survives a soft objection."""
+        blank = _candidate(
+            "plastic_containers",
+            asset_id="pexels_blank",
+            provider_asset_id="pexels_blank",
+            title="",
+            description="",
+            tags=[],
+            tags_source="query_derived",
+        )
+        ranked = self._rank(blank)
+        self.assertTrue(ranked["rejected"], ranked["reject_reason"])
+        self.assertEqual(ranked["advisory_reject_reasons"], [])
+
+    def test_a_missing_required_slot_is_still_a_refusal(self) -> None:
+        """The iceberg protection is untouched: this is not a general loosening."""
+        selected, ranked = _select("antarctic_station", [_candidate("iceberg")])
+        self.assertIsNone(selected)
+        self.assertIn("required_slot_missing", ranked[0]["reject_reason"])
+        self.assertIn(
+            "required_slot_missing",
+            ";".join(ranked[0]["blocking_reject_reasons"]),
+        )
+
+    def test_a_fully_supported_candidate_outranks_a_partial_one(self) -> None:
+        """Selection must not hand a scene to a partial match that merely scores well."""
+        ranked = rank_candidates(
+            analyze_scene(self.SCENE),
+            [self._thin_plastic_clip(), _candidate("plastic_containers")],
+            required_duration_sec=float(self.SCENE["target_duration_sec"]),
+            source_class="generic_broll",
+        )
+        usable = [item[DECISION_KEY]["support_status"] for item in ranked if not item["rejected"]]
+        self.assertEqual(usable, sorted(usable, key=lambda value: value != SUPPORT_FULL))
+
+
+class ReviewBoardRenderingTests(unittest.TestCase):
+    """The person opening the board must see the verdict, not three scores."""
+
+    def _board(self) -> str:
+        scene = _scene("plastic_types")
+        ranked = _rank_one("plastic_types", _candidate("plastic_containers"))
+        bundle = create_scene_review_bundle(
+            project_id="project",
+            scene=scene,
+            semantic_scene=analyze_scene(scene).to_dict(),
+            metadata_queries=[],
+            provider_routing={},
+            candidates=[ranked],
+            analyses=[],
+            selected_candidate_id=str(ranked.get("asset_id") or ""),
+            target_aspect_ratio="9:16",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "project"
+            (root / "assets" / "review").mkdir(parents=True, exist_ok=True)
+            paths = write_review_bundle(root, [bundle], write_html=True)
+            return Path(paths["html_path"]).read_text(encoding="utf-8")
+
+    def test_the_board_shows_the_support_status_and_the_crop_decision(self) -> None:
+        board = self._board()
+        self.assertIn(SUPPORT_PARTIAL, board)
+        self.assertIn("кроп:", board)
+        self.assertIn("render-ready:", board)
+
+    def test_the_board_names_the_requirements_that_went_unanswered(self) -> None:
+        board = self._board()
+        self.assertIn("не подтверждено", board)
 
 
 if __name__ == "__main__":

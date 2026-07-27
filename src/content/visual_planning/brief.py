@@ -153,8 +153,13 @@ def apply_brief(scene: Any, brief: VisualBrief) -> Any:
         scene.preferred_media_kind = brief.media_types[0]
     # The exact names are what a provider must be given verbatim, so they lead
     # must_include: a query that loses "McMurdo" is not a query for this scene.
+    #
+    # An author who described the shot has spoken about what it must contain, and their
+    # answer replaces the extracted one *including when it is empty*. Keeping a stem the
+    # planner guessed at, next to a subject the author rewrote, leaves a hard requirement
+    # nobody stated and which no longer matches the scene it guards.
     required = _unique(list(brief.exact_entities) + list(brief.must_include))
-    if required:
+    if required or brief.subject or brief.place:
         scene.must_include = required
     if brief.must_avoid:
         scene.must_avoid = list(brief.must_avoid)

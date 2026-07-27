@@ -267,7 +267,15 @@ def _html_board(root: Path, manifest: dict[str, Any]) -> str:
     lines = [
         "<!doctype html>",
         "<html><head><meta charset=\"utf-8\"><title>Visual Review Board</title>",
-        "<style>body{font-family:Arial,sans-serif;margin:24px;background:#f6f7f8;color:#1d252c}.scene{margin:0 0 28px;padding:16px;background:#fff;border:1px solid #d8dde3}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.candidate{border:1px solid #d8dde3;padding:10px}.frames{display:flex;gap:6px;flex-wrap:wrap}.frames img{max-width:96px;max-height:130px;object-fit:cover}.selected{border-color:#2d6cdf}small{color:#53606b}a{color:#174ea6}</style>",
+        "<style>body{font-family:Arial,sans-serif;margin:24px;background:#f6f7f8;color:#1d252c}.scene{margin:0 0 28px;padding:16px;background:#fff;border:1px solid #d8dde3}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.candidate{border:1px solid #d8dde3;padding:10px}.frames{display:flex;gap:6px;flex-wrap:wrap}.frames img{max-width:96px;max-height:130px;object-fit:cover}.selected{border-color:#2d6cdf}small{color:#53606b}a{color:#174ea6}"
+        ".decision{margin:8px 0;padding:8px;background:#fafbfc;border:1px dashed #c5ced6;font-size:12px}"
+        ".decision p{margin:4px 0}"
+        ".badge{display:inline-block;padding:2px 8px;border-radius:10px;background:#e4e9ee;font-size:11px;margin:0 6px 2px 0}"
+        ".b-full_support{background:#1e7d4f;color:#fff}.b-partial_support{background:#c88a12;color:#fff}"
+        ".b-manual_confirmation_required{background:#8a4fbd;color:#fff}.b-unverified{background:#7a8894;color:#fff}"
+        ".b-unsupported{background:#b23b3b;color:#fff}.b-relevant_but_rights_blocked{background:#2f6f9e;color:#fff}"
+        ".slot-matched_slots{color:#1e7d4f}.slot-missing_slots{color:#b2661d}"
+        ".slot-conflicting_slots{color:#8a4fbd}.slot-undecidable_slots{color:#66727d}</style>",
         "</head><body>",
         f"<h1>{html.escape(str(manifest.get('project_id') or 'Project'))}</h1>",
     ]
@@ -298,6 +306,7 @@ def _html_board(root: Path, manifest: dict[str, Any]) -> str:
                 if rel:
                     lines.append(f"<img src=\"{html.escape(rel)}\" alt=\"sampled frame\">")
             lines.append("</div>")
+            lines.extend(_decision_html(candidate))
             reasons = ", ".join(candidate.get("rejection_reasons") or candidate.get("review_required_reasons") or [])
             if reasons:
                 lines.append(f"<small>{html.escape(reasons)}</small>")
@@ -367,6 +376,74 @@ def _decision_fields(candidate: dict[str, Any]) -> dict[str, Any]:
         "technical_status": decision.technical_status,
         "render_ready": decision.render_ready,
     }
+
+
+_SLOT_LABELS = {
+    "matched_slots": "подтверждено",
+    "missing_slots": "не подтверждено",
+    "conflicting_slots": "противоречит",
+    "undecidable_slots": "нечем проверить",
+}
+
+_FRAMING_LABELS = {
+    "vertical_ready": "уже 9:16, резать не нужно",
+    "crop_review_required": "придётся резать - нужен глаз человека",
+    "low_resolution_after_crop": "после кропа слишком мало пикселей",
+    "technical_rejected": "исходник мал сам по себе",
+    "aspect_ratio_mismatch": "панорама, в 9:16 не ложится",
+    "unknown": "размеры неизвестны",
+}
+
+
+def _decision_html(candidate: dict[str, Any]) -> list[str]:
+    """The verdict, on the page a person actually opens.
+
+    Everything here is read off the candidate's own stored decision. The board used to
+    print three scores and a list of reject codes, which is the one thing a reviewer
+    cannot act on: it said a candidate was refused without saying *which requirement of
+    the scene* went unanswered, or whether the frame survives a 9:16 crop.
+    """
+    if not has_decision(candidate):
+        return []
+    decision = read_decision(candidate)
+    slots = decision.slots if isinstance(decision.slots, dict) else {}
+    support = decision.support_status or "unverified"
+
+    lines = ["<div class=\"decision\">"]
+    lines.append(
+        f"<p><span class=\"badge b-{html.escape(support)}\">{html.escape(support)}</span>"
+        f"<span class=\"badge\">{html.escape(decision.slot_verdict or 'unverified')}</span>"
+        f"<span class=\"badge\">render-ready: {'да' if decision.render_ready else 'нет'}</span></p>"
+    )
+    if decision.support_requirements:
+        lines.append(
+            f"<p><b>осталось сделать:</b> {html.escape(', '.join(decision.support_requirements))}</p>"
+        )
+
+    for key, label in _SLOT_LABELS.items():
+        names = [str(item) for item in (slots.get(key) or [])]
+        if names:
+            lines.append(f"<p class=\"slot-{key}\"><b>{label}:</b> {html.escape(', '.join(names))}</p>")
+
+    framing = decision.framing if isinstance(decision.framing, dict) else {}
+    status = str(decision.technical_status or framing.get("status") or "unknown")
+    explanation = _FRAMING_LABELS.get(status, status)
+    size = ""
+    if framing.get("source_width") and framing.get("source_height"):
+        size = (
+            f" - {int(framing['source_width'])}x{int(framing['source_height'])}"
+            f" → {int(framing.get('effective_width') or 0)}x{int(framing.get('effective_height') or 0)}"
+        )
+    lines.append(f"<p><b>кроп:</b> {html.escape(status)} — {html.escape(explanation)}{html.escape(size)}</p>")
+
+    rights = f"{decision.rights_status or 'unknown'}"
+    if not decision.rights_allowed_for_render:
+        rights += " (нельзя в рендер)"
+    elif decision.rights_review_required:
+        rights += " (нужна проверка)"
+    lines.append(f"<p><b>права:</b> {html.escape(rights)}</p>")
+    lines.append("</div>")
+    return lines
 
 
 def attach_selected_asset(bundle: "SceneReviewBundle", selected: dict[str, Any] | None) -> "SceneReviewBundle":

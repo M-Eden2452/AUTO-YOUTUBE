@@ -1,6 +1,6 @@
 {
-  "policy_version": "documentary-asset-providers-2026-07-23",
-  "policy_reviewed_date": "2026-07-23",
+  "policy_version": "documentary-asset-providers-2026-07-27-sharealike-review",
+  "policy_reviewed_date": "2026-07-27",
   "default_context": "internal_content_production",
   "default_decision": {
     "allowed_for_render": false,
@@ -187,6 +187,45 @@
           "modification_allowed": true,
           "attribution_required": true,
           "modification_notice_required": true
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY-SA 2.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true,
+          "share_alike": true,
+          "requires_rights_confirmation": true,
+          "notes": "ShareAlike. Recognised, attributable and NOT automatically usable: using this asset can oblige the finished video to be released under the same licence. Stays blocked as share_alike_review_required until a per-asset rights_declaration records both confirmed and share_alike_accepted. This project policy is not legal advice."
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY-SA 3.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true,
+          "share_alike": true,
+          "requires_rights_confirmation": true,
+          "notes": "ShareAlike. Recognised, attributable and NOT automatically usable: using this asset can oblige the finished video to be released under the same licence. Stays blocked as share_alike_review_required until a per-asset rights_declaration records both confirmed and share_alike_accepted. This project policy is not legal advice."
+        },
+        {
+          "media_type": "*",
+          "license_name": "CC BY-SA 4.0",
+          "allowed_for_render": true,
+          "review_required": false,
+          "commercial_use_allowed": true,
+          "modification_allowed": true,
+          "attribution_required": true,
+          "modification_notice_required": true,
+          "share_alike": true,
+          "requires_rights_confirmation": true,
+          "notes": "ShareAlike. Recognised, attributable and NOT automatically usable: using this asset can oblige the finished video to be released under the same licence. Stays blocked as share_alike_review_required until a per-asset rights_declaration records both confirmed and share_alike_accepted. This project policy is not legal advice."
         }
       ]
     },
