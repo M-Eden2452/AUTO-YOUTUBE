@@ -173,6 +173,166 @@ SceneVisualPlan (+ visual_brief)
 
 Оба гейта — отказы, а не баллы: ни релевантность, ни техническое качество их не перевешивают.
 
+## Semantic slots и support statuses (этап Q2.2A-2)
+
+Источники: `src/assets/semantic_selection/decision.py` (контракт),
+`src/assets/semantic_selection/evidence.py` (что вообще считается доказательством).
+
+Ретест Q2.1 дал три ложных принятия. Первое (снимок Марса под статистику) закрыл
+Q2.2A изоляцией `data_infographic`. Два других прошли **честно по метаданным**:
+пресс-день миссии на Марс содержал «mass spectrometer», описание раскола айсберга —
+«Antarctica». Это не ошибка оценки: одно усреднённое число не может сказать, **какое
+именно** требование сцены выполнено. Отсюда slot.
+
+### Слоты
+
+Слот — это одно требование сцены. Строятся только из того, что автор реально написал:
+
+| слот | источник | матчинг |
+|---|---|---|
+| `subject` | `semantic.subject` / `visual_brief.subject` | морфологически мягкий |
+| `action` | `semantic.action` / `visual_brief.action` | морфологически мягкий |
+| `location` | `semantic.location` / `visual_brief.place` | морфологически мягкий |
+| `context` | `semantic.context` / `visual_brief.context` | морфологически мягкий |
+| `requirement:<term>` | `must_include` (включая `exact_entities`) | **буквальный** |
+| `conflicting_context:<term>` | `visual_brief.conflicting_context` | морфологически мягкий |
+| `must_avoid:<term>` | `must_not_include` | буквальный |
+
+Статус слота: `matched` (≥99 % фразы), `partial` (≥50 %), `missing` (<50 %),
+`undecidable` (нет метаданных либо термин написан письменностью, которой в них быть
+не может), `conflicting`.
+
+Мягкий матчинг — это допуск на словоформу, а не догадка: совпадение засчитывается,
+если одно слово является префиксом другого и длина ≥5 символов. `Antarctica`/`antarctic`
+совпадают, `sampling`/`samples` — нет. Авторское `must_include` проверяется **буквально**:
+имя, которое обязано дойти до запроса, обязано дойти и до доказательства.
+
+### Какие слоты обязательны
+
+`REQUIRED_SLOT_KINDS` в `decision.py`; слот становится обязательным, только если сцена
+его реально указала:
+
+| source class | обязательные слоты |
+|---|---|
+| `exact_location` | location, subject, action, context |
+| `satellite_or_earth_observation` | location, subject |
+| `scientific_equipment` | subject |
+| `specific_object` | subject |
+| `research_activity` | subject, action, location |
+| `archive` | subject |
+| `generic_broll` | нет |
+| `data_infographic` | нет (только сгенерированный ассет) |
+| класс не определён | нет |
+
+`must_include` обязателен всегда, независимо от класса.
+
+`slot_verdict`: `conflicting` → `unverified` → `incomplete` (нет обязательного) →
+`partial` (нет необязательного) → `complete`.
+
+### Отказ против неполноты
+
+- **Обязательный слот `missing`** (в метаданных нет ничего) + класс из
+  `EXACTING_CLASSES` → отказ `required_slot_missing:<слоты>`. Это айсберг: сцена просила
+  станцию и атмосферный перенос, клип совпал ровно одним словом про континент.
+- **Обязательный слот `partial`** (часть фразы есть) → отказа нет, но полного совпадения
+  тоже нет. `barren polar valley landscape` против заголовка `barren antarctic dry valley
+  rocks` — это неточная формулировка, а не отсутствие предмета.
+- **Континент вместо места**: `Antarctica` не подтверждает `McMurdo Dry Valleys`. Слот
+  получает `missing` и пометку `broader_context_only`.
+
+### Conflicting context
+
+Противоречие должно быть **заявлено автором** и найдено в метаданных дословно. Никакой
+базы знаний, никакого захардкоженного «Марса»: сцена лаборатории пишет
+`conflicting_context: ["mars mission", "spacecraft", "planetary mission"]`, и тогда
+NASA-описание пресс-дня даёт `conflicting` → отказ `conflicting_context:<термины>` и
+`support_status = manual_confirmation_required` (человек может подтвердить).
+`must_avoid` остаётся жёстким отказом навсегда — это разные вещи.
+
+Отсутствие упоминания места **не** является противоречием: нейтральный снимок реального
+масс-спектрометра проходит, даже если Антарктида в метаданных не упомянута.
+
+### Support statuses
+
+Один enum `support_status` на кандидата, приоритет сверху вниз:
+
+| статус | когда |
+|---|---|
+| `unsupported` | `must_avoid`, semantic mismatch, жёсткий технический отказ, поиск под `data_infographic` |
+| `unverified` | проверить нечем |
+| `relevant_but_rights_blocked` | смысл сходится, права нет |
+| `manual_confirmation_required` | conflicting context **или** полное совпадение с неразрешённым кропом |
+| `partial_support` | часть указанного в кадре нет |
+| `full_support` | всё подтверждено, права чистые, кроп не нужен |
+
+Отдельно — `support_requirements` (что осталось сделать, а не альтернативный статус):
+`needs_additional_asset`, `needs_multi_asset` (не хватает ≥2 разных вещей),
+`needs_crop_review`, `needs_manual_confirmation`, `needs_rights_clearance`.
+
+`render_ready = true` только при `full_support` без единого requirement.
+
+Статус сцены (`resolution_status`): `resolved`, `resolved_needs_review`,
+`unresolved_no_candidate`, `unresolved_unverified`, `unresolved_rights_blocked`,
+`unresolved_generator_failed`, `manual_action_required`. Историческое поле `reason`
+в `missing_scenes` сохранено как есть — его читают существующие вызовы.
+
+## Crop decision (этап Q2.2A-2)
+
+`decision.framing_decision`. Проверяет исходное разрешение, aspect ratio, размер
+центральной области после кропа 9:16, ожидаемое итоговое разрешение (1080×1920),
+`upscale_factor` и возможность pan/zoom для изображения.
+
+| статус | смысл | решает |
+|---|---|---|
+| `vertical_ready` | уже в целевом соотношении (±2 %), пикселей хватает | render-ready |
+| `crop_review_required` | пикселей хватает, но кадр придётся резать | **не** отказ, но и не полное совпадение |
+| `low_resolution_after_crop` | кроп оставляет <540 px | отказ |
+| `technical_rejected` | исходник мал сам по себе, до всякого кропа | отказ |
+| `aspect_ratio_mismatch` | исходное соотношение >3.0 (панорама) | отказ |
+| `unknown` | размеры неизвестны | не решает |
+
+Vision здесь нет, поэтому утверждать, что главный объект переживёт кроп, запрещено:
+любой кадр, который придётся резать, получает `crop_review_required`. `1280×720` даёт
+полосу 405 px и отклоняется; `1920×1080` даёт 607 px и уходит на review; `1080×1920`
+проходит как `vertical_ready`.
+
+## Decision persistence (этап Q2.2A-2)
+
+Одна каноническая запись `selection_decision` на ассете. Путь:
+
+```
+rank_candidates          пишет selection_decision на каждого кандидата
+  → select_best_candidate  выбранный несёт её с собой
+  → _ensure_selected_asset_downloaded  carry_decision() переносит её на скачанный файл
+  → assets_manifest.json   scenes[].selected_asset.selection_decision
+                           + scenes[].resolution_status / support_status
+                           + visual_support (сводка по проекту)
+  → visual_review_manifest.json  shortlist[].selection_decision, selected_candidate
+  → project status         ProjectView.visual_support
+```
+
+До этого этапа `to_manifest_dict()` описывал файл, но не выбор, и всё обоснование
+терялось между отбором и манифестом — доске обзора приходилось искать его обратно в
+`ranked_candidates`. Теперь `attach_selected_asset` переносит вердикт на тот ассет,
+который реально попал в проект.
+
+Содержимое записи: semantic score/status, metadata score/status, technical score/status
++ полный `framing`, duration status, rights status, provider confidence, слоты
+(`required/matched/missing/absent_required/conflicting/undecidable` + `details`),
+`slot_verdict`, `support_status`, `support_requirements`, `render_ready`,
+`selection_reasons`, `reject_reasons`. Provenance и license **не** дублируются — они
+остаются в своих структурах.
+
+Совместимость: ассет без `selection_decision` читается `read_decision()` как пустая
+запись со статусом `unverified` и `render_ready = false`. Задним числом «полным
+совпадением» старый манифест не становится.
+
+`quality_check` печатает support status каждой сцены и **падает** только на
+самопротиворечивой записи (`full_support` при отсутствующем обязательном слоте, при
+конфликте, при непроверенном кропе). Превращать partial support в блокирующую ошибку
+на этом этапе намеренно не стали: это остановило бы стадию render почти для любого
+горизонтального стока, а это продуктовое решение, а не проверка.
+
 ## Классы с исчерпывающим списком провайдеров (этап Q2.2A)
 
 `RESTRICTED_TO_PREFERRED = {data_infographic, manual_required}`. Для них
@@ -185,6 +345,29 @@ NASA и Internet Archive. Пропущенные провайдеры фикси
 (`provider=generated`, `rights_status=user_owned`, checksum, provenance
 `generated_by_project`) либо `unresolved_generator_failed`. Сгенерированный файл минует
 путь скачивания — он уже локальный.
+
+## Известные ограничения после Q2.2A-2
+
+1. **Проверки содержимого кадра нет и на этом этапе.** Всё, что решает
+   `decision.py`, решается по метаданным провайдера. Слоты закрывают случай «метаданные
+   говорят правду, но не про то, что нужно сцене» (айсберг, пресс-день миссии). Случай
+   «метаданные врут про сам кадр» ими не закрывается и закрыт быть не может: нужен
+   анализ изображения. Платный Vision не подключён, локальная image-text модель не
+   добавлена. Именно поэтому кадр, который надо резать, получает `crop_review_required`,
+   а не «полностью готов».
+2. **Мягкий матчинг слотов — допуск на словоформу, не морфология.** Правило «префикс
+   длиной ≥5» узнаёт `Antarctica`/`antarctic` и не узнаёт `sampling`/`samples`.
+   Русскоязычные слоты против англоязычных метаданных остаются `undecidable`.
+3. **`context` и `conflicting_context` заполняет только автор.** Планировщик их не
+   выводит: незаявленный контекст ничего не ограничивает, незаявленное противоречие
+   противоречием не является. Сцена без брифа получает ровно те же гейты, что и до
+   Q2.2A-2.
+4. **Один ассет на сцену.** `needs_additional_asset` / `needs_multi_asset` только
+   **фиксируют** потребность в добавочном материале. Сборка нескольких ассетов в одну
+   сцену на этом этапе не реализована.
+5. **Support status не блокирует render.** `quality_check` его печатает и падает лишь на
+   самопротиворечивой записи. Решение «не рендерить сцену с partial support» —
+   продуктовое и остаётся отдельной задачей.
 
 ## Известные ограничения после Q2.1
 
@@ -220,5 +403,13 @@ NASA и Internet Archive. Пропущенные провайдеры фикси
   честный metadata score, must_include/must_avoid, длительность, инфографика.
 - `tests/test_visual_retrieval_regression.py` — 14 тестов: восемь сцен провалившегося
   прогона офлайн, с настоящими заголовками неверных клипов.
+- `tests/test_semantic_slot_decisions.py` — 32 теста этапа Q2.2A-2: слоты, континент
+  против точного места, отсутствующие action/subject, айсберг, conflicting context,
+  пресс-день миссии против нейтрального прибора, partial support у generic b-roll,
+  инфографика только сгенерированная, пять состояний кропа, сохранение решения после
+  выбора и после скачивания, чтение решения доской обзора, совместимость старых
+  манифестов и планов, офлайн-манифест без сети и скачиваний. Офлайн-фикстура из пяти
+  случаев (`Mars Media Day`, раскол айсберга, пластиковые контейнеры, горизонтальная
+  Антарктида, PTR-TOF) написана вручную и не копирует пользовательские артефакты.
 - Существующие `tests/test_provider_routing.py` и `tests/test_semantic_asset_selection.py`
   продолжают проходить без изменений.

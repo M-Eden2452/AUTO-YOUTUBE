@@ -119,6 +119,13 @@ def visual_priority_for(scene: SceneVisualPlan) -> str:
 
 def semantic_block(scene: SceneVisualPlan) -> dict[str, Any]:
     """The explicit override ``analyze_scene`` consumes instead of guessing."""
+    brief = getattr(scene, "brief", None)
+    # Only an author states these, so they are read straight off the brief rather than
+    # mirrored onto SceneVisualPlan: a field the planner can never fill has no business
+    # being a planner field.
+    context = [str(item) for item in (getattr(brief, "context", None) or [])]
+    conflicting = [str(item) for item in (getattr(brief, "conflicting_context", None) or [])]
+    source_class = str(getattr(brief, "source_class", "") or "")
     return {
         "subject": [scene.subject] if scene.subject else [],
         "secondary_subjects": list(scene.secondary_subjects),
@@ -130,6 +137,9 @@ def semantic_block(scene: SceneVisualPlan) -> dict[str, Any]:
         "must_include": list(scene.must_include),
         "should_include": [term for term in (*scene.secondary_subjects, scene.place) if term],
         "must_not_include": list(scene.must_avoid),
+        "context": context,
+        "conflicting_context": conflicting,
+        "source_class": source_class,
         "visual_priority": visual_priority_for(scene),
         "fallback_level": scene.intents[0].fallback_level if scene.intents else 1,
     }

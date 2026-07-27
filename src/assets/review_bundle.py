@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.assets.semantic_selection.decision import DECISION_KEY, has_decision, read_decision
+
 
 REVIEW_BUNDLE_REQUIRED_FIELDS = [
     "project_id",
@@ -92,6 +94,7 @@ def create_scene_review_bundle(
             "combined_score": _combined_score(candidate, analysis, target_aspect_ratio),
         }
         entry.update(_semantic_fields(analysis))
+        entry.update(_decision_fields(candidate))
         shortlist.append(entry)
     selected = next((candidate for candidate in shortlist if candidate["asset_id"] == selected_candidate_id), shortlist[0] if shortlist else {})
     alternatives = [candidate for candidate in shortlist if candidate.get("asset_id") != selected.get("asset_id")][:4]
@@ -341,6 +344,47 @@ def _safe_license(value: Any) -> dict[str, Any]:
         return {"license_name": str(value or "")}
     allowed = {"license_name", "license_url", "provider_terms_url", "rights_status", "allowed_for_render", "review_required", "attribution_text"}
     return {key: value.get(key) for key in allowed if key in value}
+
+
+def _decision_fields(candidate: dict[str, Any]) -> dict[str, Any]:
+    """The selection decision, carried onto the board entry that shows the candidate.
+
+    The board reads it from the candidate itself. It never reconstructs it out of
+    ``ranked_candidates``, which is what it had to do while the decision was being
+    dropped between selection and the manifest.
+    """
+    if not has_decision(candidate):
+        return {}
+    decision = read_decision(candidate)
+    slots = decision.slots if isinstance(decision.slots, dict) else {}
+    return {
+        DECISION_KEY: dict(candidate[DECISION_KEY]),
+        "support_status": decision.support_status,
+        "support_requirements": list(decision.support_requirements),
+        "slot_verdict": decision.slot_verdict,
+        "missing_slots": [str(item) for item in (slots.get("missing_slots") or [])],
+        "conflicting_slots": [str(item) for item in (slots.get("conflicting_slots") or [])],
+        "technical_status": decision.technical_status,
+        "render_ready": decision.render_ready,
+    }
+
+
+def attach_selected_asset(bundle: "SceneReviewBundle", selected: dict[str, Any] | None) -> "SceneReviewBundle":
+    """Point the bundle's selected entry at the asset that was really used.
+
+    Called after the download, which is the step that replaces the ranked candidate
+    with a record of the file on disk. The decision travels with it, so the board shows
+    the verdict for the asset a viewer can actually open.
+    """
+    if not isinstance(selected, dict) or not selected:
+        return bundle
+    entry = dict(bundle.selected_candidate or {})
+    entry.setdefault("asset_id", str(selected.get("asset_id") or ""))
+    entry.update(_decision_fields(selected))
+    entry["local_path"] = str(selected.get("path") or selected.get("local_path") or "")
+    entry["download_status"] = str(selected.get("download_status") or "")
+    bundle.selected_candidate = entry
+    return bundle
 
 
 def _semantic_fields(analysis: dict[str, Any]) -> dict[str, Any]:

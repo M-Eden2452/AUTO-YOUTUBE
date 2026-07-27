@@ -313,18 +313,22 @@ class HardGateTests(unittest.TestCase):
         ranked = rank_candidates(scene, [_candidate("wide", "Antarctic valley from the air", width=1280, height=720)])
         self.assertTrue(ranked[0]["rejected"])
         self.assertIn("framing_unusable", ranked[0]["reject_reason"])
+        self.assertEqual(ranked[0]["framing_status"], "low_resolution_after_crop")
         self.assertEqual(ranked[0]["framing_check"]["effective_width"], 405)
 
     def test_a_landscape_frame_with_enough_pixels_passes(self) -> None:
         scene = SemanticScene(scene_id="s", visual_priority="environment")
         ranked = rank_candidates(scene, [_candidate("hd", "Antarctic valley from the air", width=1920, height=1080)])
-        self.assertEqual(ranked[0]["framing_status"], "usable")
+        # Enough pixels survive the crop, but nothing here has seen the picture, so the
+        # composition question stays open instead of being answered by omission.
+        self.assertEqual(ranked[0]["framing_status"], "crop_review_required")
         self.assertFalse(ranked[0]["rejected"], ranked[0]["reject_reason"])
 
     def test_a_vertical_frame_passes_untouched(self) -> None:
         scene = SemanticScene(scene_id="s", visual_priority="environment")
         ranked = rank_candidates(scene, [_candidate("vertical", "Antarctic valley", width=1080, height=1920)])
         self.assertEqual(ranked[0]["framing_check"]["effective_width"], 1080)
+        self.assertEqual(ranked[0]["framing_status"], "vertical_ready")
         self.assertFalse(ranked[0]["rejected"])
 
     def test_the_framing_verdict_is_always_recorded(self) -> None:

@@ -41,6 +41,15 @@ class VisualBrief:
     exact_entities: list[str] = field(default_factory=list)
     must_include: list[str] = field(default_factory=list)
     must_avoid: list[str] = field(default_factory=list)
+    # What is going on around the subject: "wind", "atmospheric transport", "sample
+    # analysis". A scene set in Antarctica that is *about* a research station and
+    # airborne transport is not answered by any picture of Antarctica, and this is
+    # where the author says so. Never inferred: an unstated context constrains nothing.
+    context: list[str] = field(default_factory=list)
+    # Material that would be explicitly *something else*: "mars mission", "spacecraft".
+    # Weaker than ``must_avoid``, which forbids the thing outright - this only says the
+    # match may not be called complete without a person looking at it.
+    conflicting_context: list[str] = field(default_factory=list)
     shot_type: str = ""
     media_types: list[str] = field(default_factory=list)
     # One of src.assets.scene_strategy.SOURCE_CLASSES. Decides which providers are asked.
@@ -62,6 +71,7 @@ class VisualBrief:
             [
                 self.visual_description, self.subject, self.action, self.place,
                 self.exact_entities, self.must_include, self.must_avoid, self.shot_type,
+                self.context, self.conflicting_context,
                 self.media_types, self.source_class, self.provider_queries,
                 self.fallback_visual, self.infographic, self.notes,
             ]
@@ -76,6 +86,8 @@ class VisualBrief:
             "exact_entities": list(self.exact_entities),
             "must_include": list(self.must_include),
             "must_avoid": list(self.must_avoid),
+            "context": list(self.context),
+            "conflicting_context": list(self.conflicting_context),
             "shot_type": self.shot_type,
             "media_types": list(self.media_types),
             "source_class": self.source_class,
@@ -106,6 +118,8 @@ def parse_brief(data: dict[str, Any] | None) -> VisualBrief:
         exact_entities=_as_list(data.get("exact_entities")),
         must_include=_as_list(data.get("must_include")),
         must_avoid=_as_list(data.get("must_avoid")),
+        context=_as_list(data.get("context")),
+        conflicting_context=_as_list(data.get("conflicting_context")),
         shot_type=shot_type if shot_type in SHOT_TYPES else "",
         media_types=[item for item in media_types if item in MEDIA_KINDS],
         source_class=str(data.get("source_class") or "").strip(),

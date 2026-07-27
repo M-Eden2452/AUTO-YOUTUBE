@@ -160,6 +160,20 @@ cd /g/Projects/AI-YouTube
   платный Vision не подключён, локальная image-text модель не добавлена.
   Сцена без подходящего материала остаётся `unresolved` — подставлять «похожий»
   клип нельзя. Второй asset pipeline и второй планировщик создавать нельзя.
+  После этапа Q2.2A-2 требования сцены разбираются по слотам
+  (`src/assets/semantic_selection/decision.py`): `subject`, `action`, `location`,
+  `context`, `must_include`, `conflicting_context`. Обязательность слота задаёт
+  `source_class`. Частичное совпадение больше не считается полным: кандидат получает
+  `support_status` (`full_support` / `partial_support` /
+  `manual_confirmation_required` / `relevant_but_rights_blocked` / `unverified` /
+  `unsupported`) и `support_requirements` (`needs_additional_asset`,
+  `needs_multi_asset`, `needs_crop_review`, ...). Кроп получает объяснимое состояние
+  (`vertical_ready` / `crop_review_required` / `low_resolution_after_crop` /
+  `technical_rejected` / `aspect_ratio_mismatch`) — без Vision утверждать, что объект
+  переживёт кроп, запрещено. Решение хранится **одной** записью `selection_decision`
+  и переносится до манифеста, доски обзора и `project status`; второй контракт решения
+  не заводить. `needs_additional_asset` только фиксирует потребность — сборки
+  нескольких ассетов в одну сцену нет.
 - Музыка для `fullscreen_voiceover_v1` работает: `src/audio/music_manifest.py` пишет
   `assets/music/music_manifest.json`, который читает существующий микс с ducking в
   `src/news/final_renderer.py`. Права на пользовательский трек не проверяются автоматически.

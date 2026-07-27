@@ -99,10 +99,64 @@ def _check_schema_v1_assets(
         validation = selected.get("technical_validation") if isinstance(selected.get("technical_validation"), dict) else {}
         if validation.get("status") != "passed":
             errors.append({"check": "asset_validation", "message": f"Scene {scene_id} selected asset has no passing technical validation."})
+        _check_selection_decision(scene_id, selected, errors, warnings, checks)
     if missing_assets:
         warnings.append({"check": "asset_coverage", "message": f"{len(missing_assets)} scene(s) still need approved assets."})
     if selected_count and not any(error["check"].startswith("asset_") for error in errors):
         checks.append({"check": "asset_rights", "message": "All selected assets have local files, license and provenance."})
+
+
+def _check_selection_decision(
+    scene_id: str,
+    selected: dict[str, Any],
+    errors: list[dict[str, str]],
+    warnings: list[dict[str, str]],
+    checks: list[dict[str, str]],
+) -> None:
+    """What the selection decision claims, and whether it is allowed to claim it.
+
+    An asset written before stage Q2.2A-2 carries no decision. It is reported as such
+    rather than assumed to be a full match - a manifest that predates the record cannot
+    be made to have one retroactively.
+
+    Note on severity: how much of a scene an asset supports is *reported* here, not
+    enforced. Turning "this frame shows part of what the narration lists" into a
+    blocking error would stop the render stage for most stock footage, which is a
+    policy decision about the product and not something this check may make on its own.
+    An internally inconsistent record is a different matter: it is a defect in the
+    writer, and it fails.
+    """
+    from src.assets.semantic_selection.decision import has_decision, read_decision, validate_decision
+
+    if not has_decision(selected):
+        checks.append(
+            {
+                "check": "asset_visual_support",
+                "message": f"Scene {scene_id} selected asset predates selection decisions; support is unknown.",
+            }
+        )
+        return
+    decision = read_decision(selected)
+    problems = validate_decision(decision)
+    if problems:
+        errors.append(
+            {
+                "check": "asset_visual_support",
+                "message": f"Scene {scene_id} selection decision contradicts itself: {', '.join(problems)}.",
+            }
+        )
+        return
+    requirements = ", ".join(decision.support_requirements) or "none"
+    checks.append(
+        {
+            "check": "asset_visual_support",
+            "message": (
+                f"Scene {scene_id} support={decision.support_status} "
+                f"slots={decision.slot_verdict} crop={decision.technical_status} "
+                f"render_ready={'yes' if decision.render_ready else 'no'} outstanding={requirements}"
+            ),
+        }
+    )
 
 
 def _check_legacy_assets(

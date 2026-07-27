@@ -84,6 +84,10 @@ class ProjectView:
     output_paths: dict[str, str] = field(default_factory=dict)
     final_video: str = ""
     quality_status: str = ""
+    # How much of the video the chosen material actually supports, read straight out of
+    # assets_manifest.json. Empty for a project written before selection decisions
+    # existed - which is reported as "unknown", never as "full".
+    visual_support: dict[str, Any] = field(default_factory=dict)
     evidence_paths: list[str] = field(default_factory=list)
     manifest_path: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -134,6 +138,7 @@ class ProjectView:
             "output_paths": dict(self.output_paths),
             "final_video": self.final_video,
             "quality_status": self.quality_status,
+            "visual_support": dict(self.visual_support),
             "evidence_paths": list(self.evidence_paths),
             "manifest_path": self.manifest_path,
             "warnings": list(self.warnings),
@@ -248,6 +253,10 @@ class ProjectRepository:
             warnings.append("final_render_manifest points at an output file that no longer exists.")
             final_video = ""
 
+        assets_manifest = _read_json(root / "assets" / "assets_manifest.json") or {}
+        visual_support = assets_manifest.get("visual_support")
+        visual_support = dict(visual_support) if isinstance(visual_support, dict) else {}
+
         evidence_paths = [
             str(path)
             for path in (
@@ -277,6 +286,7 @@ class ProjectRepository:
             output_paths=outputs,
             final_video=final_video,
             quality_status=str(quality.get("status") or ""),
+            visual_support=visual_support,
             evidence_paths=evidence_paths,
             manifest_path=str(manifest_path),
             warnings=warnings,

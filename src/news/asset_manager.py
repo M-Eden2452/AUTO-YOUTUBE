@@ -12,11 +12,31 @@ from src.assets.provider_routing import route_providers
 from src.assets.query_adapter import STATUS_TRANSLATION_REQUIRED, build_scene_queries
 from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
 from src.assets.semantic_selection import analyze_scene, check_continuity, ordered_queries, rank_candidates, select_best_candidate
+from src.assets.semantic_selection.decision import (
+    DECISION_KEY,
+    NEEDS_MANUAL_CONFIRMATION,
+    NEEDS_RIGHTS_CLEARANCE,
+    RESOLVED,
+    SUPPORT_FULL,
+    SUPPORT_MANUAL,
+    VERDICT_COMPLETE,
+    VERDICT_UNVERIFIED,
+    SelectionDecision,
+    carry_decision,
+    framing_decision,
+    read_decision,
+    scene_resolution_status,
+)
 from src.assets.download import sha256_file, validate_local_asset
 from src.assets.license_policy import apply_policy_to_candidate
 from src.assets.models import ASSET_SCHEMA_VERSION, AssetCandidate, AssetLicense, AssetProvenance
 from src.assets.provider_contract import AssetSearchRequest, DownloadContext, LicenseReviewRequired, ProviderError
-from src.assets.review_bundle import create_scene_review_bundle, select_candidate_after_review, write_review_bundle
+from src.assets.review_bundle import (
+    attach_selected_asset,
+    create_scene_review_bundle,
+    select_candidate_after_review,
+    write_review_bundle,
+)
 from src.assets.semantic_visual_service import analyse_semantic_visual_for_project, load_semantic_visual_config
 from src.assets.visual_preview import VisualPreviewRequest, load_visual_preview_config, prepare_candidate_preview_analyses
 from src.media_library import load_media_index, register_asset, search_local_assets
@@ -214,12 +234,18 @@ def build_assets_manifest(
                 used_asset_ids=used_asset_ids,
                 required_duration_sec=required_duration,
                 require_provider_metadata=bool(routing_decision.get("requires_provider_metadata")),
+                source_class=source_class,
             )
             candidates = ranked_candidates
         else:
             candidates.sort(key=lambda item: item.get("total_score", 0), reverse=True)
             selected = candidates[0] if candidates else None
+        # A user asset and a drawn figure never pass through the ranker, so they would
+        # otherwise reach the manifest with no record of why they are there. They get
+        # one stated in their own terms rather than an empty one.
+        selected = _ensure_decision(selected, scene_id=str(scene.get("scene_id") or ""), source_class=source_class)
         visual_review_entry: dict[str, Any] = {}
+        scene_review_bundle = None
         preview_settings = selection_config.get("visual_preview", {}) if isinstance(selection_config.get("visual_preview"), dict) else {}
         if project_root_path and candidates and bool(preview_settings.get("enabled", True)):
             top_k = int(preview_settings.get("shortlist_size") or visual_preview_config.get("shortlist_size") or 5)
@@ -267,6 +293,7 @@ def build_assets_manifest(
                 technical_rerank_enabled=bool(preview_settings.get("technical_rerank_enabled", False)),
             )
             review_bundles.append(bundle)
+            scene_review_bundle = bundle
             visual_review_entry = {
                 "status": "prepared",
                 "analysis_mode": "technical_rerank" if bool(preview_settings.get("technical_rerank_enabled", False)) else "analyse_and_report",
@@ -301,6 +328,8 @@ def build_assets_manifest(
         # licence policy before any request, so it never needed a download to discover.
         elif candidates:
             download_attempts = _rights_block_attempts(candidates, str(scene.get("scene_id") or ""))
+        if scene_review_bundle is not None:
+            attach_selected_asset(scene_review_bundle, selected)
         if download_attempts:
             provider_attempts.extend(download_attempts)
         if (
@@ -343,6 +372,15 @@ def build_assets_manifest(
                     "rejected_reasons": sorted(
                         {str(item.get("reject_reason") or "") for item in candidates if item.get("rejected")} - {""}
                     ),
+                    # ``reason`` predates this stage and several callers read it, so it
+                    # keeps its vocabulary; ``resolution_status`` is the machine-readable
+                    # answer and the one new code should read.
+                    "resolution_status": scene_resolution_status(
+                        selected=None,
+                        candidates=candidates,
+                        source_class=source_class,
+                        manual_request=bool(manual_request),
+                    ),
                     "reason": (
                         "manual_action_required"
                         if manual_request
@@ -365,6 +403,16 @@ def build_assets_manifest(
                 "query_plan": query_plan.to_dict(),
                 "required_duration_sec": required_duration,
                 "selected_asset": selected,
+                # The scene-level headline, read straight off the selected asset's own
+                # decision rather than recomputed from the candidate list.
+                "resolution_status": scene_resolution_status(
+                    selected=selected,
+                    candidates=candidates,
+                    source_class=source_class,
+                    manual_request=bool(manual_request),
+                ),
+                "support_status": read_decision(selected).support_status if selected else "",
+                "support_requirements": read_decision(selected).support_requirements if selected else [],
                 "manual_request": manual_request or {},
                 "visual_review": visual_review_entry,
                 "provider_attempts": scene_provider_attempts,
@@ -404,6 +452,7 @@ def build_assets_manifest(
         "assets": user_candidates,
         "scenes": scene_entries,
         "missing_scenes": missing_scenes,
+        "visual_support": _visual_support_summary(scene_entries, missing_scenes),
         "continuity": continuity,
         "provider_attempts": provider_attempts,
         "provider_errors": provider_errors,
@@ -463,6 +512,81 @@ def create_default_asset_providers() -> list[AssetProvider]:
     if os.getenv("PIXABAY_API_KEY"):
         providers.append(PixabayStockProvider(os.getenv("PIXABAY_API_KEY", "")))
     return providers
+
+
+def _visual_support_summary(
+    scene_entries: list[dict[str, Any]], missing_scenes: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """How much of the video is actually supported, counted honestly.
+
+    Read by ``project status`` so that a project is never reported as done on the
+    strength of eight downloaded files that answer nothing.
+    """
+    by_status: dict[str, int] = {}
+    requirements: dict[str, int] = {}
+    scenes_needing_review: list[str] = []
+    for entry in scene_entries:
+        decision = read_decision(entry.get("selected_asset"))
+        status = decision.support_status if entry.get("selected_asset") else "unresolved"
+        by_status[status] = by_status.get(status, 0) + 1
+        for requirement in decision.support_requirements:
+            requirements[requirement] = requirements.get(requirement, 0) + 1
+        if entry.get("selected_asset") and status != SUPPORT_FULL:
+            scenes_needing_review.append(str(entry.get("scene_id") or ""))
+    return {
+        "scene_count": len(scene_entries),
+        "full_support": by_status.get(SUPPORT_FULL, 0),
+        "resolved": sum(1 for entry in scene_entries if entry.get("resolution_status") == RESOLVED),
+        "unresolved": len(missing_scenes),
+        "by_support_status": by_status,
+        "requirements": requirements,
+        "scenes_needing_review": scenes_needing_review,
+    }
+
+
+def _ensure_decision(asset: dict[str, Any] | None, *, scene_id: str, source_class: str) -> dict[str, Any] | None:
+    """Give an asset that skipped ranking a decision record of its own.
+
+    Two assets never reach the ranker: a figure the project drew from the scene's own
+    specification, and a file the author supplied by hand. Both are legitimate, and
+    both used to arrive at the manifest with no statement of what they support at all.
+    Neither is treated as verified footage: the drawn figure *is* the specification, and
+    the author's own file is only ever "confirm this yourself".
+    """
+    if not isinstance(asset, dict) or asset.get(DECISION_KEY):
+        return asset
+    framing = framing_decision(asset)
+    provider = str(asset.get("provider") or "")
+    allowed = bool(asset.get("allowed_for_render", False))
+    review_required = bool(asset.get("review_required", False))
+    if provider == "generated" and source_class == CLASS_DATA_INFOGRAPHIC:
+        support, requirements, verdict = SUPPORT_FULL, [], VERDICT_COMPLETE
+        reasons = ["generated_from_scene_specification"]
+    else:
+        support, requirements = SUPPORT_MANUAL, [NEEDS_MANUAL_CONFIRMATION]
+        verdict = VERDICT_UNVERIFIED
+        reasons = [f"selected_by:{asset.get('selected_by') or 'unranked'}"]
+        if review_required or not allowed:
+            requirements.append(NEEDS_RIGHTS_CLEARANCE)
+    decision = SelectionDecision(
+        scene_id=scene_id,
+        asset_id=str(asset.get("asset_id") or ""),
+        provider=provider,
+        source_class=source_class,
+        technical_status=str(framing["status"]),
+        framing=framing,
+        rights_status=str(asset.get("rights_status") or ""),
+        rights_allowed_for_render=allowed,
+        rights_review_required=review_required,
+        slot_verdict=verdict,
+        support_status=support,
+        support_requirements=requirements,
+        selection_reasons=reasons,
+    )
+    asset[DECISION_KEY] = decision.to_dict()
+    asset["support_status"] = support
+    asset["slot_verdict"] = verdict
+    return asset
 
 
 def _merge_selection_config(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -945,6 +1069,10 @@ def _ensure_selected_asset_downloaded(
                     "download_status": "downloaded",
                 }
             )
+            # ``to_manifest_dict`` describes the file, not the choice. Without this the
+            # whole reasoning - slots, support status, crop verdict - was dropped here,
+            # and the review board had to look it back up in ``ranked_candidates``.
+            carry_decision(candidate, manifest)
             register_asset(media_index, manifest)
             attempt.update(
                 {

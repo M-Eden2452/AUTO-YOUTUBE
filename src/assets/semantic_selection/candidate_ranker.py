@@ -22,13 +22,36 @@ kind of evidence was missing:
 ``rights_status``       from the licence policy, never traded off against the rest
 ``duration_status``     whether the clip is long enough for the scene
 ``provider_confidence`` how much this provider's metadata is worth as evidence
+
+Stage Q2.2A-2 added the part these scores could not express: *which* of the scene's
+requirements were met. The slot verdict and the support status live in
+``src.assets.semantic_selection.decision`` and are attached to every ranked candidate
+as one record, so that nothing between here and the manifest has to reconstruct them.
 """
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
+from .decision import (
+    DECISION_KEY,
+    EXACTING_CLASSES,
+    FRAMING_HARD_REJECT,
+    SelectionDecision,
+    build_slot_verdict,
+    framing_decision,
+    support_status,
+)
+from .evidence import (
+    METADATA_AVAILABLE,
+    METADATA_QUERY_DERIVED,
+    METADATA_UNAVAILABLE,
+    build_evidence,
+    concept_score,
+    contains_concept,
+    script_mismatch,
+    tokens,
+)
 from .models import (
     SCENE_ENVIRONMENT,
     SCENE_EXACT_SUBJECT,
@@ -52,10 +75,6 @@ DURATION_TOLERANCE_SEC = 0.35
 TARGET_ASPECT_RATIO = "9:16"
 MIN_SHORT_EDGE_PX = 540
 
-METADATA_AVAILABLE = "available"
-METADATA_UNAVAILABLE = "unavailable"
-METADATA_QUERY_DERIVED = "query_derived_only"
-
 # How much a provider's own metadata is worth as evidence of what is in the frame.
 # Wikimedia and NASA describe the actual object; a stock library labels a mood.
 PROVIDER_CONFIDENCE: dict[str, float] = {
@@ -71,12 +90,6 @@ PROVIDER_CONFIDENCE: dict[str, float] = {
     "fake": 1.0,
 }
 
-# Fields that carry description written by the provider about the asset. Deliberately
-# excludes ``search_query``/``query`` and anything derived from them.
-_METADATA_FIELDS = ("title", "description", "categories", "depicts", "location")
-_QUERY_FIELDS = ("search_query", "query")
-_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
-
 
 def rank_candidates(
     scene: SemanticScene,
@@ -87,6 +100,7 @@ def rank_candidates(
     require_provider_metadata: bool = False,
     target_aspect_ratio: str = TARGET_ASPECT_RATIO,
     min_short_edge: int = MIN_SHORT_EDGE_PX,
+    source_class: str = "",
 ) -> list[dict[str, Any]]:
     used = used_asset_ids or set()
     ranked = [
@@ -98,6 +112,7 @@ def rank_candidates(
             require_provider_metadata=require_provider_metadata,
             target_aspect_ratio=target_aspect_ratio,
             min_short_edge=min_short_edge,
+            source_class=source_class or scene.source_class,
         )
         for candidate in candidates
     ]
@@ -113,6 +128,7 @@ def select_best_candidate(
     require_provider_metadata: bool = False,
     target_aspect_ratio: str = TARGET_ASPECT_RATIO,
     min_short_edge: int = MIN_SHORT_EDGE_PX,
+    source_class: str = "",
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     ranked = rank_candidates(
         scene,
@@ -122,6 +138,7 @@ def select_best_candidate(
         require_provider_metadata=require_provider_metadata,
         target_aspect_ratio=target_aspect_ratio,
         min_short_edge=min_short_edge,
+        source_class=source_class,
     )
     for candidate in ranked:
         if not candidate.get("rejected"):
@@ -138,13 +155,14 @@ def _score_candidate(
     require_provider_metadata: bool = False,
     target_aspect_ratio: str = TARGET_ASPECT_RATIO,
     min_short_edge: int = MIN_SHORT_EDGE_PX,
+    source_class: str = "",
 ) -> dict[str, Any]:
-    text = _provider_evidence_text(candidate)
-    tokens = _tokens(text)
-    vision_tags = [str(tag).lower() for tag in candidate.get("vision_tags", [])]
-    all_tokens = set(tokens) | set(vision_tags)
-    metadata_status, metadata_score = _metadata_status(candidate, text, vision_tags)
-    has_evidence = metadata_status == METADATA_AVAILABLE or bool(vision_tags)
+    evidence = build_evidence(candidate)
+    text = evidence.text
+    vision_tags = list(evidence.vision_tags)
+    all_tokens = set(evidence.token_set)
+    metadata_status, metadata_score = evidence.metadata_status, evidence.metadata_score
+    has_evidence = evidence.has_metadata
 
     subject_match, subject_decidable = _field_match(scene.subject, all_tokens, text, aliases={"southern right whale": ["southern right whale", "right whale", "whale"]})
     action_match, action_decidable = _field_match(scene.action, all_tokens, text)
@@ -225,7 +243,13 @@ def _score_candidate(
     else:
         min_score = MIN_SCORE
     duration_check = _duration_check(candidate, required_duration_sec)
-    framing_check = _framing_check(candidate, target_aspect_ratio=target_aspect_ratio, min_short_edge=min_short_edge)
+    framing_check = framing_decision(
+        candidate, target_aspect_ratio=target_aspect_ratio, min_short_edge=min_short_edge
+    )
+    # Every requirement the scene states, judged one at a time. This is what the score
+    # above cannot say: it averages, and an average cannot tell "the station is not in
+    # the frame" from "the wording is a little off".
+    slot_verdict = build_slot_verdict(scene, evidence, source_class=source_class)
 
     # "matched" requires evidence. Anything else is unverified, and an exacting scene
     # refuses an unverified candidate rather than guessing.
@@ -266,10 +290,22 @@ def _score_candidate(
         reject_reasons.append(f"semantic_unverified:{detail}")
     elif require_provider_metadata and semantic_match_status != "matched":
         reject_reasons.append(f"no_semantic_evidence:{metadata_status}")
-    if framing_check["status"] == "unusable":
+    if framing_check["status"] in FRAMING_HARD_REJECT:
         reject_reasons.append(
-            f"framing_unusable:{framing_check['effective_width']}x{framing_check['effective_height']}"
+            f"framing_unusable:{framing_check['status']}:"
+            f"{framing_check['effective_width']}x{framing_check['effective_height']}"
         )
+    # A class whose whole point is a specific real thing may not be answered by a
+    # candidate that shows only part of it. This is the iceberg: the scene asked for a
+    # research station in Antarctica with airborne transport, the clip shared exactly
+    # one word with it, and the average score was comfortably above the threshold.
+    if source_class in EXACTING_CLASSES and slot_verdict.absent_required_slots:
+        reject_reasons.append("required_slot_missing:" + ",".join(slot_verdict.absent_required_slots))
+    # Something the author declared to be a contradiction is in the metadata verbatim.
+    # Not a permanent refusal like ``must_avoid`` - a person may still confirm it - but
+    # never an automatic full match.
+    if slot_verdict.declared_conflict_terms:
+        reject_reasons.append("conflicting_context:" + ",".join(dict.fromkeys(slot_verdict.declared_conflict_terms)))
     if scene.visual_priority not in {SCENE_ENVIRONMENT, SCENE_TRANSITION} and fallback_level >= 4:
         reject_reasons.append("fallback_level_not_allowed")
     if final_score < min_score:
@@ -281,6 +317,42 @@ def _score_candidate(
     allowed = bool(candidate.get("allowed_for_render", True))
     if not allowed:
         reject_reasons.append("rights_not_allowed")
+
+    review_required = bool(candidate.get("review_required", False))
+    support, requirements = support_status(
+        slot_verdict,
+        framing_status=framing_check["status"],
+        rights_allowed=allowed,
+        rights_review_required=review_required,
+        source_class=source_class,
+        provider=str(candidate.get("provider") or ""),
+        semantically_disqualified=bool(negative_matches) or semantic_match_status == "mismatched",
+    )
+    decision = SelectionDecision(
+        scene_id=scene.scene_id,
+        asset_id=str(candidate.get("asset_id") or ""),
+        provider=str(candidate.get("provider") or ""),
+        source_class=source_class,
+        provider_confidence=provider_confidence,
+        semantic_score=semantic_score,
+        semantic_status=semantic_match_status,
+        metadata_score=metadata_score,
+        metadata_status=metadata_status,
+        technical_score=technical_score,
+        technical_status=str(framing_check["status"]),
+        framing=framing_check,
+        duration_status=str(duration_check["status"]),
+        duration={key: value for key, value in duration_check.items() if key != "status"},
+        rights_status=str(candidate.get("rights_status") or ""),
+        rights_allowed_for_render=allowed,
+        rights_review_required=review_required,
+        slots=slot_verdict.to_dict(),
+        slot_verdict=slot_verdict.verdict,
+        support_status=support,
+        support_requirements=requirements,
+        selection_reasons=_selection_reasons(scene, slot_verdict, must_satisfied, metadata_status),
+        reject_reasons=list(reject_reasons),
+    )
 
     result = {
         **candidate,
@@ -319,55 +391,34 @@ def _score_candidate(
         "why_selected": _why_selected(scene, subject_match, action_match, environment_match, metadata_status),
         "semantic_scene": scene.to_dict(),
         "vision_tags": candidate.get("vision_tags", []),
+        # The headline of the record, flat, so a manifest or a board can read the
+        # verdict without unpacking the whole decision.
+        "slot_verdict": slot_verdict.verdict,
+        "support_status": support,
+        "support_requirements": requirements,
+        # The record itself. One key, one owner - see decision.carry_decision for why
+        # it has to survive the download step.
+        DECISION_KEY: decision.to_dict(),
     }
     return result
 
 
-def _provider_evidence_text(candidate: dict[str, Any]) -> str:
-    """Everything the *provider* said about this asset - and nothing we said to it.
-
-    ``search_query`` is excluded unconditionally. Tags are excluded when the provider
-    admits it synthesised them from the query (``tags_source="query_derived"``), which
-    is what the Pexels adapter does for videos because the API returns no description.
-    """
-    queries = {str(candidate.get(key) or "").strip().lower() for key in _QUERY_FIELDS}
-    queries.discard("")
-    pieces: list[str] = []
-    for key in _METADATA_FIELDS:
-        pieces.extend(_evidence_values(candidate.get(key, ""), queries))
-    if str(candidate.get("tags_source") or "provider") != "query_derived":
-        for key in ("tags", "keywords"):
-            pieces.extend(_evidence_values(candidate.get(key, ""), queries))
-    return re.sub(r"\s+", " ", " ".join(piece for piece in pieces if piece).lower()).strip()
-
-
-def _evidence_values(value: Any, queries: set[str]) -> list[str]:
-    """One metadata field as evidence, unless the field *is* the query repeated back.
-
-    Several adapters fall back to ``description = <api field> or request.query``. When
-    the API field was empty the description is literally the query, which is not
-    evidence about the asset. The check is whole-value equality on purpose: a real
-    title that happens to contain the searched words is genuine evidence and must not
-    be thrown away with it.
-    """
-    values = [str(item) for item in value] if isinstance(value, list) else [str(value)]
-    return [item for item in values if item.strip() and item.strip().lower() not in queries]
-
-
-def _metadata_status(candidate: dict[str, Any], text: str, vision_tags: list[str]) -> tuple[str, float]:
-    """How much real provider metadata there is, and how far it can be trusted.
-
-    Never returns a high score for an absence: an unlabelled candidate scores 0 and is
-    reported as such, instead of matching everything by default.
-    """
-    if str(candidate.get("tags_source") or "") == "query_derived" and not text:
-        return METADATA_QUERY_DERIVED, 0.0
-    if not text:
-        return (METADATA_AVAILABLE, 20.0) if vision_tags else (METADATA_UNAVAILABLE, 0.0)
-    words = _tokens(text)
-    # Three descriptive words is the least that can distinguish one asset from another.
-    score = min(100.0, 100.0 * len(words) / 8.0)
-    return METADATA_AVAILABLE, round(score, 3)
+def _selection_reasons(
+    scene: SemanticScene, slot_verdict: Any, must_satisfied: bool, metadata_status: str
+) -> list[str]:
+    """Why this candidate is where it is, in codes a manifest can be filtered on."""
+    reasons = [f"slot_verdict:{slot_verdict.verdict}", f"metadata:{metadata_status}"]
+    if scene.source_class:
+        reasons.append(f"source_class:{scene.source_class}")
+    if must_satisfied:
+        reasons.append("author_requirements_satisfied")
+    for name in slot_verdict.matched_slots:
+        reasons.append(f"matched:{name}")
+    for name in slot_verdict.missing_slots:
+        reasons.append(f"missing:{name}")
+    for name in slot_verdict.undecidable_slots:
+        reasons.append(f"undecidable:{name}")
+    return reasons
 
 
 def _duration_check(candidate: dict[str, Any], required_duration_sec: float) -> dict[str, Any]:
@@ -403,12 +454,6 @@ def _duration_check(candidate: dict[str, Any], required_duration_sec: float) -> 
     }
 
 
-def _tokens(text: str) -> set[str]:
-    """Words in any script. The previous ``[a-z0-9]+`` silently dropped every Cyrillic
-    token, so a Russian ``must_avoid`` could never match anything."""
-    return set(_WORD_RE.findall(text.lower()))
-
-
 def _field_match(
     values: list[str], tokens: set[str], text: str, aliases: dict[str, list[str]] | None = None
 ) -> tuple[float, bool]:
@@ -435,37 +480,12 @@ def _field_match(
     return sum(scores) / len(scores), decidable
 
 
-def _script_mismatch(concept: str, text: str) -> bool:
-    """True when ``concept`` and ``text`` are written in scripts that cannot overlap.
-
-    Absent evidence is *not* a script mismatch. A provider that returned no metadata
-    told us nothing rather than something incomparable, and treating that as merely
-    "unverifiable" would let an unlabelled candidate slip past a requirement it plainly
-    cannot meet.
-    """
-    if not concept or not text:
-        return False
-    return bool(_CYRILLIC_RE.search(concept)) != bool(_CYRILLIC_RE.search(text))
-
-
-_CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
-
-
-def _concept_score(concept: str, tokens: set[str], text: str) -> float:
-    normalized = concept.lower().strip()
-    if not normalized:
-        return 100.0
-    if normalized in text:
-        return 100.0
-    words = [word for word in _WORD_RE.findall(normalized) if word]
-    if not words:
-        return 0.0
-    matched = sum(1 for word in words if word in tokens)
-    return 100.0 * matched / len(words)
-
-
-def _contains_concept(concept: str, tokens: set[str], text: str) -> bool:
-    return _concept_score(concept, tokens, text) >= 99.0
+# The matching primitives live in ``evidence`` so that the slot layer asks the same
+# questions of the same text. These aliases keep the wording of this file intact.
+_script_mismatch = script_mismatch
+_concept_score = concept_score
+_contains_concept = contains_concept
+_tokens = tokens
 
 
 def _normal_score(value: Any, fallback: float) -> float:
@@ -553,55 +573,3 @@ def _why_selected(
         f"action={action_match:.0f}, environment={environment_match:.0f}, "
         f"metadata={metadata_status}"
     )
-
-
-def _framing_check(
-    candidate: dict[str, Any], *, target_aspect_ratio: str = TARGET_ASPECT_RATIO, min_short_edge: int = MIN_SHORT_EDGE_PX
-) -> dict[str, Any]:
-    """What is left of this asset after cropping it to the target aspect ratio.
-
-    Reported for every candidate, and disqualifying only when the crop cannot fill the
-    frame. This is deliberately not a score: no amount of semantic relevance makes a
-    405-pixel-wide strip usable in a 1080-wide video.
-    """
-    width = _int(candidate.get("width"))
-    height = _int(candidate.get("height"))
-    ratio = _aspect_ratio(target_aspect_ratio)
-    if not width or not height or ratio <= 0:
-        return {
-            "status": "unknown", "target_aspect_ratio": target_aspect_ratio,
-            "source_width": width, "source_height": height,
-            "effective_width": 0, "effective_height": 0,
-            "min_short_edge": min_short_edge,
-        }
-    if width / height > ratio:
-        effective_height = height
-        effective_width = int(height * ratio)
-    else:
-        effective_width = width
-        effective_height = int(width / ratio)
-    status = "usable" if effective_width >= min_short_edge else "unusable"
-    return {
-        "status": status,
-        "target_aspect_ratio": target_aspect_ratio,
-        "source_width": width,
-        "source_height": height,
-        "effective_width": effective_width,
-        "effective_height": effective_height,
-        "min_short_edge": min_short_edge,
-    }
-
-
-def _aspect_ratio(value: str) -> float:
-    try:
-        left, right = str(value).split(":", 1)
-        return float(left) / float(right)
-    except (ValueError, ZeroDivisionError):
-        return 0.0
-
-
-def _int(value: Any) -> int:
-    try:
-        return max(0, int(value or 0))
-    except (TypeError, ValueError):
-        return 0

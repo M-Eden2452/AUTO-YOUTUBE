@@ -902,6 +902,15 @@ def _run_project(args: argparse.Namespace) -> int:
             print(f"[project] status={view.status}")
             if view.quality_status:
                 print(f"[project] quality={view.quality_status}")
+            if view.visual_support:
+                support = view.visual_support
+                print(
+                    f"[project] visual_support: сцен={support.get('scene_count', 0)} "
+                    f"полная поддержка={support.get('full_support', 0)} "
+                    f"без материала={support.get('unresolved', 0)}"
+                )
+                for scene_id in support.get("scenes_needing_review", []):
+                    print(f"[project] visual_support: сцена {scene_id} требует проверки")
             for stage in view.stages:
                 print(f"[project] stage {stage.stage}: {stage.status}" + (f" ({stage.error})" if stage.error else ""))
             if view.final_video:

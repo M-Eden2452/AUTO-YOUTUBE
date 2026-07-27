@@ -25,6 +25,10 @@ ACTION_TERMS = ["resting", "swimming", "rolling", "floating", "nursing", "migrat
 
 def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
     explicit = scene.get("semantic") or {}
+    # The author's brief, when there is one. Read directly as well as through
+    # ``semantic`` because a plan written by ``scene_to_legacy`` carries both, and a
+    # hand-written fixture may carry only one of them.
+    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
     text = " ".join(
         str(scene.get(key, ""))
         for key in ("primary_query", "visual_description", "visual_intent", "narration", "visual_type")
@@ -41,6 +45,13 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
     should_include = list(explicit.get("should_include") or secondary + location + camera)
     must_not = list(explicit.get("must_not_include") or _infer_must_not(subject, environment))
     fallback_level = int(scene.get("fallback_level") or explicit.get("fallback_level") or _default_fallback_level(priority))
+    # Nothing below is ever inferred. A context the author did not state constrains
+    # nothing, and a contradiction nobody declared is not a contradiction.
+    context = _as_list(explicit.get("context") or brief.get("context"))
+    conflicting_context = _as_list(explicit.get("conflicting_context") or brief.get("conflicting_context"))
+    source_class = str(
+        explicit.get("source_class") or scene.get("source_class") or brief.get("source_class") or ""
+    ).strip()
     return SemanticScene(
         scene_id=str(scene.get("scene_id", "")),
         subject=subject,
@@ -53,9 +64,22 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
         must_include=must_include,
         should_include=should_include,
         must_not_include=must_not,
+        context=context,
+        conflicting_context=conflicting_context,
+        source_class=source_class,
         visual_priority=priority,
         fallback_level=fallback_level,
     )
+
+
+def _as_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
 
 def _infer_priority(text: str) -> str:

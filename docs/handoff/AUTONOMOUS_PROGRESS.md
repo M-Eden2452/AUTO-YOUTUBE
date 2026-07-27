@@ -1963,6 +1963,80 @@ Q2.1 добавил контракт, но ни один путь его не з
 **Рекомендуемый следующий этап:** повторный прогон ретеста уже через `--visual-brief`,
 либо semantic vision для оставшихся ложных принятий. Автоматически не переходить.
 
+## Stage Q2.2A-2 — Semantic slots, support statuses и сохранение решения — ЗАВЕРШЁН
+
+Продолжение Q2.2A: закрыты два оставшихся ложных принятия ретеста и потеря обоснования
+между отбором и манифестом. Новых pipeline, планировщиков и провайдеров не создавалось;
+Vision, ML-моделей и multi-asset сборки нет.
+
+### Проблема
+
+Ретест Q2.1 дал три ложных принятия. Первое (снимок Марса под статистику) закрыл Q2.2A.
+Два других прошли **честно по метаданным**: пресс-день миссии на Марс содержал слова
+«mass spectrometer», описание раскола айсберга — «Antarctica». Это не ошибка оценки:
+одно усреднённое число не может сказать, **какое именно** требование сцены выполнено.
+
+### Что сделано
+
+- **Semantic slots.** `src/assets/semantic_selection/decision.py` — один контракт:
+  `required/matched/missing/absent_required/conflicting/undecidable` слоты и
+  `slot_verdict`. Слоты строятся из полей, которые автор реально указал: subject,
+  action, location, context, must_include (буквально), must_avoid, conflicting_context.
+  Какие из них обязательны — решает `source_class` (`REQUIRED_SLOT_KINDS`).
+- **Отказ против неполноты.** Обязательный слот, которого в метаданных нет вообще,
+  отклоняет кандидата у строгих классов (`required_slot_missing`). Частично совпавшая
+  фраза не отклоняет, но и полным совпадением не считается. Континент не подтверждает
+  точное место (`broader_context_only`).
+- **Conflicting context.** Только то, что автор объявил в
+  `visual_brief.conflicting_context`, и только при дословном совпадении с метаданными.
+  Марс глобально не захардкожен. `must_avoid` остаётся жёстким отказом; conflicting —
+  `manual_confirmation_required`.
+- **Support statuses.** `full_support`, `partial_support`,
+  `manual_confirmation_required`, `relevant_but_rights_blocked`, `unverified`,
+  `unsupported` + отдельные `support_requirements` (`needs_additional_asset`,
+  `needs_multi_asset`, `needs_crop_review`, `needs_manual_confirmation`,
+  `needs_rights_clearance`). `render_ready` только при `full_support` без requirements.
+  На уровне сцены — `resolution_status`.
+- **Crop decision.** `framing_decision` заменил бинарный `usable/unusable`:
+  `vertical_ready`, `crop_review_required`, `low_resolution_after_crop`,
+  `technical_rejected`, `aspect_ratio_mismatch`, `unknown`. Пишет исходный размер,
+  соотношение, область после кропа, ожидаемый вывод, `upscale_factor`, возможность
+  pan/zoom. Утверждать, что объект переживёт кроп, без Vision запрещено.
+- **Сохранение решения.** Одна запись `selection_decision` проходит путь
+  ranked → selected → downloaded (`carry_decision`) → assets manifest → review board
+  (`attach_selected_asset`) → `project status` (`ProjectView.visual_support`). Раньше
+  `to_manifest_dict()` пересобирал ассет после скачивания и обоснование терялось.
+- **Валидация.** `validate_decision` ловит самопротиворечивую запись; `quality_check`
+  печатает support status каждой сцены и падает только на противоречии.
+
+### Совместимость
+
+Ассет без `selection_decision` читается как пустая запись `unverified` /
+`render_ready = false`, а не как полное совпадение. План и бриф без новых полей
+(`context`, `conflicting_context`, `source_class` в `semantic`) ведут себя как прежде.
+Историческое поле `missing_scenes[].reason` не менялось — рядом добавлен машинный
+`resolution_status`.
+
+### Тесты
+
+`tests/test_semantic_slot_decisions.py` — 32 теста, включая офлайн-фикстуру из пяти
+случаев (Mars Media Day, раскол айсберга, пластиковые контейнеры, горизонтальная
+Антарктида, PTR-TOF), написанную вручную. Обновлены два утверждения Q2.2A под новый
+словарь кропа. Полный suite: **1192 теста, OK**.
+
+### Осознанные отклонения
+
+- Partial support **не** блокирует render: это остановило бы стадию почти для любого
+  горизонтального стока, а такое решение — продуктовое, а не проверочное.
+- `needs_additional_asset` / `needs_multi_asset` только фиксируют потребность; сборка
+  нескольких ассетов в сцену не реализована и в scope не входила.
+- Мягкий матчинг слотов — допуск на словоформу (общий префикс ≥5 символов), не
+  морфология и не NLP. `must_include` проверяется буквально.
+
+**API/платные вызовы:** нет. **Сеть:** нет. **TTS/Vision/render:** нет. **E2E:** не
+запускался. **Git write:** только локальный коммит этапа.
+
+
 ---
 
 ## Git
