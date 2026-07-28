@@ -38,12 +38,35 @@ def _notify(callback: ProgressCallback | None, stage: str, status: str) -> None:
 _SUPPORTED_TEMPLATE_IDS = {STORY_CARD_CANONICAL_TEMPLATE_ID, FULLSCREEN_VOICEOVER_TEMPLATE_ID}
 
 
+def _request_path_context(
+    request: ContentCreationRequest,
+) -> tuple[Path, tuple[Path, ...], Path]:
+    from src.config_resolver import resolve_application_paths
+
+    explicit_projects_root = request.project_overrides.get("projects_root")
+    paths = resolve_application_paths(
+        workspace_root=request.project_overrides.get("workspace_root") or None,
+        paths_config=request.project_overrides.get("paths_config") or None,
+        projects_root=explicit_projects_root or None,
+    )
+    fallback_values = request.project_overrides.get("project_fallback_roots")
+    if fallback_values is None:
+        fallback_roots = paths.project_fallback_roots
+    else:
+        fallback_roots = tuple(Path(value) for value in fallback_values)
+    channels_root = Path(
+        request.project_overrides.get("channels_root") or paths.channels_root
+    )
+    return paths.projects_root, fallback_roots, channels_root
+
+
 def _resolve_template(request: ContentCreationRequest):
     catalog = get_default_catalog()
     template_query = request.template_id
     if not template_query and request.channel_id:
         try:
-            channel = ChannelRegistry().get(request.channel_id)
+            _projects_root, _fallback_roots, channels_root = _request_path_context(request)
+            channel = ChannelRegistry(channels_root).get(request.channel_id)
             template_query = channel.default_template
         except ProjectFoundationError:
             template_query = ""
@@ -115,8 +138,15 @@ def _create_story_card(
             "source_asset_path is required for story_card_text_only_v1 (asset search is not "
             "wired into this workflow yet - pass a local video file with --source-asset)."
         )
-    channel = ChannelRegistry().get(request.channel_id)
-    factory = ProjectFactory(base_dir=request.project_overrides.get("projects_root", "projects"))
+    projects_root, fallback_roots, channels_root = _request_path_context(request)
+    channel = ChannelRegistry(channels_root).get(request.channel_id)
+    if request.execution.resume and request.project_id:
+        from src.projects import ProjectRepository
+
+        projects_root = ProjectRepository(
+            projects_root, fallback_roots=fallback_roots
+        ).project_root(request.project_id).parent
+    factory = ProjectFactory(base_dir=projects_root)
     dry_run = bool(request.execution.dry_run)
 
     _notify(progress_callback, "project_create", "running")
@@ -287,13 +317,15 @@ def _resolve_localization(*, root: Path, job, request: ContentCreationRequest):
     """
     from src.news.voice_adapter import resolve_localization_for_channel
 
-    projects_root = Path(request.project_overrides.get("projects_root", "projects"))
+    projects_root, fallback_roots, channels_root = _request_path_context(request)
     return resolve_localization_for_channel(
         channel_id=request.channel_id,
         language=job.language,
         project_root=root,
         project_id=job.job_id,
         projects_dir=projects_root,
+        projects_fallback_dirs=fallback_roots,
+        channels_dir=channels_root,
         voice_profile_override=request.voice.profile or None,
         manual_audio_path=request.voice.audio_file or "",
         script_path=str(root / "localizations" / job.language / "script" / "script.json"),
@@ -489,7 +521,13 @@ def _create_fullscreen_voiceover(
 
     if not request.channel_id:
         raise ContentCreationError("channel_id is required for fullscreen_voiceover_v1.")
-    projects_root = Path(request.project_overrides.get("projects_root", "projects"))
+    projects_root, fallback_roots, _channels_root = _request_path_context(request)
+    if request.execution.resume and request.project_id:
+        from src.projects import ProjectRepository
+
+        projects_root = ProjectRepository(
+            projects_root, fallback_roots=fallback_roots
+        ).project_root(request.project_id).parent
     store = NewsProjectStore(projects_root)
     dry_run = bool(request.execution.dry_run)
     url, topic, pasted_text, text_file = _resolve_content_inputs(request)

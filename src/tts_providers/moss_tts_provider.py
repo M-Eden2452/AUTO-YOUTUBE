@@ -5,11 +5,14 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from src.config_resolver.paths import resolve_application_paths
 from src.utils import project_path
 
 
 DEFAULT_MOSS_TTS_TEST_TEXT = "\u0422\u044b \u043d\u0435 \u043b\u0435\u043d\u0438\u0432\u044b\u0439. \u0422\u044b \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043d. \u0418\u043d\u043e\u0433\u0434\u0430 \u043c\u043e\u0437\u0433\u0443 \u043d\u0443\u0436\u043d\u0430 \u043d\u0435 \u043c\u043e\u0442\u0438\u0432\u0430\u0446\u0438\u044f, \u0430 \u0442\u0438\u0448\u0438\u043d\u0430."
-DEFAULT_MOSS_TTS_OUTPUT = Path("outputs/tts_tests/moss_tts_test.wav")
+DEFAULT_MOSS_TTS_OUTPUT = (
+    resolve_application_paths().outputs_root / "tts_tests" / "moss_tts_test.wav"
+)
 
 
 class MossTtsProviderError(RuntimeError):

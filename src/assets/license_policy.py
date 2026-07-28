@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from .models import ASSET_SCHEMA_VERSION, AssetCandidate, AssetLicense
+from src.config_resolver.paths import repository_path
 
 
-DEFAULT_LICENSE_POLICY_PATH = Path("config/license_policy.json")
+DEFAULT_LICENSE_POLICY_PATH = repository_path("config", "license_policy.json")
 APPROVED_STATUSES = {"approved", "confirmed", "owner_approved"}
 MANUAL_PROVIDERS = {"user", "manual", "manual_asset", "envato_manual"}
 

@@ -17,9 +17,10 @@ from src.providers.nasa_images_provider import NasaImageLibraryStockProvider
 from src.providers.pexels_provider import PexelsStockProvider
 from src.providers.pixabay_provider import PixabayStockProvider
 from src.providers.wikimedia_commons_provider import WikimediaCommonsStockProvider
+from src.config_resolver.paths import repository_path
 
 
-ENV_FILE = Path(".env")
+ENV_FILE = repository_path(".env")
 
 
 def collect_provider_diagnostics(

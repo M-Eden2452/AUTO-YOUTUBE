@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from src.config_resolver.paths import repository_path
+
 from .semantic_visual_backend import SemanticBackendCapabilities, SemanticBackendHealth
 from .semantic_visual_models import (
     AggregateSemanticScores,
@@ -637,7 +639,7 @@ def openai_backend_diagnostics(config: dict[str, Any] | None = None) -> dict[str
 
 
 def _load_default_semantic_config() -> dict[str, Any]:
-    path = Path("config/semantic_visual.json")
+    path = repository_path("config", "semantic_visual.json")
     if not path.exists():
         return {}
     try:

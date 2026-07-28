@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Any
 
 from .utils import read_json
+from .config_resolver.paths import repository_path
 
 
-DEFAULT_CONFIG_PATH = Path("config/video_style.json")
+DEFAULT_CONFIG_PATH = repository_path("config", "video_style.json")
 
 
 def load_config(
@@ -16,6 +17,7 @@ def load_config(
     prod: bool = False,
     prod_preview: bool = False,
     cinematic_preview: bool = False,
+    outputs_root: str | Path | None = None,
 ) -> dict[str, Any]:
     config = read_json(config_path)
     if prod or prod_preview or cinematic_preview:
@@ -26,7 +28,7 @@ def load_config(
         config["dev_mode"] = bool(config.get("dev_mode", False))
 
     if config["dev_mode"]:
-        return _apply_dev_defaults(config)
+        return _rebase_runtime_outputs(_apply_dev_defaults(config), outputs_root)
 
     updated = _apply_prod_defaults(config)
     if prod_preview:
@@ -46,7 +48,28 @@ def load_config(
         updated["audio_bitrate"] = str(updated.get("audio_bitrate", "192k"))
         updated["output_filename"] = "outputs/final_preview.mp4"
         updated["font_size"] = min(int(updated.get("font_size", 58)), 44)
-    return updated
+    return _rebase_runtime_outputs(updated, outputs_root)
+
+
+def _rebase_runtime_outputs(
+    value: Any,
+    outputs_root: str | Path | None,
+) -> Any:
+    if outputs_root is None:
+        return value
+    root = Path(outputs_root).resolve(strict=False)
+    if isinstance(value, dict):
+        return {
+            key: _rebase_runtime_outputs(item, root)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_rebase_runtime_outputs(item, root) for item in value]
+    if isinstance(value, str):
+        path = Path(value)
+        if not path.is_absolute() and path.parts and path.parts[0].casefold() == "outputs":
+            return str(root.joinpath(*path.parts[1:]))
+    return value
 
 
 def _apply_dev_defaults(config: dict[str, Any]) -> dict[str, Any]:

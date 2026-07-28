@@ -27,6 +27,7 @@ meant to hide - a write path must go through the owning system.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -157,15 +158,47 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-class ProjectRepository:
-    """Lists and reads projects of either kind under one root. Never writes."""
+def _paths_equal(left: Path, right: Path) -> bool:
+    return os.path.normcase(str(left.resolve(strict=False))) == os.path.normcase(
+        str(right.resolve(strict=False))
+    )
 
-    def __init__(self, projects_root: str | Path = "projects") -> None:
+
+class ProjectRepository:
+    """Lists and reads projects of either kind across one primary and fallback roots.
+
+    The primary root always wins when the same project id exists in more than one
+    location.  Fallback roots are read-only compatibility locations; this class
+    remains a reader and does not introduce a third project storage system.
+    """
+
+    def __init__(
+        self,
+        projects_root: str | Path | None = None,
+        *,
+        fallback_roots: tuple[str | Path, ...] | list[str | Path] = (),
+    ) -> None:
+        if projects_root is None:
+            from src.config_resolver.paths import resolve_application_paths
+
+            application_paths = resolve_application_paths()
+            projects_root = application_paths.projects_root
+            fallback_roots = application_paths.project_fallback_roots
         self.projects_root = Path(projects_root)
+        roots = [self.projects_root, *(Path(root) for root in fallback_roots)]
+        self.projects_roots = tuple(
+            root
+            for index, root in enumerate(roots)
+            if not any(_paths_equal(root, previous) for previous in roots[:index])
+        )
 
     # -- discovery ----------------------------------------------------------
 
     def project_root(self, project_id: str) -> Path:
+        for projects_root in self.projects_roots:
+            candidate = projects_root / project_id
+            if candidate.is_dir():
+                return candidate
         return self.projects_root / project_id
 
     def detect_kind(self, project_id: str) -> str:
@@ -180,9 +213,12 @@ class ProjectRepository:
         return self.project_root(project_id).is_dir()
 
     def list_ids(self) -> list[str]:
-        if not self.projects_root.is_dir():
-            return []
-        return [entry.name for entry in sorted(self.projects_root.iterdir(), key=lambda item: item.name) if entry.is_dir()]
+        project_ids: set[str] = set()
+        for projects_root in self.projects_roots:
+            if not projects_root.is_dir():
+                continue
+            project_ids.update(entry.name for entry in projects_root.iterdir() if entry.is_dir())
+        return sorted(project_ids)
 
     def list(self, *, include_unknown: bool = False) -> list[ProjectView]:
         views: list[ProjectView] = []
@@ -198,8 +234,9 @@ class ProjectRepository:
     def get(self, project_id: str) -> ProjectView:
         root = self.project_root(project_id)
         if not root.is_dir():
+            searched = ", ".join(path.as_posix() for path in self.projects_roots)
             raise ProjectNotFoundError(
-                f"Project {project_id!r} was not found in {self.projects_root.as_posix()!r}."
+                f"Project {project_id!r} was not found in: {searched}."
             )
         kind = self.detect_kind(project_id)
         if kind == PROJECT_KIND_NEWS_JOB:

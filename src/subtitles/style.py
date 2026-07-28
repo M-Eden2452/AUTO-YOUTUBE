@@ -64,11 +64,21 @@ _INT_FIELDS = {
 _BOOL_FIELDS = {"outline", "save_srt", "save_ass", "burned_in_default"}
 
 
-def channel_style_path(channel_id: str, *, channels_dir: str | Path = "channels") -> Path:
-    return Path(channels_dir) / channel_id / CHANNEL_STYLE_FILENAME
+def _channels_root(channels_dir: str | Path | None) -> Path:
+    if channels_dir is None:
+        from src.config_resolver.paths import resolve_application_paths
+
+        return resolve_application_paths().channels_root
+    return Path(channels_dir)
 
 
-def read_channel_style_file(channel_id: str, *, channels_dir: str | Path = "channels") -> dict[str, Any]:
+def channel_style_path(channel_id: str, *, channels_dir: str | Path | None = None) -> Path:
+    return _channels_root(channels_dir) / channel_id / CHANNEL_STYLE_FILENAME
+
+
+def read_channel_style_file(
+    channel_id: str, *, channels_dir: str | Path | None = None
+) -> dict[str, Any]:
     """Содержимое файла канала или ``{}``. Никогда не бросает: канал без файла -
     это норма, а не ошибка (у большинства каналов его нет)."""
     path = channel_style_path(channel_id, channels_dir=channels_dir)
@@ -86,7 +96,7 @@ def resolve_subtitle_style(
     channel_id: str = "",
     style_id: str = "documentary",
     resolution: dict[str, Any] | None = None,
-    channels_dir: str | Path = "channels",
+    channels_dir: str | Path | None = None,
     overrides: dict[str, Any] | None = None,
 ) -> SubtitleStyle:
     """``SubtitleStyle`` для канала.

@@ -22,7 +22,16 @@ ENVATO_SEARCH_BASE = "https://elements.envato.com/search"
 class EnvatoManualProvider:
     name = "envato_manual"
 
-    def __init__(self, *, projects_root: str | Path = "projects", search_base: str = ENVATO_SEARCH_BASE) -> None:
+    def __init__(
+        self,
+        *,
+        projects_root: str | Path | None = None,
+        search_base: str = ENVATO_SEARCH_BASE,
+    ) -> None:
+        if projects_root is None:
+            from src.config_resolver.paths import resolve_application_paths
+
+            projects_root = resolve_application_paths().projects_root
         self.projects_root = Path(projects_root)
         self.search_base = search_base
 

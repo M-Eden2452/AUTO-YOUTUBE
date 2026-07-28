@@ -74,6 +74,16 @@ from .models import (
     ResolvedConfig,
     ResolvedValue,
 )
+from .paths import (
+    DEFAULT_PATHS_CONFIG,
+    ENV_PATHS_CONFIG,
+    ENV_WORKSPACE_ROOT,
+    ApplicationPaths,
+    PathConfigurationError,
+    WorkspacePaths,
+    repository_path,
+    resolve_application_paths,
+)
 from .resolver import ConfigResolver, resolve_config
 
 __all__ = [
@@ -111,14 +121,22 @@ __all__ = [
     "ConfigResolutionError",
     "ConfigResolutionRequest",
     "ConfigResolver",
+    "DEFAULT_PATHS_CONFIG",
+    "ENV_PATHS_CONFIG",
+    "ENV_WORKSPACE_ROOT",
+    "ApplicationPaths",
+    "PathConfigurationError",
     "ResolutionStep",
     "ResolvedConfig",
     "ResolvedValue",
     "SettingDefinition",
+    "WorkspacePaths",
     "build_layers",
     "get_setting",
     "list_keys",
     "resolve_config",
+    "repository_path",
+    "resolve_application_paths",
     "secret_presence",
     "to_render_settings",
     "to_voice_policy",

@@ -14,7 +14,11 @@ class ChannelRegistry:
     Storage layout: <base_dir>/<channel_id>/channel.json
     """
 
-    def __init__(self, base_dir: str | Path = "channels") -> None:
+    def __init__(self, base_dir: str | Path | None = None) -> None:
+        if base_dir is None:
+            from src.config_resolver.paths import resolve_application_paths
+
+            base_dir = resolve_application_paths().channels_root
         self.base_dir = Path(base_dir)
 
     def _channel_dir(self, channel_id: str) -> Path:

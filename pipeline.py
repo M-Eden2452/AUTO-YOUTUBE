@@ -43,7 +43,7 @@ def configure_console_encoding() -> None:
             stream.reconfigure(encoding="utf-8", errors="replace")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Structured AI-YouTube pipeline")
     parser.add_argument(
         "command",
@@ -63,7 +63,14 @@ def parse_args() -> argparse.Namespace:
         help="Optional maintenance command.",
     )
     parser.add_argument("subcommand", nargs="?", help="Maintenance subcommand, for example analyse or migrate.")
-    parser.add_argument("--config", default="config/video_style.json", help="Path to base video style config.")
+    parser.add_argument("--workspace", default=None, help="Runtime workspace root.")
+    parser.add_argument("--paths-config", default=None, help="Optional JSON path configuration.")
+    parser.add_argument("--config", default=None, help="Path to base video style config.")
+    parser.add_argument(
+        "--obsidian-vault",
+        default=None,
+        help="Optional Obsidian vault root (or set AI_YOUTUBE_OBSIDIAN_VAULT).",
+    )
     parser.add_argument("--channel", help="Channel profile id, for example quotes.")
     parser.add_argument("--video", help="Video task id, for example thoughts_too_late_001.")
     parser.add_argument("--dev", action="store_true", help="Build a fast preview render.")
@@ -84,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-voice", action="store_true", help="Skip voice generation and render with music/subtitles only.")
     parser.add_argument("--news-to-short", action="store_true", help="Run the news_to_short mode instead of the legacy pipeline.")
     parser.add_argument("--news-action", choices=["create", "run", "resume"], default="create", help="news_to_short action.")
-    parser.add_argument("--projects-root", default="projects", help="Root folder for news_to_short jobs.")
+    parser.add_argument("--projects-root", default=None, help="Root folder for news_to_short jobs.")
     parser.add_argument("--job-id", help="Existing news_to_short job id for run/resume.")
     parser.add_argument("--news-channel", default="nature_science_news_ru", help="Channel profile for news_to_short.")
     parser.add_argument("--url", help="Article URL for news_to_short.")
@@ -164,18 +171,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target", help="Export target id for export-targets inspect.")
     parser.add_argument("--json", dest="json_output", action="store_true", help="Print machine-readable JSON for read-only catalog commands.")
     parser.add_argument("--production-plan", choices=["solar_vs_nuclear"], help="Create a reusable YouTube Shorts production plan.")
-    parser.add_argument("--production-plan-root", default=".", help="Folder where the production plan project folder will be created.")
+    parser.add_argument("--production-plan-root", default=None, help="Folder where the production plan project folder will be created.")
     parser.add_argument("--render-production-plan", help="Render an existing production plan project folder.")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main() -> None:
     configure_console_encoding()
     args = parse_args()
-    ensure_dir("outputs")
-    ensure_dir("assets/images")
-    ensure_dir("assets/images/generated")
-    ensure_media_library()
+    from src.config_resolver import resolve_application_paths
+
+    application_paths = resolve_application_paths(
+        workspace_root=args.workspace,
+        paths_config=args.paths_config,
+        projects_root=args.projects_root,
+    )
+    args.projects_root = str(application_paths.projects_root)
+    args.config = args.config or str(application_paths.config_root / "video_style.json")
+    args.production_plan_root = args.production_plan_root or str(application_paths.repository_root)
+    assets_root = application_paths.workspace.media_library.parent
+    ensure_dir(application_paths.outputs_root)
+    ensure_dir(assets_root / "images")
+    ensure_dir(assets_root / "images" / "generated")
+    ensure_media_library(application_paths.workspace.media_library)
 
     if args.command == "provider-diagnostics":
         diagnostics = collect_provider_diagnostics(live=args.live, provider=args.provider)
@@ -185,7 +203,7 @@ def main() -> None:
     if args.command == "visual-preview":
         if not args.project_id:
             raise SystemExit("visual-preview requires --project-id.")
-        project_root = Path(args.projects_root) / args.project_id
+        project_root = application_paths.find_project_root(args.project_id)
         if args.subcommand == "prepare":
             if not args.scene_id and not args.all_scenes:
                 raise SystemExit("visual-preview prepare requires --scene-id or --all-scenes.")
@@ -320,7 +338,7 @@ def main() -> None:
     if args.command == "semantic-visual":
         if not args.project_id:
             raise SystemExit("semantic-visual requires --project-id.")
-        project_root = Path(args.projects_root) / args.project_id
+        project_root = application_paths.find_project_root(args.project_id)
         if args.subcommand == "analyse":
             if not args.scene_id and not args.all_scenes:
                 raise SystemExit("semantic-visual analyse requires --scene-id or --all-scenes.")
@@ -380,7 +398,9 @@ def main() -> None:
     if args.command == "envato-manual":
         if not args.project_id or not args.scene_id:
             raise SystemExit("envato-manual requires --project-id and --scene-id.")
-        provider = EnvatoManualProvider(projects_root=args.projects_root)
+        provider = EnvatoManualProvider(
+            projects_root=application_paths.find_project_root(args.project_id).parent
+        )
         if args.subcommand == "prepare":
             manifest = provider.prepare_request(
                 project_id=args.project_id,
@@ -429,9 +449,12 @@ def main() -> None:
         raise SystemExit("envato-manual requires subcommand: prepare or import.")
 
     if args.command == "media-library":
+        media_index_path = (
+            application_paths.workspace.media_library / "metadata" / "media_index.json"
+        )
         if args.subcommand == "analyse":
             report = analyse_media_library(
-                index_path=args.index_path or "assets/library/metadata/media_index.json",
+                index_path=args.index_path or media_index_path,
                 report_path=args.report_path,
             )
             print(f"[media-library] records_total={report['records_total']}")
@@ -441,7 +464,7 @@ def main() -> None:
             return
         if args.subcommand == "migrate":
             result = migrate_media_library(
-                index_path=args.index_path or "assets/library/metadata/media_index.json",
+                index_path=args.index_path or media_index_path,
                 dry_run=args.dry_run and not args.apply_migration,
                 apply=args.apply_migration,
                 output_path=args.output_path,
@@ -459,6 +482,10 @@ def main() -> None:
         raise SystemExit("media-library requires subcommand: analyse or migrate.")
 
     if args.voice_action:
+        if args.job_id:
+            args.projects_root = str(
+                application_paths.find_project_root(args.job_id).parent
+            )
         raise SystemExit(run_voice_cli(args))
 
     if args.production_plan == "solar_vs_nuclear":
@@ -479,6 +506,10 @@ def main() -> None:
         return
 
     if args.news_to_short:
+        if args.job_id and (args.news_action in {"run", "resume"} or args.resume):
+            args.projects_root = str(
+                application_paths.find_project_root(args.job_id).parent
+            )
         result = run_news_to_short_cli(args)
         print(f"[news-to-short] job_id={result.job_id}")
         print(f"[news-to-short] status={result.status}")
@@ -488,19 +519,36 @@ def main() -> None:
         return
 
     if args.index_assets:
-        index = index_existing_assets()
+        index = index_existing_assets(
+            library_root=application_paths.workspace.media_library,
+            index_path=application_paths.workspace.media_library
+            / "metadata"
+            / "media_index.json",
+        )
         print(f"[assets] Indexed media library items: {len(index.get('items', []))}")
         return
     if args.clean_temp:
-        removed = clean_temp_files()
+        removed = clean_temp_files([application_paths.outputs_root / "render_temp"])
         print(f"[cleanup] Removed temp paths: {len(removed)}")
         return
     if args.asset_report:
-        report_path = create_asset_report()
+        report_path = create_asset_report(
+            index_path=application_paths.workspace.media_library
+            / "metadata"
+            / "media_index.json",
+            output_path=application_paths.outputs_root / "asset_library_report.md",
+        )
         print(f"[assets] Report created: {report_path}")
         return
     if args.test_moss_tts:
-        config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview, cinematic_preview=args.cinematic_preview)
+        config = load_config(
+            args.config,
+            dev=args.dev,
+            prod=args.prod,
+            prod_preview=args.prod_preview,
+            cinematic_preview=args.cinematic_preview,
+            outputs_root=application_paths.outputs_root,
+        )
         try:
             output_path = run_test_synthesis(config)
         except MossTtsProviderError as exc:
@@ -510,11 +558,24 @@ def main() -> None:
     if args.test_moss_voices:
         raise SystemExit(run_moss_voice_tests())
 
-    config = load_config(args.config, dev=args.dev, prod=args.prod, prod_preview=args.prod_preview, cinematic_preview=args.cinematic_preview)
+    config = load_config(
+        args.config,
+        dev=args.dev,
+        prod=args.prod,
+        prod_preview=args.prod_preview,
+        cinematic_preview=args.cinematic_preview,
+        outputs_root=application_paths.outputs_root,
+    )
     if args.channel or args.video:
         if not args.channel or not args.video:
             raise SystemExit("--channel and --video must be passed together.")
-        config = load_channel_video_config(config, args.channel, args.video)
+        config = load_channel_video_config(
+            config,
+            args.channel,
+            args.video,
+            application_paths=application_paths,
+            obsidian_vault=args.obsidian_vault,
+        )
     plans = config["plans"]
     print(
         f"[config] Loaded {args.config} | channel={config.get('channel_id', 'default')} "
@@ -523,10 +584,15 @@ def main() -> None:
     )
 
     if config.get("video_type") == "cinematic_size_comparison":
+        vault_path = str(config.get("obsidian", {}).get("vault_path") or "").rstrip("/\\")
+        note_folder = (
+            f"YouTube/02 Видео/Size Comparison/"
+            f"{config.get('video_id', 'sea_monsters_001')}"
+        )
         config["obsidian"] = {
             **config.get("obsidian", {}),
-            "folder": f"YouTube/02 Видео/Size Comparison/{config.get('video_id', 'sea_monsters_001')}",
-            "video_note_dir": f"{config.get('obsidian', {}).get('vault_path', 'G:/ObsidianBase/ObsidianBase')}/YouTube/02 Видео/Size Comparison/{config.get('video_id', 'sea_monsters_001')}",
+            "folder": note_folder,
+            "video_note_dir": f"{vault_path}/{note_folder}" if vault_path else "",
         }
         result = run_size_comparison_pipeline(config, skip_render=args.skip_render)
         print(f"[size-comparison] Output file: {result['output_path']}")

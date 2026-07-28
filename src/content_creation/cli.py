@@ -44,6 +44,19 @@ def _json_flag_parser() -> argparse.ArgumentParser:
     common.add_argument(
         "--no-icons", action="store_true", help="Use ASCII markers instead of emoji (wizard only)."
     )
+    common.add_argument(
+        "--workspace",
+        default=None,
+        help=(
+            "Runtime workspace root. Relative paths are anchored to the repository; "
+            "overrides AI_YOUTUBE_WORKSPACE and path config."
+        ),
+    )
+    common.add_argument(
+        "--paths-config",
+        default=None,
+        help="Optional JSON path configuration; overrides AI_YOUTUBE_PATHS_CONFIG.",
+    )
     return common
 
 
@@ -105,7 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
     voices_p.add_argument("--template", help="With 'explain': template_id whose policy layer to apply.")
     voices_p.add_argument("--format", dest="format_id", help="With 'explain': format_id whose policy layer to apply.")
     voices_p.add_argument("--project-id", help="With 'explain': project whose manifest and narration to inspect.")
-    voices_p.add_argument("--projects-root", default="projects")
+    voices_p.add_argument("--projects-root", default=None)
     voices_p.add_argument("--voice-provider", help="With 'explain': provider as an explicit runtime override.")
     voices_p.add_argument(
         "--trace", action="store_true", help="With 'explain': also print every configuration layer considered."
@@ -120,7 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
     subtitles_p.add_argument("--style", help="style_id for 'show'.")
     subtitles_p.add_argument("--project-id", help="Required for 'explain'/'validate'.")
     subtitles_p.add_argument("--language", help="Localization id (default: the project's own).")
-    subtitles_p.add_argument("--projects-root", default="projects")
+    subtitles_p.add_argument("--projects-root", default=None)
     subtitles_p.add_argument(
         "--cues", action="store_true", help="With 'explain': print every cue, not just the per-scene summary."
     )
@@ -128,7 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
     project_p = subparsers.add_parser("project", help="Inspect existing projects.", parents=[json_flag])
     project_p.add_argument("action", choices=["list", "status", "validate", "rights-report"])
     project_p.add_argument("--project-id", help="Required for every action except 'list'.")
-    project_p.add_argument("--projects-root", default="projects")
+    project_p.add_argument("--projects-root", default=None)
 
     assets_p = subparsers.add_parser(
         "assets", help="Manage visual slots in an existing news project.", parents=[json_flag]
@@ -149,7 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Explicitly confirm that you own or control the supplied media rights.",
     )
-    assets_p.add_argument("--projects-root", default="projects")
+    assets_p.add_argument("--projects-root", default=None)
 
     create_p = subparsers.add_parser(
         "create", help="Create one piece of content (flag-driven, non-interactive).", parents=[json_flag]
@@ -166,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_stage_p.add_argument("--project-id", required=True)
     run_stage_p.add_argument("--stage", required=True)
-    run_stage_p.add_argument("--projects-root", default="projects")
+    run_stage_p.add_argument("--projects-root", default=None)
     run_stage_p.add_argument("--execute-voice", action="store_true")
 
     script_p = subparsers.add_parser(
@@ -298,10 +311,29 @@ def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
         default="",
         help="Asset-aware adaptation; empty keeps the project/default setting.",
     )
-    parser.add_argument("--projects-root", default="projects")
+    parser.add_argument("--projects-root", default=None)
+
+
+def _resolve_cli_paths(args: argparse.Namespace):
+    existing = getattr(args, "_application_paths", None)
+    if existing is not None:
+        return existing
+    from src.config_resolver import resolve_application_paths
+
+    paths = resolve_application_paths(
+        workspace_root=getattr(args, "workspace", None),
+        paths_config=getattr(args, "paths_config", None),
+        projects_root=getattr(args, "projects_root", None),
+    )
+    args.projects_root = str(paths.projects_root)
+    args.project_fallback_roots = tuple(str(path) for path in paths.project_fallback_roots)
+    args.channels_root = str(paths.channels_root)
+    args._application_paths = paths
+    return paths
 
 
 def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
+    _resolve_cli_paths(args)
     voice_profile = args.voice_profile
     if voice_profile and args.channel_id:
         try:
@@ -350,7 +382,11 @@ def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
             stage="",
             until_stage="",
         ),
-        project_overrides={"projects_root": args.projects_root},
+        project_overrides={
+            "projects_root": args.projects_root,
+            "project_fallback_roots": list(getattr(args, "project_fallback_roots", ())),
+            "channels_root": getattr(args, "channels_root", ""),
+        },
     )
 
 
@@ -378,6 +414,9 @@ def _channels_explain(args: argparse.Namespace) -> int:
             format_id=format_id,
             language=args.language or "",
             project_id=args.project_id or "",
+            channels_dir=args.channels_root,
+            projects_dir=args.projects_root,
+            projects_fallback_dirs=args.project_fallback_roots,
         )
     except ConfigResolutionError as exc:
         if args.json_output:
@@ -450,7 +489,7 @@ def _voices_explain(args: argparse.Namespace) -> int:
     template_id, format_id = _explain_template_and_format(args)
     project_root = None
     if args.project_id:
-        project_root = Path(args.projects_root) / args.project_id
+        project_root = args._application_paths.find_project_root(args.project_id)
 
     resolved = []
     for language in _explain_languages(args):
@@ -464,6 +503,8 @@ def _voices_explain(args: argparse.Namespace) -> int:
                     project_id=args.project_id or "",
                     project_root=project_root,
                     projects_dir=args.projects_root,
+                    projects_fallback_dirs=args.project_fallback_roots,
+                    channels_dir=args.channels_root,
                     voice_provider_override=getattr(args, "voice_provider", "") or "",
                     voice_profile_override=args.voice_profile or "",
                 )
@@ -530,7 +571,9 @@ def _subtitle_project_context(args: argparse.Namespace) -> tuple[Path, str, str,
     from src.projects import ProjectNotFoundError, ProjectRepository
 
     try:
-        view = ProjectRepository(args.projects_root).get(args.project_id)
+        view = ProjectRepository(
+            args.projects_root, fallback_roots=args.project_fallback_roots
+        ).get(args.project_id)
     except ProjectNotFoundError as exc:
         raise SystemExit(f"[subtitles] {exc}")
     root = Path(view.project_root)
@@ -566,6 +609,8 @@ def _subtitle_result_for_project(args: argparse.Namespace):
         project_root=root,
         project_id=args.project_id,
         projects_dir=args.projects_root,
+        projects_fallback_dirs=args.project_fallback_roots,
+        channels_dir=args.channels_root,
     )
     visual_path = root / "localizations" / localization_id / "visual" / "visual_plan.json"
     visual = _json.loads(visual_path.read_text(encoding="utf-8")) if visual_path.is_file() else {}
@@ -765,13 +810,19 @@ def _run_wizard(args: argparse.Namespace) -> int:
     # ContentCreationResult itself, already printed via wizard.print_result().
     from src.content_creation.wizard import run_wizard
 
-    result = run_wizard(no_icons=getattr(args, "no_icons", False))
+    result = run_wizard(
+        no_icons=getattr(args, "no_icons", False),
+        projects_root=args.projects_root,
+        project_fallback_roots=args.project_fallback_roots,
+        channels_root=args.channels_root,
+    )
     if result is None:
         return 0
     return 0 if result.status != "failed" else 1
 
 
 def run_content_creation_cli(args: argparse.Namespace) -> int:
+    _resolve_cli_paths(args)
     command = args.command
     if command == "capabilities":
         report = capabilities.build_capabilities_report()
@@ -890,8 +941,9 @@ def run_content_creation_cli(args: argparse.Namespace) -> int:
     if command == "run-stage":
         from src.news.pipeline import run_news_to_short_job
 
+        projects_root = args._application_paths.find_project_root(args.project_id).parent
         result = run_news_to_short_job(
-            projects_root=args.projects_root,
+            projects_root=projects_root,
             job_id=args.project_id,
             stage=args.stage,
             execute_voice=args.execute_voice,
@@ -910,8 +962,9 @@ def _run_assets(args: argparse.Namespace) -> int:
     from src.assets.completion.replacement import replace_visual_slot
 
     try:
+        projects_root = args._application_paths.find_project_root(args.project_id).parent
         result = replace_visual_slot(
-            projects_root=args.projects_root,
+            projects_root=projects_root,
             project_id=args.project_id,
             scene_id=args.scene_id,
             slot_id=args.slot_id,
@@ -961,7 +1014,9 @@ def _run_project(args: argparse.Namespace) -> int:
     # understands both storage systems living in projects/ (job.json and project.json).
     # validate still needs a real ProjectManifest + ChannelProfile, so it stays on
     # ProjectFactory and says so plainly for a news job.
-    repository = ProjectRepository(args.projects_root)
+    repository = ProjectRepository(
+        args.projects_root, fallback_roots=args.project_fallback_roots
+    )
 
     if args.action == "list":
         views = [view.to_dict() for view in repository.list(include_unknown=True)]
@@ -1031,7 +1086,7 @@ def _run_project(args: argparse.Namespace) -> int:
         )
         return 1
 
-    factory = ProjectFactory(base_dir=args.projects_root)
+    factory = ProjectFactory(base_dir=repository.project_root(args.project_id).parent)
     try:
         manifest = factory.get(args.project_id)
     except ProjectFoundationError as exc:

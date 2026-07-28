@@ -32,8 +32,10 @@ def _print_error(message: str) -> None:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m src.project_foundation.cli")
-    parser.add_argument("--channels-root", default="channels", help="Root directory for channel storage.")
-    parser.add_argument("--projects-root", default="projects", help="Root directory for project storage.")
+    parser.add_argument("--workspace", default=None, help="Runtime workspace root.")
+    parser.add_argument("--paths-config", default=None, help="Optional JSON path configuration.")
+    parser.add_argument("--channels-root", default=None, help="Root directory for channel storage.")
+    parser.add_argument("--projects-root", default=None, help="Root directory for project storage.")
 
     subparsers = parser.add_subparsers(dest="group", required=True)
 
@@ -180,6 +182,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    from src.config_resolver import resolve_application_paths
+
+    application_paths = resolve_application_paths(
+        workspace_root=args.workspace,
+        paths_config=args.paths_config,
+        projects_root=args.projects_root,
+    )
+    args.channels_root = args.channels_root or str(application_paths.channels_root)
+    args.projects_root = str(application_paths.projects_root)
     channels_registry = ChannelRegistry(base_dir=args.channels_root)
     projects_factory = ProjectFactory(base_dir=args.projects_root)
 

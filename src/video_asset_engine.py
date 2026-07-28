@@ -262,7 +262,16 @@ def _manual_video_assets(config: dict[str, Any]) -> list[Path]:
     if not root:
         channel = str(config.get("channel_id", "")).strip()
         video = str(config.get("video_id", "")).strip()
-        root = Path("manual_assets") / channel / video if channel and video else ""
+        if channel and video:
+            from src.config_resolver.paths import resolve_application_paths
+
+            root = (
+                resolve_application_paths().workspace.manual_assets
+                / channel
+                / video
+            )
+        else:
+            root = ""
     if not root:
         return []
     video_dir = project_path(root) / "video"

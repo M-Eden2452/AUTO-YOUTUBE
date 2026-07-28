@@ -9,7 +9,9 @@ from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
 def main(argv: list[str] | None = None) -> int:
     _configure_console_encoding()
     parser = argparse.ArgumentParser(description="news_to_short app")
-    parser.add_argument("--projects-root", default="projects")
+    parser.add_argument("--workspace", default=None)
+    parser.add_argument("--paths-config", default=None)
+    parser.add_argument("--projects-root", default=None)
     parser.add_argument("--job-id")
     parser.add_argument("--action", choices=["create", "run", "resume"], default="create")
     parser.add_argument("--channel", default="nature_science_news_ru")
@@ -28,9 +30,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--script-adaptation", choices=["none", "light"], default="")
     args = parser.parse_args(argv)
 
+    from src.config_resolver import resolve_application_paths
+
+    application_paths = resolve_application_paths(
+        workspace_root=args.workspace,
+        paths_config=args.paths_config,
+        projects_root=args.projects_root,
+    )
+    projects_root = application_paths.projects_root
+
     if args.action == "create":
         job = create_news_to_short_job(
-            projects_root=args.projects_root,
+            projects_root=projects_root,
             channel_id=args.channel,
             url=args.url,
             topic=args.topic,
@@ -47,9 +58,10 @@ def main(argv: list[str] | None = None) -> int:
         if not args.job_id:
             raise SystemExit("--job-id is required for run/resume.")
         job_id = args.job_id
+        projects_root = application_paths.find_project_root(job_id).parent
 
     result = run_news_to_short_job(
-        projects_root=args.projects_root,
+        projects_root=projects_root,
         job_id=job_id,
         dry_run=args.dry_run,
         until_stage=args.until_stage,

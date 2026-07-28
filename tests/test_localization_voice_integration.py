@@ -113,6 +113,8 @@ def _resolve(**kwargs):
     kwargs.setdefault("template_id", NEWS_TEMPLATE)
     kwargs.setdefault("format_id", NEWS_FORMAT)
     kwargs.setdefault("secret_probe", _NO_SECRET)
+    if kwargs.get("channel_id") == "twolang":
+        kwargs.setdefault("channels_dir", str(Path.cwd() / "channels"))
     return resolve_localization(**kwargs)
 
 

@@ -255,7 +255,11 @@ def template_layer(template_id: str) -> ConfigLayer:
     )
 
 
-def project_layer(project_id: str, projects_dir: str | Path = "projects") -> ConfigLayer:
+def project_layer(
+    project_id: str,
+    projects_dir: str | Path | None = None,
+    projects_fallback_dirs: tuple[str | Path, ...] | list[str | Path] = (),
+) -> ConfigLayer:
     """Whichever of the two project manifests this project actually uses.
 
     ``src.projects.ProjectRepository`` already owns the "which kind is this" question;
@@ -271,7 +275,7 @@ def project_layer(project_id: str, projects_dir: str | Path = "projects") -> Con
         ProjectRepository,
     )
 
-    repository = ProjectRepository(projects_dir)
+    repository = ProjectRepository(projects_dir, fallback_roots=projects_fallback_dirs)
     kind = repository.detect_kind(project_id)
     root = repository.project_root(project_id)
     if kind == PROJECT_KIND_NEWS_JOB:
@@ -280,7 +284,8 @@ def project_layer(project_id: str, projects_dir: str | Path = "projects") -> Con
         path = root / "project.json"
     else:
         raise ConfigResolutionError(
-            f"Проект {project_id!r} не найден в {Path(projects_dir).as_posix()!r} "
+            f"Проект {project_id!r} не найден в "
+            f"{', '.join(path.as_posix() for path in repository.projects_roots)!r} "
             "(нет ни job.json, ни project.json).",
             reason="unknown_project",
         )
@@ -372,7 +377,11 @@ def build_layers(request: ConfigResolutionRequest) -> tuple[ConfigLayer, ...]:
         channel_profile_layer(request.channel_id, request.channels_dir),
         channel_config_layer(request.channel_id, request.channels_dir),
         template_layer(request.template_id),
-        project_layer(request.project_id, request.projects_dir),
+        project_layer(
+            request.project_id,
+            request.projects_dir,
+            request.projects_fallback_dirs,
+        ),
         localization_layer(request.channel_id, request.language, request.channels_dir),
         runtime_layer(request.overrides),
         environment_layer(include_secrets=request.include_secrets),

@@ -21,6 +21,12 @@ from src.project_foundation.models import ProjectFoundationError
 VOICE_PROVIDER_DISABLED = "disabled"
 
 
+def _channels_root() -> Path:
+    from src.config_resolver.paths import resolve_application_paths
+
+    return resolve_application_paths().channels_root
+
+
 def list_voice_providers() -> list[dict[str, Any]]:
     """Real, registered TTS providers plus the "disabled" pseudo-option.
 
@@ -296,12 +302,14 @@ def list_channels() -> list[dict[str, Any]]:
                 "default_format": profile.default_format,
                 "default_template": profile.default_template,
                 "export_targets": profile.export_targets,
-                "has_voice_config": (Path("channels") / profile.channel_id / "voices.yaml").is_file(),
+                "has_voice_config": (
+                    _channels_root() / profile.channel_id / "voices.yaml"
+                ).is_file(),
                 "supported_templates": list(_CHANNEL_TYPE_TEMPLATES[CHANNEL_TYPE_PROJECT_FOUNDATION]),
                 "usable_for_content_creation": True,
             }
         )
-    channels_dir = Path("channels")
+    channels_dir = _channels_root()
     if channels_dir.is_dir():
         for entry in sorted(channels_dir.iterdir(), key=lambda item: item.name):
             channel_id = entry.name

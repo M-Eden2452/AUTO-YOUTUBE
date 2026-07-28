@@ -195,13 +195,28 @@ class ConfigResolutionRequest:
     # resolver keys; an unknown key raises rather than being silently ignored.
     overrides: dict[str, Any] = field(default_factory=dict)
     # Injectable roots so tests never touch the real channels/ and projects/.
-    channels_dir: str = "channels"
-    projects_dir: str = "projects"
+    # Empty values resolve through ApplicationPaths and are independent of cwd.
+    channels_dir: str = ""
+    projects_dir: str = ""
+    projects_fallback_dirs: tuple[str, ...] = ()
     # Reading the environment is opt-out so a report can be produced on a machine
     # with no .env at all without pretending keys are missing.
     include_secrets: bool = True
 
     def __post_init__(self) -> None:
+        if not self.channels_dir or not self.projects_dir:
+            from .paths import resolve_application_paths
+
+            paths = resolve_application_paths()
+            if not self.channels_dir:
+                object.__setattr__(self, "channels_dir", str(paths.channels_root))
+            if not self.projects_dir:
+                object.__setattr__(self, "projects_dir", str(paths.projects_root))
+                object.__setattr__(
+                    self,
+                    "projects_fallback_dirs",
+                    tuple(str(path) for path in paths.project_fallback_roots),
+                )
         unknown = sorted(set(self.overrides) - set(SETTINGS_BY_KEY))
         if unknown:
             raise ConfigResolutionError(
@@ -225,6 +240,7 @@ class ConfigResolutionRequest:
             "overrides": dict(self.overrides),
             "channels_dir": self.channels_dir,
             "projects_dir": self.projects_dir,
+            "projects_fallback_dirs": list(self.projects_fallback_dirs),
             "include_secrets": self.include_secrets,
         }
 

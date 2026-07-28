@@ -54,7 +54,9 @@ MOTION_SCENE_STOCK_QUERIES = {
 
 def build_solar_vs_nuclear_video(project_root: str | Path = "project_solar_vs_nuclear") -> dict[str, Any]:
     root = Path(project_root)
-    load_dotenv(Path.cwd() / ".env", override=True)
+    from src.config_resolver.paths import resolve_application_paths
+
+    load_dotenv(resolve_application_paths().repository_root / ".env", override=True)
     scenes_data = _read_json(root / "scenes.json")
     scenes = scenes_data["scenes"]
     voice = ensure_final_voice(root)

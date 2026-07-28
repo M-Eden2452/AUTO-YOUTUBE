@@ -274,8 +274,9 @@ def resolve_config(
     language: str = "",
     project_id: str = "",
     overrides: dict[str, Any] | None = None,
-    channels_dir: str = "channels",
-    projects_dir: str = "projects",
+    channels_dir: str | Path | None = None,
+    projects_dir: str | Path | None = None,
+    projects_fallback_dirs: tuple[str | Path, ...] | list[str | Path] = (),
     include_secrets: bool = True,
 ) -> ResolvedConfig:
     """Convenience entry point - the same thing as ``ConfigResolver(request).resolve()``."""
@@ -286,8 +287,9 @@ def resolve_config(
         language=language,
         project_id=project_id,
         overrides=dict(overrides or {}),
-        channels_dir=channels_dir,
-        projects_dir=projects_dir,
+        channels_dir=str(channels_dir or ""),
+        projects_dir=str(projects_dir or ""),
+        projects_fallback_dirs=tuple(str(path) for path in projects_fallback_dirs),
         include_secrets=include_secrets,
     )
     return ConfigResolver(request).resolve()

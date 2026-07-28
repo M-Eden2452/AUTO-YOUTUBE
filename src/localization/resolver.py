@@ -160,8 +160,9 @@ def resolve_localization(
     voice_provider_override: str = "",
     voice_profile_override: str = "",
     overrides: dict[str, Any] | None = None,
-    channels_dir: str = "channels",
-    projects_dir: str = "projects",
+    channels_dir: str | Path | None = None,
+    projects_dir: str | Path | None = None,
+    projects_fallback_dirs: tuple[str | Path, ...] | list[str | Path] = (),
     include_secrets: bool = True,
     secret_probe: Any = None,
 ) -> ResolvedLocalization:
@@ -205,6 +206,7 @@ def resolve_localization(
         overrides=_runtime_overrides(voice_provider_override, voice_profile_override, overrides),
         channels_dir=channels_dir,
         projects_dir=projects_dir,
+        projects_fallback_dirs=projects_fallback_dirs,
         include_secrets=include_secrets,
     )
     policy: VoicePolicy = to_voice_policy(resolved_config)
@@ -226,7 +228,7 @@ def resolve_localization(
     profile_id, profile, profile_issues = _resolve_profile(
         resolved_config,
         channel_id=channel_id,
-        channels_dir=channels_dir,
+        channels_dir=resolved_config.request.channels_dir,
         language=effective_language,
         provider=provider,
         folder=folder,

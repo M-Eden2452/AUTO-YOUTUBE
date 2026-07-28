@@ -6,7 +6,6 @@ from .tts.models import VoiceProfile
 from .voice_cli import load_voice_profiles
 
 
-DEFAULT_CHANNELS_DIR = "channels"
 VOICES_FILENAME = "voices.yaml"
 
 
@@ -77,13 +76,21 @@ class VoiceProfileRegistry:
         return {profile_id: profile for profile_id, profile in self._profiles.items() if profile.enabled}
 
 
-def channel_voices_path(channel_id: str, channels_dir: str | Path = DEFAULT_CHANNELS_DIR) -> Path:
-    return Path(channels_dir) / channel_id / VOICES_FILENAME
+def _channels_root(channels_dir: str | Path | None) -> Path:
+    if channels_dir is None:
+        from src.config_resolver.paths import resolve_application_paths
+
+        return resolve_application_paths().channels_root
+    return Path(channels_dir)
 
 
-def global_voices_paths(channels_dir: str | Path = DEFAULT_CHANNELS_DIR) -> list[Path]:
+def channel_voices_path(channel_id: str, channels_dir: str | Path | None = None) -> Path:
+    return _channels_root(channels_dir) / channel_id / VOICES_FILENAME
+
+
+def global_voices_paths(channels_dir: str | Path | None = None) -> list[Path]:
     """Every voices.yaml on disk, in a deterministic order."""
-    root = Path(channels_dir)
+    root = _channels_root(channels_dir)
     if not root.is_dir():
         return []
     return sorted(root.glob(f"*/{VOICES_FILENAME}"))
@@ -93,7 +100,7 @@ def lookup_profile(
     channel_id: str,
     query: str,
     *,
-    channels_dir: str | Path = DEFAULT_CHANNELS_DIR,
+    channels_dir: str | Path | None = None,
     allow_global: bool = False,
 ) -> VoiceProfile:
     """Resolve one profile id/alias/display name to a VoiceProfile.

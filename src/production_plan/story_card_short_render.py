@@ -11,9 +11,12 @@ from moviepy import VideoClip, VideoFileClip
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from src.assets.frame_sampling import ffprobe_media_info
+from src.config_resolver.paths import repository_path
 
 
-DEFAULT_STORY_CARD_PRESET_PATH = Path("config/render_presets/story_card_short_v1.json")
+DEFAULT_STORY_CARD_PRESET_PATH = repository_path(
+    "config", "render_presets", "story_card_short_v1.json"
+)
 
 
 def load_story_card_preset(path: str | Path = DEFAULT_STORY_CARD_PRESET_PATH) -> dict[str, Any]:

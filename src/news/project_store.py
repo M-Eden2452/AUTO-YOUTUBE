@@ -15,7 +15,11 @@ class NewsProject:
 
 
 class NewsProjectStore:
-    def __init__(self, projects_root: str | Path = "projects") -> None:
+    def __init__(self, projects_root: str | Path | None = None) -> None:
+        if projects_root is None:
+            from src.config_resolver.paths import resolve_application_paths
+
+            projects_root = resolve_application_paths().projects_root
         self.projects_root = Path(projects_root)
 
     def project_root(self, job_id: str) -> Path:

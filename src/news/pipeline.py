@@ -48,7 +48,7 @@ class NewsPipelineResult:
 
 def create_news_to_short_job(
     *,
-    projects_root: str | Path = "projects",
+    projects_root: str | Path | None = None,
     channel_id: str = "nature_science_news_ru",
     url: str | None = None,
     urls: list[str] | None = None,
@@ -79,7 +79,7 @@ def create_news_to_short_job(
     else:
         input_mode = INPUT_MODE_TOPIC
     store = NewsProjectStore(projects_root)
-    root = Path(projects_root)
+    root = store.projects_root
     # Names are made unique against every folder already in this root - including
     # projects created by the other storage system - so a new project can never
     # collide with, or silently write into, an existing one.
@@ -110,7 +110,7 @@ def create_news_to_short_job(
 
 def run_news_to_short_job(
     *,
-    projects_root: str | Path = "projects",
+    projects_root: str | Path | None = None,
     job_id: str,
     dry_run: bool = False,
     until_stage: str | None = None,
@@ -225,7 +225,13 @@ def run_news_to_short_job(
 
 
 def run_news_to_short_cli(args: Any) -> NewsPipelineResult:
-    projects_root = Path(getattr(args, "projects_root", "projects"))
+    configured_projects_root = getattr(args, "projects_root", None)
+    if configured_projects_root:
+        projects_root = Path(configured_projects_root)
+    else:
+        from src.config_resolver.paths import resolve_application_paths
+
+        projects_root = resolve_application_paths().projects_root
     if getattr(args, "news_action", "create") == "create":
         job = create_news_to_short_job(
             projects_root=projects_root,
@@ -695,7 +701,13 @@ def _load_channel_workflow_config(channel_id: str) -> dict[str, Any]:
 
 
 def _load_channel_config(channel_id: str) -> dict[str, Any]:
-    path = Path("channels") / channel_id / "channel_config.json"
+    from src.config_resolver.paths import resolve_application_paths
+
+    path = (
+        resolve_application_paths().channels_root
+        / channel_id
+        / "channel_config.json"
+    )
     if not path.exists():
         return {}
     try:

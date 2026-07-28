@@ -50,7 +50,11 @@ class ProjectCreationResult:
 class ProjectFactory:
     """Creates minimal project structures on disk without downloading, rendering, or calling any API."""
 
-    def __init__(self, base_dir: str | Path = "projects") -> None:
+    def __init__(self, base_dir: str | Path | None = None) -> None:
+        if base_dir is None:
+            from src.config_resolver.paths import resolve_application_paths
+
+            base_dir = resolve_application_paths().projects_root
         self.base_dir = Path(base_dir)
 
     def _project_dir(self, project_id: str) -> Path:

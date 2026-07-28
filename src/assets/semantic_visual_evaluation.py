@@ -5,6 +5,7 @@ import html
 import json
 import math
 import os
+import re
 import statistics
 import tempfile
 import time
@@ -28,9 +29,14 @@ from .semantic_visual_openai import (
 )
 
 
-DEFAULT_EVAL_CONFIG_PATH = Path("config/semantic_visual_eval.json")
+from src.config_resolver.paths import repository_path
+
+
+DEFAULT_EVAL_CONFIG_PATH = repository_path("config", "semantic_visual_eval.json")
 DEFAULT_EVAL_FRAME_ROOT = Path(tempfile.gettempdir()) / "ai_youtube_semantic_visual_eval_frames"
-CONTROLLED_LIVE_EVAL_DATASET_PATH = Path("docs/implementation/openai_live_evaluation/LIVE_EVAL_DATASET.json")
+CONTROLLED_LIVE_EVAL_DATASET_PATH = repository_path(
+    "docs", "implementation", "openai_live_evaluation", "LIVE_EVAL_DATASET.json"
+)
 CONTROLLED_LIVE_MODEL = "gpt-5.6-terra"
 CONTROLLED_LIVE_DETAIL = "low"
 CONTROLLED_LIVE_SCENES = 3
@@ -40,7 +46,9 @@ CONTROLLED_LIVE_IMAGES = 6
 CONTROLLED_LIVE_MAX_FRAMES_PER_CANDIDATE = 1
 CONTROLLED_LIVE_BUDGET_CAP_USD = 0.50
 CONTROLLED_LIVE_MAX_CALL_CAP = 6
-CONTROLLED_LIVE_RESULTS_DIR = Path("docs/implementation/openai_live_evaluation/results")
+CONTROLLED_LIVE_RESULTS_DIR = repository_path(
+    "docs", "implementation", "openai_live_evaluation", "results"
+)
 CONTROLLED_LIVE_RESULT_THRESHOLD = 0.65
 CONTROLLED_LIVE_INPUT_COST_PER_1K_TOKENS_USD = 0.0025
 CONTROLLED_LIVE_OUTPUT_COST_PER_1K_TOKENS_USD = 0.015
@@ -1247,8 +1255,9 @@ def _private_key(key: str) -> bool:
 
 def _public_path(path: str | Path) -> str:
     text = str(path).replace("\\", "/")
-    if text.startswith("G:/Projects/AI-YouTube/"):
-        return text.removeprefix("G:/Projects/AI-YouTube/")
+    legacy_match = re.match(r"^[A-Za-z]:/Projects/AI-YouTube/(.+)$", text)
+    if legacy_match:
+        return legacy_match.group(1)
     return "" if _looks_absolute_live(text) else text
 
 
@@ -1650,7 +1659,7 @@ def _unique_reasons(values: list[str]) -> list[str]:
 
 
 def _load_semantic_config() -> dict[str, Any]:
-    path = Path("config/semantic_visual.json")
+    path = repository_path("config", "semantic_visual.json")
     if not path.exists():
         return {}
     try:

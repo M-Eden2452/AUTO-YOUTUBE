@@ -19,7 +19,10 @@ from .semantic_visual_models import (
 )
 
 
-DEFAULT_SEMANTIC_CONFIG_PATH = Path("config/semantic_visual.json")
+from src.config_resolver.paths import repository_path
+
+
+DEFAULT_SEMANTIC_CONFIG_PATH = repository_path("config", "semantic_visual.json")
 DEFAULT_PROMPT_TEMPLATE_VERSION = "semantic_visual_prompt.v1"
 
 
@@ -373,10 +376,17 @@ def _attach_semantic_ranks(shortlist: list[dict[str, Any]]) -> None:
 def _semantic_cache_root(project_root: Path, config: dict[str, Any]) -> Path:
     configured = str(config.get("cache_root") or "")
     if configured:
-        return Path(configured)
+        path = Path(configured)
+        if path.is_absolute():
+            return path
+        from src.config_resolver.paths import resolve_application_paths
+
+        return resolve_application_paths().workspace.root / path
     if project_root:
         return project_root / "assets" / "semantic_cache"
-    return Path("assets/cache/semantic_visual")
+    from src.config_resolver.paths import resolve_application_paths
+
+    return resolve_application_paths().workspace.provider_cache / "semantic_visual"
 
 
 def _selection_fingerprint(manifest: dict[str, Any]) -> list[tuple[str, str]]:

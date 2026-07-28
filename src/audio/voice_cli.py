@@ -13,6 +13,18 @@ from .voice_workflow import create_voice_approval_record, import_manual_audio
 from src.news.project_store import NewsProjectStore
 
 
+def _application_roots(args: Any) -> tuple[Path, Path]:
+    from src.config_resolver.paths import resolve_application_paths
+
+    paths = resolve_application_paths(
+        workspace_root=getattr(args, "workspace", None),
+        paths_config=getattr(args, "paths_config", None),
+        projects_root=getattr(args, "projects_root", None),
+    )
+    channels_root = Path(getattr(args, "channels_root", "") or paths.channels_root)
+    return paths.projects_root, channels_root
+
+
 def load_voice_profiles(path: str | Path) -> dict[str, VoiceProfile]:
     config_path = Path(path)
     if not config_path.exists():
@@ -50,7 +62,8 @@ def load_voice_profiles(path: str | Path) -> dict[str, VoiceProfile]:
 
 def run_voice_cli(args: Any) -> int:
     channel = getattr(args, "news_channel", None) or "nature_science_news_ru"
-    profiles_path = Path("channels") / channel / "voices.yaml"
+    projects_root, channels_root = _application_roots(args)
+    profiles_path = channels_root / channel / "voices.yaml"
     profiles = load_voice_profiles(profiles_path)
     action = getattr(args, "voice_action", None)
     provider_name = getattr(args, "provider", None) or "elevenlabs"
@@ -82,12 +95,14 @@ def run_voice_cli(args: Any) -> int:
         if not job_id or not audio_file:
             raise SystemExit("--job-id and --audio-file are required for --voice-action import-audio.")
         manifest = import_manual_audio(
-            project_root=Path(getattr(args, "projects_root", "projects")) / job_id,
+            project_root=projects_root / job_id,
             job_id=job_id,
             language=language,
             audio_file=audio_file,
         )
-        _update_job_voice_status(getattr(args, "projects_root", "projects"), job_id, language, manifest["voice_stage_status"])
+        _update_job_voice_status(
+            projects_root, job_id, language, manifest["voice_stage_status"]
+        )
         print(json.dumps(manifest, ensure_ascii=False, indent=2))
         return 0
 
@@ -116,7 +131,7 @@ def run_voice_cli(args: Any) -> int:
             if not job_id:
                 raise SystemExit("--job-id is required for --voice-action approve.")
             approval = create_voice_approval_record(
-                project_root=Path(getattr(args, "projects_root", "projects")) / job_id,
+                project_root=projects_root / job_id,
                 language=request.language,
                 scope=getattr(args, "approval_scope", None) or "job",
                 provider=profile.provider,
@@ -158,7 +173,15 @@ def _load_preflight_text(args: Any) -> str:
     job_id = getattr(args, "job_id", None)
     language = getattr(args, "language", None) or "ru"
     if job_id:
-        narration = Path("projects") / job_id / "localizations" / language / "script" / "narration.txt"
+        projects_root, _channels_root = _application_roots(args)
+        narration = (
+            projects_root
+            / job_id
+            / "localizations"
+            / language
+            / "script"
+            / "narration.txt"
+        )
         if narration.exists():
             return narration.read_text(encoding="utf-8")
     return ""
@@ -169,7 +192,15 @@ def _planned_output_path(args: Any, profile: VoiceProfile) -> str | None:
     if not job_id:
         return None
     language = getattr(args, "language", None) or profile.language
-    return str(Path("projects") / job_id / "localizations" / language / "voice" / "narration.wav")
+    projects_root, _channels_root = _application_roots(args)
+    return str(
+        projects_root
+        / job_id
+        / "localizations"
+        / language
+        / "voice"
+        / "narration.wav"
+    )
 
 
 def _planned_audition_path(args: Any, profile: VoiceProfile) -> Path:
@@ -177,7 +208,16 @@ def _planned_audition_path(args: Any, profile: VoiceProfile) -> Path:
     if not job_id:
         raise SystemExit("--job-id is required for --voice-action audition.")
     language = getattr(args, "language", None) or profile.language
-    return Path(getattr(args, "projects_root", "projects")) / job_id / "localizations" / language / "voice" / "previews" / "dom_audition.mp3"
+    projects_root, _channels_root = _application_roots(args)
+    return (
+        projects_root
+        / job_id
+        / "localizations"
+        / language
+        / "voice"
+        / "previews"
+        / "dom_audition.mp3"
+    )
 
 
 def _run_audition(args: Any, profile: VoiceProfile, request: TTSRequest) -> dict[str, Any]:

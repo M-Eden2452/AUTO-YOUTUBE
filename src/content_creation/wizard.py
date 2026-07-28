@@ -338,7 +338,11 @@ class _WizardState:
     prepare_only: bool = False
 
 
-def _build_request(state: _WizardState) -> ContentCreationRequest:
+def _build_request(
+    state: _WizardState,
+    *,
+    project_overrides: dict[str, Any] | None = None,
+) -> ContentCreationRequest:
     text: dict[str, str] = {"top": state.text_top} if state.text_top else {}
     video_first = state.template_id == "fullscreen_voiceover_v1"
     return ContentCreationRequest(
@@ -373,6 +377,7 @@ def _build_request(state: _WizardState) -> ContentCreationRequest:
         # into the same service used by the flag-based CLI.
         completion_mode="draft_complete" if video_first else "",
         script_adaptation="light" if video_first else "",
+        project_overrides=dict(project_overrides or {}),
     )
 
 
@@ -388,10 +393,18 @@ class _Wizard:
     business rules (music path validation, URL rejection, ...) are the same
     src.content_creation.input_validation/capabilities helpers `create` uses."""
 
-    def __init__(self, prompt: PromptAdapter, icons: dict[str, str], create_fn) -> None:
+    def __init__(
+        self,
+        prompt: PromptAdapter,
+        icons: dict[str, str],
+        create_fn,
+        *,
+        project_overrides: dict[str, Any] | None = None,
+    ) -> None:
         self.prompt = prompt
         self.icons = icons
         self.create_fn = create_fn
+        self.project_overrides = dict(project_overrides or {})
         self.catalog = get_default_catalog()
 
     def _select(self, key: str, message: str, choices: list[tuple[str, str]]) -> str:
@@ -749,7 +762,13 @@ class _Wizard:
 
     # -- resume --------------------------------------------------------------
 
-    def choose_project_to_resume(self, state: _WizardState, *, projects_root: str = "projects") -> bool:
+    def choose_project_to_resume(
+        self,
+        state: _WizardState,
+        *,
+        projects_root: str,
+        project_fallback_roots: tuple[str, ...] = (),
+    ) -> bool:
         """Pick an unfinished project and refill the state from it.
 
         Returns False when there is nothing to continue, so the caller can fall back
@@ -762,7 +781,9 @@ class _Wizard:
         """
         from src.projects import ProjectRepository
 
-        views = ProjectRepository(projects_root).list()
+        views = ProjectRepository(
+            projects_root, fallback_roots=project_fallback_roots
+        ).list()
         unfinished = [
             view
             for view in views
@@ -1100,7 +1121,7 @@ class _Wizard:
             supports_progress = False
 
         while True:
-            request = _build_request(state)
+            request = _build_request(state, project_overrides=self.project_overrides)
             print(_tag(self.icons, "launch", "Выполняется..."))
 
             def _on_stage(stage: str, status: str) -> None:
@@ -1180,7 +1201,9 @@ def run_wizard(
     *,
     create_fn=create_content,
     no_icons: bool = False,
-    projects_root: str = "projects",
+    projects_root: str | None = None,
+    project_fallback_roots: tuple[str, ...] = (),
+    channels_root: str | None = None,
 ) -> ContentCreationResult | None:
     """Interactive terminal wizard: fill settings, review/edit, confirm, create.
 
@@ -1190,15 +1213,37 @@ def run_wizard(
     any point (including declining the final confirmation); no project is
     created until that point.
     """
+    if projects_root is None:
+        from src.config_resolver import resolve_application_paths
+
+        application_paths = resolve_application_paths()
+        projects_root = str(application_paths.projects_root)
+        project_fallback_roots = tuple(
+            str(path) for path in application_paths.project_fallback_roots
+        )
+        channels_root = str(application_paths.channels_root)
     prompt = adapter or _default_adapter()
     icons = choose_icon_set(no_icons=no_icons)
-    wizard = _Wizard(prompt, icons, create_fn)
+    wizard = _Wizard(
+        prompt,
+        icons,
+        create_fn,
+        project_overrides={
+            "projects_root": projects_root,
+            "project_fallback_roots": list(project_fallback_roots),
+            "channels_root": channels_root or "",
+        },
+    )
     state = _WizardState()
 
     try:
         action = wizard._select("check", "Что делаем?", START_ACTIONS)
         if action == "resume":
-            if wizard.choose_project_to_resume(state, projects_root=projects_root):
+            if wizard.choose_project_to_resume(
+                state,
+                projects_root=projects_root,
+                project_fallback_roots=project_fallback_roots,
+            ):
                 # A resumed project keeps its own id, channel, template and language,
                 # and its finished stages are not run again - so it goes straight to
                 # execution rather than back through the questionnaire.

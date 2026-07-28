@@ -1,18 +1,30 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import os
 from pathlib import Path
 from typing import Any
 
 from .utils import read_json
 
 
-OBSIDIAN_VAULT_PATH = "G:/ObsidianBase/ObsidianBase"
+ENV_OBSIDIAN_VAULT = "AI_YOUTUBE_OBSIDIAN_VAULT"
 
 
-def load_channel_video_config(base_config: dict[str, Any], channel: str, video: str) -> dict[str, Any]:
-    channel_dir = Path("channels") / channel
-    content_path = _content_task_path(channel, video)
+def load_channel_video_config(
+    base_config: dict[str, Any],
+    channel: str,
+    video: str,
+    *,
+    application_paths=None,
+    obsidian_vault: str | Path | None = None,
+) -> dict[str, Any]:
+    if application_paths is None:
+        from src.config_resolver.paths import resolve_application_paths
+
+        application_paths = resolve_application_paths()
+    channel_dir = application_paths.channels_root / channel
+    content_path = _content_task_path(channel, video, content_root=application_paths.content_root)
     channel_config = read_json(channel_dir / "channel_config.json")
     style = read_json(channel_dir / "style.json")
     video_task = read_json(content_path)
@@ -23,7 +35,7 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
         raise ValueError(f"Video task {content_path} has video_id {video_task.get('video_id')!r}, not {video!r}.")
 
     updated = deepcopy(base_config)
-    output_dir = Path("outputs") / channel / video
+    output_dir = application_paths.outputs_root / channel / video
     preview_output = bool(updated.get("dev_mode", False) or updated.get("cinematic_preview", False))
     updated.update(
         {
@@ -96,13 +108,15 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
 
     obsidian = deepcopy(updated.get("obsidian", {}))
     channel_name = channel_config.get("channel_name", channel)
+    vault_path = str(obsidian_vault or os.getenv(ENV_OBSIDIAN_VAULT, "") or "").rstrip("/\\")
+    note_folder = f"YouTube/02 Видео/{channel_name}/{video}"
     obsidian.update(
         {
-            "enabled": True,
-            "vault_path": OBSIDIAN_VAULT_PATH,
-            "folder": f"YouTube/02 Видео/{channel_name}/{video}",
+            "enabled": bool(vault_path),
+            "vault_path": vault_path,
+            "folder": note_folder,
             "channel_folder": channel_config.get("obsidian_folder", f"YouTube/01 Каналы/{channel_name}"),
-            "video_note_dir": f"{OBSIDIAN_VAULT_PATH}/YouTube/02 Видео/{channel_name}/{video}",
+            "video_note_dir": f"{vault_path}/{note_folder}" if vault_path else "",
             "video_embed": True,
             "fallback_to_outputs": True,
         }
@@ -111,12 +125,17 @@ def load_channel_video_config(base_config: dict[str, Any], channel: str, video: 
     return updated
 
 
-def _content_task_path(channel: str, video: str) -> Path:
-    legacy_path = Path("content") / channel / f"{video}.json"
+def _content_task_path(channel: str, video: str, *, content_root: str | Path | None = None) -> Path:
+    if content_root is None:
+        from src.config_resolver.paths import resolve_application_paths
+
+        content_root = resolve_application_paths().content_root
+    root = Path(content_root)
+    legacy_path = root / channel / f"{video}.json"
     if legacy_path.exists():
         return legacy_path
 
-    package_path = Path("content") / channel / video / "scene_notes.json"
+    package_path = root / channel / video / "scene_notes.json"
     if package_path.exists():
         return package_path
 

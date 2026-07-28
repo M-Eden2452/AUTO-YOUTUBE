@@ -22,7 +22,10 @@ from .provider_contract import AssetPreview
 from .visual_metrics import analyze_visual_technical_quality
 
 
-DEFAULT_CONFIG_PATH = Path("config/visual_preview.json")
+from src.config_resolver.paths import repository_path
+
+
+DEFAULT_CONFIG_PATH = repository_path("config", "visual_preview.json")
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".webm", ".ogv"}
 
@@ -678,7 +681,12 @@ def _request_cache_root(request: VisualPreviewRequest, config: dict[str, Any]) -
         return Path(request.cache_root)
     if request.project_root:
         return Path(request.project_root) / "assets" / "previews"
-    return Path(str(config.get("preview_cache_root") or "assets/cache/previews"))
+    configured = Path(str(config.get("preview_cache_root") or "assets/cache/previews"))
+    if configured.is_absolute():
+        return configured
+    from src.config_resolver.paths import resolve_application_paths
+
+    return resolve_application_paths().workspace.root / configured
 
 
 def _scene_candidates(scene_entry: dict[str, Any]) -> list[dict[str, Any]]:

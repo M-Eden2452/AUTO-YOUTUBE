@@ -20,11 +20,21 @@ class ChannelProfileTests(unittest.TestCase):
 
     def test_quotes_video_task_overrides_outputs_and_metadata(self) -> None:
         from src.channel_loader import load_channel_video_config
+        from src.config_resolver import resolve_application_paths
 
         base_config = load_config("config/video_style.json", dev=True)
-        config = load_channel_video_config(base_config, "quotes", "thoughts_too_late_001")
+        config = load_channel_video_config(
+            base_config,
+            "quotes",
+            "thoughts_too_late_001",
+            obsidian_vault="D:/Notes",
+        )
 
-        output_dir = Path("outputs/quotes/thoughts_too_late_001")
+        output_dir = (
+            resolve_application_paths().outputs_root
+            / "quotes"
+            / "thoughts_too_late_001"
+        )
         self.assertEqual(config["channel_id"], "quotes")
         self.assertEqual(config["video_id"], "thoughts_too_late_001")
         self.assertEqual(config["output_filename"], str(output_dir / "final_preview.mp4"))
@@ -37,7 +47,7 @@ class ChannelProfileTests(unittest.TestCase):
         self.assertEqual(len(config["video_task"]["scenes"]), 15)
         self.assertEqual(
             config["obsidian"]["video_note_dir"],
-            "G:/ObsidianBase/ObsidianBase/YouTube/02 Видео/Цитаты и мысли/thoughts_too_late_001",
+            "D:/Notes/YouTube/02 Видео/Цитаты и мысли/thoughts_too_late_001",
         )
 
     def test_video_task_drives_quote_scene_and_metadata_plans(self) -> None:
@@ -59,6 +69,7 @@ class ChannelProfileTests(unittest.TestCase):
 
     def test_survival_video_task_builds_story_metadata_and_paths(self) -> None:
         from src.channel_loader import load_channel_video_config
+        from src.config_resolver import resolve_application_paths
 
         config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001")
         quote_plan = build_quote_plan(config)
@@ -68,9 +79,15 @@ class ChannelProfileTests(unittest.TestCase):
         self.assertEqual(config["channel_id"], "survival")
         self.assertEqual(config["person"], "Истории выживания")
         self.assertEqual(config["video_type"], "real_survival_story")
-        self.assertEqual(Path(config["output_filename"]), Path("outputs/survival/juliane_koepcke_001/final_preview.mp4"))
-        self.assertEqual(Path(config["thumbnail_path"]), Path("outputs/survival/juliane_koepcke_001/thumbnail.png"))
-        self.assertEqual(config["obsidian"]["video_note_dir"], "G:/ObsidianBase/ObsidianBase/YouTube/02 Видео/Истории выживания/juliane_koepcke_001")
+        output_dir = (
+            resolve_application_paths().outputs_root
+            / "survival"
+            / "juliane_koepcke_001"
+        )
+        self.assertEqual(Path(config["output_filename"]), output_dir / "final_preview.mp4")
+        self.assertEqual(Path(config["thumbnail_path"]), output_dir / "thumbnail.png")
+        self.assertEqual(config["obsidian"]["video_note_dir"], "")
+        self.assertFalse(config["obsidian"]["enabled"])
         self.assertEqual(metadata["chosen_title"], "Она упала с неба и 11 дней выживала в Амазонии")
         self.assertIn("LANSA Flight 508 crash, Peru, 1971", metadata["source_notes"])
         self.assertIn("chapters", metadata)
