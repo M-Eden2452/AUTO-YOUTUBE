@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.project_foundation.storage import atomic_write_json
+from src.project_foundation.storage import atomic_write_json, project_lock
 
 from .models import NewsJob, NEWS_TO_SHORT_STAGES, utc_now_iso
 
@@ -97,7 +97,19 @@ class NewsProjectStore:
 
     @staticmethod
     def write_json(path: Path, data: dict[str, Any]) -> None:
-        atomic_write_json(path, data)
+        target = Path(path)
+        project_root = NewsProjectStore._project_root_for_write(target)
+        with project_lock(project_root):
+            atomic_write_json(target, data)
+
+    @staticmethod
+    def _project_root_for_write(path: Path) -> Path:
+        if path.name == "job.json":
+            return path.parent
+        for parent in path.parents:
+            if (parent / "job.json").is_file():
+                return parent
+        return path.parent
 
     @staticmethod
     def read_json(path: Path) -> dict[str, Any]:

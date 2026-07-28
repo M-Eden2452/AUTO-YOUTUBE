@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -97,6 +99,53 @@ class NewsToShortModelTests(unittest.TestCase):
             replace_spy.assert_called_once()
             self.assertEqual(replace_spy.call_args.args[1], target)
             self.assertEqual(list(target.parent.glob(f".{target.name}.*.tmp")), [])
+
+    def test_project_store_rejects_write_while_project_lock_is_active(self) -> None:
+        from src.news.project_store import NewsProjectStore
+        from src.project_foundation.storage import ProjectLockError, project_lock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = Path(tmp) / "projects" / "locked_news_job"
+            project_root.mkdir(parents=True)
+            (project_root / "job.json").write_text('{"job_id": "locked_news_job"}\n', encoding="utf-8")
+            target = project_root / "assets" / "assets_manifest.json"
+            store = NewsProjectStore(Path(tmp) / "projects")
+
+            with project_lock(project_root):
+                with self.assertRaisesRegex(ProjectLockError, "locked_news_job"):
+                    store.write_json(target, {"job_id": "locked_news_job"})
+                self.assertFalse(target.exists())
+
+            store.write_json(target, {"job_id": "locked_news_job"})
+            self.assertTrue(target.is_file())
+
+    def test_project_store_reclaims_lock_only_after_stale_threshold(self) -> None:
+        from src.news.project_store import NewsProjectStore
+        from src.project_foundation.storage import (
+            PROJECT_LOCK_FILENAME,
+            PROJECT_LOCK_STALE_AFTER_SECONDS,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            projects_root = Path(tmp) / "projects"
+            project_root = projects_root / "stale_news_job"
+            project_root.mkdir(parents=True)
+            lock_path = project_root / PROJECT_LOCK_FILENAME
+            lock_path.write_text('{"token": "abandoned"}\n', encoding="utf-8")
+            stale_mtime = time.time() - PROJECT_LOCK_STALE_AFTER_SECONDS - 1
+            os.utime(lock_path, (stale_mtime, stale_mtime))
+
+            NewsProjectStore(projects_root).write_json(
+                project_root / "job.json",
+                {"job_id": "stale_news_job"},
+            )
+
+            self.assertFalse(lock_path.exists())
+            self.assertEqual(
+                (project_root / "job.json").read_text(encoding="utf-8"),
+                '{\n  "job_id": "stale_news_job"\n}\n',
+            )
+            self.assertEqual(list(project_root.glob(".job.json.*.tmp")), [])
 
     def test_rights_status_blocks_reference_only_assets(self) -> None:
         from src.news.models import AssetRights, RIGHTS_REFERENCE_ONLY, RIGHTS_USER_OWNED
