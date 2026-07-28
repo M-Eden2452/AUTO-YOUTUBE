@@ -10,14 +10,16 @@ from src.content_creation import capabilities
 from src.content_creation.models import (
     ContentCreationError,
     ContentCreationRequest,
-    ExecutionFlags,
-    MusicRequestConfig,
-    RenderRequestConfig,
-    SubtitleRequestConfig,
-    TimingRequestConfig,
-    VoiceRequestConfig,
 )
 from src.content_creation.output_report import describe_output_file
+from src.content_creation.presentation import (
+    RIGHTS_STATUS_LABELS as _RIGHTS_STATUS_LABELS,
+    print_rights_lines,
+)
+from src.content_creation.request_builder import (
+    from_cli_namespace,
+    load_visual_briefs,
+)
 from src.content_creation.service import create_content
 from src.production_catalog.catalog import get_default_catalog
 from src.production_catalog.models import CatalogValidationError
@@ -60,10 +62,10 @@ def _json_flag_parser() -> argparse.ArgumentParser:
     return common
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(*, prog: str = "content-creation") -> argparse.ArgumentParser:
     json_flag = _json_flag_parser()
     parser = argparse.ArgumentParser(
-        prog="content-creation",
+        prog=prog,
         description=(
             "Unified content-creation CLI: one create/wizard command over the existing "
             "Production Catalog, Project Foundation, VoiceProfileRegistry and renderers. "
@@ -73,245 +75,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser(
-        "capabilities",
-        help="Show what formats/templates/voices/subtitles/music are usable today.",
-        parents=[json_flag],
-    )
+    from src.content_creation.commands import authoring, catalog, content, projects
 
-    formats_p = subparsers.add_parser(
-        "formats", help="List/inspect formats from the Production Catalog.", parents=[json_flag]
-    )
-    formats_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
-    formats_p.add_argument("--format", help="format_id for 'show'.")
-
-    templates_p = subparsers.add_parser(
-        "templates", help="List/inspect templates from the Production Catalog.", parents=[json_flag]
-    )
-    templates_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
-    templates_p.add_argument("--template", help="template_id or legacy alias for 'show'.")
-    templates_p.add_argument("--format", help="Filter list by format_id.")
-
-    channels_p = subparsers.add_parser("channels", help="List/inspect channels.", parents=[json_flag])
-    channels_p.add_argument("action", choices=["list", "show"], nargs="?", default="list")
-    channels_p.add_argument("--channel", help="channel_id for 'show'.")
-    channels_p.add_argument(
-        "--explain",
-        action="store_true",
-        help="For 'show': print «параметр → значение → откуда взято» via the ConfigResolver. Read-only.",
-    )
-    channels_p.add_argument("--template", help="With --explain: template_id whose policy layer to apply.")
-    channels_p.add_argument("--format", dest="format_id", help="With --explain: format_id whose policy layer to apply.")
-    channels_p.add_argument("--language", help="With --explain: language whose localization layer to apply.")
-    channels_p.add_argument("--project-id", help="With --explain: project whose manifest layer to apply.")
-    channels_p.add_argument(
-        "--trace", action="store_true", help="With --explain: also print every layer that was considered."
-    )
-
-    voices_p = subparsers.add_parser(
-        "voices", help="List voice providers/profiles, or explain a localization's voice.", parents=[json_flag]
-    )
-    voices_p.add_argument("action", choices=["providers", "profiles", "show", "explain"])
-    voices_p.add_argument("--channel", help="channel_id for 'profiles'/'show'/'explain'.")
-    voices_p.add_argument("--voice-profile", help="Profile id, alias, or display name (e.g. \"Дом\") for 'show'.")
-    voices_p.add_argument("--language", help="With 'explain': localization to explain (default: every one).")
-    voices_p.add_argument("--template", help="With 'explain': template_id whose policy layer to apply.")
-    voices_p.add_argument("--format", dest="format_id", help="With 'explain': format_id whose policy layer to apply.")
-    voices_p.add_argument("--project-id", help="With 'explain': project whose manifest and narration to inspect.")
-    voices_p.add_argument("--projects-root", default=None)
-    voices_p.add_argument("--voice-provider", help="With 'explain': provider as an explicit runtime override.")
-    voices_p.add_argument(
-        "--trace", action="store_true", help="With 'explain': also print every configuration layer considered."
-    )
-
-    subtitles_p = subparsers.add_parser(
-        "subtitles",
-        help="List subtitle styles, or explain/validate a project's subtitles (read-only).",
-        parents=[json_flag],
-    )
-    subtitles_p.add_argument("action", choices=["list", "show", "explain", "validate"], nargs="?", default="list")
-    subtitles_p.add_argument("--style", help="style_id for 'show'.")
-    subtitles_p.add_argument("--project-id", help="Required for 'explain'/'validate'.")
-    subtitles_p.add_argument("--language", help="Localization id (default: the project's own).")
-    subtitles_p.add_argument("--projects-root", default=None)
-    subtitles_p.add_argument(
-        "--cues", action="store_true", help="With 'explain': print every cue, not just the per-scene summary."
-    )
-
-    project_p = subparsers.add_parser("project", help="Inspect existing projects.", parents=[json_flag])
-    project_p.add_argument("action", choices=["list", "status", "validate", "rights-report"])
-    project_p.add_argument("--project-id", help="Required for every action except 'list'.")
-    project_p.add_argument("--projects-root", default=None)
-
-    assets_p = subparsers.add_parser(
-        "assets", help="Manage visual slots in an existing news project.", parents=[json_flag]
-    )
-    assets_p.add_argument("action", choices=["replace"])
-    assets_p.add_argument("--project-id", required=True)
-    assets_p.add_argument("--scene-id", required=True)
-    assets_p.add_argument("--slot-id", required=True)
-    assets_p.add_argument(
-        "--file",
-        required=True,
-        help="Local media to import without modifying the original.",
-    )
-    assets_p.add_argument("--source-url", default="", help="Optional provenance URL.")
-    assets_p.add_argument("--license-file", default="", help="Optional local rights/license proof.")
-    assets_p.add_argument(
-        "--confirm-user-owned",
-        action="store_true",
-        help="Explicitly confirm that you own or control the supplied media rights.",
-    )
-    assets_p.add_argument("--projects-root", default=None)
-
-    create_p = subparsers.add_parser(
-        "create", help="Create one piece of content (flag-driven, non-interactive).", parents=[json_flag]
-    )
-    _add_create_arguments(create_p)
-
-    resume_p = subparsers.add_parser(
-        "resume", help="Resume an existing project (shortcut for create --resume).", parents=[json_flag]
-    )
-    _add_create_arguments(resume_p)
-
-    run_stage_p = subparsers.add_parser(
-        "run-stage", help="Run a single news_to_short stage on an existing project.", parents=[json_flag]
-    )
-    run_stage_p.add_argument("--project-id", required=True)
-    run_stage_p.add_argument("--stage", required=True)
-    run_stage_p.add_argument("--projects-root", default=None)
-    run_stage_p.add_argument("--execute-voice", action="store_true")
-
-    script_p = subparsers.add_parser(
-        "script",
-        help="Script engine: list providers, generate a script offline, validate an existing one.",
-        parents=[json_flag],
-    )
-    script_p.add_argument("action", choices=["providers", "generate", "validate"])
-    script_p.add_argument(
-        "--source-kind",
-        default="",
-        choices=["", "topic", "research", "user_script", "narration_text"],
-        help="What the input is. Empty = infer from which of --topic/--text is given.",
-    )
-    script_p.add_argument("--provider", default="", help="Script provider id (see `script providers`).")
-    script_p.add_argument("--topic", default="")
-    script_p.add_argument("--text", default="", help="Article text, ready script, or ready narration.")
-    script_p.add_argument("--text-file", default="", help="Same as --text, read from a UTF-8 file.")
-    script_p.add_argument("--title", default="")
-    script_p.add_argument("--language", default="ru")
-    script_p.add_argument("--target-duration", dest="target_duration_sec", type=int, default=55)
-    script_p.add_argument("--include-cta", action="store_true", help="Add a call to action (never automatic).")
-    script_p.add_argument("--cta-text", default="")
-    script_p.add_argument("--out", default="", help="Write a pipeline-compatible script.json here.")
-    script_p.add_argument("--script-file", dest="script_json_path", default="", help="script.json for 'validate'.")
-    script_p.add_argument(
-        "--visual-brief",
-        dest="visual_brief_path",
-        default="",
-        help="The same brief JSON as `create --visual-brief`. Offline: writes nothing unless --out is given.",
-    )
-
-    visual_p = subparsers.add_parser(
-        "visual-plan",
-        help="Visual planning: what each scene should show. Builds and checks plans offline.",
-        parents=[json_flag],
-    )
-    visual_p.add_argument("action", choices=["planners", "build", "validate", "intents"])
-    visual_p.add_argument("--planner", default="", help="Planner id (see `visual-plan planners`).")
-    visual_p.add_argument(
-        "--script-file", dest="script_json_path", default="", help="script.json to plan from."
-    )
-    visual_p.add_argument(
-        "--claims-file", dest="claims_json_path", default="", help="Optional research claims.json."
-    )
-    visual_p.add_argument(
-        "--plan-file", dest="plan_json_path", default="", help="visual_plan.json for 'validate'/'intents'."
-    )
-    visual_p.add_argument("--language", default="")
-    visual_p.add_argument("--out", default="", help="Write a pipeline-compatible visual_plan.json here.")
-
-    subparsers.add_parser(
-        "wizard", help="Interactive terminal wizard (same request/service as 'create').", parents=[json_flag]
-    )
+    catalog.register_commands(subparsers, common=json_flag)
+    projects.register_commands(subparsers, common=json_flag)
+    content.register_commands(subparsers, common=json_flag)
+    authoring.register_commands(subparsers, common=json_flag)
     return parser
 
 
 def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--format", dest="format_id", help="Format id, e.g. vertical_short.")
-    parser.add_argument("--template", dest="template_id", help="Template id or legacy alias.")
-    parser.add_argument("--channel", dest="channel_id", help="Channel id.")
-    parser.add_argument("--language", default="ru")
-    parser.add_argument("--title", default="")
-    parser.add_argument("--topic", default="", help="Topic/idea (fullscreen_voiceover_v1).")
-    parser.add_argument(
-        "--target-duration",
-        dest="target_duration_sec",
-        type=int,
-        default=50,
-        help="Target duration in seconds for fullscreen_voiceover_v1 (default: 50).",
-    )
-    parser.add_argument("--text", default="", help="Card headline text (story_card_text_only_v1).")
-    parser.add_argument("--comment", default="", help="Card bottom-comment text (story_card_text_only_v1).")
-    parser.add_argument("--source-asset", dest="source_asset_path", default="", help="Local video file (story_card_text_only_v1).")
-    parser.add_argument("--source-url", default="", help="Article URL (fullscreen_voiceover_v1).")
-    parser.add_argument("--script-file", dest="script_path", default="")
-    parser.add_argument(
-        "--visual-brief",
-        dest="visual_brief_path",
-        default="",
-        help=(
-            "JSON with an explicit per-scene visual brief, keyed by scene number or scene_id: "
-            "subject / action / place / exact_entities / must_include / must_avoid / shot_type / "
-            "media_types / source_class / provider_queries / infographic. Never spoken - it only "
-            "steers what is shown. Optional."
-        ),
-    )
-    parser.add_argument("--pasted-script", default="", help="Full script text pasted directly (fullscreen_voiceover_v1).")
-    parser.add_argument(
-        "--input-mode",
-        dest="content_input_mode",
-        default="",
-        choices=["", "topic", "article_url", "pasted_script", "script_file"],
-        help="Which of --topic/--source-url/--pasted-script/--script-file is authoritative.",
-    )
-    parser.add_argument("--project-id", default="")
-    parser.add_argument(
-        "--voice-provider", default="disabled", help="disabled | elevenlabs | audio_file (see `voices providers`)."
-    )
-    parser.add_argument("--voice-profile", default="", help="Profile id, alias, or display name, e.g. \"Дом\".")
-    parser.add_argument(
-        "--voice-mode", default="", help="scene_audio | single_narration | manual_audio | disabled."
-    )
-    parser.add_argument("--audio-file", default="", help="Manual WAV file for --voice-provider audio_file.")
-    parser.add_argument("--subtitles", dest="subtitle_style", default="disabled", help="See `subtitles list`.")
-    parser.add_argument("--music", dest="music_mode", default="disabled", help="See `capabilities`.")
-    parser.add_argument("--music-path", default="")
-    parser.add_argument("--timing-mode", default="")
-    parser.add_argument("--quality", default="default")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--prepare-only", action="store_true", help="Stop before any paid TTS call.")
-    parser.add_argument("--approve-paid-generation", action="store_true", help="Explicitly allow paid ElevenLabs synthesis.")
-    parser.add_argument("--resume", action="store_true")
-    parser.add_argument(
-        "--force-stage",
-        action="store_true",
-        help="On --resume, re-run a news_to_short stage even if already marked completed "
-        "(e.g. after a visual_plan/asset_search wiring fix). Never forces a paid TTS call by itself.",
-    )
-    parser.add_argument(
-        "--completion-mode",
-        choices=["strict", "draft_complete"],
-        default="",
-        help="strict (default) or opt-in autonomous draft completion.",
-    )
-    parser.add_argument(
-        "--script-adaptation",
-        choices=["none", "light"],
-        default="",
-        help="Asset-aware adaptation; empty keeps the project/default setting.",
-    )
-    parser.add_argument("--projects-root", default=None)
+    """Compatibility alias for callers that imported the old private helper."""
+    from src.content_creation.commands.content import add_create_arguments
+
+    add_create_arguments(parser)
 
 
 def _resolve_cli_paths(args: argparse.Namespace):
@@ -334,59 +111,13 @@ def _resolve_cli_paths(args: argparse.Namespace):
 
 def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
     _resolve_cli_paths(args)
-    voice_profile = args.voice_profile
-    if voice_profile and args.channel_id:
-        try:
-            voice_profile = capabilities.resolve_voice_profile(args.channel_id, args.voice_profile)
-        except Exception:
-            pass  # let the service layer raise a clearer error with full context
-    text: dict[str, str] = {}
-    if getattr(args, "text", ""):
-        text["top"] = args.text
-    if getattr(args, "comment", ""):
-        text["comment"] = args.comment
-    return ContentCreationRequest(
-        project_id=args.project_id,
-        title=args.title,
-        source_url=args.source_url,
-        script_path=args.script_path,
-        pasted_script=getattr(args, "pasted_script", ""),
-        content_input_mode=getattr(args, "content_input_mode", ""),
-        channel_id=args.channel_id,
-        format_id=args.format_id or "",
-        template_id=args.template_id or "",
-        language=args.language,
-        text=text,
-        source_asset_path=args.source_asset_path,
-        topic=args.topic,
-        target_duration_sec=getattr(args, "target_duration_sec", 50),
-        visual_briefs=_load_visual_briefs(getattr(args, "visual_brief_path", "")),
-        completion_mode=getattr(args, "completion_mode", ""),
-        script_adaptation=getattr(args, "script_adaptation", ""),
-        voice=VoiceRequestConfig(
-            provider=args.voice_provider,
-            profile=voice_profile,
-            mode=args.voice_mode or ("disabled" if args.voice_provider == "disabled" else "scene_audio"),
-            audio_file=args.audio_file,
-            approve_paid_generation=args.approve_paid_generation,
+    return from_cli_namespace(
+        args,
+        projects_root=args.projects_root,
+        project_fallback_roots=tuple(
+            getattr(args, "project_fallback_roots", ()),
         ),
-        subtitles=SubtitleRequestConfig(style=args.subtitle_style),
-        music=MusicRequestConfig(mode=args.music_mode, path=args.music_path),
-        timing=TimingRequestConfig(mode=args.timing_mode),
-        render=RenderRequestConfig(quality=args.quality),
-        execution=ExecutionFlags(
-            dry_run=args.dry_run,
-            prepare_only=args.prepare_only,
-            resume=args.resume,
-            force_stage=getattr(args, "force_stage", False),
-            stage="",
-            until_stage="",
-        ),
-        project_overrides={
-            "projects_root": args.projects_root,
-            "project_fallback_roots": list(getattr(args, "project_fallback_roots", ())),
-            "channels_root": getattr(args, "channels_root", ""),
-        },
+        channels_root=getattr(args, "channels_root", ""),
     )
 
 
@@ -753,15 +484,8 @@ def _subtitles_validate(args: argparse.Namespace) -> int:
 
 
 def _print_rights_lines(evidence: dict[str, Any], *, prefix: str = "") -> None:
-    """Four-line rights summary for a finished run - the detail lives in
-    `project rights-report`, which this deliberately does not duplicate."""
-    if not evidence or not evidence.get("evidence_manifest_path"):
-        return
-    status = str(evidence.get("rights_status") or "unknown")
-    print(f"{prefix}rights_status={_RIGHTS_STATUS_LABELS.get(status, status)}")
-    print(f"{prefix}evidence_path={evidence['evidence_manifest_path']}")
-    print(f"{prefix}source_type={evidence.get('source_type') or '-'}")
-    print(f"{prefix}review_required={'да' if evidence.get('review_required') else 'нет'}")
+    """Compatibility alias for the former CLI-local presentation helper."""
+    print_rights_lines(evidence, prefix=prefix)
 
 
 def _run_create(args: argparse.Namespace) -> int:
@@ -824,11 +548,36 @@ def _run_wizard(args: argparse.Namespace) -> int:
 def run_content_creation_cli(args: argparse.Namespace) -> int:
     _resolve_cli_paths(args)
     command = args.command
+    if command == "applications":
+        catalog = get_default_catalog()
+        if args.action == "show":
+            if not args.application:
+                raise SystemExit("applications show requires --application.")
+            data = catalog.applications.get(args.application).to_dict()
+        else:
+            applications = catalog.applications.list_all()
+            if not args.all:
+                applications = [
+                    application
+                    for application in applications
+                    if application.enabled
+                    and application.implementation_status == "active"
+                ]
+            data = [application.to_dict() for application in applications]
+        _print_json(data) if args.json_output else _print_plain(data)
+        return 0
+
     if command == "capabilities":
         report = capabilities.build_capabilities_report()
         if args.json_output:
             _print_json(report)
         else:
+            for application in report["applications"]:
+                print(
+                    f"[capabilities] application={application['application_id']} "
+                    f"enabled={application['enabled']} "
+                    f"status={application['implementation_status']}"
+                )
             for template in report["templates"]:
                 print(
                     f"[capabilities] template={template['template_id']} format={template['format_id']} "
@@ -1102,14 +851,6 @@ def _run_project(args: argparse.Namespace) -> int:
     raise SystemExit(f"Unknown project action: {args.action!r}")
 
 
-_RIGHTS_STATUS_LABELS = {
-    "verified": "подтверждено",
-    "review_required": "требует проверки",
-    "blocked": "заблокировано",
-    "unknown": "нет данных",
-}
-
-
 def _run_rights_report(args: argparse.Namespace, repository) -> int:
     """Show every rights-bearing material of one project, whichever system created it.
 
@@ -1197,15 +938,8 @@ def _run_rights_report(args: argparse.Namespace, repository) -> int:
 
 
 def _load_visual_briefs(path: str) -> dict[str, dict]:
-    """Read the one visual brief file, or nothing. Validated before it is trusted."""
-    if not str(path or "").strip():
-        return {}
-    from src.content_creation import input_validation
-
-    result = input_validation.validate_visual_brief_file(path)
-    if not result.valid:
-        raise SystemExit(f"--visual-brief: {result.message}")
-    return input_validation.load_visual_briefs(path)
+    """Compatibility alias for the former CLI-local request helper."""
+    return load_visual_briefs(path)
 
 
 def _print_plain(data: Any) -> None:

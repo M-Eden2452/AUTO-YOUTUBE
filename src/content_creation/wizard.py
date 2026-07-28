@@ -11,13 +11,10 @@ from src.content_creation.models import (
     ContentCreationError,
     ContentCreationRequest,
     ContentCreationResult,
-    ExecutionFlags,
-    MusicRequestConfig,
-    SubtitleRequestConfig,
-    TimingRequestConfig,
-    VoiceRequestConfig,
 )
 from src.content_creation.output_report import describe_output_file
+from src.content_creation.presentation import print_rights_lines
+from src.content_creation.request_builder import from_wizard_state
 from src.content_creation.service import create_content
 from src.production_catalog.catalog import get_default_catalog
 
@@ -343,41 +340,9 @@ def _build_request(
     *,
     project_overrides: dict[str, Any] | None = None,
 ) -> ContentCreationRequest:
-    text: dict[str, str] = {"top": state.text_top} if state.text_top else {}
-    video_first = state.template_id == "fullscreen_voiceover_v1"
-    return ContentCreationRequest(
-        project_id=state.project_id,
-        title=state.title,
-        channel_id=state.channel_id,
-        format_id=state.format_id,
-        template_id=state.template_id,
-        language=state.language,
-        content_input_mode=state.content_input_mode,
-        topic=state.topic,
-        source_url=state.source_url,
-        pasted_script=state.pasted_script,
-        script_path=state.script_path,
-        text=text,
-        source_asset_path=state.source_asset_path,
-        target_duration_sec=state.target_duration_sec,
-        voice=VoiceRequestConfig(
-            provider=state.voice_provider,
-            profile=state.voice_profile,
-            mode=state.voice_mode,
-            audio_file=state.audio_file,
-            approve_paid_generation=state.approve_paid_generation,
-        ),
-        subtitles=SubtitleRequestConfig(style=state.subtitle_style),
-        music=MusicRequestConfig(mode=state.music_mode, path=state.music_path),
-        timing=TimingRequestConfig(mode=state.timing_mode),
-        execution=ExecutionFlags(
-            dry_run=state.dry_run, prepare_only=state.prepare_only, resume=bool(state.project_id)
-        ),
-        # The Wizard owns no creation logic: these are the working defaults it passes
-        # into the same service used by the flag-based CLI.
-        completion_mode="draft_complete" if video_first else "",
-        script_adaptation="light" if video_first else "",
-        project_overrides=dict(project_overrides or {}),
+    return from_wizard_state(
+        state,
+        project_overrides=project_overrides,
     )
 
 
@@ -1185,9 +1150,7 @@ class _Wizard:
         if result.evidence.get("evidence_manifest_path"):
             # Short and honest: what we can prove about the material used, and where
             # the full record is. Licence detail stays in `project rights-report`.
-            from src.content_creation.cli import _print_rights_lines
-
-            _print_rights_lines(result.evidence)
+            print_rights_lines(result.evidence)
         for warning in result.warnings:
             print(_tag(icons, "warning", warning))
         for error in result.errors:

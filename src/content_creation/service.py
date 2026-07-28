@@ -235,7 +235,7 @@ def _create_story_card(
 
 def _story_card_rerun_command(request: ContentCreationRequest) -> str:
     parts = [
-        "./venv/Scripts/python.exe -m src.content_creation.cli create",
+        "./venv/Scripts/python.exe -m ai_youtube create",
         "--format vertical_short",
         "--template story_card_text_only_v1",
         f"--channel {request.channel_id}",
@@ -858,7 +858,7 @@ def _create_fullscreen_voiceover(
 
 def _fullscreen_rerun_command(request: ContentCreationRequest, job_id: str, *, approve: bool = False) -> str:
     parts = [
-        "./venv/Scripts/python.exe -m src.content_creation.cli create",
+        "./venv/Scripts/python.exe -m ai_youtube create",
         "--format vertical_short",
         "--template fullscreen_voiceover_v1",
         f"--channel {request.channel_id}",

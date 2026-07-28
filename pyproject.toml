@@ -21,6 +21,9 @@ dependencies = [
     "questionary==2.1.1",
 ]
 
+[project.scripts]
+ai-youtube = "ai_youtube.cli.main:main"
+
 [project.optional-dependencies]
 anime-factory = [
     "faster-whisper>=1.2,<2",
@@ -34,5 +37,5 @@ py-modules = ["pipeline"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*", "anime_factory*", "apps*"]
+include = ["ai_youtube*", "src*", "anime_factory*", "apps*"]
 exclude = ["tests*", "venv*", "projects*", "outputs*", "assets*"]

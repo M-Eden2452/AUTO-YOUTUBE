@@ -133,7 +133,7 @@ def _build_templates() -> TemplateRegistry:
             # tests/test_story_card_project_integration.py.
             workflow_binding={
                 "workflow": "story_card",
-                "cli_entrypoint": "src.content_creation.cli",
+                "cli_entrypoint": "ai_youtube",
                 "service_entrypoint": "src.content_creation.service.create_content",
                 "integration": "src.templates.story_card.integration.prepare_story_card_render",
                 "project_system": "src.project_foundation.projects.ProjectFactory",

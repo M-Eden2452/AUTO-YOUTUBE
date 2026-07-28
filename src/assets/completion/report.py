@@ -497,7 +497,7 @@ def _sources_for(entry: dict[str, Any]) -> list[str]:
 
 def _replace_command(project_id: str, scene_id: str, slot_id: str) -> str:
     return (
-        "./venv/Scripts/python.exe -m src.content_creation.cli assets replace "
+        "./venv/Scripts/python.exe -m ai_youtube assets replace "
         f"--project-id {project_id or '<project_id>'} --scene-id {scene_id} "
         f"--slot-id {slot_id or '<slot_id>'} --file <path> --confirm-user-owned"
     )
