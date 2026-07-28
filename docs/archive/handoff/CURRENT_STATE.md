@@ -120,4 +120,3 @@
 - Это недостаток preset/renderer, а не semantic selection.
 - Universal story-card CLI для новых тем пока отсутствует.
 - Batch queue для story-card пока отсутствует.
-

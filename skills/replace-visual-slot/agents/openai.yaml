@@ -1,0 +1,4 @@
+interface:
+  display_name: "Replace Visual Slot"
+  short_description: "Replace one visual slot with provenance"
+  default_prompt: "Use $replace-visual-slot to safely replace one project visual slot."

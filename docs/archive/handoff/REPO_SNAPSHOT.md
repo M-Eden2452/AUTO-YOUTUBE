@@ -72,4 +72,3 @@ There are also many untracked provider foundation, app, config, docs, source and
 - Universal `story-card create` CLI does not exist yet.
 - Story-card batch JSON queue does not exist yet.
 - UI work should wait until E2E story-card tests pass.
-

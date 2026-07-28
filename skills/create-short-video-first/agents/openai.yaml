@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Short Video First"
+  short_description: "Create a safe video-first Shorts draft"
+  default_prompt: "Use $create-short-video-first to create a safe video-first Shorts draft."

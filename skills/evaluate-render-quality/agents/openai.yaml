@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evaluate Render Quality"
+  short_description: "Inspect technical and visual render quality"
+  default_prompt: "Use $evaluate-render-quality to inspect a rendered video."

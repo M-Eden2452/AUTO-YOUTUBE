@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Handoff"
+  short_description: "Create a verified task handoff"
+  default_prompt: "Use $create-handoff to record a verified handoff for the next agent."

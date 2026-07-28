@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Change"
+  short_description: "Plan bounded architecture changes safely"
+  default_prompt: "Use $architecture-change to make a bounded architecture change."

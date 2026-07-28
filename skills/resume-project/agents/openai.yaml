@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resume Project"
+  short_description: "Resume an existing project safely"
+  default_prompt: "Use $resume-project to inspect and safely resume an existing project."

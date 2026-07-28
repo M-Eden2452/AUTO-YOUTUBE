@@ -75,4 +75,3 @@ AI-YouTube - локальный production-проект для создания 
 - Финальный текущий MP4: `projects/story_card_owl_test/final_test.mp4`
 - Renderer: `src/production_plan/story_card_short_render.py`
 - Preset: `config/render_presets/story_card_short_v1.json`
-
