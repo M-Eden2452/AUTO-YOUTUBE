@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 87e272a
+last_verified_commit: 42d5b99
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -8,8 +8,11 @@ source_paths:
   - ai_youtube
   - src/config_resolver/paths.py
   - src/content_creation/capabilities.py
+  - src/news/models.py
   - src/production_catalog
   - src/projects
+  - schemas/job.schema.json
+  - docs/adr/0004-news-job-schema-version.md
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -17,9 +20,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по implementation HEAD `87e272a`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `42d5b99`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6 и bounded slice 5A завершены. Этап 5 выполняется.
+- Rescue stages 0–4.6 и bounded slices 5A–5B завершены. Этап 5 выполняется.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -28,8 +31,9 @@ source_paths:
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
 - Slice 5A перевёл `NewsProjectStore.write_json` на существующий
   `project_foundation.atomic_write_json`, сохранив JSON shape, UTF-8 и trailing
-  newline. Следующий bounded slice 5B добавляет additive schema version news
-  manifest с tolerant read старых `job.json`.
+  newline. Slice 5B добавил `NEWS_JOB_SCHEMA_VERSION=1` и обязательное поле
+  `schema_version` в новые news manifests; старые `job.json` без поля читаются
+  как v1 без массовой миграции. Следующий bounded slice 5C — project lock.
 - `python -m ai_youtube` — канонический CLI активного `content_creator`;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request
@@ -52,9 +56,8 @@ source_paths:
 
 Известные переходные долги:
 
-- две формы project manifests сохраняются tolerant readers; явная schema version
-  news manifest, project lock и stage idempotency остаются отдельными slices
-  этапа 5;
+- две формы project manifests сохраняются tolerant readers; project lock и stage
+  idempotency остаются отдельными slices этапа 5;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter

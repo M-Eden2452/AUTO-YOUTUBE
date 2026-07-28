@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 87e272a
+last_verified_commit: 42d5b99
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -16,9 +16,9 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-28 по implementation HEAD `87e272a`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `42d5b99`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после slice
-5A; это не разрешение на массовое перемещение файлов.
+5B; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
@@ -107,7 +107,7 @@ planned adapter
 | `src.news.asset_manager` | news pipeline, quality/draft completion и replacement summary; использует `src.assets` и `src.providers` | assets, provider integration, slot-aware retrieval, semantic decisions, schema tests | разделять orchestration/search/download/completion в 6A |
 | `src.assets.semantic_visual_evaluation` | root pipeline и один выделенный test module | `test_semantic_visual_evaluation` | отделить offline evaluation/reporting от controlled live runtime в 6E |
 | `src.projects.ProjectRepository` | CLI, service, Wizard, replacement и rights report | `test_project_repository`, rights report, config parity, resume | сохранить единственным read API; writer не добавлять |
-| `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | news models/pipeline, service, renderer, repository tests | `job.json` writer использует существующий atomic primitive с 5A; schema version добавлять отдельно |
+| `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | news models/pipeline, service, renderer, repository tests | `job.json` writer использует существующий atomic primitive с 5A; новые manifests имеют schema v1 с 5B |
 | `src.project_foundation` | Story Card service/integration, catalog, projects/rights | project foundation/factory, Story Card integration/provenance, schemas | сохранить `project.json` owner и atomic storage |
 | `src.config_resolver.paths` | CLI, apps, project stores, providers, audio/subtitles и legacy adapters | `test_stage3_workspace_paths`, config resolver/parity | сохранить единственным path/workspace resolver |
 | `src.assets.provider_contract` + `src.providers` | asset manager, preview/download/diagnostics и provider adapters | provider foundation/hardening, provider integration, documentary providers | сохранить единым asset provider contract |
@@ -127,7 +127,7 @@ CLI → Wizard через lazy import.
 
 | Contract | Writer / reader | Версия и tolerance | Обязательная защита |
 |---|---|---|---|
-| `job.json` + stage state | atomic `NewsProjectStore`; `ProjectRepository` reader | старые отсутствующие поля принимает `NewsJob.from_dict`; явной top-level schema version пока нет | не переименовывать и не мигрировать массово; добавить version только additive slice |
+| `job.json` + stage state | atomic `NewsProjectStore`; `ProjectRepository` reader | `schema_version=1`; старые manifests без поля и отсутствующие optional-поля принимает `NewsJob.from_dict` | не переименовывать и не мигрировать массово; будущую версию добавлять только с tolerant reader |
 | `project.json` | `ProjectFactory`; `ProjectRepository` reader | `ProjectManifest.schema_version=1` | сохранить atomic write и tolerant read |
 | `assets/assets_manifest.json` | asset manager/completion | asset schema v1 и legacy normalization | сохранять provenance, license, checksum и replacement history |
 | `voice_manifest.json` | `src.audio.voice_manifest` | schema v2 читает legacy v1 | не ослаблять paid approval и old-manifest compatibility |

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 87e272a
+last_verified_commit: 42d5b99
 last_verified_date: 2026-07-28
 source_paths:
   - ai_youtube
@@ -10,6 +10,7 @@ source_paths:
   - src/news
   - src/projects
   - src/project_foundation
+  - schemas/job.schema.json
   - src/assets
   - src/providers
   - src/audio
@@ -68,6 +69,7 @@ contracts и runtime roots зафиксированы в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md); классификация
 `keep/split/merge/move/archive/delete/do_not_touch`, delete evidence и очередь
 малых slices — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md). Slice 5A перевёл
-`NewsProjectStore` на существующий atomic write primitive без schema migration
-и без создания нового storage layer. Следующий отдельный slice 5B добавляет
-additive news schema version с tolerant reader.
+`NewsProjectStore` на существующий atomic write primitive без создания нового
+storage layer. Slice 5B добавил additive news schema version v1: новые записи
+версионированы, а старые `job.json` без поля читаются как v1 без массовой
+миграции. Следующий отдельный slice 5C добавляет project lock.
