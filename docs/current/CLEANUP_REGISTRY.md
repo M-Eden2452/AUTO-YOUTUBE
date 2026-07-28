@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 05cc8ed
+last_verified_commit: 87e272a
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -18,7 +18,7 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-28 по HEAD `05cc8ed`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `87e272a`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. На этом этапе production code, runtime и user data не перемещались и
 не удалялись.
@@ -45,7 +45,7 @@ source_paths:
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
 | S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
-| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | два write primitives; news writer не atomic, foundation writer atomic | переиспользовать существующий atomic primitive, не объединять schemas | 5A |
+| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | завершено в 5A (`87e272a`): news writer делегирует существующему atomic primitive | schema version, lock и idempotency остаются отдельными slices | 5A complete |
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system | 5 |
 | V01 | `anime_factory/` | `move` | отдельный рабочий CLI/workflow; catalog app `video_repurposer` disabled | переносить целиком через adapter с old entrypoint | 8 |
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
@@ -81,27 +81,26 @@ source_paths:
 Каждый пункт — отдельный characterization-first diff, targeted tests, commit и
 handoff. Порядок не разрешает перепрыгивать через незавершённый rescue stage.
 
-### Первый structural slice: 5A atomic NewsProjectStore
+### Завершённый structural slice: 5A atomic NewsProjectStore
 
-- Изменяемый production-файл: `src/news/project_store.py`.
-- Переиспользуемый contract без нового writer:
+- Изменённый production-файл: `src/news/project_store.py`.
+- Переиспользован contract без нового writer:
   `src/project_foundation/storage.py::atomic_write_json`.
-- Сначала добавить characterization в `tests/test_news_to_short_models.py`:
-  прежний JSON shape/UTF-8/newline сохраняется, запись проходит через atomic
-  replacement и temporary file не остаётся.
+- Characterization в `tests/test_news_to_short_models.py` подтверждает: прежний
+  JSON shape/UTF-8/newline сохраняется, запись проходит через atomic replacement
+  и temporary file не остаётся.
 - Callers для regression review:
   `src/news/pipeline.py`, `src/content_creation/service.py`,
   `src/audio/voice_cli.py`, `src/assets/completion/replacement.py`.
-- Targeted tests:
+- Targeted tests завершены:
   `tests.test_news_to_short_models`, `tests.test_project_repository`,
-  `tests.test_news_to_short_pipeline`; при изменении service path также
-  `tests.test_content_creation_service`.
-- Запреты: не добавлять lock/idempotency/schema version в тот же diff; не
-  переписывать persisted `job.json`.
+  `tests.test_news_to_short_pipeline` — 22 tests, OK.
+- Lock/idempotency/schema version не добавлялись; persisted `job.json` не
+  переписывались.
 
 ### Последующая очередь
 
-1. **5B — additive news schema version:** `src/news/models.py`,
+1. **Следующий slice 5B — additive news schema version:** `src/news/models.py`,
    `schemas/job.schema.json`, `tests/test_artifact_schemas.py`,
    `tests/test_news_to_short_models.py`; tolerant read старых `job.json`
    обязателен.

@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–4.6 завершены; этап 4.5 сохранён как
-историческая диагностика и снят с critical path; следующий этап 5 —
-Project и storage foundation**
+Статус: **выполняется; этапы 0–4.6 и bounded slice 5A завершены; этап 4.5
+сохранён как историческая диагностика и снят с critical path; этап 5 —
+Project и storage foundation — выполняется, следующий slice 5B**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -720,8 +720,8 @@ Wizard и service, уменьшение крупных функций и пер�
 
 Статус: [x] завершён 2026-07-28
 
-Это первый незавершённый этап. Он выполняется read-only относительно production
-code и runtime data: сначала доказательства и карта, затем отдельные изменения.
+Это был read-only этап относительно production code и runtime data: сначала
+доказательства и карта, затем отдельные изменения.
 
 Задачи:
 
@@ -763,7 +763,7 @@ code и runtime data: сначала доказательства и карта,
 
 ### Этап 5. Project и storage foundation
 
-Статус: [ ] не начат
+Статус: [ ] выполняется; slice 5A завершён 2026-07-28, следующий slice 5B
 
 Задачи:
 
@@ -771,7 +771,8 @@ code и runtime data: сначала доказательства и карта,
 2. Не создавать третью project-систему.
 3. Определить единый `ProjectView`.
 4. Добавить schema version для news manifests.
-5. Перевести NewsProjectStore на общий atomic storage.
+5. Перевести NewsProjectStore на общий atomic storage. **Выполнено в slice 5A,
+   implementation commit `87e272a`.**
 6. Добавить project lock.
 7. Добавить idempotency для повторных стадий.
 8. Сохранить чтение старых `job.json` и `project.json`.
@@ -984,10 +985,10 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> Начать только slice 5A: добавить characterization атомарной записи
-> `NewsProjectStore`, затем переиспользовать существующий
-> `src.project_foundation.storage.atomic_write_json` без schema migration,
-> lock или idempotency в том же diff.
+> Начать только slice 5B: characterization-first добавить additive schema
+> version news manifest в `src/news/models.py` и `schemas/job.schema.json`,
+> сохранив tolerant read старых `job.json`; не объединять с project lock,
+> idempotency или migration.
 
 Не начинать с:
 
@@ -1011,12 +1012,13 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-28
-Завершённый этап: 4.6 Архитектурная инвентаризация и карта cleanup
-Следующий этап: 5 Project и storage foundation — не начат
-Исходный HEAD решения владельца: 05cc8ed
-Исходный HEAD этапа 4.6: 05cc8ed
+Завершённый bounded slice: 5A atomic NewsProjectStore
+Текущий этап: 5 Project и storage foundation — выполняется
+Следующий bounded slice: 5B additive news schema version
+Исходный HEAD slice 5A: 736f0c6
+Implementation commit slice 5A: 87e272a
 Ветка: master
-Git до этапа: существовали незакоммиченные owner-decision изменения CURRENT_STATE, PRODUCT_EVIDENCE_GATE и master plan; они сохранены, проверены и включены вместе с завершением перехода к 4.6
+Git до slice 5A: чистый
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -1030,34 +1032,32 @@ Implementation HEAD этапа 4: 94034f2
 Коммит handoff этапа 4: 65cef10
 Evidence-коммит этапа 4.5: fb374fd
 Коммит локального аудита 4.5-R: 05cc8ed
+Коммит этапа 4.6: 736f0c6
 Выполнено:
 - полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP и architecture-change skill
-- проверены фактические production tree, entrypoints, compatibility wrappers, imports/callers/tests, schemas и runtime roots
-- зафиксировано 249 production-файлов / 241 production Python-файл / 99 test modules
-- подтверждены active content_creator и два active templates; planned/legacy boundaries не повышены до active
-- создан docs/current/ARCHITECTURE_BOUNDARY_MAP.md
-- создан docs/current/CLEANUP_REGISTRY.md с классами keep/split/merge/move/archive/delete/do_not_touch
-- для каждого delete-кандидата записаны callers, replacement, compatibility, targeted tests и persisted/media risk
-- подтверждены zero internal callers для embedded provider classes и src/news/stock_video_downloader.py; удаления отложены
-- зафиксированы persisted job.json/project.json, восемь artifact schemas, WorkspacePaths roots и do_not_touch user/runtime zones
-- первый structural slice 5A ограничен NewsProjectStore atomic write; schema version, lock и idempotency вынесены в отдельные slices
-Изменения production code: отсутствуют
+- проверены NewsProjectStore, общий atomic_write_json, фактические callers и targeted test family
+- сначала добавлен characterization JSON shape/UTF-8/trailing newline, os.replace и отсутствия temporary file
+- подтверждено ожидаемое падение characterization до production change: os.replace called 0 times
+- NewsProjectStore.write_json переведён на существующий src.project_foundation.storage.atomic_write_json
+- сохранены public static method, JSON shape, UTF-8, trailing newline и существующие callers
+Изменения production code: только src/news/project_store.py
+Characterization: tests/test_news_to_short_models.py
 Удаления и перемещения: не выполнялись
 Targeted checks:
+- .\venv\Scripts\python.exe -m unittest tests.test_news_to_short_models: OK, 4 tests
+- .\venv\Scripts\python.exe -m unittest tests.test_project_repository tests.test_news_to_short_pipeline: OK, 18 tests
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-- .\venv\Scripts\python.exe -m unittest tests.test_stage2_agent_onboarding: OK, 3 tests
-Full offline suite: не требуется для documentation-only изменения
+Full offline suite: не запускался; bounded writer change проверен указанным в registry targeted family
 Runtime project IDs/artifacts: не создавались и не изменялись
 Сеть/API/TTS/Vision/render/платные действия: не выполнялись
 Найденные root causes:
-- NewsProjectStore использует отдельный неатомарный JSON writer при уже существующем atomic_write_json
-- крупные orchestration boundaries и static frame_sampling/perceptual_similarity cycle подтверждены фактическими edges
-- dead provider/downloader code нельзя смешивать с provider consolidation или удалять до отдельного compatibility checkpoint
-Новые known issues: test inventory вырос до 99 modules; старые численные snapshots не использовать без повторного rg
-Следующий точный этап: 5A atomic NewsProjectStore, один bounded characterization-first diff
-Следующая точная команда: Get-Content -Raw -Encoding UTF8 tests/test_news_to_short_models.py
-После чтения: добавить atomic-write characterization; production change ограничить src/news/project_store.py
-Главный запрет: не объединять 5A со schema version, lock, idempotency, migration или cleanup; не изменять persisted projects/runtime data
+- отдельный NewsProjectStore writer обходил существующий atomic storage primitive
+- формат обоих writers уже совпадал; требовалась только безопасная делегация без schema change
+Новые known issues: отсутствуют
+Следующий точный этап: 5B additive news schema version, один bounded characterization-first diff
+Следующая точная команда: Get-Content -Raw -Encoding UTF8 src/news/models.py
+После чтения: проверить schemas/job.schema.json и tests/test_artifact_schemas.py, сначала защитить tolerant read старого job.json
+Главный запрет: не объединять 5B с project lock, idempotency, migration или cleanup; не изменять persisted projects/runtime data
 ```
 
 ---

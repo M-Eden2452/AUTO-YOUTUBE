@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 05cc8ed
+last_verified_commit: 87e272a
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -17,17 +17,19 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по HEAD `05cc8ed`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `87e272a`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6 завершены. Product Evidence Gate 4.5 сохранён только как
+- Rescue stages 0–4.6 и bounded slice 5A завершены. Этап 5 выполняется.
+  Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
 - Этап 4.6 создал проверенные
   [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
-- Следующий этап — 5 «Project и storage foundation»; первый bounded slice 5A
-  переводит только `NewsProjectStore.write_json` на существующий
-  `project_foundation.atomic_write_json`.
+- Slice 5A перевёл `NewsProjectStore.write_json` на существующий
+  `project_foundation.atomic_write_json`, сохранив JSON shape, UTF-8 и trailing
+  newline. Следующий bounded slice 5B добавляет additive schema version news
+  manifest с tolerant read старых `job.json`.
 - `python -m ai_youtube` — канонический CLI активного `content_creator`;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request
@@ -50,8 +52,9 @@ source_paths:
 
 Известные переходные долги:
 
-- две формы project manifests сохраняются tolerant readers; news writer ещё не
-  использует общий atomic storage primitive — этап 5;
+- две формы project manifests сохраняются tolerant readers; явная schema version
+  news manifest, project lock и stage idempotency остаются отдельными slices
+  этапа 5;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 05cc8ed
+last_verified_commit: 87e272a
 last_verified_date: 2026-07-28
 source_paths:
   - ai_youtube
@@ -31,7 +31,7 @@ source_paths:
 | Создание контента | `src/content_creation/` | compatibility CLI, wizard и application service |
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
-| Проекты | `src/projects/`, `src/project_foundation/` | общий read API и foundation для `project.json` |
+| Проекты | `src/projects/`, `src/project_foundation/` | общий read API и atomic storage primitive для project manifests |
 | Ассеты | `src/assets/` | selection, preview, semantic checks, completion |
 | Providers | `src/providers/` | provider adapters и общий contract |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
@@ -67,6 +67,7 @@ video_repurposer
 contracts и runtime roots зафиксированы в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md); классификация
 `keep/split/merge/move/archive/delete/do_not_touch`, delete evidence и очередь
-малых slices — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md). Следующий этап 5
-начинается с перевода `NewsProjectStore` на существующий atomic write primitive,
-без schema migration и без создания нового storage layer.
+малых slices — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md). Slice 5A перевёл
+`NewsProjectStore` на существующий atomic write primitive без schema migration
+и без создания нового storage layer. Следующий отдельный slice 5B добавляет
+additive news schema version с tolerant reader.
