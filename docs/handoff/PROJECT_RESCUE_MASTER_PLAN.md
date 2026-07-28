@@ -873,6 +873,8 @@ Implementation HEAD этапа 4: 94034f2
 Коммит handoff этапа 4: 65cef10
 Исходный HEAD этапа 4.5: 65cef10
 Текущий HEAD перед коммитом этапа 4.5: 65cef10
+Evidence-коммит этапа 4.5: fb374fd
+Повторно проверенный HEAD этапа 4.5: fb374fd
 Рабочее дерево до этапа 4.5: существовал чужой незакоммиченный diff master plan (181 строк); он сохранён, не откатывался и не включается в коммит этапа
 Выполнено:
 - master plan и текущий handoff полностью прочитаны; Git/HEAD/status/diff проверены до изменений
@@ -886,6 +888,9 @@ Implementation HEAD этапа 4: 94034f2
 - fail evidence: output_kind=draft, publish_ready=false, quality=needs_review, 3/3 draft-only partial-support scenes, 39% video duration; две фотографии занимают 61% ролика, captive-show кадр не соответствует open ocean
 - зафиксированы точные безопасные команды create/resume; help обоих entrypoints проверен
 - подготовлен, но не реализован ограниченный этап 4.5-R Product Repair
+- на HEAD fb374fd повторно сверены hashes, manifests, actual MP4 decode, audio,
+  свежий временный contact sheet, project status и rights-report; результат
+  остался FAIL
 Targeted checks этапа 4.5:
 - python -m ai_youtube create --help и resume --help: OK
 - python -m ai_youtube project status --project-id ... --json: OK, existing project читается

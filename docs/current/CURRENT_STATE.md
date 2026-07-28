@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 65cef10
+last_verified_commit: fb374fd
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -16,7 +16,7 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по HEAD `65cef10`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по HEAD `fb374fd`. Код и Git имеют приоритет.
 
 - Rescue stages 0–4 завершены; этап 4.5 Product Evidence Gate завершён с
   **Fail**. Следующий ограниченный этап — 4.5-R Product Repair; этапы 4.6 и 5

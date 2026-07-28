@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 65cef10
+last_verified_commit: fb374fd
 last_verified_date: 2026-07-28
 source_paths:
   - projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/job.json
@@ -65,6 +65,24 @@ source_paths:
 обрезанных субтитров, но также подтвердил длительное удержание двух фотографий и
 семантическое расхождение третьей сцены. Временный файл не является project
 artifact и после проверки удалён.
+
+## Повторная локальная верификация
+
+На HEAD `fb374fd` результат независимо подтверждён без изменения runtime-проекта:
+
+- хэши MP4, сохранённого contact sheet и manifests совпали с указанными выше;
+- `ffprobe` подтвердил H.264 1080×1920 30 fps 36.967 s и AAC mono 48 kHz
+  36.459 s; полный decode video и audio завершился без ошибок;
+- свежий временный contact sheet из начала и границ сцен подтвердил читаемые
+  субтитры, переход к статичному материалу около 14.2 s и captive-show фото
+  примерно с 28.6 s до конца;
+- narration WAV имеет mean −23.3 dB и peak −7.1 dB; обнаружена одна пауза
+  0.535 s на границе сцен;
+- `project status` по-прежнему возвращает `quality_status=needs_review` и 3/3
+  `partial_support`, а `project rights-report` — `verified` для 3/3 assets.
+
+Итог gate остаётся **FAIL**. Сеть, API, TTS, provider search/download, Vision и
+реальный render при повторной проверке не запускались.
 
 ## Воспроизводимые команды
 
