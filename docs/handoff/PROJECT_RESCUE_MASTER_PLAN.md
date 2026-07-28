@@ -1,6 +1,6 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–4 завершены**
+Статус: **выполняется; этапы 0–4 завершены; этап 4.5 завершён с Fail; следующий ограниченный этап 4.5-R Product Repair**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -859,7 +859,7 @@ G:\AI-YouTube-System\
 
 ```text
 Последнее обновление: 2026-07-28
-Текущий этап: Этап 4 — завершён; следующий этап 5 ещё не начат
+Текущий этап: Этап 4.5 Product Evidence Gate завершён — FAIL; следующий ограниченный этап 4.5-R Product Repair подготовлен, но не начат
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -870,35 +870,39 @@ Implementation HEAD этапа 3: 0cd0e11
 Коммит handoff этапа 3: ac9c313
 Исходный HEAD этапа 4: ac9c313
 Implementation HEAD этапа 4: 94034f2
-Текущий HEAD перед handoff-only коммитом: 94034f2
-Рабочее дерево: подготовлены ADR 0003, current metadata и handoff этапа 4
+Коммит handoff этапа 4: 65cef10
+Исходный HEAD этапа 4.5: 65cef10
+Текущий HEAD перед коммитом этапа 4.5: 65cef10
+Рабочее дерево до этапа 4.5: существовал чужой незакоммиченный diff master plan (181 строк); он сохранён, не откатывался и не включается в коммит этапа
 Выполнено:
-- master plan полностью прочитан; фактические Git/HEAD/status/diff проверены до изменений
-- до изменения поведения добавлен tests.test_stage4_canonical_cli; исходный прогон ожидаемо зафиксировал отсутствие ai_youtube, command modules и cycle Wizard → CLI
-- создан канонический dispatcher python -m ai_youtube и console script ai-youtube
-- dispatcher публикует активный content_creator и не рекламирует planned/disabled приложения
-- applications list по умолчанию показывает только active/enabled; явный show/--all сохраняет disabled/planned status
-- definitions CLI-команд разделены на catalog/project/content/authoring parser modules
-- сборка ContentCreationRequest вынесена из CLI и Wizard в общий request builder
-- общий rights presentation helper устранил импорт Wizard → CLI; cycle CLI ↔ Wizard устранён
-- новые rerun и asset-replacement команды используют python -m ai_youtube
-- python -m src.content_creation.cli, pipeline.py и apps/* сохранены как compatibility entrypoints
-- создан ADR 0003 о каноническом CLI и app boundaries
-Targeted checks этапа 4:
-- pre-change characterization: 6 tests, ожидаемые 4 failures + 1 error подтвердили незавершённые границы этапа
-- stage 4 + CLI/Wizard/legacy/path core: 109 tests, OK, 8.679 s
-- service/assets/project/rights/script/visual/localization/config/catalog/legacy wiring: 286 tests, OK, 49.916 s
-- module smoke: ai_youtube help/applications, legacy content capabilities и apps.news_to_short/youtube_pipeline/anime_factory help — 6 entrypoints, OK
-- первый combined wizard-прогон в captured cp1252 shell был непригоден из-за UnicodeEncodeError; тот же набор повторён с PYTHONIOENCODING=utf-8 и прошёл
-Full offline suite: не запускался по указанию пользователя; для этапа 4 не требовался
-Runtime-проекты и пользовательские media не изменялись и не удалялись
-Runtime project IDs/artifacts: создавались только внутри TemporaryDirectory тестов и автоматически удалены; постоянные artifacts не создавались
-Не выполнено: этапы 5–11, cleanup, глубокое разделение command handlers, физическая миграция runtime, реальные provider/API/TTS вызовы
-Новый known issue: direct Wizard tests в Windows shell с legacy captured encoding требуют PYTHONIOENCODING=utf-8; canonical CLI сам настраивает UTF-8 console
+- master plan и текущий handoff полностью прочитаны; Git/HEAD/status/diff проверены до изменений
+- выбран самый свежий complete E2E reference project 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2
+- проверены job, quality/final/export manifests, replacement report, timeline, subtitles, rights report и actual MP4
+- Product Evidence Gate: FAIL; полный отчёт docs/current/PRODUCT_EVIDENCE_GATE.md
+- MP4 c45527c9af6b8a1d8196362115605e2d719acd1d91e4f15535e428ec94a76156: H.264 1080x1920 30 fps 36.967 s + AAC mono 48 kHz 36.459 s; полный decode без ошибок
+- audio check: mean -23.3 dB, max -7.2 dB, один ожидаемый pause 0.502 s на границе сцен; финальный tail 0.508 s
+- subtitle contact sheets просмотрены: читаемы, не обрезаны; чёрных кадров не обнаружено
+- rights-report: verified 3/3, без missing source/license/checksum/local file
+- fail evidence: output_kind=draft, publish_ready=false, quality=needs_review, 3/3 draft-only partial-support scenes, 39% video duration; две фотографии занимают 61% ролика, captive-show кадр не соответствует open ocean
+- зафиксированы точные безопасные команды create/resume; help обоих entrypoints проверен
+- подготовлен, но не реализован ограниченный этап 4.5-R Product Repair
+Targeted checks этапа 4.5:
+- python -m ai_youtube create --help и resume --help: OK
+- python -m ai_youtube project status --project-id ... --json: OK, existing project читается
+- python -m ai_youtube project rights-report --project-id ... --json: OK, overall_status=verified
+- ffprobe actual MP4/narration WAV: OK
+- ffmpeg full video+audio decode: OK
+- ffmpeg volumedetect/silencedetect: OK
+- начало, середина, границы сцен и конец просмотрены на локальном temporary contact sheet
+Full offline suite: не запускался; этап 4.5 не меняет production code/contracts
+Runtime-проекты, manifests, MP4/WAV и пользовательские media не изменялись и не удалялись
+Runtime project IDs/artifacts: новых постоянных runtime artifacts нет; создан только временный contact sheet вне workspace и удалён после просмотра
+Не выполнено: Product Repair, этапы 4.6–11, provider search/download, TTS, Vision, реальный render, cleanup
+Новый known issue: reference Short не может служить product evidence до визуального ремонта и повторного gate
 Платные действия: не выполнялись
 Сеть/API: не выполнялись
-Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 5 — «Project и storage foundation»
-Главный запрет: не начинать этап 6, пока этап 5 не завершён и не проверен
+Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 4.5-R Product Repair с read-only просмотра локальных video-кандидатов reference project
+Главный запрет: не начинать этапы 4.6, 5 или далее; не запускать provider search/download или render без отдельного разрешения
 ```
 
 ---

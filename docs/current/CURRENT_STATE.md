@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 94034f2
+last_verified_commit: 65cef10
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -10,14 +10,17 @@ source_paths:
   - src/content_creation/capabilities.py
   - src/production_catalog
   - src/projects
+  - docs/current/PRODUCT_EVIDENCE_GATE.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
 # Current State
 
-Проверено 2026-07-28 по implementation HEAD `94034f2`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по HEAD `65cef10`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4 завершены; следующий этап 5 ещё не начат.
+- Rescue stages 0–4 завершены; этап 4.5 Product Evidence Gate завершён с
+  **Fail**. Следующий ограниченный этап — 4.5-R Product Repair; этапы 4.6 и 5
+  ещё не начаты.
 - `python -m ai_youtube` — канонический CLI активного `content_creator`;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request
@@ -40,10 +43,13 @@ source_paths:
 
 Известные переходные долги:
 
+- проверенный reference Short технически исправен, но имеет только 39% video
+  duration, 3/3 partial-support draft-only scenes и `publish_ready=false`;
+  подробности в [PRODUCT_EVIDENCE_GATE.md](PRODUCT_EVIDENCE_GATE.md);
 - две формы project manifests и неодинаковые storage primitives — этап 5;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
 - provider consolidation и вертикальные переносы приложений ещё не начаты.
 
-Запрещено начинать этап 6, пока этап 5 не проверен и не зафиксирован. Сохранённые
-full-suite отчёты исторические; для текущего изменения запускать только указанные
-targeted tests.
+До ограниченного Product Repair нельзя начинать этапы 4.6, 5 или последующие.
+Сохранённые full-suite отчёты исторические; для текущего изменения запускать
+только указанные targeted tests.
