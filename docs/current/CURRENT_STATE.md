@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: c8eb8f6
+last_verified_commit: b7350b3
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -13,9 +13,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по HEAD `c8eb8f6`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `b7350b3`. Код и Git имеют приоритет.
 
-- Rescue stages 0–1 завершены; этап 2 создаёт этот onboarding и versioned skills.
+- Rescue stages 0–2 завершены; следующий этап 3 ещё не начат.
 - Активное приложение: `content_creator`.
 - Активные live-tested шаблоны: `fullscreen_voiceover_v1` и
   `story_card_text_only_v1`.

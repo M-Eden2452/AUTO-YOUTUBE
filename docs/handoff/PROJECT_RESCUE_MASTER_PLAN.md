@@ -1,6 +1,6 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–1 завершены**
+Статус: **выполняется; этапы 0–2 завершены**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -579,7 +579,7 @@ G:\AI-YouTube-System\
 
 ### Этап 2. Source of truth и onboarding агентов
 
-Статус: [ ] не начат
+Статус: [x] завершён 2026-07-28
 
 Задачи:
 
@@ -859,44 +859,38 @@ G:\AI-YouTube-System\
 
 ```text
 Последнее обновление: 2026-07-28
-Текущий этап: Этап 1 — завершён; следующий этап 2 ещё не начат
+Текущий этап: Этап 2 — завершён; следующий этап 3 ещё не начат
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
-Исходный HEAD этапа 1: 5e3d895
-Текущий HEAD: 5e3d895
-Рабочее дерево: изменения этапа 1 подготовлены, но ещё не закоммичены
+Коммит этапа 1: c8eb8f6
+Исходный HEAD этапа 2: c8eb8f6
+Implementation HEAD этапа 2: b7350b3
+Текущий HEAD перед handoff-only коммитом: b7350b3
+Рабочее дерево: подготовлено только обновление current metadata и handoff этапа 2
 Выполнено:
-- перед началом полностью прочитан master plan; Git/HEAD/diff повторно проверены, исходное дерево было чистым
-- зафиксированы публичные контракты legacy pipeline.py, src.content_creation.cli, Anime Factory и project foundation CLI
-- существующие project status/list/resume и paid-call denial контракты подтверждены targeted tests
-- добавлены tolerant JSON Schemas для job, project, stage state, assets, voice, evidence, render и export
-- добавлены pyproject.toml, полностью pinned core requirements.lock, .gitattributes и offline GitHub Actions workflow
-- CI устанавливает locked dependencies, проверяет editable install и запускает unittest discovery с отключёнными live tests
-- packaging-конфигурация прочитана setuptools без ошибок; pip check: No broken requirements found
-- новые characterization/schema/reproducibility tests: 19 тестов, OK, 0.873 s
-- targeted regression этапа 1: 120 тестов, OK, 2.848 s
-- после финального изменения CI повторно проверены 4 reproducibility tests, OK, 0.002 s
-Targeted regression modules:
-- tests.test_stage1_characterization
-- tests.test_artifact_schemas
-- tests.test_reproducibility_contract
-- tests.test_content_creation_cli
-- tests.test_project_foundation_cli
-- tests.test_project_repository
-- tests.test_project_naming_and_resume
-- tests.test_voice_manifest_schema
-- tests.test_anime_factory_*
-- точечные paid-call denial tests для wizard, narration workflow, localization voice и OpenAI Vision
-- tests.test_test_network_guard
-Full offline suite: локально не запускался по указанию пользователя; его запуск зафиксирован в offline CI
+- master plan полностью прочитан; фактические Git/HEAD/status/diff проверены до изменений
+- обнаруженные незакоммиченные изменения этапа 1 просмотрены и перепроверены: 19 tests, OK, 0.902 s на Python 3.13.13
+- этап 1 зафиксирован отдельным коммитом c8eb8f6
+- создан короткий model-independent AGENTS.md; CLAUDE.md сокращён до thin adapter
+- созданы docs/current/START_HERE.md, SYSTEM_MAP.md и CURRENT_STATE.md с status, last_verified_commit, last_verified_date и source_paths
+- создан docs/adr и ADR 0001 о versioned source of truth
+- 10 устаревших handoff-документов без изменения содержания перенесены в docs/archive/handoff; в docs/handoff оставлен активный rescue master plan
+- штатным init_skill.py созданы и заполнены 6 skills в versioned skills/: create-short-video-first, evaluate-render-quality, resume-project, replace-visual-slot, architecture-change, create-handoff
+- добавлен tools/qa/check_agent_docs.py: проверка current metadata, срока актуальности, source_paths, локальных ссылок, archive boundary и структуры skills
+- внешний G:\AI-YouTube-System намеренно не создан как второй незаверсионированный источник; до появления sync contract он может быть только потребителем versioned материалов (ADR 0001)
+Targeted checks этапа 2:
+- .\venv\Scripts\python.exe -m tools.qa.check_agent_docs — OK
+- quick_validate.py для всех 6 skills — 6/6 valid
+- .\venv\Scripts\python.exe -B -m unittest tests.test_stage2_agent_onboarding — 3 tests, OK, 0.020 s
+Full offline suite: не запускался по указанию пользователя; для этапа 2 не требовался
 Runtime-проекты и пользовательские media не изменялись и не удалялись
-Не выполнено: этапы 2–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
-Известное предупреждение baseline: MoviePy FFMPEG_AudioReader.__del__ пишет harmless AttributeError при cleanup отдельных тестовых fixtures; suite завершается с кодом 0
-Новый known issue: фактический запуск GitHub Actions возможен только после commit/push; локально workflow проверен контрактным тестом
+Runtime project IDs/artifacts: не создавались
+Не выполнено: этапы 3–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
+Новый known issue: bare python указывает на Python 3.10.11 и не имеет stdlib tomllib; проектные проверки запускать только через .\venv\Scripts\python.exe (Python 3.13.13)
 Платные действия: не выполнялись
 Сеть/API: не выполнялись
-Следующее действие: git status --short --branch, просмотреть diff этапа 1 и зафиксировать его отдельным коммитом; затем начинать только этап 2
-Главный запрет: не начинать этап 3, пока этап 2 не завершён и не проверен
+Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 3 — «Единая система путей»
+Главный запрет: не начинать этап 4, пока этап 3 не завершён и не проверен
 ```
 
 ---

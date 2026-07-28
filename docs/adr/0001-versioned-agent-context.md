@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted on 2026-07-28; verified against `c8eb8f6`.
+Accepted on 2026-07-28; implemented by `b7350b3`.
 
 ## Context
 
