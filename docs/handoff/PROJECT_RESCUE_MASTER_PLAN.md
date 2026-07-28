@@ -1,6 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–4 завершены; этап 4.5 завершён с Fail; следующий ограниченный этап 4.5-R Product Repair**
+Статус: **выполняется; этапы 0–4.6 завершены; этап 4.5 сохранён как
+историческая диагностика и снят с critical path; следующий этап 5 —
+Project и storage foundation**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -231,6 +233,12 @@ Application
 ---
 
 ## 7. Целевая структура репозитория
+
+> **Это гипотеза границ, а не обязательное дерево для массового переноса.**
+> Названия слоёв (`core`, `services`, `infrastructure`) и точное расположение
+> модулей подтверждаются только после карты зависимостей, фиксации публичных
+> контрактов и первого вертикального переноса. Нельзя перемещать файл лишь ради
+> соответствия этому дереву.
 
 ```text
 AI-YouTube/
@@ -501,8 +509,8 @@ G:\AI-YouTube-System\
 
 1. Один этап — один ограниченный набор изменений.
 2. Сначала characterization test, затем изменение.
-3. После каждого этапа — targeted tests.
-4. Full offline suite — на границах крупных этапов.
+3. После каждого этапа — targeted tests в радиусе изменённой зависимости.
+4. Full offline suite не является обязательным локальным шагом: запускать его в CI после коммита либо локально только при изменении общих contracts, storage, paths, providers или compatibility-слоя.
 5. Не выполнять сеть, provider search, Vision, TTS или платные API без отдельного
    разрешения пользователя.
 6. Не запускать реальный render, если этап проверяется синтетическими fixtures.
@@ -515,6 +523,39 @@ G:\AI-YouTube-System\
 13. Старый entrypoint удаляется только после compatibility period.
 14. При обнаружении незапланированного большого изменения остановиться и подготовить
     отдельный план.
+
+### Value gate для инфраструктуры
+
+Инфраструктурную работу выполнять только если она хотя бы в одном из случаев:
+
+- снижает риск потери данных, лишних платных вызовов или поломки продукта;
+- разблокирует текущий workflow `create` / `resume` / `render`;
+- уменьшает повторяющуюся работу агента и риск потери контекста;
+- предотвращает уже известную регрессию.
+
+В противном случае задача попадает в backlog. Product/video evidence не является
+обязательным checkpoint для архитектурных, compatibility, cleanup и
+data-safety этапов.
+
+### Бюджет проверок
+
+- Документация, skills и metadata: только релевантная проверка документации.
+- Локальный parser, wrapper или команда: compatibility-тесты этой команды.
+- Один workflow-модуль: его тесты и ближайшая интеграционная проверка.
+- Contracts, storage, paths, providers и compatibility: затронутое семейство
+  тестов; полный suite — CI checkpoint после отдельного коммита.
+- Пользовательский workflow: небольшой synthetic smoke важнее полного suite,
+  если он проверяет реальную цепочку риска.
+
+Не запускать тест шире радиуса зависимости без явно записанной причины.
+
+### Бюджет области и handoff
+
+Обычный подэтап затрагивает не более 8 production-файлов **или** ровно один
+публичный контракт / workflow boundary. Если требуется превысить этот предел
+либо принять более одного независимого архитектурного решения, остановиться,
+разделить работу и сделать handoff. У каждого подэтапа — отдельные проверка,
+commit и handoff; исключение допускается только с записанным обоснованием.
 
 ---
 
@@ -647,6 +688,77 @@ G:\AI-YouTube-System\
 - один канонический CLI;
 - старые команды проходят compatibility tests.
 
+Уточнение границы: этап 4 отвечает за внешний dispatcher, регистрацию команд,
+capability и compatibility wrappers. Дальнейшее внутреннее разделение CLI,
+Wizard и service, уменьшение крупных функций и перенос presentation-логики
+выполняются только в подэтапах 6B–6D. Этап 4 не переоткрывается, если не меняется
+публичный command contract.
+
+---
+
+### Этап 4.5. Product Evidence Gate
+
+Статус: [x] закрыт 2026-07-28 как исторический диагностический snapshot;
+решением владельца от 2026-07-28 снят с critical path.
+
+Сохранённый отчёт:
+[docs/current/PRODUCT_EVIDENCE_GATE.md](../current/PRODUCT_EVIDENCE_GATE.md).
+
+Решение владельца:
+
+- не повторять `create`, `resume`, TTS, provider search/download, render,
+  contact-sheet или visual quality gate в рамках rescue plan;
+- незавершённый Product Repair 4.5-R закрыть без продолжения;
+- результат `FAIL` сохранить только как исторический факт о конкретном
+  reference project, а не как блокер архитектуры;
+- перейти к структуре, зависимостям, границам модулей, консолидации,
+  доказанному удалению лишнего и cleanup.
+
+---
+
+### Этап 4.6. Архитектурная инвентаризация и карта cleanup
+
+Статус: [x] завершён 2026-07-28
+
+Это первый незавершённый этап. Он выполняется read-only относительно production
+code и runtime data: сначала доказательства и карта, затем отдельные изменения.
+
+Задачи:
+
+1. Зафиксировать фактическое дерево production-модулей, entrypoints и
+   compatibility wrappers.
+2. Построить карту imports/callers/tests для крупных модулей и публичных
+   contracts.
+3. Отдельно отметить persisted schemas, runtime roots и пользовательские данные,
+   которые нельзя потерять при переносе или удалении.
+4. Классифицировать каждый архитектурный кандидат:
+   `keep`, `split`, `merge`, `move`, `archive`, `delete` или `do_not_touch`.
+5. Для каждого `delete`-кандидата записать:
+   - callers/imports;
+   - рабочую замену;
+   - compatibility period;
+   - targeted tests;
+   - риск для persisted projects/media.
+6. Подтвердить целевые границы приложений, services и infrastructure по
+   фактическим зависимостям, а не по желаемому дереву каталогов.
+7. Сформировать очередь малых implementation slices; не перемещать и не удалять
+   production code на этом этапе.
+
+Критерий готовности:
+
+- в `docs/current/` есть актуальная dependency/boundary map;
+- существует проверяемый cleanup registry с доказательствами для удаления;
+- для первого structural slice указаны точные файлы, callers и targeted tests;
+- массовое перемещение и преждевременное удаление не выполнялись.
+
+Результаты:
+
+- [ARCHITECTURE_BOUNDARY_MAP.md](../current/ARCHITECTURE_BOUNDARY_MAP.md);
+- [CLEANUP_REGISTRY.md](../current/CLEANUP_REGISTRY.md);
+- первый structural slice — 5A: characterization-first перевод
+  `NewsProjectStore.write_json` на существующий
+  `project_foundation.atomic_write_json`.
+
 ---
 
 ### Этап 5. Project и storage foundation
@@ -678,35 +790,50 @@ G:\AI-YouTube-System\
 
 Статус: [ ] не начат
 
-Выполнять строго по одному модулю:
+Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
+Не объединять их в одну сессию без записанного исключения из бюджета области.
 
-1. `src/news/asset_manager.py`:
-   - orchestration;
-   - provider search;
-   - selection;
-   - download;
-   - completion.
-2. `src/content_creation/cli.py`:
-   - command modules;
-   - presentation отдельно.
-3. `src/content_creation/wizard.py`:
-   - state;
-   - steps;
-   - presentation.
-4. `src/content_creation/service.py`:
-   - отдельные use cases.
-5. `src/assets/semantic_visual_evaluation.py`:
-   - runtime;
-   - evaluation tooling.
-6. `pipeline.py`:
-   - только dispatch и compatibility.
-7. Устранить cycle frame sampling ↔ perceptual similarity.
+#### 6A. Asset manager
+
+`src/news/asset_manager.py`: отделить orchestration от provider search,
+selection, download и completion.
+
+#### 6B. Внутренности CLI
+
+Разделить внутренности `src/content_creation/cli.py` и presentation-слой.
+Внешний dispatcher и compatibility не менять без необходимости: это граница
+этапа 4.
+
+#### 6C. Wizard
+
+Разделить `src/content_creation/wizard.py` на state, шаги и presentation.
+
+#### 6D. Application service
+
+Выделить в `src/content_creation/service.py` отдельные use cases и сделать
+оркестрацию явной.
+
+#### 6E. Semantic evaluation
+
+Разделить в `src/assets/semantic_visual_evaluation.py` runtime и evaluation
+tooling.
+
+#### 6F. Legacy pipeline
+
+Оставить `pipeline.py` тонким фасадом dispatch и compatibility без дублирования
+бизнес-логики.
+
+#### 6G. Оставшиеся import cycles
+
+Устранить cycle frame sampling ↔ perceptual similarity и другие обнаруженные
+циклы отдельными малыми изменениями.
 
 Критерий готовности:
 
 - нет orchestration-функций на сотни строк;
 - нет статических import-cycle;
-- поведение подтверждено тестами.
+- поведение каждого подэтапа подтверждено его targeted tests;
+- нет статических import-cycle после 6G.
 
 ---
 
@@ -764,49 +891,64 @@ G:\AI-YouTube-System\
 
 ---
 
-### Этап 9. Внешний runtime workspace
+### Этап 9. Retire compatibility и удалить доказанное лишнее
 
 Статус: [ ] не начат
 
 Задачи:
 
-1. Выполнить dry-run inventory.
-2. Создать backup.
-3. Копировать, а не перемещать.
-4. Проверить counts, manifests и checksums.
-5. Включить dual-read и single-write в новый workspace.
-6. Проверить resume старого проекта.
-7. Проверить создание нового проекта.
-8. Старые данные оставить до отдельного подтверждения владельца.
+1. Брать кандидатов только из cleanup registry этапа 4.6.
+2. Удалять по одному bounded slice после проверки imports, callers и
+   compatibility entrypoints.
+3. Сначала удалять доказанные code duplicates, неиспользуемые adapters,
+   placeholders и dead wrappers.
+4. Старый provider/downloader удалять только после перевода callers на
+   существующий `src/providers` contract и targeted tests.
+5. Compatibility wrapper удалять только после зафиксированного периода
+   совместимости и отсутствия callers.
+6. Сомнительный или исторически ценный код архивировать, а не удалять.
+7. Каждый deletion slice оформлять отдельными diff, targeted tests, commit и
+   handoff.
+8. Не удалять `projects/`, manifests, media, evidence, license proof, voice
+   samples, готовые MP4/WAV и пользовательские исходники.
 
 Критерий готовности:
 
-- новые runtime-данные создаются вне Git;
-- старые проекты продолжают читаться;
-- rollback не требует восстановления удалённых данных.
+- каждый удалённый code path имеет доказанную замену или доказанное отсутствие
+  callers;
+- compatibility и persisted-project contracts продолжают проходить targeted
+  tests;
+- в commit нет runtime или пользовательских данных;
+- rollback каждого slice ограничен одним commit.
 
 ---
 
-### Этап 10. Cleanup
+### Этап 10. Repository/runtime cleanup и разделение рабочих зон
 
 Статус: [ ] не начат
 
 Задачи:
 
-1. Удалить кэши.
-2. Заархивировать исторические документы.
-3. Убрать подтверждённые placeholders.
-4. Удалить доказанные code duplicates.
-5. Перестать отслеживать generated outputs.
-6. Перенести тяжёлые evaluation artifacts.
-7. Проверить `.gitignore`.
-8. Не удалять пользовательские проекты и медиа.
+1. Удалить только воспроизводимые кэши и временные файлы.
+2. Заархивировать устаревшие audits, handoffs и generated reports.
+3. Перестать отслеживать подтверждённые generated outputs и обновить
+   `.gitignore`.
+4. Провести dry-run inventory runtime-каталогов, тяжёлых artifacts и toolchain.
+5. Для внешнего workspace использовать только `copy → verify → switch`;
+   массовое перемещение и удаление источника запрещены.
+6. Проверить counts, manifests и checksums до и после копирования.
+7. Сохранить dual-read старых roots и направлять новые записи во внешний
+   workspace только отдельным bounded изменением.
+8. Старые runtime-данные оставить до отдельного подтверждения владельца.
+9. Не смешивать filesystem cleanup с архитектурным refactor или contract change.
 
 Критерий готовности:
 
 - корень содержит только код, конфигурацию и versioned документы;
-- runtime находится во внешнем workspace;
-- каждый удалённый code path имеет доказанную замену.
+- generated/runtime данные не загрязняют Git;
+- старые проекты продолжают читаться;
+- внешний workspace проверен без удаления исходных данных;
+- каждый cleanup diff воспроизводим и не затрагивает пользовательские media.
 
 ---
 
@@ -826,10 +968,15 @@ G:\AI-YouTube-System\
 - нет production hardcode конкретного компьютера;
 - CI выполняет offline suite;
 - нет import-cycle;
+- крупные orchestration-модули разделены по подтверждённым границам;
+- cleanup registry закрыт либо содержит явно отложенные `do_not_touch` записи;
+- отсутствуют доказанные dead imports, duplicate implementations и
+  неподтверждённые compatibility wrappers;
 - платные вызовы требуют явного approval;
 - новый агент получает актуальный контекст из нескольких коротких файлов;
-- Short можно создать, продолжить и проверить без огромного prompt;
-- MP4 проверяется технически и визуально.
+- persisted projects, manifests и пользовательские media сохранены;
+- финальная проверка архитектуры не требует создания, рендера или визуальной
+  оценки нового видео.
 
 ---
 
@@ -837,15 +984,20 @@ G:\AI-YouTube-System\
 
 Первое действие при возобновлении плана:
 
-> Проверить текущее рабочее дерево и получить безопасный чистый baseline.
+> Начать только slice 5A: добавить characterization атомарной записи
+> `NewsProjectStore`, затем переиспользовать существующий
+> `src.project_foundation.storage.atomic_write_json` без schema migration,
+> lock или idempotency в том же diff.
 
 Не начинать с:
 
 - перемещения папок;
+- удаления code path без callers/replacement evidence;
 - удаления проектов;
 - создания нового репозитория с переписанным кодом;
 - массового форматирования;
 - добавления новых providers;
+- создания или рендера reference video;
 - UI;
 - RAG или vector database;
 - swarm/subagents;
@@ -859,7 +1011,12 @@ G:\AI-YouTube-System\
 
 ```text
 Последнее обновление: 2026-07-28
-Текущий этап: Этап 4.5 Product Evidence Gate завершён — FAIL; следующий ограниченный этап 4.5-R Product Repair подготовлен, но не начат
+Завершённый этап: 4.6 Архитектурная инвентаризация и карта cleanup
+Следующий этап: 5 Project и storage foundation — не начат
+Исходный HEAD решения владельца: 05cc8ed
+Исходный HEAD этапа 4.6: 05cc8ed
+Ветка: master
+Git до этапа: существовали незакоммиченные owner-decision изменения CURRENT_STATE, PRODUCT_EVIDENCE_GATE и master plan; они сохранены, проверены и включены вместе с завершением перехода к 4.6
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -871,43 +1028,36 @@ Implementation HEAD этапа 3: 0cd0e11
 Исходный HEAD этапа 4: ac9c313
 Implementation HEAD этапа 4: 94034f2
 Коммит handoff этапа 4: 65cef10
-Исходный HEAD этапа 4.5: 65cef10
-Текущий HEAD перед коммитом этапа 4.5: 65cef10
 Evidence-коммит этапа 4.5: fb374fd
-Повторно проверенный HEAD этапа 4.5: fb374fd
-Рабочее дерево до этапа 4.5: существовал чужой незакоммиченный diff master plan (181 строк); он сохранён, не откатывался и не включается в коммит этапа
+Коммит локального аудита 4.5-R: 05cc8ed
 Выполнено:
-- master plan и текущий handoff полностью прочитаны; Git/HEAD/status/diff проверены до изменений
-- выбран самый свежий complete E2E reference project 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2
-- проверены job, quality/final/export manifests, replacement report, timeline, subtitles, rights report и actual MP4
-- Product Evidence Gate: FAIL; полный отчёт docs/current/PRODUCT_EVIDENCE_GATE.md
-- MP4 c45527c9af6b8a1d8196362115605e2d719acd1d91e4f15535e428ec94a76156: H.264 1080x1920 30 fps 36.967 s + AAC mono 48 kHz 36.459 s; полный decode без ошибок
-- audio check: mean -23.3 dB, max -7.2 dB, один ожидаемый pause 0.502 s на границе сцен; финальный tail 0.508 s
-- subtitle contact sheets просмотрены: читаемы, не обрезаны; чёрных кадров не обнаружено
-- rights-report: verified 3/3, без missing source/license/checksum/local file
-- fail evidence: output_kind=draft, publish_ready=false, quality=needs_review, 3/3 draft-only partial-support scenes, 39% video duration; две фотографии занимают 61% ролика, captive-show кадр не соответствует open ocean
-- зафиксированы точные безопасные команды create/resume; help обоих entrypoints проверен
-- подготовлен, но не реализован ограниченный этап 4.5-R Product Repair
-- на HEAD fb374fd повторно сверены hashes, manifests, actual MP4 decode, audio,
-  свежий временный contact sheet, project status и rights-report; результат
-  остался FAIL
-Targeted checks этапа 4.5:
-- python -m ai_youtube create --help и resume --help: OK
-- python -m ai_youtube project status --project-id ... --json: OK, existing project читается
-- python -m ai_youtube project rights-report --project-id ... --json: OK, overall_status=verified
-- ffprobe actual MP4/narration WAV: OK
-- ffmpeg full video+audio decode: OK
-- ffmpeg volumedetect/silencedetect: OK
-- начало, середина, границы сцен и конец просмотрены на локальном temporary contact sheet
-Full offline suite: не запускался; этап 4.5 не меняет production code/contracts
-Runtime-проекты, manifests, MP4/WAV и пользовательские media не изменялись и не удалялись
-Runtime project IDs/artifacts: новых постоянных runtime artifacts нет; создан только временный contact sheet вне workspace и удалён после просмотра
-Не выполнено: Product Repair, этапы 4.6–11, provider search/download, TTS, Vision, реальный render, cleanup
-Новый known issue: reference Short не может служить product evidence до визуального ремонта и повторного gate
-Платные действия: не выполнялись
-Сеть/API: не выполнялись
-Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 4.5-R Product Repair с read-only просмотра локальных video-кандидатов reference project
-Главный запрет: не начинать этапы 4.6, 5 или далее; не запускать provider search/download или render без отдельного разрешения
+- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP и architecture-change skill
+- проверены фактические production tree, entrypoints, compatibility wrappers, imports/callers/tests, schemas и runtime roots
+- зафиксировано 249 production-файлов / 241 production Python-файл / 99 test modules
+- подтверждены active content_creator и два active templates; planned/legacy boundaries не повышены до active
+- создан docs/current/ARCHITECTURE_BOUNDARY_MAP.md
+- создан docs/current/CLEANUP_REGISTRY.md с классами keep/split/merge/move/archive/delete/do_not_touch
+- для каждого delete-кандидата записаны callers, replacement, compatibility, targeted tests и persisted/media risk
+- подтверждены zero internal callers для embedded provider classes и src/news/stock_video_downloader.py; удаления отложены
+- зафиксированы persisted job.json/project.json, восемь artifact schemas, WorkspacePaths roots и do_not_touch user/runtime zones
+- первый structural slice 5A ограничен NewsProjectStore atomic write; schema version, lock и idempotency вынесены в отдельные slices
+Изменения production code: отсутствуют
+Удаления и перемещения: не выполнялись
+Targeted checks:
+- .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
+- .\venv\Scripts\python.exe -m unittest tests.test_stage2_agent_onboarding: OK, 3 tests
+Full offline suite: не требуется для documentation-only изменения
+Runtime project IDs/artifacts: не создавались и не изменялись
+Сеть/API/TTS/Vision/render/платные действия: не выполнялись
+Найденные root causes:
+- NewsProjectStore использует отдельный неатомарный JSON writer при уже существующем atomic_write_json
+- крупные orchestration boundaries и static frame_sampling/perceptual_similarity cycle подтверждены фактическими edges
+- dead provider/downloader code нельзя смешивать с provider consolidation или удалять до отдельного compatibility checkpoint
+Новые known issues: test inventory вырос до 99 modules; старые численные snapshots не использовать без повторного rg
+Следующий точный этап: 5A atomic NewsProjectStore, один bounded characterization-first diff
+Следующая точная команда: Get-Content -Raw -Encoding UTF8 tests/test_news_to_short_models.py
+После чтения: добавить atomic-write characterization; production change ограничить src/news/project_store.py
+Главный запрет: не объединять 5A со schema version, lock, idempotency, migration или cleanup; не изменять persisted projects/runtime data
 ```
 
 ---
@@ -951,49 +1101,4 @@ Runtime project IDs:
 Блокеры:
 
 Следующая точная команда:
-```
-
----
-
-## 16. Текущий handoff этапа 4.5-R — read-only checkpoint
-
-```text
-Последнее обновление: 2026-07-28
-Текущий этап: 4.5-R Product Repair начат, но не завершён; локальный кандидат-аудит завершён до первой replacement-операции
-Исходный HEAD этапа 4.5-R: 9980839
-Ветка: master
-Git до этапа: существовал чужой незакоммиченный diff docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md; он сохранён и не включается в commit checkpoint
-Reference project: 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2
-Выполнено:
-- полностью прочитаны master plan, текущий handoff, PRODUCT_EVIDENCE_GATE и skill replace-visual-slot
-- сверены project status, replacement_queue.json, timeline_replacement_map.csv, assets_manifest.json и текущий assets replace --help
-- read-only найдено и проверено 11 локальных MP4-путей / 10 уникальных файлов в assets/downloaded
-- для каждого кандидата проверены ffprobe-параметры, SHA-256 и пять равномерных кадров
-- просмотрены три временных candidate atlas вне project workspace
-Фактический результат:
-- только уже выбранный scene_001_pexels_5607993.mp4 показывает косаток в открытой воде и имеет полный текущий provenance/rights record
-- остальные кандидаты показывают мультфильм, других китов, пустой океан, лодки, дайвера или медузу; у остаточных MP4 нет metadata reference в текущих manifests
-- пригодных честных rights-cleared локальных замен для scene_002_slot_001 и scene_003_slot_001 нет
-- повторять один и тот же клип сцены 001 на весь Short признано недостаточным для Product Evidence Gate
-Изменения runtime project: отсутствуют
-Replacement records / stale stages: не создавались; quality_check/final_render/export остаются в прежнем состоянии
-Product Evidence Gate: остаётся FAIL
-Targeted checks:
-- python -m ai_youtube project status --project-id ... --json: OK
-- python -m src.content_creation.cli assets replace --help: OK
-- python -m ai_youtube resume --help: OK
-- ffprobe всех 11 локальных MP4-путей: OK
-- SHA-256 всех 11 путей: OK; duplicate 32800188 подтверждён
-- локальные five-frame contact sheets всех 10 уникальных клипов просмотрены
-Full offline suite: не запускался; production code/contracts не менялись
-Сеть/API/provider search/download: не выполнялись
-Платные действия/TTS/Vision: не выполнялись
-Реальный render: не выполнялся
-Постоянные runtime artifacts: не создавались
-Временные artifacts: диагностические JPEG candidate contact sheets/atlases созданы вне project workspace
-Блокер: нужны локальные rights-cleared open-ocean/research video для сцен 002/003 или отдельное разрешение на provider search/download
-Разрешение на render: пока не запрашивается как следующий исполняемый шаг; сначала должны существовать и быть записаны подходящие replacements
-Следующее точное действие: владелец передаёт два локальных media с source URL/license proof либо явно разрешает provider search/download; до этого не выполнять replacement или resume
-После replacements: проверить record/checksum/provenance и stale state, затем отдельно запросить разрешение на quality_check → final_render → export
-Главный запрет: не начинать этапы 4.6, 5 или далее; не выдавать generic/misidentified footage за редкий удар
 ```

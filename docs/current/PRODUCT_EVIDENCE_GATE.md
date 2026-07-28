@@ -1,6 +1,6 @@
 ---
-status: current
-last_verified_commit: 9980839
+status: historical_reference
+last_verified_commit: 05cc8ed
 last_verified_date: 2026-07-28
 source_paths:
   - projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/job.json
@@ -11,9 +11,15 @@ source_paths:
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
-# Product Evidence Gate 4.5
+# Исторический отчёт Product Evidence Gate 4.5
 
 Код, Git и фактические runtime-артефакты имеют приоритет над этим отчётом.
+
+> Решение владельца от 2026-07-28: этот отчёт больше не является gate или
+> блокером rescue plan. Product Repair 4.5-R закрыт без продолжения. Команды,
+> проверки и результаты ниже сохранены только как историческое evidence; новый
+> `create`, `resume`, provider search/download, TTS, render или visual gate по
+> этому отчёту выполнять не требуется.
 
 ## Результат
 
@@ -84,66 +90,24 @@ artifact и после проверки удалён.
 Итог gate остаётся **FAIL**. Сеть, API, TTS, provider search/download, Vision и
 реальный render при повторной проверке не запускались.
 
-## Воспроизводимые команды
+## Архивная воспроизводимость
 
-Фактически выполненная read-only проверка существующего проекта:
+Ранее выполненные команды и фактические hashes зафиксированы в commits
+`fb374fd`, `9980839` и `05cc8ed`. Команды создания, продолжения и проверки видео
+удалены из текущей инструкции, чтобы этот исторический отчёт не воспринимался
+как активный workflow или следующий этап rescue plan.
 
-```powershell
-.\venv\Scripts\python.exe -m ai_youtube project status `
-  --project-id 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2 --json
-```
+## Закрытый checkpoint 4.5-R Product Repair
 
-Безопасная offline-проверка входа `create` в отдельном временном workspace:
+Статус: **закрыт без продолжения решением владельца от 2026-07-28**.
 
-```powershell
-$stage45Input = (
-  Get-Content -Raw -Encoding UTF8 `
-    "projects\2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2\input\input.json" |
-  ConvertFrom-Json
-).input_text
-$stage45Workspace = Join-Path ([System.IO.Path]::GetTempPath()) "ai-youtube-stage45-repro"
-.\venv\Scripts\python.exe -m ai_youtube --workspace $stage45Workspace create `
-  --format vertical_short --template fullscreen_voiceover_v1 `
-  --channel nature_science_news_ru --language ru `
-  --pasted-script $stage45Input --input-mode pasted_script `
-  --completion-mode draft_complete --dry-run --json
-```
+Checkpoint исторически планировался как визуальный ремонт одного reference
+project, но был отменён до replacement и downstream invalidation. Никаких
+оставшихся обязательных действий по нему нет.
 
-Безопасная offline-проверка `resume` существующего проекта:
-
-```powershell
-.\venv\Scripts\python.exe -m ai_youtube resume `
-  --project-id 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2 `
-  --dry-run --json
-```
-
-Синтаксис `create` и `resume` проверен по текущему `--help`. Две последние команды
-на этом этапе не запускались: для gate было достаточно существующего complete E2E
-проекта, а сохранённое состояние проекта не изменялось.
-
-## Следующий ограниченный этап: 4.5-R Product Repair
-
-Статус: **начат; read-only аудит локальных кандидатов завершён, repair не
-завершён**.
-
-Цель: улучшить только визуальную сборку указанного проекта до повторного Product
-Evidence Gate.
-
-Ограниченная область:
-
-1. Сначала просмотреть уже скачанные локальные video-кандидаты проекта; не выполнять
-   provider search или download без отдельного разрешения.
-2. Заменить только слабые визуальные слоты существующего проекта: убрать длительные
-   still-image holds и captive-show материал, использовать rights-cleared
-   open-ocean/research video, не выдавая generic B-roll за редкий удар.
-3. Не менять research, claims, narration, TTS, project/storage contracts или CLI.
-4. После явного разрешения на render повторить только stale
-   `quality_check` → `final_render` → `export`.
-5. Повторно проверить actual MP4 и contact sheet. Pass допустим только при
-   video-first сборке, нормальных звуке/субтитрах, отсутствии emergency/infographic
-   основного визуала и честном visual support.
-
-Этапы 4.6, 5 и последующие до результата 4.5-R не начинаются.
+Checkpoint не блокирует этапы 4.6 и последующие. Архитектурный rescue plan не
+требует исправления, повторного рендера или нового Product Evidence Gate для
+этого reference project.
 
 ## Checkpoint 4.5-R: локальные video-кандидаты
 
@@ -186,12 +150,6 @@ video-кандидатов для слабых слотов `scene_002_slot_001`
 research/behavior claims. Поэтому `assets replace` и downstream invalidation не
 выполнялись; Product Evidence Gate остаётся **FAIL**.
 
-Для продолжения требуется одно из двух явных действий владельца:
-
-1. передать локальные rights-cleared open-ocean/research video для сцен 002 и
-   003 вместе с source URL или license proof; либо
-2. отдельно разрешить provider search/download.
-
-После безопасной замены обоих слотов потребуется отдельное разрешение на реальный
-render; только затем повторяются stale `quality_check` → `final_render` →
-`export` и actual MP4/contact-sheet gate.
+Дальнейшие provider search/download, replacements и render по этому checkpoint
+не входят в rescue plan. Они возможны только как отдельная будущая продуктовая
+задача по новому явному запросу владельца.

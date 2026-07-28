@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fb374fd
+last_verified_commit: 05cc8ed
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -10,17 +10,24 @@ source_paths:
   - src/content_creation/capabilities.py
   - src/production_catalog
   - src/projects
-  - docs/current/PRODUCT_EVIDENCE_GATE.md
+  - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
+  - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
 # Current State
 
-Проверено 2026-07-28 по HEAD `fb374fd`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по HEAD `05cc8ed`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4 завершены; этап 4.5 Product Evidence Gate завершён с
-  **Fail**. Следующий ограниченный этап — 4.5-R Product Repair; этапы 4.6 и 5
-  ещё не начаты.
+- Rescue stages 0–4.6 завершены. Product Evidence Gate 4.5 сохранён только как
+  историческая диагностика и решением владельца снят с critical path;
+  Product Repair 4.5-R закрыт без продолжения.
+- Этап 4.6 создал проверенные
+  [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
+  [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
+- Следующий этап — 5 «Project и storage foundation»; первый bounded slice 5A
+  переводит только `NewsProjectStore.write_json` на существующий
+  `project_foundation.atomic_write_json`.
 - `python -m ai_youtube` — канонический CLI активного `content_creator`;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request
@@ -43,13 +50,16 @@ source_paths:
 
 Известные переходные долги:
 
-- проверенный reference Short технически исправен, но имеет только 39% video
-  duration, 3/3 partial-support draft-only scenes и `publish_ready=false`;
-  подробности в [PRODUCT_EVIDENCE_GATE.md](PRODUCT_EVIDENCE_GATE.md);
-- две формы project manifests и неодинаковые storage primitives — этап 5;
+- две формы project manifests сохраняются tolerant readers; news writer ещё не
+  использует общий atomic storage primitive — этап 5;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
-- provider consolidation и вертикальные переносы приложений ещё не начаты.
+- provider consolidation и вертикальные переносы приложений ещё не начаты;
+- compatibility wrappers, duplicate implementations, generated/runtime clutter
+  и deletion candidates классифицированы, но implementation/cleanup ещё не
+  выполнялись.
 
-До ограниченного Product Repair нельзя начинать этапы 4.6, 5 или последующие.
-Сохранённые full-suite отчёты исторические; для текущего изменения запускать
-только указанные targeted tests.
+Создание, продолжение, TTS, render и визуальная проверка reference video больше
+не являются этапами rescue plan. Архитектурные изменения выполняются малыми
+slices после карты callers/tests; удаление без доказанной замены запрещено.
+Сохранённые full-suite отчёты исторические; для каждого изменения запускаются
+только targeted tests в радиусе зависимости.

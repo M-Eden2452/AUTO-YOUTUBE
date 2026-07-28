@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 94034f2
+last_verified_commit: 05cc8ed
 last_verified_date: 2026-07-28
 source_paths:
   - ai_youtube
@@ -15,6 +15,8 @@ source_paths:
   - src/audio
   - src/subtitles
   - anime_factory
+  - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
+  - docs/current/CLEANUP_REGISTRY.md
 ---
 
 # System Map
@@ -60,3 +62,11 @@ video_repurposer
   остаются привязаны к репозиторию;
 - definitions CLI-команд разделены по domain-модулям; глубокое разделение крупных
   command handlers остаётся этапом 6 rescue plan.
+
+Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
+contracts и runtime roots зафиксированы в
+[ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md); классификация
+`keep/split/merge/move/archive/delete/do_not_touch`, delete evidence и очередь
+малых slices — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md). Следующий этап 5
+начинается с перевода `NewsProjectStore` на существующий atomic write primitive,
+без schema migration и без создания нового storage layer.
