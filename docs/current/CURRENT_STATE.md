@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: f7b3a3c
+last_verified_commit: 56dd2eb
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -16,6 +16,7 @@ source_paths:
   - schemas/job.schema.json
   - docs/adr/0004-news-job-schema-version.md
   - docs/adr/0005-news-project-lock.md
+  - docs/adr/0006-news-stage-idempotency.md
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -23,9 +24,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по implementation HEAD `f7b3a3c`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `56dd2eb`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6 и bounded slices 5A–5C завершены. Этап 5 выполняется.
+- Rescue stages 0–4.6 и bounded slices 5A–5D завершены. Этап 5 выполняется.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -39,7 +40,9 @@ source_paths:
   как v1 без массовой миграции. Slice 5C добавил общий fail-fast project lock
   вокруг `NewsProjectStore.write_json`: активный lock блокирует конкурирующую
   запись, lock старше 300 секунд считается stale и перехватывается автоматически.
-  Следующий bounded slice 5D — stage idempotency.
+  Slice 5D добавил output-validated stage idempotency для семейства стадий `research`:
+  `NewsProjectStore.is_stage_completed` проверяет статус `completed` и валидность `claims.json`,
+  повторно выполняя стадию при отсутствии или повреждении артефакта.
 - `python -m ai_youtube` — канонический CLI активного `content_creator`;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request

@@ -1014,9 +1014,11 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-28
-Завершённый bounded slice: 5C news project lock
+Завершённый bounded slice: 5D stage idempotency for news research stage family
 Текущий этап: 5 Project и storage foundation — выполняется
-Следующий bounded slice: 5D stage idempotency
+Следующий bounded slice: 5D stage idempotency for remaining stage families (or next bounded 5D slice)
+Исходный HEAD slice 5D: 5c17c4e
+Implementation commit slice 5D: 56dd2eb
 Исходный HEAD slice 5C: 5413185
 Implementation commit slice 5C: f7b3a3c
 Исходный HEAD slice 5B: ac30199
@@ -1024,7 +1026,7 @@ Implementation commit slice 5B: 42d5b99
 Исходный HEAD slice 5A: 736f0c6
 Implementation commit slice 5A: 87e272a
 Ветка: master
-Git до slice 5C: чистый
+Git до slice 5D: чистый
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -1040,35 +1042,31 @@ Evidence-коммит этапа 4.5: fb374fd
 Коммит локального аудита 4.5-R: 05cc8ed
 Коммит этапа 4.6: 736f0c6
 Выполнено:
-- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP и architecture-change skill
-- проверены NewsProjectStore, общий atomic storage primitive, writer callers и targeted test family
-- сначала добавлены tempfile characterization active-lock denial и stale-lock reclaim
-- подтверждено ожидаемое падение characterization до production change: 2 ImportError, остальные 5 tests OK
-- добавлен единый src.project_foundation.storage.project_lock без второго storage layer
-- lock атомарно создаётся через O_CREAT | O_EXCL и при contention fail-fast поднимает ProjectLockError
-- stale-lock policy: filesystem mtime старше 300 секунд разрешает автоматический reclaim
-- owner token не позволяет старому writer удалить lock нового владельца при cleanup
-- NewsProjectStore.write_json держит общий project lock вокруг существующего atomic_write_json
-- lock ограничен одной JSON write boundary и намеренно не реализует stage transaction/idempotency
-Изменения production code: src/project_foundation/storage.py, src/news/project_store.py
-Transient contract: .project.lock; persisted manifest schemas не изменялись
-Characterization: tests/test_news_to_short_models.py
-ADR: docs/adr/0005-news-project-lock.md
-Удаления и перемещения: не выполнялись
-Targeted checks:
-- .\venv\Scripts\python.exe -m unittest tests.test_news_to_short_models tests.test_project_repository tests.test_news_to_short_pipeline tests.test_project_factory: OK, 37 tests
-- .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался; bounded storage change проверен указанным targeted family
-Runtime project IDs/artifacts: не создавались и не изменялись
+- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, AGENTS.md, ADRs и skills
+- выполнена только проверка git status, log и diff
+- выбрано 100% локальное и бесплатное семейство стадий research (input: article/article.json, output: research/claims.json)
+- добавлены characterization tests (normal run, repeated normal run, resume, force-stage, missing output, invalid output)
+- подтверждено ожидаемое падение characterization test (AssertionError: 'research' not found in []) до production-изменения из-за слепого доверия полю status == 'completed'
+- расширен NewsProjectStore методами is_stage_completed и validate_stage_output без создания второго storage layer или глобального framework
+- validate_stage_output проверяет наличие research/claims.json и его валидность (словарь с непустым списком claims)
+- при отсутствии или повреждении claims.json стадия research не считается завершённой и выполняет повторный запуск на resume/repeat run
+- при force_stage=True стадия повторно выполняется независимо от сохранённого состояния
+Изменения production code: src/news/project_store.py (1 файл)
+Characterization tests: tests/test_news_to_short_pipeline.py
+ADR: docs/adr/0006-news-stage-idempotency.md
+Schemas/Manifests: не изменялись
+Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/render/платные действия: не выполнялись
-Найденные root causes:
-- atomic JSON replacement защищал целостность отдельного файла, но не обозначал исключительное владение news writer boundary
-- общий project_foundation storage module существовал, поэтому lock должен был расширить его, а не создавать новый workflow-specific слой
-Новые known issues: отсутствуют
-Следующий точный этап: 5D stage idempotency, одно stage family за bounded characterization-first diff
-Следующая точная команда: Get-Content -Raw -Encoding UTF8 src/news/pipeline.py
-После чтения: проверить resume/force-stage branches и выбрать только одно ближайшее stage family с существующими tests
-Главный запрет: не расширять 5D на несколько stage families, schema/project-lock changes или cleanup; не изменять persisted projects/runtime data
+Targeted checks:
+- .\venv\Scripts\python.exe -m unittest tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory: OK, 39 tests
+- .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
+Full offline suite: не запускался; bounded change проверен указанным targeted family
+Найденный root cause:
+- completed_stage_names ориентировался исключительно на текстовый статус job.stages[stage].status == 'completed' в job.json и игнорировал фактическое наличие и валидность обязательного выходного артефакта стадии на диске
+Ограничения текущей реализации:
+- проверено и защищено семейство стадий research; последующие семейства стадий (script, visual_plan, etc.) могут быть покрыты аналогичными валидаторами в следующих bounded 5D slices
+Следующая точная read-only команда: git status --short --branch
+Остановить исполнение и передать отчёт пользователю. Не начинать следующий slice 5D автоматически.
 ```
 
 ---
