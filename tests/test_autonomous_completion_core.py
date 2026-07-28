@@ -68,6 +68,7 @@ def _candidate(
     reject_reasons: list[str] | None = None,
     final_score: float = 80.0,
     variant: str = "",
+    media_type: str = "image",
 ) -> dict:
     decision = SelectionDecision(
         scene_id="scene",
@@ -96,8 +97,8 @@ def _candidate(
         "asset_id": asset_id,
         "provider": provider,
         "provider_asset_id": asset_id,
-        "type": "image",
-        "media_type": "image",
+        "type": media_type,
+        "media_type": media_type,
         "path": path,
         "local_path": path,
         "rights_status": "licensed",
@@ -111,7 +112,7 @@ def _candidate(
         },
         "technical_validation": {
             "status": "passed",
-            "media_type": "image",
+            "media_type": media_type,
             "width": 1080,
             "height": 1920,
         },
@@ -158,6 +159,23 @@ class CompletionModeSafetyTests(unittest.TestCase):
         self.assertTrue(verdict.automatic_render_allowed)
         self.assertFalse(verdict.publish_ready)
         self.assertTrue(verdict.manual_replacement_recommended)
+
+    def test_missing_orca_evidence_is_factually_blocked(self) -> None:
+        verdict = evaluate_usability(
+            _candidate(
+                "boats_on_lake",
+                support=SUPPORT_PARTIAL,
+                slot_verdict=VERDICT_PARTIAL,
+                reject_reasons=["missing_orca_evidence_for_orca_scene"],
+                media_type="video",
+            ),
+            mode=MODE_DRAFT_COMPLETE,
+            quality_tier=TIER_PARTIAL,
+        )
+
+        self.assertTrue(verdict.blocked)
+        self.assertFalse(verdict.usable_in_draft)
+        self.assertIn(BLOCK_FACTUALLY_MISLEADING, verdict.block_reasons)
 
     def test_unverified_provider_footage_is_not_auto_used(self) -> None:
         verdict = evaluate_usability(
@@ -309,6 +327,29 @@ class CompletionModeSafetyTests(unittest.TestCase):
         self.assertIn(BLOCK_FACTUALLY_MISLEADING, conflict_verdict.block_reasons)
         self.assertTrue(conflict_verdict.factually_misleading)
 
+    def test_non_real_and_ambiguous_species_video_are_blocked_in_draft(self) -> None:
+        for reason in (
+            "non_real_video_footage:animated",
+            "ambiguous_whale_for_orca_scene",
+        ):
+            with self.subTest(reason=reason):
+                candidate = _candidate(
+                    reason,
+                    reject_reasons=[reason],
+                    media_type="video",
+                    support=SUPPORT_PARTIAL,
+                    slot_verdict=VERDICT_PARTIAL,
+                )
+
+                verdict = evaluate_usability(
+                    candidate,
+                    mode=MODE_DRAFT_COMPLETE,
+                    quality_tier=TIER_PARTIAL,
+                )
+
+                self.assertIn(BLOCK_FACTUALLY_MISLEADING, verdict.block_reasons)
+                self.assertTrue(verdict.factually_misleading)
+
     def test_nonempty_conflicting_slots_block_even_when_stale_verdict_is_partial(self) -> None:
         candidate = _candidate(
             "stale_conflict",
@@ -416,6 +457,50 @@ class VisualAssemblyTests(unittest.TestCase):
         self.assertEqual(assembly.slots[0].start_offset_sec, 0.0)
         self.assertEqual(assembly.slots[0].end_offset_sec, 5.0)
         self.assertEqual(assembly.primary_asset["asset_id"], "legacy")
+
+    def test_video_first_prefers_usable_video_over_exact_image(self) -> None:
+        image = _candidate("exact_image", final_score=100.0)
+        video = _candidate(
+            "partial_video",
+            support=SUPPORT_PARTIAL,
+            slot_verdict=VERDICT_PARTIAL,
+            final_score=60.0,
+            media_type="video",
+        )
+
+        assembly = build_scene_assembly(
+            scene={"scene_id": "scene_001"},
+            ranked_candidates=[image, video],
+            scene_duration_sec=5.0,
+            mode=MODE_DRAFT_COMPLETE,
+            prefer_video=True,
+        )
+
+        self.assertEqual(assembly.primary_asset["asset_id"], "partial_video")
+        self.assertEqual(assembly.primary_asset["media_type"], "video")
+        self.assertIn("video_first:video_pool", assembly.ladder_trace)
+
+    def test_video_first_uses_image_fallback_when_video_is_not_usable(self) -> None:
+        image = _candidate("exact_image", final_score=80.0)
+        unsafe_video = _candidate(
+            "unverified_video",
+            support=SUPPORT_UNVERIFIED,
+            slot_verdict="unverified",
+            final_score=100.0,
+            media_type="video",
+        )
+
+        assembly = build_scene_assembly(
+            scene={"scene_id": "scene_001"},
+            ranked_candidates=[unsafe_video, image],
+            scene_duration_sec=5.0,
+            mode=MODE_DRAFT_COMPLETE,
+            prefer_video=True,
+        )
+
+        self.assertEqual(assembly.primary_asset["asset_id"], "exact_image")
+        self.assertEqual(assembly.primary_asset["media_type"], "image")
+        self.assertIn("video_first:image_fallback", assembly.ladder_trace)
 
     def test_explicit_unresolved_assembly_does_not_resurrect_legacy_asset(self) -> None:
         unresolved = SceneVisualAssembly(

@@ -46,7 +46,7 @@ class ProviderFoundationTests(unittest.TestCase):
             with self.assertRaises(LicenseReviewRequired):
                 blocked.download(blocked_candidate, root / "blocked", DownloadContext(project_id="project_001", scene_id="scene_001"))
 
-    def test_pexels_stock_provider_normalizes_video_and_prefers_vertical_for_shorts(self) -> None:
+    def test_pexels_stock_provider_keeps_landscape_results_and_prefers_vertical_rendition(self) -> None:
         from src.assets.provider_contract import AssetSearchRequest
         from src.providers.pexels_provider import PexelsStockProvider
 
@@ -89,7 +89,7 @@ class ProviderFoundationTests(unittest.TestCase):
 
         candidates = provider.search(request)
 
-        self.assertEqual(http.calls[0]["params"]["orientation"], "portrait")
+        self.assertNotIn("orientation", http.calls[0]["params"])
         self.assertEqual(candidates[0].provider, "pexels")
         self.assertEqual(candidates[0].provider_asset_id, "42")
         self.assertEqual(candidates[0].download_url, "https://cdn/vertical.mp4")

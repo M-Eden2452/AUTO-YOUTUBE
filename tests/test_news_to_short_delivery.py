@@ -8,6 +8,47 @@ from unittest.mock import patch
 
 
 class NewsToShortDeliveryTests(unittest.TestCase):
+    def test_export_includes_draft_render_outputs(self) -> None:
+        from src.news.exporter import export_localization
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "localizations" / "ru" / "output"
+            draft = output / "draft_1080x1920.mp4"
+            draft_no_subtitles = output / "draft_no_subtitles.mp4"
+            draft.parent.mkdir(parents=True, exist_ok=True)
+            draft.write_bytes(b"draft")
+            draft_no_subtitles.write_bytes(b"draft-no-subtitles")
+            render = root / "render"
+            render.mkdir(parents=True, exist_ok=True)
+            (render / "final_render_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "outputs": {
+                            "draft_1080x1920": str(draft),
+                            "draft_no_subtitles": str(draft_no_subtitles),
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            export_localization(
+                project_root=root,
+                language="ru",
+                job={"job_id": "job", "mode": "news_to_short", "channel_id": "test"},
+                script={"description": ""},
+                research={"claims": []},
+                assets_manifest={"scenes": [], "provider_errors": []},
+                quality_report={"status": "needs_review", "errors": [], "warnings": []},
+            )
+
+            manifest = json.loads((output / "project_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["outputs"]["draft_1080x1920"], str(draft))
+            self.assertEqual(manifest["outputs"]["youtube_shorts"], str(draft))
+            self.assertEqual(manifest["outputs"]["no_subtitles"], str(draft_no_subtitles))
+
     def test_subtitles_quality_preview_and_export_are_created_after_asset_search(self) -> None:
         from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
 

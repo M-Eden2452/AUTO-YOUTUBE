@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,230 @@ from PIL import Image
 
 
 class NewsToShortAssetTests(unittest.TestCase):
+    def test_stock_video_search_keeps_full_hd_landscape_sources_for_vertical_crop(self) -> None:
+        from src.assets.models import ProviderCapabilities
+        from src.news.asset_manager import _search_provider
+
+        captured = []
+
+        class Provider:
+            name = "capture"
+
+            @staticmethod
+            def capabilities() -> ProviderCapabilities:
+                return ProviderCapabilities(provider="capture", media_types=["video"])
+
+            @staticmethod
+            def search(request):
+                captured.append(request)
+                return []
+
+            @staticmethod
+            def resolve_license(candidate):
+                return candidate
+
+            @staticmethod
+            def download(candidate, destination, context):
+                return candidate
+
+            @staticmethod
+            def health_check():
+                return None
+
+        _search_provider(
+            Provider(),
+            "orca",
+            {
+                "scene_id": "scene_001",
+                "visual_type": "video",
+                "allowed_media_kinds": ["video"],
+            },
+            {"must_not_include": []},
+            project_id="landscape_crop",
+            limit=5,
+        )
+
+        self.assertEqual(captured[0].min_width, 720)
+        self.assertEqual(captured[0].min_height, 1080)
+
+    def test_default_provider_factory_loads_existing_dotenv_configuration(self) -> None:
+        from src.news.asset_manager import create_default_asset_providers
+
+        with patch("src.news.asset_manager.load_dotenv") as load_dotenv, patch.dict(
+            os.environ,
+            {"PEXELS_API_KEY": "pexels-test", "PIXABAY_API_KEY": "pixabay-test"},
+            clear=True,
+        ):
+            providers = create_default_asset_providers()
+
+        load_dotenv.assert_called_once_with()
+        self.assertIn("pexels", {provider.name for provider in providers})
+        self.assertIn("pixabay", {provider.name for provider in providers})
+
+    def test_animated_stock_video_is_rejected_as_non_real_footage(self) -> None:
+        from src.assets.semantic_selection import analyze_scene, rank_candidates
+
+        ranked = rank_candidates(
+            analyze_scene(
+                {
+                    "scene_id": "scene_001",
+                    "visual_type": "video",
+                    "primary_query": "orca killer whale ocean",
+                    "visual_brief": {
+                        "subject": "orca killer whale",
+                        "must_include": ["orca"],
+                        "source_class": "generic_broll",
+                    },
+                }
+            ),
+            [
+                {
+                    "asset_id": "animated_orca",
+                    "provider": "internet_archive",
+                    "media_type": "video",
+                    "type": "video",
+                    "title": "Disney Little Einsteins animated orca cartoon",
+                    "description": "A cartoon orca in an animated children's show.",
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": 90.0,
+                    "allowed_for_render": True,
+                }
+            ],
+            required_duration_sec=10.0,
+        )
+
+        self.assertTrue(ranked[0]["rejected"])
+        self.assertIn("non_real_video_footage:", ranked[0]["reject_reason"])
+
+    def test_exact_orca_metadata_outweighs_broader_dolphin_taxonomy_category(self) -> None:
+        from src.assets.semantic_selection import SemanticScene, rank_candidates
+
+        scene = SemanticScene(
+            scene_id="scene_001",
+            subject=["orca killer whale"],
+            must_not_include=["dolphin"],
+            visual_priority="exact_subject",
+        )
+        candidate = {
+            "asset_id": "commons_orca",
+            "provider": "wikimedia",
+            "media_type": "video",
+            "title": "Killer whales swimming in the wild.webm",
+            "description": "Killer whales (Orcinus orca) swimming in the wild.",
+            "tags": ["People with dolphins", "Orcinus orca in New Zealand"],
+            "tags_source": "provider",
+            "width": 1920,
+            "height": 1080,
+            "duration_sec": 30.0,
+            "allowed_for_render": True,
+        }
+
+        ranked = rank_candidates(scene, [candidate], required_duration_sec=10.0)
+
+        self.assertNotIn("dolphin", ranked[0]["negative_matches"])
+        self.assertNotIn("must_avoid_match:dolphin", ranked[0]["reject_reason"])
+
+    def test_explicit_dolphin_description_stays_blocked_for_orca_scene(self) -> None:
+        from src.assets.semantic_selection import SemanticScene, rank_candidates
+
+        scene = SemanticScene(
+            scene_id="scene_001",
+            subject=["orca killer whale"],
+            must_not_include=["dolphin"],
+            visual_priority="exact_subject",
+        )
+        candidate = {
+            "asset_id": "actual_dolphin",
+            "provider": "wikimedia",
+            "media_type": "video",
+            "title": "Dolphin swimming beside a boat",
+            "description": "A bottlenose dolphin in the open ocean.",
+            "tags": ["dolphins"],
+            "tags_source": "provider",
+            "width": 1920,
+            "height": 1080,
+            "duration_sec": 30.0,
+            "allowed_for_render": True,
+        }
+
+        ranked = rank_candidates(scene, [candidate], required_duration_sec=10.0)
+
+        self.assertIn("dolphin", ranked[0]["negative_matches"])
+        self.assertIn("must_avoid_match:dolphin", ranked[0]["reject_reason"])
+
+    def test_generic_whale_video_is_not_treated_as_verified_orca(self) -> None:
+        from src.assets.semantic_selection import SemanticScene, rank_candidates
+
+        scene = SemanticScene(
+            scene_id="scene_001",
+            subject=["orca killer whale"],
+            visual_priority="exact_subject",
+        )
+        candidate = {
+            "asset_id": "ambiguous_whale",
+            "provider": "pexels",
+            "media_type": "video",
+            "title": "Aerial footage of whales in the ocean",
+            "description": "Whales swimming near a boat.",
+            "tags": ["whale", "ocean"],
+            "tags_source": "provider",
+            "width": 3840,
+            "height": 2160,
+            "duration_sec": 30.0,
+            "allowed_for_render": True,
+        }
+
+        ranked = rank_candidates(scene, [candidate], required_duration_sec=10.0)
+
+        self.assertTrue(ranked[0]["rejected"])
+        self.assertIn("ambiguous_whale_for_orca_scene", ranked[0]["reject_reason"])
+
+    def test_unrelated_video_is_not_selected_for_exact_orca_scene(self) -> None:
+        from src.assets.semantic_selection import SemanticScene, rank_candidates
+
+        scene = SemanticScene(
+            scene_id="scene_001",
+            subject=["orca killer whale"],
+            visual_priority="exact_subject",
+        )
+        candidate = {
+            "asset_id": "boats_on_lake",
+            "provider": "pexels",
+            "media_type": "video",
+            "title": "scenic view of boats on tranquil lake",
+            "description": "scenic view of boats on tranquil lake",
+            "tags": ["scenic", "view", "boats", "tranquil", "lake"],
+            "tags_source": "provider",
+            "width": 2160,
+            "height": 3840,
+            "duration_sec": 45.0,
+            "allowed_for_render": True,
+        }
+
+        ranked = rank_candidates(scene, [candidate], required_duration_sec=7.0)
+
+        self.assertTrue(ranked[0]["rejected"])
+        self.assertIn("missing_orca_evidence_for_orca_scene", ranked[0]["reject_reason"])
+
+    def test_strict_selector_prefers_non_rejected_video_candidate(self) -> None:
+        from src.news.asset_manager import _select_best_candidate
+
+        image = {"asset_id": "image", "media_type": "image", "rejected": False}
+        video = {"asset_id": "video", "media_type": "video", "rejected": False}
+        with patch(
+            "src.news.asset_manager.select_best_candidate",
+            return_value=(image, [image, video]),
+        ):
+            selected, ranked = _select_best_candidate(
+                None,
+                [image, video],
+                prefer_video=True,
+            )
+
+        self.assertEqual(selected["asset_id"], "video")
+        self.assertEqual(ranked, [image, video])
+
     def test_standard_news_manifest_never_creates_emergency_infographic(self) -> None:
         from src.news.asset_manager import build_news_asset_manifest
 
@@ -38,6 +263,9 @@ class NewsToShortAssetTests(unittest.TestCase):
 
         self.assertEqual(manifest["visual_mode"], "video_first")
         self.assertFalse(manifest["infographic_fallback"])
+        self.assertTrue(manifest["video_first_policy"]["enabled"])
+        self.assertEqual(manifest["media_coverage"]["video_clips"], 0)
+        self.assertTrue(manifest["media_coverage"]["review_required"])
         self.assertIsNone(manifest["scenes"][0]["selected_asset"])
         self.assertEqual(manifest["scenes"][0]["visual_assembly"]["slots"], [])
 
@@ -213,6 +441,200 @@ class NewsToShortAssetTests(unittest.TestCase):
         self.assertEqual(summary["full_support"], 0)
         self.assertEqual(summary["by_support_status"][SUPPORT_PARTIAL], 1)
         self.assertEqual(summary["scenes_needing_review"], ["scene_001"])
+
+    def test_image_only_video_first_manifest_is_draft_review_not_publish_ready(self) -> None:
+        from src.assets.completion import (
+            ASSEMBLY_EXACT,
+            MODE_DRAFT_COMPLETE,
+            SLOT_PRIMARY,
+            TIER_EXACT,
+            SceneVisualAssembly,
+            attach_assembly,
+            evaluate_usability,
+        )
+        from src.assets.completion.assembly import slot_from_asset
+        from src.news.asset_manager import refresh_manifest_summaries
+        from tests.test_autonomous_completion_pipeline import _asset, _png
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            image = _asset(
+                path=_png(root / "image.png", 1),
+                scene_id="scene_001",
+            )
+            assembly = SceneVisualAssembly(
+                scene_id="scene_001",
+                scene_duration_sec=5.0,
+                assembly_status=ASSEMBLY_EXACT,
+                completion_mode=MODE_DRAFT_COMPLETE,
+                slots=[
+                    slot_from_asset(
+                        image,
+                        slot_id="scene_001_slot_001",
+                        purpose=SLOT_PRIMARY,
+                        start_offset_sec=0.0,
+                        end_offset_sec=5.0,
+                        quality_tier=TIER_EXACT,
+                        usability=evaluate_usability(
+                            image,
+                            mode=MODE_DRAFT_COMPLETE,
+                            quality_tier=TIER_EXACT,
+                            require_local_file=True,
+                        ),
+                        reuse_of_asset=image["asset_id"],
+                        reuse_reason="test_reuse",
+                    )
+                ],
+            )
+            scene = {"scene_id": "scene_001", "required_duration_sec": 5.0}
+            attach_assembly(scene, assembly)
+            manifest = {
+                "visual_mode": "video_first",
+                "scenes": [scene],
+                "missing_scenes": [],
+                "completion": {"mode": MODE_DRAFT_COMPLETE},
+            }
+
+            refresh_manifest_summaries(manifest, mode=MODE_DRAFT_COMPLETE)
+
+        coverage = manifest["media_coverage"]
+        self.assertEqual(coverage["status"], "image_only_draft_fallback")
+        self.assertEqual(coverage["video_clips"], 0)
+        self.assertEqual(coverage["image_slots"], 1)
+        self.assertEqual(coverage["reused_slots"], 1)
+        self.assertEqual(coverage["video_duration_ratio"], 0.0)
+        self.assertTrue(coverage["review_required"])
+        self.assertEqual(manifest["completion"]["scenes_publish_ready"], 1)
+        self.assertFalse(manifest["completion"]["publish_ready"])
+        self.assertTrue(manifest["completion"]["video_first_review_required"])
+
+    def test_video_coverage_threshold_is_configurable_and_duration_based(self) -> None:
+        from src.assets.completion import SceneVisualAssembly, VisualSlot, attach_assembly
+        from src.news.asset_manager import summarize_media_coverage
+
+        assembly = SceneVisualAssembly(
+            scene_id="scene_001",
+            scene_duration_sec=5.0,
+            slots=[
+                VisualSlot(
+                    slot_id="video_slot",
+                    start_offset_sec=0.0,
+                    end_offset_sec=2.0,
+                    selected_asset={"asset_id": "video_1", "media_type": "video"},
+                ),
+                VisualSlot(
+                    slot_id="image_slot",
+                    start_offset_sec=2.0,
+                    end_offset_sec=5.0,
+                    selected_asset={"asset_id": "image_1", "media_type": "image"},
+                ),
+            ],
+        )
+        scene = {"scene_id": "scene_001", "required_duration_sec": 5.0}
+        attach_assembly(scene, assembly)
+
+        meets = summarize_media_coverage(
+            [scene],
+            policy={
+                "enabled": True,
+                "minimum_video_clips": 1,
+                "minimum_video_duration_ratio": 0.4,
+            },
+        )
+        misses = summarize_media_coverage(
+            [scene],
+            policy={
+                "enabled": True,
+                "minimum_video_clips": 1,
+                "minimum_video_duration_ratio": 0.5,
+            },
+        )
+
+        self.assertEqual(meets["video_duration_ratio"], 0.4)
+        self.assertTrue(meets["meets_video_first_threshold"])
+        self.assertFalse(misses["meets_video_first_threshold"])
+        self.assertTrue(misses["review_required"])
+
+    def test_video_coverage_allows_small_timeline_rounding_miss(self) -> None:
+        from src.assets.completion import SceneVisualAssembly, VisualSlot, attach_assembly
+        from src.news.asset_manager import summarize_media_coverage
+
+        assembly = SceneVisualAssembly(
+            scene_id="scene_001",
+            scene_duration_sec=37.05,
+            slots=[
+                VisualSlot(
+                    slot_id="video_slot",
+                    start_offset_sec=0.0,
+                    end_offset_sec=14.63,
+                    selected_asset={"asset_id": "video_1", "media_type": "video"},
+                ),
+                VisualSlot(
+                    slot_id="image_slot",
+                    start_offset_sec=14.63,
+                    end_offset_sec=37.05,
+                    selected_asset={"asset_id": "image_1", "media_type": "image"},
+                ),
+            ],
+        )
+        scene = {"scene_id": "scene_001", "required_duration_sec": 37.05}
+        attach_assembly(scene, assembly)
+
+        coverage = summarize_media_coverage(
+            [scene],
+            policy={
+                "enabled": True,
+                "minimum_video_clips": 1,
+                "minimum_video_duration_ratio": 0.4,
+            },
+        )
+
+        self.assertEqual(coverage["video_duration_ratio"], 0.3949)
+        self.assertTrue(coverage["meets_video_first_threshold"])
+        self.assertFalse(coverage["review_required"])
+
+    def test_unresolved_scene_duration_remains_in_video_coverage_denominator(self) -> None:
+        from src.assets.completion import SceneVisualAssembly, VisualSlot, attach_assembly
+        from src.news.asset_manager import summarize_media_coverage
+
+        selected = {"scene_id": "scene_001", "required_duration_sec": 5.0}
+        attach_assembly(
+            selected,
+            SceneVisualAssembly(
+                scene_id="scene_001",
+                scene_duration_sec=5.0,
+                slots=[
+                    VisualSlot(
+                        slot_id="video_slot",
+                        start_offset_sec=0.0,
+                        end_offset_sec=5.0,
+                        selected_asset={"asset_id": "video_1", "media_type": "video"},
+                    )
+                ],
+            ),
+        )
+        unresolved = {"scene_id": "scene_002", "required_duration_sec": 5.0}
+        attach_assembly(
+            unresolved,
+            SceneVisualAssembly(
+                scene_id="scene_002",
+                scene_duration_sec=5.0,
+                slots=[],
+            ),
+        )
+
+        coverage = summarize_media_coverage(
+            [selected, unresolved],
+            policy={
+                "enabled": True,
+                "minimum_video_clips": 1,
+                "minimum_video_duration_ratio": 0.4,
+            },
+        )
+
+        self.assertEqual(coverage["visual_duration_sec"], 10.0)
+        self.assertEqual(coverage["video_duration_sec"], 5.0)
+        self.assertEqual(coverage["video_duration_ratio"], 0.5)
 
     def test_reference_only_assets_are_not_selected_for_render(self) -> None:
         from src.news.asset_manager import build_assets_manifest

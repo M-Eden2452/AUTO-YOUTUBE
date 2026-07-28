@@ -158,6 +158,22 @@ class NewsJobReadingTests(unittest.TestCase):
             self.assertEqual(stored.stages["voice"].status, "blocked")
             self.assertIsNotNone(stored.stages["voice"].finished_at)
 
+    def test_running_stage_clears_previous_finished_timestamp(self) -> None:
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _make_news_job(root, "news_one", status="in_progress", with_video=False)
+            store = NewsProjectStore(root)
+            job = store.load_job("news_one")
+            job.stages["asset_search"].finished_at = "2026-07-28T10:00:00+00:00"
+
+            store.update_stage(job, "asset_search", status="running")
+
+            stored = store.load_job("news_one")
+            self.assertEqual(stored.stages["asset_search"].status, "running")
+            self.assertIsNone(stored.stages["asset_search"].finished_at)
+
     def test_unreadable_job_json_does_not_raise(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

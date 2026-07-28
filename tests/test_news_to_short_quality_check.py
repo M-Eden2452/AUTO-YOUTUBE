@@ -103,6 +103,86 @@ class NewsToShortQualityCheckFoundationTests(unittest.TestCase):
         self.assertEqual(report["status"], "passed")
         self.assertIn("asset_local_file", {check["check"] for check in report["checks"]})
 
+    def test_video_first_image_fallback_warns_in_draft_and_blocks_strict(self) -> None:
+        from src.assets.completion import (
+            ASSEMBLY_EXACT,
+            MODE_DRAFT_COMPLETE,
+            MODE_STRICT,
+            SLOT_PRIMARY,
+            TIER_EXACT,
+            SceneVisualAssembly,
+            attach_assembly,
+            evaluate_usability,
+        )
+        from src.assets.completion.assembly import slot_from_asset
+        from src.news.quality_check import run_quality_check
+        from tests.test_autonomous_completion_pipeline import _asset, _png
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            image = _asset(
+                path=_png(root / "image.png", 1),
+                scene_id="scene_001",
+            )
+            assembly = SceneVisualAssembly(
+                scene_id="scene_001",
+                scene_duration_sec=5.0,
+                assembly_status=ASSEMBLY_EXACT,
+                completion_mode=MODE_DRAFT_COMPLETE,
+                slots=[
+                    slot_from_asset(
+                        image,
+                        slot_id="scene_001_slot_001",
+                        purpose=SLOT_PRIMARY,
+                        start_offset_sec=0.0,
+                        end_offset_sec=5.0,
+                        quality_tier=TIER_EXACT,
+                        usability=evaluate_usability(
+                            image,
+                            mode=MODE_DRAFT_COMPLETE,
+                            quality_tier=TIER_EXACT,
+                            require_local_file=True,
+                        ),
+                    )
+                ],
+            )
+            scene = {"scene_id": "scene_001", "required_duration_sec": 5.0}
+            attach_assembly(scene, assembly)
+            manifest = {
+                "schema_version": 1,
+                "visual_mode": "video_first",
+                "video_first_policy": {
+                    "enabled": True,
+                    "minimum_video_clips": 1,
+                    "minimum_video_duration_ratio": 0.4,
+                },
+                "missing_scenes": [],
+                "scenes": [scene],
+            }
+            common = {
+                "script": self._script(),
+                "research": {"claims": []},
+                "assets_manifest": manifest,
+                "voice_manifest": {"status": "completed"},
+                "subtitles_manifest": {"srt_path": "subtitles.srt", "ass_path": "subtitles.ass"},
+            }
+
+            draft = run_quality_check(**common, completion_mode=MODE_DRAFT_COMPLETE)
+            strict = run_quality_check(**common, completion_mode=MODE_STRICT)
+
+        self.assertIn(
+            "video_first_coverage",
+            {warning["check"] for warning in draft["warnings"]},
+        )
+        self.assertNotIn(
+            "video_first_coverage",
+            {error["check"] for error in draft["errors"]},
+        )
+        self.assertIn(
+            "video_first_coverage",
+            {error["check"] for error in strict["errors"]},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

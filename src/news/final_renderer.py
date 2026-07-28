@@ -18,17 +18,12 @@ from src.assets.completion.modes import (
 from src.audio.end_tail_policy import (
     DEFAULT_TAIL_SEC,
     END_POLICY_NARRATION_PLUS_TAIL,
+    clamp_tail_sec,
     compute_target_duration,
     narration_duration_from_voice_manifest,
 )
 from src.audio.music_manifest import DEFAULT_VOLUME as DEFAULT_MUSIC_VOLUME, clamp_volume, read_music_manifest
 from src.audio.scene_timeline import scene_render_duration
-
-FULLSCREEN_DURATION_FLOOR_SEC = 45.0
-FULLSCREEN_DURATION_CEILING_SEC = 55.0
-MIN_NATURAL_SPEECH_TEMPO = 0.91
-MAX_RESPONSE_HOLD_SEC = 4.25
-
 
 def render_final_video(
     *,
@@ -41,7 +36,6 @@ def render_final_video(
     end_policy_id: str = END_POLICY_NARRATION_PLUS_TAIL,
     tail_sec: float = DEFAULT_TAIL_SEC,
     completion_mode: str = DEFAULT_COMPLETION_MODE,
-    preferred_duration_sec: float = 0.0,
 ) -> dict[str, Any]:
     completion_mode = normalize_mode(completion_mode)
     is_draft = completion_mode == MODE_DRAFT_COMPLETE
@@ -92,22 +86,17 @@ def render_final_video(
     music_manifest = _load_music_manifest(root)
     music_path = music_manifest.get("path") or ""
     narration_duration_sec = narration_duration_from_voice_manifest(voice_manifest)
+    effective_tail_sec = (
+        clamp_tail_sec(tail_sec)
+        if end_policy_id == END_POLICY_NARRATION_PLUS_TAIL
+        else float(tail_sec)
+    )
     target_duration = compute_target_duration(
         end_policy_id,
         narration_duration_sec=narration_duration_sec,
         visual_duration_sec=duration,
-        tail_sec=tail_sec,
+        tail_sec=effective_tail_sec,
     )
-    pacing = _delivery_pacing(
-        template_id=str(voice_manifest.get("template_id") or ""),
-        preferred_duration_sec=preferred_duration_sec,
-        narration_duration_sec=narration_duration_sec,
-        visual_duration_sec=duration,
-        baseline_duration_sec=target_duration,
-        tail_sec=tail_sec,
-    )
-    target_duration = pacing["target_duration_sec"]
-    speech_tempo = pacing["speech_tempo"]
     if audio_path and Path(audio_path).exists():
         if music_path and Path(music_path).exists():
             _mux_voice_and_music(
@@ -119,7 +108,6 @@ def render_final_video(
                 target_duration,
                 volume=clamp_volume(music_manifest.get("volume")),
                 ducking=bool(music_manifest.get("ducking", True)),
-                speech_tempo=speech_tempo,
             )
         else:
             _mux_voice_only(
@@ -128,7 +116,6 @@ def render_final_video(
                 no_subtitles,
                 target_duration,
                 duration,
-                speech_tempo=speech_tempo,
             )
     else:
         _run_ffmpeg(["-y", "-v", "error", "-i", str(silent_video), "-c:v", "copy", str(no_subtitles)])
@@ -138,12 +125,6 @@ def render_final_video(
     subtitles_embedded = False
     if subtitle_path and Path(subtitle_path).exists():
         subtitle_source = Path(subtitle_path)
-        if not math.isclose(speech_tempo, 1.0, abs_tol=1e-6):
-            subtitle_source = _retime_ass_subtitles(
-                subtitle_source,
-                render_dir / "subtitles_retimed.ass",
-                time_scale=1.0 / speech_tempo,
-            )
         render_subtitle_path = str(subtitle_source)
         _burn_ass_subtitles(no_subtitles, subtitle_source, master)
         subtitles_embedded = True
@@ -184,69 +165,14 @@ def render_final_video(
         "visual_duration_sec": duration,
         "narration_duration_sec": narration_duration_sec,
         "end_policy_id": end_policy_id,
-        "tail_sec": tail_sec,
+        "tail_sec": effective_tail_sec,
         "target_duration_sec": target_duration if (audio_path and Path(audio_path).exists()) else duration,
-        "preferred_duration_sec": float(preferred_duration_sec or 0.0),
-        "speech_tempo": speech_tempo,
-        "response_hold_sec": pacing["response_hold_sec"],
-        "duration_floor_sec": pacing["duration_floor_sec"],
-    }
-
-
-def _delivery_pacing(
-    *,
-    template_id: str,
-    preferred_duration_sec: float,
-    narration_duration_sec: float,
-    visual_duration_sec: float,
-    baseline_duration_sec: float,
-    tail_sec: float,
-) -> dict[str, float]:
-    """Keep a short fullscreen voiceover near the 45–55 s delivery window.
-
-    The guard is intentionally narrow: only the canonical fullscreen template and
-    only a requested target inside its normal 45–55 s range. Speech may slow by at
-    most nine percent, and the remaining gap is a bounded response beat after the
-    closing question. Very short scripts stay shorter instead of being padded with a
-    conspicuous empty tail.
-    """
-
-    baseline = max(0.0, float(baseline_duration_sec or 0.0))
-    core = max(
-        0.0,
-        float(narration_duration_sec or 0.0),
-        float(visual_duration_sec or 0.0),
-    )
-    preferred = float(preferred_duration_sec or 0.0)
-    result = {
-        "target_duration_sec": baseline,
+        "audio_timing_policy": "preserve_source_duration",
+        "audio_time_stretched": False,
         "speech_tempo": 1.0,
-        "response_hold_sec": max(0.0, baseline - core - float(tail_sec or 0.0)),
+        "response_hold_sec": 0.0,
         "duration_floor_sec": 0.0,
     }
-    if (
-        template_id != "fullscreen_voiceover_v1"
-        or not (FULLSCREEN_DURATION_FLOOR_SEC <= preferred <= FULLSCREEN_DURATION_CEILING_SEC)
-        or core <= 0.0
-        or baseline >= FULLSCREEN_DURATION_FLOOR_SEC
-    ):
-        return result
-
-    tail = max(0.0, float(tail_sec or 0.0))
-    achievable = core / MIN_NATURAL_SPEECH_TEMPO + tail + MAX_RESPONSE_HOLD_SEC
-    target = max(baseline, min(FULLSCREEN_DURATION_FLOOR_SEC, achievable))
-    required_core = max(core, target - tail - MAX_RESPONSE_HOLD_SEC)
-    tempo = min(1.0, max(MIN_NATURAL_SPEECH_TEMPO, core / required_core))
-    paced_core = core / tempo
-    result.update(
-        {
-            "target_duration_sec": target,
-            "speech_tempo": tempo,
-            "response_hold_sec": max(0.0, target - paced_core - tail),
-            "duration_floor_sec": FULLSCREEN_DURATION_FLOOR_SEC,
-        }
-    )
-    return result
 
 
 def _create_scene_segments(
@@ -563,26 +489,9 @@ def _mux_voice_only(
     target: Path,
     target_duration: float,
     visual_duration: float,
-    *,
-    speech_tempo: float = 1.0,
 ) -> None:
     args = ["-y", "-v", "error", "-i", str(video), "-i", str(voice)]
-    if not math.isclose(speech_tempo, 1.0, abs_tol=1e-6):
-        duration_arg = f"{max(0.1, target_duration):.3f}"
-        args += [
-            "-filter_complex",
-            f"[1:a]atempo={speech_tempo:.6f},aresample=48000,"
-            f"apad=whole_dur={duration_arg}[aout]",
-            "-map",
-            "0:v:0",
-            "-map",
-            "[aout]",
-        ]
-    args += _duration_control_args(
-        target_duration,
-        visual_duration,
-        video_tempo=speech_tempo,
-    )
+    args += _duration_control_args(target_duration, visual_duration)
     args += ["-c:a", "aac", "-b:a", "192k", str(target)]
     _run_ffmpeg(args)
 
@@ -597,7 +506,6 @@ def _mux_voice_and_music(
     *,
     volume: float = DEFAULT_MUSIC_VOLUME,
     ducking: bool = True,
-    speech_tempo: float = 1.0,
 ) -> None:
     """Loop the music bed under the narration, optionally ducking it under speech.
 
@@ -617,12 +525,7 @@ def _mux_voice_and_music(
     # sidechain silence over the tail, so the bed rises back to its full level
     # there instead of staying ducked. No-op whenever the narration is already
     # that long, so a render without a tail is bit-for-bit unchanged.
-    tempo_filter = (
-        f"atempo={speech_tempo:.6f},"
-        if not math.isclose(speech_tempo, 1.0, abs_tol=1e-6)
-        else ""
-    )
-    voice_chain = f"{tempo_filter}volume=1.0,aresample=48000,apad=whole_dur={duration_arg}"
+    voice_chain = f"volume=1.0,aresample=48000,apad=whole_dur={duration_arg}"
     if ducking:
         filter_complex = (
             f"[1:a]{voice_chain},asplit=2[voice_mix][voice_sidechain];"
@@ -638,7 +541,7 @@ def _mux_voice_and_music(
         )
     args = ["-y", "-v", "error", "-i", str(video), "-i", str(voice), "-i", str(music)]
     args += ["-filter_complex", filter_complex, "-map", "0:v:0", "-map", "[aout]"]
-    args += _duration_control_args(target_duration, duration, video_tempo=speech_tempo)
+    args += _duration_control_args(target_duration, duration)
     args += ["-c:a", "aac", "-b:a", "192k", str(target)]
     _run_ffmpeg(args)
 
@@ -646,8 +549,6 @@ def _mux_voice_and_music(
 def _duration_control_args(
     target_duration: float,
     visual_duration: float,
-    *,
-    video_tempo: float = 1.0,
 ) -> list[str]:
     """Build ffmpeg args that hit target_duration exactly.
 
@@ -659,22 +560,10 @@ def _duration_control_args(
     than the visual timeline, extend the last frame with tpad instead of
     letting the video end before the audio does.
     """
-    tempo = min(1.0, max(MIN_NATURAL_SPEECH_TEMPO, float(video_tempo or 1.0)))
     filters = []
-    if not math.isclose(tempo, 1.0, abs_tol=1e-6):
-        # Pad in the input timebase, then stretch the complete stream. Padding after
-        # setpts is silently dropped by some FFmpeg builds when the adjusted stream
-        # has a variable nominal frame rate (observed as a 40 s H.264 stream inside a
-        # 45 s container). Normalizing back to 30 fps makes the final hold physical.
-        input_extra = max(0.0, target_duration * tempo - visual_duration)
-        if input_extra > 0.0:
-            filters.append(f"tpad=stop_mode=clone:stop_duration={input_extra:.3f}")
-        filters.append(f"setpts=PTS/{tempo:.6f}")
-        filters.append("fps=30")
-    else:
-        extra = max(0.0, target_duration - visual_duration)
-        if extra > 0.0:
-            filters.append(f"tpad=stop_mode=clone:stop_duration={extra:.3f}")
+    extra = max(0.0, target_duration - visual_duration)
+    if extra > 0.0:
+        filters.append(f"tpad=stop_mode=clone:stop_duration={extra:.3f}")
     vf = ",".join(filters) if filters else "null"
     return [
         "-t",
@@ -688,51 +577,6 @@ def _duration_control_args(
         "-crf",
         "20",
     ]
-
-
-def _retime_ass_subtitles(source: Path, target: Path, *, time_scale: float) -> Path:
-    """Scale ASS dialogue timestamps while preserving all styling and text."""
-
-    scale = max(0.01, float(time_scale or 1.0))
-    lines = source.read_text(encoding="utf-8-sig").splitlines()
-    output: list[str] = []
-    in_events = False
-    start_index = 1
-    end_index = 2
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("[") and stripped.endswith("]"):
-            in_events = stripped.casefold() == "[events]"
-        elif in_events and stripped.casefold().startswith("format:"):
-            fields = [item.strip().casefold() for item in stripped.split(":", 1)[1].split(",")]
-            if "start" in fields:
-                start_index = fields.index("start")
-            if "end" in fields:
-                end_index = fields.index("end")
-        if in_events and stripped.casefold().startswith("dialogue:"):
-            prefix, payload = line.split(":", 1)
-            fields = payload.lstrip().split(",", max(start_index, end_index) + 1)
-            if len(fields) > max(start_index, end_index):
-                fields[start_index] = _format_ass_time(_parse_ass_time(fields[start_index]) * scale)
-                fields[end_index] = _format_ass_time(_parse_ass_time(fields[end_index]) * scale)
-                line = f"{prefix}: " + ",".join(fields)
-        output.append(line)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("\n".join(output) + "\n", encoding="utf-8")
-    return target
-
-
-def _parse_ass_time(value: str) -> float:
-    hours, minutes, seconds = str(value).strip().split(":")
-    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
-
-
-def _format_ass_time(seconds: float) -> str:
-    centiseconds = max(0, int(round(float(seconds) * 100)))
-    hours, remainder = divmod(centiseconds, 360000)
-    minutes, remainder = divmod(remainder, 6000)
-    whole_seconds, fraction = divmod(remainder, 100)
-    return f"{hours}:{minutes:02d}:{whole_seconds:02d}.{fraction:02d}"
 
 
 def _burn_ass_subtitles(source: Path, subtitles: Path, target: Path) -> None:

@@ -184,6 +184,73 @@ def _check_schema_v1_assets(
         warnings.append({"check": "asset_coverage", "message": f"{len(missing_assets)} scene(s) still need approved assets."})
     if selected_count and not any(error["check"].startswith("asset_") for error in errors):
         checks.append({"check": "asset_rights", "message": "All selected assets have local files, license and provenance."})
+    _check_video_first_coverage(
+        assets_manifest,
+        mode=mode,
+        errors=errors,
+        warnings=warnings,
+        checks=checks,
+    )
+
+
+def _check_video_first_coverage(
+    assets_manifest: dict[str, Any],
+    *,
+    mode: str,
+    errors: list[dict[str, str]],
+    warnings: list[dict[str, str]],
+    checks: list[dict[str, str]],
+) -> None:
+    from src.assets.completion import MODE_DRAFT_COMPLETE
+    from src.news.asset_manager import (
+        DEFAULT_MIN_VIDEO_CLIPS,
+        DEFAULT_MIN_VIDEO_DURATION_RATIO,
+        summarize_media_coverage,
+    )
+
+    stored_policy = (
+        assets_manifest.get("video_first_policy")
+        if isinstance(assets_manifest.get("video_first_policy"), dict)
+        else {}
+    )
+    enabled = bool(
+        stored_policy.get(
+            "enabled",
+            str(assets_manifest.get("visual_mode") or "") == "video_first",
+        )
+    )
+    if not enabled:
+        return
+    policy = {
+        "enabled": True,
+        "minimum_video_clips": int(
+            stored_policy.get("minimum_video_clips") or DEFAULT_MIN_VIDEO_CLIPS
+        ),
+        "minimum_video_duration_ratio": float(
+            stored_policy.get("minimum_video_duration_ratio")
+            if stored_policy.get("minimum_video_duration_ratio") is not None
+            else DEFAULT_MIN_VIDEO_DURATION_RATIO
+        ),
+    }
+    scenes = [
+        scene
+        for scene in (assets_manifest.get("scenes") or [])
+        if isinstance(scene, dict)
+    ]
+    coverage = summarize_media_coverage(scenes, policy=policy)
+    message = (
+        "Video-first coverage "
+        f"has {coverage['video_clips']} video clip(s), "
+        f"{coverage['image_slots']} image slot(s), "
+        f"{coverage['reused_slots']} reused slot(s), and "
+        f"{coverage['video_duration_ratio']:.0%} video duration."
+    )
+    if coverage["review_required"]:
+        message += " The image fallback is review-only and not publish-ready."
+        target = warnings if mode == MODE_DRAFT_COMPLETE else errors
+        target.append({"check": "video_first_coverage", "message": message})
+    else:
+        checks.append({"check": "video_first_coverage", "message": message})
 
 
 def _check_selection_decision(

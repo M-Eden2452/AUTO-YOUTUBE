@@ -31,6 +31,7 @@ as one record, so that nothing between here and the manifest has to reconstruct 
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .decision import (
@@ -67,6 +68,14 @@ from .models import (
 
 MIN_SCORE = 60.0
 EXACT_SUBJECT_MIN_SCORE = 75.0
+NON_REAL_VIDEO_TERMS = (
+    "animation",
+    "animated",
+    "cartoon",
+    "disney",
+    "little einsteins",
+    "gameplay",
+)
 
 # The averaged relevance score is the oldest gate in this file and the one least able
 # to say what it objects to. Once the slot layer has judged the candidate against every
@@ -227,6 +236,44 @@ def _score_candidate(
     provider_confidence = PROVIDER_CONFIDENCE.get(str(candidate.get("provider") or ""), 0.5)
 
     negative_matches = [word for word in scene.must_not_include if _contains_concept(word, all_tokens, text)]
+    media_type = str(candidate.get("media_type") or candidate.get("type") or "").casefold()
+    # Commons can categorize an exact orca clip under "People with dolphins" because
+    # Orcinus orca belongs to the dolphin family. That broader taxonomy must not
+    # overrule a title/description that explicitly identifies the animal as an orca.
+    # A primary description that actually says "dolphin" remains disqualifying.
+    primary_text = " ".join(
+        str(candidate.get(field) or "") for field in ("title", "description")
+    ).casefold()
+    exact_orca_scene = any(
+        "orca" in str(subject).casefold() or "killer whale" in str(subject).casefold()
+        for subject in scene.subject
+    )
+    exact_orca_evidence = bool(
+        re.search(r"\b(?:orcas?|killer\s+whales?|orcinus\s+orca)\b", text)
+    )
+    primary_mentions_dolphin = bool(re.search(r"\bdolphins?\b", primary_text))
+    missing_orca_evidence_for_orca_video = bool(
+        exact_orca_scene
+        and media_type == "video"
+        and not exact_orca_evidence
+    )
+    ambiguous_whale_for_orca = bool(
+        missing_orca_evidence_for_orca_video
+        and re.search(r"\bwhales?\b", primary_text)
+    )
+    if exact_orca_scene and exact_orca_evidence and not primary_mentions_dolphin:
+        negative_matches = [
+            word for word in negative_matches if str(word).strip().casefold() != "dolphin"
+        ]
+    non_real_video_matches = (
+        [
+            term
+            for term in NON_REAL_VIDEO_TERMS
+            if _contains_concept(term, all_tokens, text)
+        ]
+        if media_type == "video"
+        else []
+    )
     contradiction_penalty = min(40.0, len(negative_matches) * 25.0)
     duplicate_penalty = 20.0 if str(candidate.get("asset_id", "")) in used else float(candidate.get("duplicate_penalty") or 0)
     watermark_penalty = _watermark_penalty(candidate, all_tokens, text)
@@ -322,6 +369,14 @@ def _score_candidate(
         # field is "do not show this", and a high enough technical score used to be
         # able to outweigh it.
         reject_reasons.append("must_avoid_match:" + ",".join(negative_matches))
+    if non_real_video_matches:
+        reject_reasons.append(
+            "non_real_video_footage:" + ",".join(non_real_video_matches)
+        )
+    if ambiguous_whale_for_orca:
+        reject_reasons.append("ambiguous_whale_for_orca_scene")
+    elif missing_orca_evidence_for_orca_video:
+        reject_reasons.append("missing_orca_evidence_for_orca_scene")
     if set(vision_tags) & set(scene.must_not_include):
         reject_reasons.append("vision_mismatch")
     # A candidate may only be chosen automatically once the scene's *requirements* have
@@ -378,7 +433,11 @@ def _score_candidate(
         rights_review_required=review_required,
         source_class=source_class,
         provider=str(candidate.get("provider") or ""),
-        semantically_disqualified=bool(negative_matches) or semantic_match_status == "mismatched",
+        semantically_disqualified=(
+            bool(negative_matches)
+            or bool(non_real_video_matches)
+            or semantic_match_status == "mismatched"
+        ),
     )
     # An objection that the slot verdict has already answered stops being a refusal and
     # becomes advisory. Both lists are kept: a reviewer must still see that the average

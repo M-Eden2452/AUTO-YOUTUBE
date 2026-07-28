@@ -8,6 +8,7 @@ from src.audio.end_tail_policy import (
     END_POLICY_MATCH_NARRATION,
     END_POLICY_NARRATION_PLUS_TAIL,
     END_POLICY_PRESERVE_VISUAL_TIMELINE,
+    MAX_TAIL_SEC,
     EndTailPolicyError,
     clamp_tail_sec,
     compute_target_duration,
@@ -28,8 +29,8 @@ class ResolveEndPolicyTests(unittest.TestCase):
 class ClampTailSecTests(unittest.TestCase):
     def test_clamps_within_recommended_range(self) -> None:
         self.assertEqual(clamp_tail_sec(0.0), 0.5)
-        self.assertEqual(clamp_tail_sec(5.0), 1.0)
-        self.assertEqual(clamp_tail_sec(0.75), 0.75)
+        self.assertEqual(clamp_tail_sec(5.0), MAX_TAIL_SEC)
+        self.assertEqual(clamp_tail_sec(0.6), 0.6)
 
 
 class ComputeTargetDurationTests(unittest.TestCase):
@@ -49,7 +50,7 @@ class ComputeTargetDurationTests(unittest.TestCase):
             narration_duration_sec=40.0,
             visual_duration_sec=38.0,
         )
-        self.assertAlmostEqual(duration, 40.75, places=3)
+        self.assertAlmostEqual(duration, 40.0 + DEFAULT_TAIL_SEC, places=3)
 
     def test_match_narration_ignores_tail(self) -> None:
         duration = compute_target_duration(

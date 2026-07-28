@@ -415,6 +415,7 @@ def build_scene_assembly(
     require_local_file: bool = False,
     emergency_asset_factory: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
     requested_slot_count: int = 0,
+    prefer_video: bool = False,
 ) -> SceneVisualAssembly:
     """Fill one scene by walking the ladder. Never raises; may return an unresolved scene.
 
@@ -447,7 +448,22 @@ def build_scene_assembly(
     # that has no fully supported, fully cleared candidate stays unresolved exactly as
     # it did before this stage existed.
     if mode != MODE_DRAFT_COMPLETE:
-        for candidate in ordered:
+        strict_video = [
+            candidate
+            for candidate in ordered
+            if _candidate_media_type(candidate) == "video"
+            and evaluate_usability(
+                candidate,
+                mode=mode,
+                quality_tier=quality_tier_for(candidate),
+            ).automatic_render_allowed
+        ]
+        strict_pool = strict_video if prefer_video and strict_video else ordered
+        if prefer_video:
+            assembly.ladder_trace.append(
+                "video_first:video_pool" if strict_video else "video_first:image_fallback"
+            )
+        for candidate in strict_pool:
             verdict = evaluate_usability(candidate, mode=mode, quality_tier=quality_tier_for(candidate))
             if verdict.automatic_render_allowed:
                 return _single_slot_assembly(
@@ -469,6 +485,22 @@ def build_scene_assembly(
         if ledger.count(candidate) == 0
         and ledger.can_use(candidate, scene_index)
     ]
+    if prefer_video:
+        usable_fresh_video = [
+            candidate
+            for candidate in fresh
+            if _candidate_media_type(candidate) == "video"
+            and evaluate_usability(
+                candidate,
+                mode=mode,
+                quality_tier=quality_tier_for(candidate),
+            ).usable_in_draft
+        ]
+        if usable_fresh_video:
+            fresh = usable_fresh_video
+            assembly.ladder_trace.append("video_first:video_pool")
+        else:
+            assembly.ladder_trace.append("video_first:image_fallback")
 
     # --- rung A: one exact asset ---------------------------------------------
     exact = _first_usable_at_tier(fresh, TIER_EXACT, mode=mode)
@@ -569,6 +601,10 @@ def build_scene_assembly(
         }
     )
     return assembly
+
+
+def _candidate_media_type(candidate: dict[str, Any]) -> str:
+    return str(candidate.get("media_type") or candidate.get("type") or "").strip().casefold()
 
 
 def _first_usable_at_tier(

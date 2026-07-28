@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any, Protocol
 
+from dotenv import load_dotenv
 from PIL import Image
 
 from src.assets.completion import (
@@ -63,6 +64,8 @@ from .models import ALLOWED_RENDER_RIGHTS, RIGHTS_REFERENCE_ONLY, RIGHTS_USER_OW
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v"}
+DEFAULT_MIN_VIDEO_CLIPS = 1
+DEFAULT_MIN_VIDEO_DURATION_RATIO = 0.4
 
 
 class AssetProvider(Protocol):
@@ -89,6 +92,9 @@ def build_assets_manifest(
     reuse_ledger: ReuseLedger | None = None,
     allow_infographic_fallback: bool = True,
     allow_emergency_backdrop: bool = True,
+    prefer_video: bool = False,
+    minimum_video_clips: int = DEFAULT_MIN_VIDEO_CLIPS,
+    minimum_video_duration_ratio: float = DEFAULT_MIN_VIDEO_DURATION_RATIO,
 ) -> dict[str, Any]:
     completion_mode = normalize_mode(completion_mode)
     reuse = reuse_ledger if reuse_ledger is not None else ReuseLedger()
@@ -296,9 +302,10 @@ def build_assets_manifest(
             if selected is None and generated_asset is not None:
                 selected = generated_asset
             elif selected is None and selection_config["mode"] == "semantic":
-                selected, candidates = select_best_candidate(
+                selected, candidates = _select_best_candidate(
                     semantic_scene,
                     candidates,
+                    prefer_video=prefer_video,
                     used_asset_ids=used_asset_ids,
                     required_duration_sec=required_duration,
                     require_provider_metadata=bool(
@@ -309,9 +316,10 @@ def build_assets_manifest(
         elif generated_asset is not None:
             selected = generated_asset
         elif selection_config["mode"] == "semantic":
-            selected, ranked_candidates = select_best_candidate(
+            selected, ranked_candidates = _select_best_candidate(
                 semantic_scene,
                 candidates,
+                prefer_video=prefer_video,
                 used_asset_ids=used_asset_ids,
                 required_duration_sec=required_duration,
                 require_provider_metadata=bool(routing_decision.get("requires_provider_metadata")),
@@ -433,6 +441,7 @@ def build_assets_manifest(
                 provider_capabilities=provider_capabilities,
                 scene_provider_attempts=scene_provider_attempts,
                 allow_emergency_backdrop=allow_emergency_backdrop,
+                prefer_video=prefer_video,
             )
             download_attempts.extend(ladder_attempts)
         if scene_review_bundle is not None:
@@ -574,10 +583,26 @@ def build_assets_manifest(
                 config=semantic_visual_config,
             )
 
+    video_first_policy = _video_first_policy(
+        enabled=prefer_video,
+        minimum_video_clips=minimum_video_clips,
+        minimum_video_duration_ratio=minimum_video_duration_ratio,
+    )
+    media_coverage = summarize_media_coverage(scene_entries, policy=video_first_policy)
+    completion = _completion_summary(scene_entries, mode=completion_mode, reuse=reuse)
+    _apply_video_first_readiness(completion, media_coverage)
+    warnings = _warnings(dry_run, provider_errors, missing_scenes)
+    if media_coverage["review_required"]:
+        warnings.append(
+            "Video-first coverage is below the publish-ready threshold; "
+            "the image fallback is draft/review only."
+        )
     return {
         "schema_version": ASSET_SCHEMA_VERSION,
         "dry_run": dry_run,
-        "visual_mode": "video_first" if not allow_emergency_backdrop else "mixed",
+        "visual_mode": "video_first" if prefer_video else "mixed",
+        "video_first_policy": video_first_policy,
+        "media_coverage": media_coverage,
         "infographic_fallback": bool(allow_infographic_fallback),
         "asset_selection": selection_config,
         "provider_order": ["user_assets", "local_library", *[provider.name for provider in providers or []]],
@@ -586,7 +611,7 @@ def build_assets_manifest(
         "scenes": scene_entries,
         "missing_scenes": missing_scenes,
         "visual_support": _visual_support_summary(scene_entries, missing_scenes),
-        "completion": _completion_summary(scene_entries, mode=completion_mode, reuse=reuse),
+        "completion": completion,
         "continuity": continuity,
         "provider_attempts": provider_attempts,
         "provider_errors": provider_errors,
@@ -601,7 +626,7 @@ def build_assets_manifest(
             "mode": str((selection_config.get("semantic_visual") or {}).get("mode", "analyse_and_report")) if isinstance(selection_config.get("semantic_visual"), dict) else "analyse_and_report",
             "semantic_rerank_enabled": False,
         },
-        "warnings": _warnings(dry_run, provider_errors, missing_scenes),
+        "warnings": warnings,
     }
 
 
@@ -639,10 +664,42 @@ def build_news_asset_manifest(
         # build_assets_manifest, but are never its silent fallback.
         allow_infographic_fallback=False,
         allow_emergency_backdrop=False,
+        prefer_video=True,
     )
 
 
+def _select_best_candidate(
+    semantic_scene: Any,
+    candidates: list[dict[str, Any]],
+    *,
+    prefer_video: bool,
+    **selection_kwargs: Any,
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    selected, ranked = select_best_candidate(
+        semantic_scene,
+        candidates,
+        **selection_kwargs,
+    )
+    if not prefer_video:
+        return selected, ranked
+    preferred = next(
+        (
+            candidate
+            for candidate in ranked
+            if _slot_media_type(candidate) == "video"
+            and not candidate.get("rejected", False)
+        ),
+        None,
+    )
+    return (preferred or selected), ranked
+
+
 def create_default_asset_providers() -> list[AssetProvider]:
+    # The legacy stock-video entry point already loads the project .env, but the
+    # news-to-short resume path reaches this factory directly. Load the same existing
+    # configuration here so a forced asset_search does not silently omit Pexels and
+    # Pixabay while leaving their configured keys untouched.
+    load_dotenv()
     providers: list[AssetProvider] = []
     if _env_enabled("WIKIMEDIA_ENABLED", default=True):
         providers.append(WikimediaCommonsStockProvider())
@@ -706,6 +763,152 @@ def _visual_support_summary(
         "requirements": requirements,
         "scenes_needing_review": scenes_needing_review,
     }
+
+
+def _video_first_policy(
+    *,
+    enabled: bool,
+    minimum_video_clips: int = DEFAULT_MIN_VIDEO_CLIPS,
+    minimum_video_duration_ratio: float = DEFAULT_MIN_VIDEO_DURATION_RATIO,
+) -> dict[str, Any]:
+    return {
+        "enabled": bool(enabled),
+        "minimum_video_clips": max(1, int(minimum_video_clips)),
+        "minimum_video_duration_ratio": max(
+            0.0, min(1.0, float(minimum_video_duration_ratio))
+        ),
+        "threshold_mode": "all",
+        "image_fallback_allowed_in_draft": True,
+        "image_fallback_publish_ready": False,
+    }
+
+
+def _slot_media_type(asset: dict[str, Any]) -> str:
+    media_type = str(asset.get("media_type") or asset.get("type") or "").strip().casefold()
+    if media_type in {"video", "clip", "movie"}:
+        return "video"
+    if media_type in {"image", "photo", "photograph", "animated_image", "diagram"}:
+        return "image"
+    path = str(
+        asset.get("path") or asset.get("local_path") or asset.get("downloaded_path") or ""
+    )
+    suffix = Path(path).suffix.casefold()
+    if suffix in VIDEO_EXTENSIONS:
+        return "video"
+    if suffix in IMAGE_EXTENSIONS:
+        return "image"
+    return "unknown"
+
+
+def summarize_media_coverage(
+    scene_entries: list[dict[str, Any]],
+    *,
+    policy: dict[str, Any],
+) -> dict[str, Any]:
+    """Count selected visual media and enforce the manifest-level video threshold."""
+
+    video_slots = 0
+    image_slots = 0
+    unknown_slots = 0
+    reused_slots = 0
+    video_duration = 0.0
+    visual_duration = 0.0
+    video_asset_ids: set[str] = set()
+    image_asset_ids: set[str] = set()
+    for entry in scene_entries:
+        assembly = read_assembly(
+            entry,
+            scene_duration_sec=float(entry.get("required_duration_sec") or 0.0),
+        )
+        # Unresolved scenes still occupy narration time. Excluding them from the
+        # denominator made one selected clip look like 100% coverage while two thirds
+        # of the Short had no selected material.
+        visual_duration += max(0.0, float(assembly.scene_duration_sec))
+        for slot in assembly.slots:
+            asset = slot.selected_asset if isinstance(slot.selected_asset, dict) else {}
+            if not asset:
+                continue
+            duration = max(0.0, float(slot.duration_sec))
+            if slot.reuse_of_asset:
+                reused_slots += 1
+            asset_id = str(asset.get("asset_id") or slot.asset_id or "")
+            media_type = _slot_media_type(asset)
+            if media_type == "video":
+                video_slots += 1
+                video_duration += duration
+                if asset_id:
+                    video_asset_ids.add(asset_id)
+            elif media_type == "image":
+                image_slots += 1
+                if asset_id:
+                    image_asset_ids.add(asset_id)
+            else:
+                unknown_slots += 1
+
+    ratio = video_duration / visual_duration if visual_duration > 0.0 else 0.0
+    enabled = bool(policy.get("enabled", False))
+    minimum_clips = max(1, int(policy.get("minimum_video_clips") or DEFAULT_MIN_VIDEO_CLIPS))
+    minimum_ratio = max(
+        0.0,
+        min(
+            1.0,
+            float(
+                policy.get("minimum_video_duration_ratio")
+                if policy.get("minimum_video_duration_ratio") is not None
+                else DEFAULT_MIN_VIDEO_DURATION_RATIO
+            ),
+        ),
+    )
+    # Slot timings can be derived from rounded narration and scene boundaries. Treat
+    # a sub-1% miss as on-threshold so drafts do not churn on 39.49% vs 40%.
+    threshold_tolerance = 0.01
+    meets_policy = (
+        not enabled
+        or (
+            len(video_asset_ids) >= minimum_clips
+            and ratio + threshold_tolerance >= minimum_ratio
+        )
+    )
+    image_only = enabled and image_slots > 0 and video_slots == 0
+    review_required = enabled and not meets_policy
+    if not enabled:
+        status = "not_applicable"
+    elif meets_policy:
+        status = "meets_policy"
+    elif image_only:
+        status = "image_only_draft_fallback"
+    elif video_slots:
+        status = "insufficient_video_coverage"
+    else:
+        status = "no_selected_video"
+    return {
+        "status": status,
+        "selected_slots": video_slots + image_slots + unknown_slots,
+        "video_slots": video_slots,
+        "video_clips": len(video_asset_ids),
+        "image_slots": image_slots,
+        "image_assets": len(image_asset_ids),
+        "unknown_slots": unknown_slots,
+        "reused_slots": reused_slots,
+        "visual_duration_sec": round(visual_duration, 3),
+        "video_duration_sec": round(video_duration, 3),
+        "video_duration_ratio": round(ratio, 4),
+        "image_fallback_used": image_slots > 0,
+        "image_only_fallback": image_only,
+        "meets_video_first_threshold": meets_policy,
+        "review_required": review_required,
+        "publish_ready": not review_required,
+    }
+
+
+def _apply_video_first_readiness(
+    completion: dict[str, Any],
+    media_coverage: dict[str, Any],
+) -> None:
+    review_required = bool(media_coverage.get("review_required", False))
+    completion["video_first_review_required"] = review_required
+    if review_required:
+        completion["publish_ready"] = False
 
 
 def _completion_summary(
@@ -776,11 +979,37 @@ def refresh_manifest_summaries(
     ledger = reuse or _reuse_from_summary(stored_completion.get("reuse"))
     resolved_mode = normalize_mode(mode or str(stored_completion.get("mode") or ""))
     manifest["visual_support"] = _visual_support_summary(scenes, missing)
-    manifest["completion"] = _completion_summary(
+    stored_policy = (
+        manifest.get("video_first_policy")
+        if isinstance(manifest.get("video_first_policy"), dict)
+        else {}
+    )
+    policy = _video_first_policy(
+        enabled=bool(
+            stored_policy.get(
+                "enabled",
+                str(manifest.get("visual_mode") or "") == "video_first",
+            )
+        ),
+        minimum_video_clips=int(
+            stored_policy.get("minimum_video_clips") or DEFAULT_MIN_VIDEO_CLIPS
+        ),
+        minimum_video_duration_ratio=float(
+            stored_policy.get("minimum_video_duration_ratio")
+            if stored_policy.get("minimum_video_duration_ratio") is not None
+            else DEFAULT_MIN_VIDEO_DURATION_RATIO
+        ),
+    )
+    manifest["video_first_policy"] = policy
+    media_coverage = summarize_media_coverage(scenes, policy=policy)
+    manifest["media_coverage"] = media_coverage
+    completion = _completion_summary(
         scenes,
         mode=resolved_mode,
         reuse=ledger,
     )
+    _apply_video_first_readiness(completion, media_coverage)
+    manifest["completion"] = completion
     return manifest
 
 
@@ -865,6 +1094,7 @@ def _complete_scene_assembly(
     provider_capabilities: dict[str, dict[str, Any]] | None = None,
     scene_provider_attempts: list[dict[str, Any]] | None = None,
     allow_emergency_backdrop: bool = True,
+    prefer_video: bool = False,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     """Fill one scene under ``draft_complete``, downloading whatever the ladder chose.
 
@@ -937,6 +1167,7 @@ def _complete_scene_assembly(
             reuse=trial,
             emergency_asset_factory=emergency_factory,
             requested_slot_count=len([part for part in (scene.get("visual_parts") or []) if part]),
+            prefer_video=prefer_video,
         )
         if not assembly.slots:
             reuse.adopt(trial)
@@ -1536,7 +1767,10 @@ def _search_provider(
                 target_aspect_ratio="9:16",
                 orientation_preference="vertical",
                 min_width=720,
-                min_height=1280 if media_type in {"image", "video"} else 0,
+                # A 1920x1080 landscape clip is a valid high-definition source for a
+                # 9:16 crop. Requiring 1280 pixels specifically on the height axis
+                # discarded exact footage before crop suitability was evaluated.
+                min_height=1080 if media_type == "video" else 1280 if media_type == "image" else 0,
                 max_results=limit,
                 scene_id=str(scene.get("scene_id") or ""),
                 project_id=project_id,

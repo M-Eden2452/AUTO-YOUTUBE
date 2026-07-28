@@ -15,9 +15,9 @@ END_POLICIES = frozenset(
     }
 )
 
-DEFAULT_TAIL_SEC = 0.75
+DEFAULT_TAIL_SEC = 0.5
 MIN_TAIL_SEC = 0.5
-MAX_TAIL_SEC = 1.0
+MAX_TAIL_SEC = 0.7
 
 # Keyed by template_id (src/production_catalog templates). Mirrors AUDIO_POLICY_DEFAULTS
 # in src/audio/voice_policy.py: a separate, small table so this module never needs to

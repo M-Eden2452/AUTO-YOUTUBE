@@ -83,7 +83,6 @@ class PexelsStockProvider:
             headers={"Authorization": self.api_key},
             params={
                 "query": request.query,
-                "orientation": _pexels_orientation(request.orientation_preference),
                 "per_page": request.max_results,
             },
             timeout=request.timeout_sec,

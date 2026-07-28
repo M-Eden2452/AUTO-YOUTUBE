@@ -1102,6 +1102,11 @@ def _live_comparison_html(
     for row in candidate_results:
         candidate_id = str(row.get("candidate_id") or "")
         image_src = _comparison_image_src(frame_by_candidate.get(candidate_id, ""))
+        image_html = (
+            f'<img src="{html.escape(image_src)}" alt="candidate frame">'
+            if image_src
+            else ""
+        )
         rows.append(
             "<tr>"
             f"<td>{html.escape(str(row.get('scene_id') or ''))}</td>"
@@ -1112,7 +1117,7 @@ def _live_comparison_html(
             f"<td>{html.escape(str(row.get('confidence') or ''))}</td>"
             f"<td>{html.escape(str(row.get('status') or ''))}</td>"
             f"<td>{html.escape(str(row.get('request_id') or ''))}</td>"
-            f"<td>{'<img src=\"' + html.escape(image_src) + '\" alt=\"candidate frame\">' if image_src else ''}</td>"
+            f"<td>{image_html}</td>"
             f"<td>{html.escape(str(row.get('short_evidence') or ''))}</td>"
             "</tr>"
         )

@@ -291,6 +291,13 @@ def blocking_reasons(candidate: dict[str, Any] | None, *, require_local_file: bo
         reasons.append(BLOCK_MUST_AVOID)
     if any(name.startswith("must_avoid:") for name in conflicting_slots):
         reasons.append(BLOCK_MUST_AVOID)
+    if any(
+        reason == "ambiguous_whale_for_orca_scene"
+        or reason == "missing_orca_evidence_for_orca_scene"
+        or reason.startswith("non_real_video_footage:")
+        for reason in reject_reasons
+    ):
+        reasons.append(BLOCK_FACTUALLY_MISLEADING)
     if conflicting_slots or decision.slot_verdict == VERDICT_CONFLICTING or any(
         reason.startswith("conflicting_context:") for reason in reject_reasons
     ):

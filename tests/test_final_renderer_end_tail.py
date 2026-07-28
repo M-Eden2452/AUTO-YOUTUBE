@@ -55,45 +55,49 @@ def _mean_volume_db(path: Path, start: float, length: float) -> float:
 
 
 class FinalRendererEndTailTests(unittest.TestCase):
-    def test_fullscreen_pacing_reaches_floor_with_bounded_adjustments(self) -> None:
-        from src.news.final_renderer import (
-            MAX_RESPONSE_HOLD_SEC,
-            MIN_NATURAL_SPEECH_TEMPO,
-            _delivery_pacing,
+    def test_narration_driven_target_is_source_duration_plus_bounded_tail(self) -> None:
+        from src.audio.end_tail_policy import (
+            DEFAULT_TAIL_SEC,
+            END_POLICY_NARRATION_PLUS_TAIL,
+            MAX_TAIL_SEC,
+            compute_target_duration,
         )
 
-        pacing = _delivery_pacing(
-            template_id="fullscreen_voiceover_v1",
-            preferred_duration_sec=50.0,
-            narration_duration_sec=36.45875,
-            visual_duration_sec=36.459,
-            baseline_duration_sec=37.20875,
-            tail_sec=0.75,
+        default_target = compute_target_duration(
+            END_POLICY_NARRATION_PLUS_TAIL,
+            narration_duration_sec=39.0,
+            visual_duration_sec=50.0,
+        )
+        clamped_target = compute_target_duration(
+            END_POLICY_NARRATION_PLUS_TAIL,
+            narration_duration_sec=39.0,
+            visual_duration_sec=50.0,
+            tail_sec=10.0,
         )
 
-        self.assertAlmostEqual(pacing["target_duration_sec"], 45.0, places=3)
-        self.assertGreaterEqual(pacing["speech_tempo"], MIN_NATURAL_SPEECH_TEMPO)
-        self.assertLessEqual(pacing["response_hold_sec"], MAX_RESPONSE_HOLD_SEC)
+        self.assertAlmostEqual(default_target, 39.0 + DEFAULT_TAIL_SEC, places=3)
+        self.assertAlmostEqual(clamped_target, 39.0 + MAX_TAIL_SEC, places=3)
+        self.assertLessEqual(MAX_TAIL_SEC, 0.7)
 
-    def test_retimes_ass_dialogue_without_changing_text(self) -> None:
-        from src.news.final_renderer import _retime_ass_subtitles
+    def test_voice_only_mux_has_no_audio_or_video_time_stretch_filter(self) -> None:
+        from src.news import final_renderer
 
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            source = root / "source.ass"
-            target = root / "retimed.ass"
-            source.write_text(
-                "[Events]\n"
-                "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
-                "Dialogue: 0,0:00:10.00,0:00:20.00,Default,,0,0,0,,One, two\n",
-                encoding="utf-8",
+        with patch.object(final_renderer, "_run_ffmpeg") as run:
+            final_renderer._mux_voice_only(
+                Path("silent.mp4"),
+                Path("narration.wav"),
+                Path("output.mp4"),
+                39.5,
+                39.0,
             )
 
-            _retime_ass_subtitles(source, target, time_scale=1.1)
-
-            rendered = target.read_text(encoding="utf-8")
-            self.assertIn("0:00:11.00,0:00:22.00", rendered)
-            self.assertIn("One, two", rendered)
+        args = run.call_args.args[0]
+        command = " ".join(args)
+        self.assertNotIn("atempo", command)
+        self.assertNotIn("asetpts", command)
+        self.assertNotIn("setpts", command)
+        self.assertNotIn("apad", command)
+        self.assertNotIn("-filter_complex", args)
 
     def test_final_render_trims_to_narration_plus_tail_not_visual_timeline(self) -> None:
         from src.assets.frame_sampling import ffprobe_media_info
@@ -151,6 +155,10 @@ class FinalRendererEndTailTests(unittest.TestCase):
 
             self.assertEqual(final_manifest["status"], "completed")
             self.assertEqual(final_manifest["end_policy_id"], "narration_plus_tail")
+            self.assertEqual(final_manifest["audio_timing_policy"], "preserve_source_duration")
+            self.assertFalse(final_manifest["audio_time_stretched"])
+            self.assertEqual(final_manifest["speech_tempo"], 1.0)
+            self.assertEqual(final_manifest["response_hold_sec"], 0.0)
             expected_target = manual_duration_sec + DEFAULT_TAIL_SEC
             self.assertAlmostEqual(final_manifest["target_duration_sec"], expected_target, places=2)
             # The pre-fix renderer left the video at the full visual-plan length
@@ -159,6 +167,12 @@ class FinalRendererEndTailTests(unittest.TestCase):
 
             info = ffprobe_media_info(Path(final_manifest["output_path"]))
             self.assertLess(abs(float(info["duration_sec"]) - expected_target), 0.3)
+            audio_duration = _audio_stream_duration_sec(Path(final_manifest["output_path"]))
+            self.assertLess(
+                abs(audio_duration - manual_duration_sec),
+                0.15,
+                "voice-only render changed the narration stream duration",
+            )
 
 
 class MusicCoversEndTailTests(unittest.TestCase):
