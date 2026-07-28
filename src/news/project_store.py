@@ -85,8 +85,27 @@ class NewsProjectStore:
         job.current_stage = stage
         self.save_job(job)
 
+    def is_stage_completed(self, job: NewsJob, stage: str) -> bool:
+        state = job.stages.get(stage)
+        if state is None or state.status != "completed":
+            return False
+        return self.validate_stage_output(job, stage)
+
+    def validate_stage_output(self, job: NewsJob, stage: str) -> bool:
+        root = self.project_root(job.job_id)
+        if stage == "research":
+            claims_path = root / "research" / "claims.json"
+            if not claims_path.is_file():
+                return False
+            try:
+                data = self.read_json(claims_path)
+                return isinstance(data, dict) and isinstance(data.get("claims"), list)
+            except Exception:
+                return False
+        return True
+
     def completed_stage_names(self, job: NewsJob) -> set[str]:
-        return {name for name, state in job.stages.items() if state.status == "completed"}
+        return {name for name in job.stages if self.is_stage_completed(job, name)}
 
     def next_pending_stage(self, job: NewsJob) -> str | None:
         completed = self.completed_stage_names(job)

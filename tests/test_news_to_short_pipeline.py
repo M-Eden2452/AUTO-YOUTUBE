@@ -126,6 +126,74 @@ class NewsToShortPipelineTests(unittest.TestCase):
             self.assertTrue(Path(final_manifest["output_path"]).is_file())
             self.assertEqual(result.status, "completed")
 
+    def test_research_stage_idempotency_normal_and_resume(self) -> None:
+        from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job = create_news_to_short_job(
+                projects_root=root,
+                channel_id="nature_science_news_ru",
+                topic="Исследование поведения дельфинов в открытом море",
+                language="ru",
+                now="2026-07-28T12:00:00+03:00",
+            )
+
+            # Normal run
+            res1 = run_news_to_short_job(projects_root=root, job_id=job.job_id, until_stage="research", dry_run=True)
+            self.assertIn("research", res1.completed_stages)
+            claims_path = root / job.job_id / "research" / "claims.json"
+            self.assertTrue(claims_path.is_file())
+
+            # Repeated normal run without force_stage
+            res2 = run_news_to_short_job(projects_root=root, job_id=job.job_id, until_stage="research", dry_run=True)
+            self.assertNotIn("research", res2.completed_stages)
+
+            # Resume run without force_stage
+            res3 = run_news_to_short_job(projects_root=root, job_id=job.job_id, resume=True, until_stage="research", dry_run=True)
+            self.assertNotIn("research", res3.completed_stages)
+
+            # Force stage re-executes research stage
+            res4 = run_news_to_short_job(projects_root=root, job_id=job.job_id, stage="research", force_stage=True, dry_run=True)
+            self.assertIn("research", res4.completed_stages)
+
+    def test_research_stage_idempotency_missing_and_invalid_output(self) -> None:
+        from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job = create_news_to_short_job(
+                projects_root=root,
+                channel_id="nature_science_news_ru",
+                topic="Новые гипотезы в океанологии",
+                language="ru",
+                now="2026-07-28T12:00:00+03:00",
+            )
+
+            run_news_to_short_job(projects_root=root, job_id=job.job_id, until_stage="research", dry_run=True)
+            claims_path = root / job.job_id / "research" / "claims.json"
+            self.assertTrue(claims_path.is_file())
+
+            store = NewsProjectStore(root)
+            loaded_job = store.load_job(job.job_id)
+            self.assertEqual(loaded_job.stages["research"].status, "completed")
+
+            # Missing output: remove claims.json
+            claims_path.unlink()
+            res_missing = run_news_to_short_job(projects_root=root, job_id=job.job_id, until_stage="research", dry_run=True)
+            self.assertIn("research", res_missing.completed_stages)
+            self.assertTrue(claims_path.is_file())
+
+            # Invalid output: overwrite claims.json with empty JSON dict {} missing 'claims' key
+            store.write_json(claims_path, {})
+            res_invalid = run_news_to_short_job(projects_root=root, job_id=job.job_id, until_stage="research", dry_run=True)
+            self.assertIn("research", res_invalid.completed_stages)
+            data = store.read_json(claims_path)
+            self.assertIn("claims", data)
+            self.assertIsInstance(data["claims"], list)
+
+
 
 def _write_tiny_video(path: Path) -> bool:
     command = [
