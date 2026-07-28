@@ -1,10 +1,11 @@
 ---
 status: current
-last_verified_commit: 0cd0e11
+last_verified_commit: 94034f2
 last_verified_date: 2026-07-28
 source_paths:
   - AGENTS.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
+  - ai_youtube/cli/main.py
   - src/config_resolver/paths.py
   - src/content_creation/cli.py
 ---
@@ -28,8 +29,11 @@ AI-YouTube — локальная offline-first система производ�
 Безопасная проверка интерфейса:
 
 ```powershell
-.\venv\Scripts\python.exe -m src.content_creation.cli capabilities --json
+.\venv\Scripts\python.exe -m ai_youtube capabilities --json
 ```
+
+`python -m ai_youtube` — канонический CLI. `python -m src.content_creation.cli`,
+`pipeline.py` и `apps/*` сохранены как compatibility entrypoints.
 
 Для отдельного runtime workspace используй глобальный `--workspace`, переменную
 `AI_YOUTUBE_WORKSPACE` или path config. Без явной настройки legacy workspace остаётся

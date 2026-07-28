@@ -1,6 +1,6 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–3 завершены**
+Статус: **выполняется; этапы 0–4 завершены**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -630,7 +630,7 @@ G:\AI-YouTube-System\
 
 ### Этап 4. Канонический CLI и app boundaries
 
-Статус: [ ] не начат
+Статус: [x] завершён 2026-07-28
 
 Задачи:
 
@@ -859,7 +859,7 @@ G:\AI-YouTube-System\
 
 ```text
 Последнее обновление: 2026-07-28
-Текущий этап: Этап 3 — завершён; следующий этап 4 ещё не начат
+Текущий этап: Этап 4 — завершён; следующий этап 5 ещё не начат
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -867,33 +867,38 @@ G:\AI-YouTube-System\
 Коммит handoff этапа 2: 8ed340d
 Исходный HEAD этапа 3: 8ed340d
 Implementation HEAD этапа 3: 0cd0e11
-Текущий HEAD перед handoff-only коммитом: 0cd0e11
-Рабочее дерево: подготовлены ADR 0002, current metadata и handoff этапа 3
+Коммит handoff этапа 3: ac9c313
+Исходный HEAD этапа 4: ac9c313
+Implementation HEAD этапа 4: 94034f2
+Текущий HEAD перед handoff-only коммитом: 94034f2
+Рабочее дерево: подготовлены ADR 0003, current metadata и handoff этапа 4
 Выполнено:
 - master plan полностью прочитан; фактические Git/HEAD/status/diff проверены до изменений
-- до изменения поведения добавлен characterization test: явный --projects-root остаётся изолированным и авторитетным
-- в существующий src.config_resolver добавлены WorkspacePaths/ApplicationPaths и единая модель runtime/static путей
-- workspace поддержан через CLI, AI_YOUTUBE_WORKSPACE и JSON path config с приоритетом CLI > env > config > legacy default
-- versioned config/resources привязаны к корню репозитория; production-зависимость от cwd и машинный hardcoded G:\ удалены
-- ProjectRepository читает primary workspace с fallback на legacy projects; outputs имеют совместимый legacy fallback
-- явный --projects-root сохранён как изолированный compatibility contract
-- default workspace намеренно остаётся корнем репозитория до этапа 9; физический перенос runtime не выполнялся
-- content CLI, wizard/service, news workflow, root pipeline и project foundation используют общий resolver
-- создан ADR 0002 о workspace paths и storage compatibility
-Targeted checks этапа 3:
-- pre-change: .\venv\Scripts\python.exe -B -m unittest tests.test_stage3_workspace_paths — 1 test, OK, 0.790 s
-- основной affected-набор — 366 tests, OK, 78.469 s
-- wizard/assets/subtitles/story-card integration — 70 tests, OK, 20.908 s
-- capabilities smoke из cwd вне репозитория — OK
-Full offline suite: не запускался по указанию пользователя; для этапа 3 не требовался
+- до изменения поведения добавлен tests.test_stage4_canonical_cli; исходный прогон ожидаемо зафиксировал отсутствие ai_youtube, command modules и cycle Wizard → CLI
+- создан канонический dispatcher python -m ai_youtube и console script ai-youtube
+- dispatcher публикует активный content_creator и не рекламирует planned/disabled приложения
+- applications list по умолчанию показывает только active/enabled; явный show/--all сохраняет disabled/planned status
+- definitions CLI-команд разделены на catalog/project/content/authoring parser modules
+- сборка ContentCreationRequest вынесена из CLI и Wizard в общий request builder
+- общий rights presentation helper устранил импорт Wizard → CLI; cycle CLI ↔ Wizard устранён
+- новые rerun и asset-replacement команды используют python -m ai_youtube
+- python -m src.content_creation.cli, pipeline.py и apps/* сохранены как compatibility entrypoints
+- создан ADR 0003 о каноническом CLI и app boundaries
+Targeted checks этапа 4:
+- pre-change characterization: 6 tests, ожидаемые 4 failures + 1 error подтвердили незавершённые границы этапа
+- stage 4 + CLI/Wizard/legacy/path core: 109 tests, OK, 8.679 s
+- service/assets/project/rights/script/visual/localization/config/catalog/legacy wiring: 286 tests, OK, 49.916 s
+- module smoke: ai_youtube help/applications, legacy content capabilities и apps.news_to_short/youtube_pipeline/anime_factory help — 6 entrypoints, OK
+- первый combined wizard-прогон в captured cp1252 shell был непригоден из-за UnicodeEncodeError; тот же набор повторён с PYTHONIOENCODING=utf-8 и прошёл
+Full offline suite: не запускался по указанию пользователя; для этапа 4 не требовался
 Runtime-проекты и пользовательские media не изменялись и не удалялись
 Runtime project IDs/artifacts: создавались только внутри TemporaryDirectory тестов и автоматически удалены; постоянные artifacts не создавались
-Не выполнено: этапы 4–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
-Новый known issue: не обнаружен
+Не выполнено: этапы 5–11, cleanup, глубокое разделение command handlers, физическая миграция runtime, реальные provider/API/TTS вызовы
+Новый known issue: direct Wizard tests в Windows shell с legacy captured encoding требуют PYTHONIOENCODING=utf-8; canonical CLI сам настраивает UTF-8 console
 Платные действия: не выполнялись
 Сеть/API: не выполнялись
-Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 4 — «Канонический CLI и app boundaries»
-Главный запрет: не начинать этап 5, пока этап 4 не завершён и не проверен
+Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 5 — «Project и storage foundation»
+Главный запрет: не начинать этап 6, пока этап 5 не завершён и не проверен
 ```
 
 ---

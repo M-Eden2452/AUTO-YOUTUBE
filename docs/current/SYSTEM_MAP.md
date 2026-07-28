@@ -1,8 +1,9 @@
 ---
 status: current
-last_verified_commit: 0cd0e11
+last_verified_commit: 94034f2
 last_verified_date: 2026-07-28
 source_paths:
+  - ai_youtube
   - pipeline.py
   - src/config_resolver/paths.py
   - src/content_creation
@@ -24,7 +25,8 @@ source_paths:
 | Область | Текущий авторитет | Роль |
 |---|---|---|
 | Пути и workspace | `src/config_resolver/paths.py` | единый resolver versioned resources, runtime roots и legacy fallback |
-| Создание контента | `src/content_creation/` | CLI, wizard и application service |
+| Канонический CLI | `ai_youtube/`, `src/content_creation/commands/` | dispatcher активного приложения и domain parser modules |
+| Создание контента | `src/content_creation/` | compatibility CLI, wizard и application service |
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
 | Проекты | `src/projects/`, `src/project_foundation/` | общий read API и foundation для `project.json` |
@@ -50,8 +52,11 @@ video_repurposer
 
 - `job.json` и `project.json` пока сосуществуют;
 - `ProjectRepository` читает обе формы и legacy roots, но ничего не записывает;
-- `pipeline.py` и `src.content_creation.cli` пока оба публичны;
+- `python -m ai_youtube` — единственный канонический CLI;
+- `pipeline.py`, `python -m src.content_creation.cli` и `apps/*` остаются
+  compatibility entrypoints;
 - default workspace остаётся корнем репозитория до отдельной физической миграции;
 - произвольный workspace выбирается через CLI/env/path config, а versioned resources
   остаются привязаны к репозиторию;
-- канонический dispatcher относится к следующему этапу rescue plan.
+- definitions CLI-команд разделены по domain-модулям; глубокое разделение крупных
+  command handlers остаётся этапом 6 rescue plan.
