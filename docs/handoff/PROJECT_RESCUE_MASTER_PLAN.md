@@ -1,6 +1,6 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этап 0 завершён**
+Статус: **выполняется; этапы 0–1 завершены**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -544,7 +544,7 @@ G:\AI-YouTube-System\
 
 ### Этап 1. Characterization и воспроизводимость
 
-Статус: [ ] не начат
+Статус: [x] завершён 2026-07-28
 
 Задачи:
 
@@ -859,29 +859,44 @@ G:\AI-YouTube-System\
 
 ```text
 Последнее обновление: 2026-07-28
-Текущий этап: Этап 0 — завершён; следующий этап 1 ещё не начат
+Текущий этап: Этап 1 — завершён; следующий этап 2 ещё не начат
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
-Рабочее дерево: текущая незавершённая работа сохранена отдельным коммитом; после коммита handoff должно быть чистым
+Исходный HEAD этапа 1: 5e3d895
+Текущий HEAD: 5e3d895
+Рабочее дерево: изменения этапа 1 подготовлены, но ещё не закоммичены
 Выполнено:
-- полностью прочитан master plan и повторно проверены Git/HEAD/diff
-- изучены все 20 изменённых code/test-файлов; git diff --check прошёл
-- текущая работа сохранена коммитом 8485a21 (fix(shorts): harden video-first draft delivery)
-- targeted regression: 103 теста, OK, 80.653 s
-- full offline suite: 1331 тест, OK, 191.168 s
-- локальный .claude/settings.local.json сохранён и исключён из Git
-- через ProjectRepository обнаружен 31 локальный проект
-Последние подтверждённые завершённые проекты/manifests:
-- 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2 — projects\2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2\job.json; localizations\ru\output\draft_1080x1920.mp4 существует
-- 2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb-3 — projects\2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb-3\job.json; localizations\ru\output\draft_1080x1920.mp4 существует
-- в_видео_используются_архивные_стоковые_материалы_карты_авторская_20260724T214350 — projects\в_видео_используются_архивные_стоковые_материалы_карты_авторская_20260724T214350\job.json; localizations\ru\output\master_1080x1920.mp4 существует; quality passed
-Незавершённые runtime-проекты не изменялись и не удалялись
-Не выполнено: этапы 1–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
+- перед началом полностью прочитан master plan; Git/HEAD/diff повторно проверены, исходное дерево было чистым
+- зафиксированы публичные контракты legacy pipeline.py, src.content_creation.cli, Anime Factory и project foundation CLI
+- существующие project status/list/resume и paid-call denial контракты подтверждены targeted tests
+- добавлены tolerant JSON Schemas для job, project, stage state, assets, voice, evidence, render и export
+- добавлены pyproject.toml, полностью pinned core requirements.lock, .gitattributes и offline GitHub Actions workflow
+- CI устанавливает locked dependencies, проверяет editable install и запускает unittest discovery с отключёнными live tests
+- packaging-конфигурация прочитана setuptools без ошибок; pip check: No broken requirements found
+- новые characterization/schema/reproducibility tests: 19 тестов, OK, 0.873 s
+- targeted regression этапа 1: 120 тестов, OK, 2.848 s
+- после финального изменения CI повторно проверены 4 reproducibility tests, OK, 0.002 s
+Targeted regression modules:
+- tests.test_stage1_characterization
+- tests.test_artifact_schemas
+- tests.test_reproducibility_contract
+- tests.test_content_creation_cli
+- tests.test_project_foundation_cli
+- tests.test_project_repository
+- tests.test_project_naming_and_resume
+- tests.test_voice_manifest_schema
+- tests.test_anime_factory_*
+- точечные paid-call denial tests для wizard, narration workflow, localization voice и OpenAI Vision
+- tests.test_test_network_guard
+Full offline suite: локально не запускался по указанию пользователя; его запуск зафиксирован в offline CI
+Runtime-проекты и пользовательские media не изменялись и не удалялись
+Не выполнено: этапы 2–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
 Известное предупреждение baseline: MoviePy FFMPEG_AudioReader.__del__ пишет harmless AttributeError при cleanup отдельных тестовых fixtures; suite завершается с кодом 0
+Новый known issue: фактический запуск GitHub Actions возможен только после commit/push; локально workflow проверен контрактным тестом
 Платные действия: не выполнялись
 Сеть/API: не выполнялись
-Следующее действие: git status --short --branch, затем начать только этап 1
-Главный запрет: не начинать этап 2, пока этап 1 не завершён и не проверен
+Следующее действие: git status --short --branch, просмотреть diff этапа 1 и зафиксировать его отдельным коммитом; затем начинать только этап 2
+Главный запрет: не начинать этап 3, пока этап 2 не завершён и не проверен
 ```
 
 ---

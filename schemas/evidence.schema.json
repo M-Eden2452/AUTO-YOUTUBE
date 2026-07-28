@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence.schema.json",
+  "title": "EvidenceRecord",
+  "type": "object",
+  "required": [
+    "evidence_id",
+    "asset_id",
+    "provider",
+    "license_name",
+    "verification_status",
+    "media_role",
+    "allowed_for_render",
+    "review_required",
+    "provenance",
+    "technical_validation",
+    "schema_version"
+  ],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1},
+    "asset_id": {"type": "string"},
+    "source_url": {"type": "string"},
+    "provider": {"type": "string"},
+    "author": {"type": "string"},
+    "license_name": {"type": "string"},
+    "verification_status": {"type": "string"},
+    "media_role": {"enum": ["visual", "music", "voice", "other"]},
+    "allowed_for_render": {"type": "boolean"},
+    "review_required": {"type": "boolean"},
+    "proof_files": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "object"},
+    "technical_validation": {"type": "object"},
+    "schema_version": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": true
+}

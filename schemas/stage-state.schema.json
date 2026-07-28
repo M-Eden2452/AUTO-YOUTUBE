@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage-state.schema.json",
+  "title": "news_to_short stage state",
+  "type": "object",
+  "required": [
+    "stage",
+    "status",
+    "started_at",
+    "finished_at",
+    "result_path",
+    "error",
+    "attempts",
+    "settings"
+  ],
+  "properties": {
+    "stage": {"type": "string", "minLength": 1},
+    "status": {"type": "string"},
+    "started_at": {"type": ["string", "null"]},
+    "finished_at": {"type": ["string", "null"]},
+    "result_path": {"type": ["string", "null"]},
+    "error": {"type": ["string", "null"]},
+    "attempts": {"type": "integer", "minimum": 0},
+    "settings": {"type": "object"}
+  },
+  "additionalProperties": true
+}

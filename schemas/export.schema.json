@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "export.schema.json",
+  "title": "localization output project_manifest.json",
+  "type": "object",
+  "required": [
+    "job_id",
+    "mode",
+    "channel_id",
+    "language",
+    "status",
+    "description_path",
+    "sources_path",
+    "quality_report",
+    "outputs"
+  ],
+  "properties": {
+    "job_id": {"type": ["string", "null"]},
+    "mode": {"type": ["string", "null"]},
+    "channel_id": {"type": ["string", "null"]},
+    "language": {"type": "string"},
+    "status": {"type": ["string", "null"]},
+    "description_path": {"type": "string"},
+    "sources_path": {"type": "string"},
+    "asset_sources_path": {"type": "string"},
+    "attribution_path": {"type": "string"},
+    "youtube_sources_path": {"type": "string"},
+    "quality_report": {"type": "object"},
+    "outputs": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

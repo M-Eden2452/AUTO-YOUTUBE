@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project.schema.json",
+  "title": "Project Foundation project.json",
+  "type": "object",
+  "required": [
+    "project_id",
+    "title",
+    "channel_id",
+    "application_id",
+    "format_id",
+    "template_id",
+    "language",
+    "status",
+    "project_root",
+    "schema_version",
+    "metadata"
+  ],
+  "properties": {
+    "project_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string"},
+    "channel_id": {"type": "string"},
+    "application_id": {"type": "string"},
+    "format_id": {"type": "string"},
+    "template_id": {"type": "string"},
+    "language": {"type": "string"},
+    "export_targets": {"type": "array", "items": {"type": "string"}},
+    "status": {"type": "string"},
+    "source_type": {"type": "string"},
+    "source_reference": {"type": "string"},
+    "project_root": {"type": "string"},
+    "localization_root": {"type": "string"},
+    "evidence_root": {"type": "string"},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "schema_version": {"type": "integer", "minimum": 1},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": true
+}

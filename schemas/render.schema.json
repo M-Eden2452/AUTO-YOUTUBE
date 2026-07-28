@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "render.schema.json",
+  "title": "final_render_manifest.json",
+  "type": "object",
+  "required": ["status", "output_path"],
+  "properties": {
+    "status": {"type": "string"},
+    "reason": {"type": "string"},
+    "render_status": {"type": "string"},
+    "completion_mode": {"type": "string"},
+    "output_kind": {"type": "string"},
+    "publish_ready": {"type": "boolean"},
+    "output_path": {"type": "string"},
+    "outputs": {"type": "object", "additionalProperties": {"type": "string"}},
+    "scene_count": {"type": "integer", "minimum": 0},
+    "segment_count": {"type": "integer", "minimum": 0},
+    "segments": {"type": "array", "items": {"type": "object"}},
+    "resolution": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": true
+    },
+    "renderer": {"type": "string"}
+  },
+  "additionalProperties": true
+}

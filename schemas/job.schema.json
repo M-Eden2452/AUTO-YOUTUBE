@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "job.schema.json",
+  "title": "news_to_short job.json",
+  "type": "object",
+  "required": [
+    "job_id",
+    "mode",
+    "channel_id",
+    "input_mode",
+    "language",
+    "status",
+    "current_stage",
+    "stages",
+    "localizations"
+  ],
+  "properties": {
+    "job_id": {"type": "string", "minLength": 1},
+    "mode": {"const": "news_to_short"},
+    "channel_id": {"type": "string"},
+    "input_mode": {"type": "string"},
+    "title": {"type": "string"},
+    "topic": {"type": "string"},
+    "source_urls": {"type": "array", "items": {"type": "string"}},
+    "input_text": {"type": "string"},
+    "user_assets": {"type": "array", "items": {"type": "string"}},
+    "language": {"type": "string", "minLength": 1},
+    "target_duration_sec": {"type": "integer", "minimum": 1},
+    "status": {"type": "string"},
+    "current_stage": {"type": "string"},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "stages": {
+      "type": "object",
+      "additionalProperties": {"$ref": "stage-state.schema.json"}
+    },
+    "localizations": {"type": "object"},
+    "localization": {"type": "object"},
+    "completion": {"type": "object"}
+  },
+  "additionalProperties": true
+}
