@@ -82,3 +82,6 @@ manual_assets/**/*.jpeg
 manual_assets/**/*.webp
 !manual_assets/**/*.svg
 !manual_assets/**/.gitkeep
+
+# Local agent permissions are machine-specific and must never enter the repository.
+/.claude/settings.local.json
