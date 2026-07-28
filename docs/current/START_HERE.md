@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 42d5b99
+last_verified_commit: f7b3a3c
 last_verified_date: 2026-07-28
 source_paths:
   - AGENTS.md

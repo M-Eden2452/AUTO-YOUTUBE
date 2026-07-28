@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 42d5b99
+last_verified_commit: f7b3a3c
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -18,7 +18,7 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-28 по implementation HEAD `42d5b99`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `f7b3a3c`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. На этом этапе production code, runtime и user data не перемещались и
 не удалялись.
@@ -45,7 +45,7 @@ source_paths:
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
 | S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
-| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | завершено в 5A (`87e272a`): news writer делегирует существующему atomic primitive | schema version завершена в 5B (`42d5b99`); lock и idempotency остаются отдельными slices | 5A complete |
+| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock | stage idempotency остаётся отдельным slice 5D | 5A–5C complete |
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system | 5 |
 | V01 | `anime_factory/` | `move` | отдельный рабочий CLI/workflow; catalog app `video_repurposer` disabled | переносить целиком через adapter с old entrypoint | 8 |
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
@@ -115,18 +115,37 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Project lock и stage idempotency не добавлялись; persisted/runtime manifests
   не изменялись.
 
+### Завершённый structural slice: 5C news project lock
+
+- Изменённые production-файлы: `src/project_foundation/storage.py` и
+  `src/news/project_store.py`.
+- Общий `project_lock` использует атомарное создание `.project.lock` через
+  `O_CREAT | O_EXCL`; активный lock приводит к fail-fast `ProjectLockError`.
+- Stale-lock policy: lock моложе или равный 300 секундам считается активным;
+  более старый lock перехватывается автоматически по filesystem mtime.
+  Owner token не позволяет старому writer удалить lock нового владельца.
+- `NewsProjectStore.write_json` определяет корень news-проекта по `job.json` и
+  держит project lock на время существующей atomic JSON write boundary.
+- Characterization в `tests/test_news_to_short_models.py` подтверждает active
+  lock denial, stale reclaim, прежний JSON format и отсутствие lock/tempfile
+  после успешной записи.
+- Targeted tests завершены:
+  `tests.test_news_to_short_models`, `tests.test_project_repository`,
+  `tests.test_news_to_short_pipeline`, `tests.test_project_factory` — 37 tests,
+  OK.
+- Manifest schemas и runtime projects не изменялись; lock не является
+  stage-транзакцией и не добавляет idempotency.
+
 ### Последующая очередь
 
-1. **Следующий slice 5C — project lock:** один existing writer boundary, tempfile tests и
-   documented stale-lock policy; не объединять с idempotency.
-2. **5D — stage idempotency:** один stage family за diff, с resume/force-stage
+1. **Следующий slice 5D — stage idempotency:** один stage family за diff, с resume/force-stage
    characterization.
-3. **6A–6G:** выполнять registry entries S01–S07 по одному подэтапу в порядке
+2. **6A–6G:** выполнять registry entries S01–S07 по одному подэтапу в порядке
    master plan; public imports сохранять adapters.
-4. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
-5. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
-6. **9:** удалять только entries со статусом `delete` и актуальным evidence.
-7. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
+3. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
+4. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
+5. **9:** удалять только entries со статусом `delete` и актуальным evidence.
+6. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
 
 ## Closure rule
 

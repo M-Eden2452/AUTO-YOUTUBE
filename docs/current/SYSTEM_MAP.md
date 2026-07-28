@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 42d5b99
+last_verified_commit: f7b3a3c
 last_verified_date: 2026-07-28
 source_paths:
   - ai_youtube
@@ -72,4 +72,6 @@ contracts и runtime roots зафиксированы в
 `NewsProjectStore` на существующий atomic write primitive без создания нового
 storage layer. Slice 5B добавил additive news schema version v1: новые записи
 версионированы, а старые `job.json` без поля читаются как v1 без массовой
-миграции. Следующий отдельный slice 5C добавляет project lock.
+миграции. Slice 5C добавил общий fail-fast project-lock primitive и применил его
+к `NewsProjectStore.write_json`; stale lock старше пяти минут перехватывается
+автоматически. Следующий отдельный slice 5D добавляет stage idempotency.

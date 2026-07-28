@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 42d5b99
+last_verified_commit: f7b3a3c
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -9,10 +9,13 @@ source_paths:
   - src/config_resolver/paths.py
   - src/content_creation/capabilities.py
   - src/news/models.py
+  - src/news/project_store.py
+  - src/project_foundation/storage.py
   - src/production_catalog
   - src/projects
   - schemas/job.schema.json
   - docs/adr/0004-news-job-schema-version.md
+  - docs/adr/0005-news-project-lock.md
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -20,9 +23,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по implementation HEAD `42d5b99`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `f7b3a3c`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6 и bounded slices 5A–5B завершены. Этап 5 выполняется.
+- Rescue stages 0–4.6 и bounded slices 5A–5C завершены. Этап 5 выполняется.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -33,7 +36,10 @@ source_paths:
   `project_foundation.atomic_write_json`, сохранив JSON shape, UTF-8 и trailing
   newline. Slice 5B добавил `NEWS_JOB_SCHEMA_VERSION=1` и обязательное поле
   `schema_version` в новые news manifests; старые `job.json` без поля читаются
-  как v1 без массовой миграции. Следующий bounded slice 5C — project lock.
+  как v1 без массовой миграции. Slice 5C добавил общий fail-fast project lock
+  вокруг `NewsProjectStore.write_json`: активный lock блокирует конкурирующую
+  запись, lock старше 300 секунд считается stale и перехватывается автоматически.
+  Следующий bounded slice 5D — stage idempotency.
 - `python -m ai_youtube` — канонический CLI активного `content_creator`;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request
@@ -56,8 +62,8 @@ source_paths:
 
 Известные переходные долги:
 
-- две формы project manifests сохраняются tolerant readers; project lock и stage
-  idempotency остаются отдельными slices этапа 5;
+- две формы project manifests сохраняются tolerant readers; lock сериализует
+  отдельные news JSON writes, а stage idempotency остаётся отдельным slice 5D;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter

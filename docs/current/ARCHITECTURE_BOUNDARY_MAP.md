@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 42d5b99
+last_verified_commit: f7b3a3c
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
@@ -16,9 +16,9 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-28 по implementation HEAD `42d5b99`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `f7b3a3c`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после slice
-5B; это не разрешение на массовое перемещение файлов.
+5C; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
@@ -107,7 +107,7 @@ planned adapter
 | `src.news.asset_manager` | news pipeline, quality/draft completion и replacement summary; использует `src.assets` и `src.providers` | assets, provider integration, slot-aware retrieval, semantic decisions, schema tests | разделять orchestration/search/download/completion в 6A |
 | `src.assets.semantic_visual_evaluation` | root pipeline и один выделенный test module | `test_semantic_visual_evaluation` | отделить offline evaluation/reporting от controlled live runtime в 6E |
 | `src.projects.ProjectRepository` | CLI, service, Wizard, replacement и rights report | `test_project_repository`, rights report, config parity, resume | сохранить единственным read API; writer не добавлять |
-| `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | news models/pipeline, service, renderer, repository tests | `job.json` writer использует существующий atomic primitive с 5A; новые manifests имеют schema v1 с 5B |
+| `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | news models/pipeline, service, renderer, repository tests | writer использует общий atomic primitive с 5A, schema v1 с 5B и fail-fast project lock с 5C |
 | `src.project_foundation` | Story Card service/integration, catalog, projects/rights | project foundation/factory, Story Card integration/provenance, schemas | сохранить `project.json` owner и atomic storage |
 | `src.config_resolver.paths` | CLI, apps, project stores, providers, audio/subtitles и legacy adapters | `test_stage3_workspace_paths`, config resolver/parity | сохранить единственным path/workspace resolver |
 | `src.assets.provider_contract` + `src.providers` | asset manager, preview/download/diagnostics и provider adapters | provider foundation/hardening, provider integration, documentary providers | сохранить единым asset provider contract |
@@ -168,7 +168,8 @@ Read-only snapshot файлов на 2026-07-28:
 2. `content_creator` владеет двумя active workflows, но не их shared
    infrastructure contracts.
 3. `ProjectRepository` остаётся общим read API поверх двух persisted форм;
-   write convergence начинается с общего atomic primitive, а не с третьей schema.
+   write convergence использует общий atomic primitive и project-lock primitive,
+   а не третью schema или writer.
 4. Asset providers реализуют `src.assets.provider_contract`; workflow не должен
    знать HTTP API после этапа 7.
 5. Audio approval/manifests, subtitle engine и path resolver — shared services,

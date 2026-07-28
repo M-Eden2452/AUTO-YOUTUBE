@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–4.6 и bounded slices 5A–5B завершены; этап 4.5
+Статус: **выполняется; этапы 0–4.6 и bounded slices 5A–5C завершены; этап 4.5
 сохранён как историческая диагностика и снят с critical path; этап 5 —
-Project и storage foundation — выполняется, следующий slice 5C**
+Project и storage foundation — выполняется, следующий slice 5D**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -763,7 +763,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 5. Project и storage foundation
 
-Статус: [ ] выполняется; slices 5A–5B завершены 2026-07-28, следующий slice 5C
+Статус: [ ] выполняется; slices 5A–5C завершены 2026-07-28, следующий slice 5D
 
 Задачи:
 
@@ -774,8 +774,9 @@ Wizard и service, уменьшение крупных функций и пер�
    implementation commit `42d5b99`.**
 5. Перевести NewsProjectStore на общий atomic storage. **Выполнено в slice 5A,
    implementation commit `87e272a`.**
-6. Добавить project lock.
-7. Добавить idempotency для повторных стадий.
+6. Добавить project lock. **Выполнено в slice 5C, implementation commit
+   `f7b3a3c`.**
+7. Добавить idempotency для повторных стадий. **Следующий slice 5D.**
 8. Сохранить чтение старых `job.json` и `project.json`.
 9. Не выполнять массовую миграцию.
 
@@ -986,9 +987,10 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> Начать только slice 5C: characterization-first добавить project lock вокруг
-> существующего news writer boundary с tempfile-проверками и документированной
-> stale-lock policy; не объединять с stage idempotency, schema migration или cleanup.
+> Начать только slice 5D: выбрать одно семейство news stages и
+> characterization-first зафиксировать повторный запуск, `resume` и
+> `force-stage`; не расширять изменение на другие stage families, schema,
+> project lock или cleanup.
 
 Не начинать с:
 
@@ -1012,15 +1014,17 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-28
-Завершённый bounded slice: 5B additive news schema version
+Завершённый bounded slice: 5C news project lock
 Текущий этап: 5 Project и storage foundation — выполняется
-Следующий bounded slice: 5C project lock
+Следующий bounded slice: 5D stage idempotency
+Исходный HEAD slice 5C: 5413185
+Implementation commit slice 5C: f7b3a3c
 Исходный HEAD slice 5B: ac30199
 Implementation commit slice 5B: 42d5b99
 Исходный HEAD slice 5A: 736f0c6
 Implementation commit slice 5A: 87e272a
 Ветка: master
-Git до slice 5B: чистый
+Git до slice 5C: чистый
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -1037,33 +1041,34 @@ Evidence-коммит этапа 4.5: fb374fd
 Коммит этапа 4.6: 736f0c6
 Выполнено:
 - полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP и architecture-change skill
-- проверены NewsJob, job schema, NewsProjectStore, ProjectRepository, фактические callers и targeted test family
-- сначала добавлены characterization новой записи v1 и tolerant read legacy payload без schema_version
-- подтверждено ожидаемое падение characterization до production change: 3 ImportError отсутствующей NEWS_JOB_SCHEMA_VERSION
-- добавлены NEWS_JOB_SCHEMA_VERSION=1 и additive поле NewsJob.schema_version
-- NewsJob.from_dict трактует отсутствующую legacy-версию как v1; явно сохранённую версию не перезаписывает
-- schemas/job.schema.json требует integer schema_version с minimum 1
-- массовая миграция не выполнялась; migration note зафиксирован в ADR 0004
-Изменения production code: только src/news/models.py
-Persisted contract: schemas/job.schema.json
-Characterization: tests/test_news_to_short_models.py, tests/test_artifact_schemas.py
-ADR/migration note: docs/adr/0004-news-job-schema-version.md
+- проверены NewsProjectStore, общий atomic storage primitive, writer callers и targeted test family
+- сначала добавлены tempfile characterization active-lock denial и stale-lock reclaim
+- подтверждено ожидаемое падение characterization до production change: 2 ImportError, остальные 5 tests OK
+- добавлен единый src.project_foundation.storage.project_lock без второго storage layer
+- lock атомарно создаётся через O_CREAT | O_EXCL и при contention fail-fast поднимает ProjectLockError
+- stale-lock policy: filesystem mtime старше 300 секунд разрешает автоматический reclaim
+- owner token не позволяет старому writer удалить lock нового владельца при cleanup
+- NewsProjectStore.write_json держит общий project lock вокруг существующего atomic_write_json
+- lock ограничен одной JSON write boundary и намеренно не реализует stage transaction/idempotency
+Изменения production code: src/project_foundation/storage.py, src/news/project_store.py
+Transient contract: .project.lock; persisted manifest schemas не изменялись
+Characterization: tests/test_news_to_short_models.py
+ADR: docs/adr/0005-news-project-lock.md
 Удаления и перемещения: не выполнялись
 Targeted checks:
-- .\venv\Scripts\python.exe -m unittest tests.test_news_to_short_models tests.test_artifact_schemas: OK, 13 tests
-- .\venv\Scripts\python.exe -m unittest tests.test_project_repository tests.test_news_to_short_pipeline: OK, 18 tests
+- .\venv\Scripts\python.exe -m unittest tests.test_news_to_short_models tests.test_project_repository tests.test_news_to_short_pipeline tests.test_project_factory: OK, 37 tests
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался; bounded persisted-contract change проверен указанным targeted family
+Full offline suite: не запускался; bounded storage change проверен указанным targeted family
 Runtime project IDs/artifacts: не создавались и не изменялись
 Сеть/API/TTS/Vision/render/платные действия: не выполнялись
 Найденные root causes:
-- news job manifest имел characterization schema, но не имел top-level version
-- общий tolerant reader уже существовал; для совместимости требовался additive default, а не новый reader или migration
+- atomic JSON replacement защищал целостность отдельного файла, но не обозначал исключительное владение news writer boundary
+- общий project_foundation storage module существовал, поэтому lock должен был расширить его, а не создавать новый workflow-specific слой
 Новые known issues: отсутствуют
-Следующий точный этап: 5C project lock, один bounded characterization-first diff
-Следующая точная команда: Get-Content -Raw -Encoding UTF8 src/news/project_store.py
-После чтения: проверить src/project_foundation/storage.py, все writer callers и добавить tempfile characterization lock/stale-lock policy
-Главный запрет: не объединять 5C с stage idempotency, schema migration или cleanup; не изменять persisted projects/runtime data
+Следующий точный этап: 5D stage idempotency, одно stage family за bounded characterization-first diff
+Следующая точная команда: Get-Content -Raw -Encoding UTF8 src/news/pipeline.py
+После чтения: проверить resume/force-stage branches и выбрать только одно ближайшее stage family с существующими tests
+Главный запрет: не расширять 5D на несколько stage families, schema/project-lock changes или cleanup; не изменять persisted projects/runtime data
 ```
 
 ---
