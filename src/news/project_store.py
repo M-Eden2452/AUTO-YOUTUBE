@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from src.project_foundation.storage import atomic_write_json
+
 from .models import NewsJob, NEWS_TO_SHORT_STAGES, utc_now_iso
 
 
@@ -95,8 +97,7 @@ class NewsProjectStore:
 
     @staticmethod
     def write_json(path: Path, data: dict[str, Any]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        atomic_write_json(path, data)
 
     @staticmethod
     def read_json(path: Path) -> dict[str, Any]:

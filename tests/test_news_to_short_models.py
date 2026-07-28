@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 class NewsToShortModelTests(unittest.TestCase):
@@ -54,6 +55,26 @@ class NewsToShortModelTests(unittest.TestCase):
             loaded = store.load_job(job.job_id)
             self.assertEqual(loaded.job_id, job.job_id)
             self.assertEqual(loaded.current_stage, "input")
+
+    def test_project_store_writes_json_atomically_without_changing_format(self) -> None:
+        from src.news.project_store import NewsProjectStore
+        from src.project_foundation import storage
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "nested" / "manifest.json"
+            data = {"title": "Почему киты поют?", "count": 2}
+            replace = storage.os.replace
+
+            with patch.object(storage.os, "replace", wraps=replace) as replace_spy:
+                NewsProjectStore.write_json(target, data)
+
+            self.assertEqual(
+                target.read_text(encoding="utf-8"),
+                '{\n  "title": "Почему киты поют?",\n  "count": 2\n}\n',
+            )
+            replace_spy.assert_called_once()
+            self.assertEqual(replace_spy.call_args.args[1], target)
+            self.assertEqual(list(target.parent.glob(f".{target.name}.*.tmp")), [])
 
     def test_rights_status_blocks_reference_only_assets(self) -> None:
         from src.news.models import AssetRights, RIGHTS_REFERENCE_ONLY, RIGHTS_USER_OWNED
