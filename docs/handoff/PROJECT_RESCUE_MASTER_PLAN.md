@@ -1,6 +1,6 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–2 завершены**
+Статус: **выполняется; этапы 0–3 завершены**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -609,7 +609,7 @@ G:\AI-YouTube-System\
 
 ### Этап 3. Единая система путей
 
-Статус: [ ] не начат
+Статус: [x] завершён 2026-07-28
 
 Задачи:
 
@@ -859,38 +859,41 @@ G:\AI-YouTube-System\
 
 ```text
 Последнее обновление: 2026-07-28
-Текущий этап: Этап 2 — завершён; следующий этап 3 ещё не начат
+Текущий этап: Этап 3 — завершён; следующий этап 4 ещё не начат
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
-Исходный HEAD этапа 2: c8eb8f6
-Implementation HEAD этапа 2: b7350b3
-Текущий HEAD перед handoff-only коммитом: b7350b3
-Рабочее дерево: подготовлено только обновление current metadata и handoff этапа 2
+Коммит этапа 2 и agent context: b7350b3
+Коммит handoff этапа 2: 8ed340d
+Исходный HEAD этапа 3: 8ed340d
+Implementation HEAD этапа 3: 0cd0e11
+Текущий HEAD перед handoff-only коммитом: 0cd0e11
+Рабочее дерево: подготовлены ADR 0002, current metadata и handoff этапа 3
 Выполнено:
 - master plan полностью прочитан; фактические Git/HEAD/status/diff проверены до изменений
-- обнаруженные незакоммиченные изменения этапа 1 просмотрены и перепроверены: 19 tests, OK, 0.902 s на Python 3.13.13
-- этап 1 зафиксирован отдельным коммитом c8eb8f6
-- создан короткий model-independent AGENTS.md; CLAUDE.md сокращён до thin adapter
-- созданы docs/current/START_HERE.md, SYSTEM_MAP.md и CURRENT_STATE.md с status, last_verified_commit, last_verified_date и source_paths
-- создан docs/adr и ADR 0001 о versioned source of truth
-- 10 устаревших handoff-документов без изменения содержания перенесены в docs/archive/handoff; в docs/handoff оставлен активный rescue master plan
-- штатным init_skill.py созданы и заполнены 6 skills в versioned skills/: create-short-video-first, evaluate-render-quality, resume-project, replace-visual-slot, architecture-change, create-handoff
-- добавлен tools/qa/check_agent_docs.py: проверка current metadata, срока актуальности, source_paths, локальных ссылок, archive boundary и структуры skills
-- внешний G:\AI-YouTube-System намеренно не создан как второй незаверсионированный источник; до появления sync contract он может быть только потребителем versioned материалов (ADR 0001)
-Targeted checks этапа 2:
-- .\venv\Scripts\python.exe -m tools.qa.check_agent_docs — OK
-- quick_validate.py для всех 6 skills — 6/6 valid
-- .\venv\Scripts\python.exe -B -m unittest tests.test_stage2_agent_onboarding — 3 tests, OK, 0.020 s
-Full offline suite: не запускался по указанию пользователя; для этапа 2 не требовался
+- до изменения поведения добавлен characterization test: явный --projects-root остаётся изолированным и авторитетным
+- в существующий src.config_resolver добавлены WorkspacePaths/ApplicationPaths и единая модель runtime/static путей
+- workspace поддержан через CLI, AI_YOUTUBE_WORKSPACE и JSON path config с приоритетом CLI > env > config > legacy default
+- versioned config/resources привязаны к корню репозитория; production-зависимость от cwd и машинный hardcoded G:\ удалены
+- ProjectRepository читает primary workspace с fallback на legacy projects; outputs имеют совместимый legacy fallback
+- явный --projects-root сохранён как изолированный compatibility contract
+- default workspace намеренно остаётся корнем репозитория до этапа 9; физический перенос runtime не выполнялся
+- content CLI, wizard/service, news workflow, root pipeline и project foundation используют общий resolver
+- создан ADR 0002 о workspace paths и storage compatibility
+Targeted checks этапа 3:
+- pre-change: .\venv\Scripts\python.exe -B -m unittest tests.test_stage3_workspace_paths — 1 test, OK, 0.790 s
+- основной affected-набор — 366 tests, OK, 78.469 s
+- wizard/assets/subtitles/story-card integration — 70 tests, OK, 20.908 s
+- capabilities smoke из cwd вне репозитория — OK
+Full offline suite: не запускался по указанию пользователя; для этапа 3 не требовался
 Runtime-проекты и пользовательские media не изменялись и не удалялись
-Runtime project IDs/artifacts: не создавались
-Не выполнено: этапы 3–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
-Новый known issue: bare python указывает на Python 3.10.11 и не имеет stdlib tomllib; проектные проверки запускать только через .\venv\Scripts\python.exe (Python 3.13.13)
+Runtime project IDs/artifacts: создавались только внутри TemporaryDirectory тестов и автоматически удалены; постоянные artifacts не создавались
+Не выполнено: этапы 4–11, cleanup, физическая миграция runtime, реальные provider/API/TTS вызовы
+Новый known issue: не обнаружен
 Платные действия: не выполнялись
 Сеть/API: не выполнялись
-Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 3 — «Единая система путей»
-Главный запрет: не начинать этап 4, пока этап 3 не завершён и не проверен
+Следующее действие после фиксации handoff: git status --short --branch; затем начинать только этап 4 — «Канонический CLI и app boundaries»
+Главный запрет: не начинать этап 5, пока этап 4 не завершён и не проверен
 ```
 
 ---

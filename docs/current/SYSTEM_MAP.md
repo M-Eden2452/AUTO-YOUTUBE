@@ -1,9 +1,10 @@
 ---
 status: current
-last_verified_commit: b7350b3
+last_verified_commit: 0cd0e11
 last_verified_date: 2026-07-28
 source_paths:
   - pipeline.py
+  - src/config_resolver/paths.py
   - src/content_creation
   - src/news
   - src/projects
@@ -22,6 +23,7 @@ source_paths:
 
 | Область | Текущий авторитет | Роль |
 |---|---|---|
+| Пути и workspace | `src/config_resolver/paths.py` | единый resolver versioned resources, runtime roots и legacy fallback |
 | Создание контента | `src/content_creation/` | CLI, wizard и application service |
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
@@ -47,7 +49,9 @@ video_repurposer
 Ключевые переходные ограничения:
 
 - `job.json` и `project.json` пока сосуществуют;
-- `ProjectRepository` читает обе формы и ничего не записывает;
+- `ProjectRepository` читает обе формы и legacy roots, но ничего не записывает;
 - `pipeline.py` и `src.content_creation.cli` пока оба публичны;
-- runtime всё ещё находится в репозитории;
-- единая система путей и канонический dispatcher относятся к следующим этапам rescue plan.
+- default workspace остаётся корнем репозитория до отдельной физической миграции;
+- произвольный workspace выбирается через CLI/env/path config, а versioned resources
+  остаются привязаны к репозиторию;
+- канонический dispatcher относится к следующему этапу rescue plan.
