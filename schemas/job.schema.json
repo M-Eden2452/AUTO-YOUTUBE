@@ -4,6 +4,7 @@
   "title": "news_to_short job.json",
   "type": "object",
   "required": [
+    "schema_version",
     "job_id",
     "mode",
     "channel_id",
@@ -15,6 +16,7 @@
     "localizations"
   ],
   "properties": {
+    "schema_version": {"type": "integer", "minimum": 1},
     "job_id": {"type": "string", "minLength": 1},
     "mode": {"const": "news_to_short"},
     "channel_id": {"type": "string"},

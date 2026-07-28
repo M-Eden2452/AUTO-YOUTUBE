@@ -13,6 +13,8 @@ INPUT_MODE_URL = "url"
 INPUT_MODE_TOPIC = "topic"
 INPUT_MODE_TEXT = "text"
 
+NEWS_JOB_SCHEMA_VERSION = 1
+
 RIGHTS_USER_OWNED = "user_owned"
 RIGHTS_LICENSED = "licensed"
 RIGHTS_CREATIVE_COMMONS = "creative_commons"
@@ -177,6 +179,7 @@ class NewsJob:
     stages: dict[str, StageState] = field(default_factory=dict)
     localizations: dict[str, LocalizationState] = field(default_factory=dict)
     localization: dict[str, Any] = field(default_factory=dict)
+    schema_version: int = NEWS_JOB_SCHEMA_VERSION
 
     @classmethod
     def create(
@@ -256,6 +259,7 @@ class NewsJob:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "NewsJob":
         data = dict(data)
+        data.setdefault("schema_version", NEWS_JOB_SCHEMA_VERSION)
         data["stages"] = {key: StageState(**value) for key, value in data.get("stages", {}).items()}
         data["localizations"] = {
             key: LocalizationState(**value) for key, value in data.get("localizations", {}).items()

@@ -7,8 +7,28 @@ from unittest.mock import patch
 
 
 class NewsToShortModelTests(unittest.TestCase):
+    def test_news_job_schema_version_is_additive_for_legacy_manifests(self) -> None:
+        from src.news.models import NEWS_JOB_SCHEMA_VERSION, NewsJob
+
+        legacy_payload = {
+            "job_id": "legacy_news_job",
+            "mode": "news_to_short",
+            "channel_id": "legacy_channel",
+            "input_mode": "topic",
+        }
+
+        restored = NewsJob.from_dict(legacy_payload)
+
+        self.assertEqual(restored.schema_version, NEWS_JOB_SCHEMA_VERSION)
+        self.assertEqual(restored.to_dict()["schema_version"], NEWS_JOB_SCHEMA_VERSION)
+
     def test_job_model_defaults_include_localization_and_stage_order(self) -> None:
-        from src.news.models import INPUT_MODE_TOPIC, NEWS_TO_SHORT_STAGES, NewsJob
+        from src.news.models import (
+            INPUT_MODE_TOPIC,
+            NEWS_JOB_SCHEMA_VERSION,
+            NEWS_TO_SHORT_STAGES,
+            NewsJob,
+        )
 
         job = NewsJob.create(
             channel_id="nature_science_news_ru",
@@ -19,6 +39,8 @@ class NewsToShortModelTests(unittest.TestCase):
         )
 
         self.assertEqual(job.mode, "news_to_short")
+        self.assertEqual(job.schema_version, NEWS_JOB_SCHEMA_VERSION)
+        self.assertEqual(job.to_dict()["schema_version"], NEWS_JOB_SCHEMA_VERSION)
         self.assertEqual(job.language, "ru")
         self.assertEqual(job.target_duration_sec, 55)
         self.assertEqual(job.resolution["width"], 1080)

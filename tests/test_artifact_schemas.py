@@ -59,7 +59,7 @@ class ArtifactSchemaContractTests(unittest.TestCase):
             self.assertIsInstance(schema.get("required"), list)
 
     def test_job_and_stage_state_match_their_contracts(self) -> None:
-        from src.news.models import NewsJob
+        from src.news.models import NEWS_JOB_SCHEMA_VERSION, NewsJob
 
         job = NewsJob.create(
             channel_id="nature_science_news_ru",
@@ -70,6 +70,13 @@ class ArtifactSchemaContractTests(unittest.TestCase):
         payload = job.to_dict()
 
         self.assert_matches_top_level_schema("job", payload)
+        schema = _load_schema("job")
+        self.assertIn("schema_version", schema["required"])
+        self.assertEqual(
+            schema["properties"]["schema_version"],
+            {"type": "integer", "minimum": 1},
+        )
+        self.assertEqual(payload["schema_version"], NEWS_JOB_SCHEMA_VERSION)
         self.assertEqual(payload["mode"], "news_to_short")
         self.assertGreater(len(payload["stages"]), 0)
         for stage in payload["stages"].values():
