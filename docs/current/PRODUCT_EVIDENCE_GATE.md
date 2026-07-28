@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fb374fd
+last_verified_commit: 9980839
 last_verified_date: 2026-07-28
 source_paths:
   - projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/job.json
@@ -123,7 +123,8 @@ $stage45Workspace = Join-Path ([System.IO.Path]::GetTempPath()) "ai-youtube-stag
 
 ## Следующий ограниченный этап: 4.5-R Product Repair
 
-Статус: **подготовлен, не начат**.
+Статус: **начат; read-only аудит локальных кандидатов завершён, repair не
+завершён**.
 
 Цель: улучшить только визуальную сборку указанного проекта до повторного Product
 Evidence Gate.
@@ -143,3 +144,54 @@ Evidence Gate.
    основного визуала и честном visual support.
 
 Этапы 4.6, 5 и последующие до результата 4.5-R не начинаются.
+
+## Checkpoint 4.5-R: локальные video-кандидаты
+
+На исходном HEAD `9980839` выполнен только read-only аудит уже скачанных файлов
+reference project. Project manifests, replacement records, media и stage state не
+изменялись.
+
+Под `assets/downloaded` найдено 11 MP4-путей, соответствующих 10 уникальным
+файлам: `scene_001_pexels_32800188.mp4` и
+`scene_002_pexels_32800188.mp4` побайтно совпадают
+(`009afdbdf013471569ac8bc7cd48a5ef3e38ecf1f9ff77a91298f8ba50a5be34`).
+Каждый файл проверен через `ffprobe`, SHA-256 и contact sheet из пяти
+равномерных кадров:
+
+| Локальный кандидат | Фактическое содержание | Решение |
+|---|---|---|
+| `scene_001_internet_archive_disney-...mp4` | детский мультфильм с косаткой | отклонён: не реальный материал |
+| `scene_001_pexels_20699003.mp4` | вид сверху на крупного серого кита с детёнышем | отклонён: не косатки; конфликт с `must_avoid` |
+| `scene_001_pexels_29817780.mp4` | дальний морской пейзаж и судно | отклонён: косаток и исследовательской сцены нет |
+| `scene_001_pexels_30966672.mp4` | пустой морской горизонт | отклонён: только generic B-roll без субъекта |
+| `scene_*_pexels_32800188.mp4` | крупные серые киты, один и тот же файл в двух путях | отклонён: не косатки; конфликт с `must_avoid` |
+| `scene_001_pexels_35389908.mp4` | гавань, грузовые суда и моторные лодки | отклонён: косаток и наблюдения исследователей нет |
+| `scene_001_pexels_5607993.mp4` | косатки под водой в открытой воде | пригоден как честный contextual B-roll, но уже используется в сцене 001 |
+| `scene_001_pixabay_20440.mp4` | прибой и пустой океан | отклонён: субъекта нет |
+| `scene_002_pexels_36417047.mp4` | дайвер у рифа, 8.091 s | отклонён: косаток нет, для сцены 002 клип слишком короток |
+| `scene_003_pixabay_264272.mp4` | медузы в искусственно освещённом аквариуме | отклонён: неверный субъект и captive material |
+
+Только `scene_001_pexels_5607993.mp4` присутствует в текущем asset manifest с
+полными provenance, checksum и разрешёнными правами; его фактический SHA-256
+`0b36b3160bf6a22c0f91e49960be4e094ef07d1cee3feed1372a46d569d5b8c8`
+совпадает с manifest. Для остальных остаточных MP4 локальный поиск не нашёл
+metadata reference с source page/license/checksum, поэтому их нельзя безопасно
+передавать в manual replacement как user-owned или rights-cleared.
+
+Итог checkpoint: среди локальных файлов нет двух честных rights-cleared
+video-кандидатов для слабых слотов `scene_002_slot_001` и
+`scene_003_slot_001`. Повторное использование одного и того же клипа сцены 001
+на протяжении всего Short формально убрало бы still holds, но не создало бы
+приемлемое продуктовое доказательство и не добавило бы visual support для
+research/behavior claims. Поэтому `assets replace` и downstream invalidation не
+выполнялись; Product Evidence Gate остаётся **FAIL**.
+
+Для продолжения требуется одно из двух явных действий владельца:
+
+1. передать локальные rights-cleared open-ocean/research video для сцен 002 и
+   003 вместе с source URL или license proof; либо
+2. отдельно разрешить provider search/download.
+
+После безопасной замены обоих слотов потребуется отдельное разрешение на реальный
+render; только затем повторяются stale `quality_check` → `final_render` →
+`export` и actual MP4/contact-sheet gate.

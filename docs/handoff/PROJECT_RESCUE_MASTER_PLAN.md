@@ -952,3 +952,48 @@ Runtime project IDs:
 
 Следующая точная команда:
 ```
+
+---
+
+## 16. Текущий handoff этапа 4.5-R — read-only checkpoint
+
+```text
+Последнее обновление: 2026-07-28
+Текущий этап: 4.5-R Product Repair начат, но не завершён; локальный кандидат-аудит завершён до первой replacement-операции
+Исходный HEAD этапа 4.5-R: 9980839
+Ветка: master
+Git до этапа: существовал чужой незакоммиченный diff docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md; он сохранён и не включается в commit checkpoint
+Reference project: 2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2
+Выполнено:
+- полностью прочитаны master plan, текущий handoff, PRODUCT_EVIDENCE_GATE и skill replace-visual-slot
+- сверены project status, replacement_queue.json, timeline_replacement_map.csv, assets_manifest.json и текущий assets replace --help
+- read-only найдено и проверено 11 локальных MP4-путей / 10 уникальных файлов в assets/downloaded
+- для каждого кандидата проверены ffprobe-параметры, SHA-256 и пять равномерных кадров
+- просмотрены три временных candidate atlas вне project workspace
+Фактический результат:
+- только уже выбранный scene_001_pexels_5607993.mp4 показывает косаток в открытой воде и имеет полный текущий provenance/rights record
+- остальные кандидаты показывают мультфильм, других китов, пустой океан, лодки, дайвера или медузу; у остаточных MP4 нет metadata reference в текущих manifests
+- пригодных честных rights-cleared локальных замен для scene_002_slot_001 и scene_003_slot_001 нет
+- повторять один и тот же клип сцены 001 на весь Short признано недостаточным для Product Evidence Gate
+Изменения runtime project: отсутствуют
+Replacement records / stale stages: не создавались; quality_check/final_render/export остаются в прежнем состоянии
+Product Evidence Gate: остаётся FAIL
+Targeted checks:
+- python -m ai_youtube project status --project-id ... --json: OK
+- python -m src.content_creation.cli assets replace --help: OK
+- python -m ai_youtube resume --help: OK
+- ffprobe всех 11 локальных MP4-путей: OK
+- SHA-256 всех 11 путей: OK; duplicate 32800188 подтверждён
+- локальные five-frame contact sheets всех 10 уникальных клипов просмотрены
+Full offline suite: не запускался; production code/contracts не менялись
+Сеть/API/provider search/download: не выполнялись
+Платные действия/TTS/Vision: не выполнялись
+Реальный render: не выполнялся
+Постоянные runtime artifacts: не создавались
+Временные artifacts: диагностические JPEG candidate contact sheets/atlases созданы вне project workspace
+Блокер: нужны локальные rights-cleared open-ocean/research video для сцен 002/003 или отдельное разрешение на provider search/download
+Разрешение на render: пока не запрашивается как следующий исполняемый шаг; сначала должны существовать и быть записаны подходящие replacements
+Следующее точное действие: владелец передаёт два локальных media с source URL/license proof либо явно разрешает provider search/download; до этого не выполнять replacement или resume
+После replacements: проверить record/checksum/provenance и stale state, затем отдельно запросить разрешение на quality_check → final_render → export
+Главный запрет: не начинать этапы 4.6, 5 или далее; не выдавать generic/misidentified footage за редкий удар
+```
