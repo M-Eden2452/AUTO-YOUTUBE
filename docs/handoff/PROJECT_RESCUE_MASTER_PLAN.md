@@ -1014,9 +1014,11 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-28
-Завершённый bounded slice: 5D stage idempotency for news research stage family
-Текущий этап: 5 Project и storage foundation — выполняется
-Следующий bounded slice: 5D stage idempotency for remaining stage families (or next bounded 5D slice)
+Завершённый bounded slice: Canonical CLI package migration to src/ai_youtube/cli
+Текущий этап: 5 Project и storage foundation / Structural migration — выполняется
+Следующий bounded slice: Следующий вертикальный перенос (например, core/projects или content_creator service)
+Исходный HEAD CLI migration slice: 40e6c17
+Implementation commit CLI migration slice: bb9e28a
 Исходный HEAD slice 5D: 5c17c4e
 Implementation commit slice 5D: 56dd2eb
 Исходный HEAD slice 5C: 5413185
@@ -1026,7 +1028,7 @@ Implementation commit slice 5B: 42d5b99
 Исходный HEAD slice 5A: 736f0c6
 Implementation commit slice 5A: 87e272a
 Ветка: master
-Git до slice 5D: чистый
+Git до CLI migration slice: чистый
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -1042,31 +1044,25 @@ Evidence-коммит этапа 4.5: fb374fd
 Коммит локального аудита 4.5-R: 05cc8ed
 Коммит этапа 4.6: 736f0c6
 Выполнено:
-- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, AGENTS.md, ADRs и skills
-- выполнена только проверка git status, log и diff
-- выбрано 100% локальное и бесплатное семейство стадий research (input: article/article.json, output: research/claims.json)
-- добавлены characterization tests (normal run, repeated normal run, resume, force-stage, missing output, invalid output)
-- подтверждено ожидаемое падение characterization test (AssertionError: 'research' not found in []) до production-изменения из-за слепого доверия полю status == 'completed'
-- расширен NewsProjectStore методами is_stage_completed и validate_stage_output без создания второго storage layer или глобального framework
-- validate_stage_output проверяет наличие research/claims.json и его валидность (словарь с непустым списком claims)
-- при отсутствии или повреждении claims.json стадия research не считается завершённой и выполняет повторный запуск на resume/repeat run
-- при force_stage=True стадия повторно выполняется независимо от сохранённого состояния
-Изменения production code: src/news/project_store.py (1 файл)
-Characterization tests: tests/test_news_to_short_pipeline.py
-ADR: docs/adr/0006-news-stage-idempotency.md
-Schemas/Manifests: не изменялись
-Runtime projects/user media: не затрагивались
-Сеть/API/TTS/Vision/render/платные действия: не выполнялись
+- прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, AGENTS.md, ADRs и skills
+- физически создан канонический пакет CLI: src/ai_youtube/cli/ main.py, commands/ (create.py, project.py, assets.py, diagnostics.py)
+- команды распределены по доменным модулям с ленивой загрузкой тяжелых зависимостей (Wizard)
+- src/content_creation/cli.py превращён в тонкий compatibility wrapper над ai_youtube.cli.main
+- корневые wrappers (ai_youtube/__main__.py, ai_youtube/cli/main.py) перенаправлены на src.ai_youtube.cli.main
+- сохранена работа всех legacy entrypoints (python -m src.content_creation.cli, pipeline.py)
+Изменения production code: src/ai_youtube/ (новые файлы), ai_youtube/ (wrappers), src/content_creation/cli.py
+ADR: docs/adr/0007-canonical-cli-package.md
 Targeted checks:
-- .\venv\Scripts\python.exe -m unittest tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory: OK, 39 tests
+- py_compile всех CLI-файлов: OK
+- Smoke test импортов (ai_youtube, ai_youtube.cli.main, src.ai_youtube, src.content_creation.cli): OK
+- Smoke test команд CLI (--help): python -m ai_youtube --help, python -m src.content_creation.cli --help, pipeline.py --help: OK
+- Targeted test suite: tests/test_stage4_canonical_cli.py tests/test_content_creation_cli.py tests/test_news_to_short_pipeline.py tests/test_news_to_short_models.py tests/test_project_repository.py tests/test_project_factory.py: OK, 68 tests
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался; bounded change проверен указанным targeted family
-Найденный root cause:
-- completed_stage_names ориентировался исключительно на текстовый статус job.stages[stage].status == 'completed' в job.json и игнорировал фактическое наличие и валидность обязательного выходного артефакта стадии на диске
 Ограничения текущей реализации:
-- проверено и защищено семейство стадий research; последующие семейства стадий (script, visual_plan, etc.) могут быть покрыты аналогичными валидаторами в следующих bounded 5D slices
+- перенесён только CLI dispatch и регистрация команд; Wizard, application service, storage и renderer остались в исходных пакетах до следующих вертикальных срезов
 Следующая точная read-only команда: git status --short --branch
-Остановить исполнение и передать отчёт пользователю. Не начинать следующий slice 5D автоматически.
+Остановить исполнение и передать отчёт пользователю. Не начинать следующий slice автоматически.
 ```
 
 ---

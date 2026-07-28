@@ -1,11 +1,12 @@
 ---
 status: current
-last_verified_commit: 56dd2eb
+last_verified_commit: bb9e28a
 last_verified_date: 2026-07-28
 source_paths:
   - pyproject.toml
   - .github/workflows/offline-tests.yml
   - ai_youtube
+  - src/ai_youtube/cli
   - src/config_resolver/paths.py
   - src/content_creation/capabilities.py
   - src/news/models.py
@@ -17,6 +18,7 @@ source_paths:
   - docs/adr/0004-news-job-schema-version.md
   - docs/adr/0005-news-project-lock.md
   - docs/adr/0006-news-stage-idempotency.md
+  - docs/adr/0007-canonical-cli-package.md
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -24,9 +26,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по implementation HEAD `56dd2eb`. Код и Git имеют приоритет.
+Проверено 2026-07-28 по implementation HEAD `bb9e28a`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6 и bounded slices 5A–5D завершены. Этап 5 выполняется.
+- Rescue stages 0–4.6 и bounded slices 5A–5D завершены. Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -34,16 +36,13 @@ source_paths:
   [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
 - Slice 5A перевёл `NewsProjectStore.write_json` на существующий
-  `project_foundation.atomic_write_json`, сохранив JSON shape, UTF-8 и trailing
-  newline. Slice 5B добавил `NEWS_JOB_SCHEMA_VERSION=1` и обязательное поле
-  `schema_version` в новые news manifests; старые `job.json` без поля читаются
-  как v1 без массовой миграции. Slice 5C добавил общий fail-fast project lock
-  вокруг `NewsProjectStore.write_json`: активный lock блокирует конкурирующую
-  запись, lock старше 300 секунд считается stale и перехватывается автоматически.
-  Slice 5D добавил output-validated stage idempotency для семейства стадий `research`:
-  `NewsProjectStore.is_stage_completed` проверяет статус `completed` и валидность `claims.json`,
-  повторно выполняя стадию при отсутствии или повреждении артефакта.
-- `python -m ai_youtube` — канонический CLI активного `content_creator`;
+  `project_foundation.atomic_write_json`. Slice 5B добавил `NEWS_JOB_SCHEMA_VERSION=1`.
+  Slice 5C добавил общий fail-fast project lock.
+  Slice 5D добавил output-validated stage idempotency для семейства стадий `research`.
+  Первый structural migration slice перенёс канонический CLI-слой в `src/ai_youtube/cli/`
+  с доменными модулями команд (`create`, `project`, `assets`, `diagnostics`), а `src/content_creation/cli.py`
+  сохранён как тонкий compatibility wrapper.
+- `python -m ai_youtube` — единственный канонический CLI;
   `src.content_creation.cli`, `pipeline.py` и `apps/*` сохранены для совместимости.
 - Команды CLI зарегистрированы отдельными domain parser modules; общий request
   builder используется CLI и Wizard, cycle CLI ↔ Wizard устранён.

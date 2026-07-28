@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 56dd2eb
+last_verified_commit: bb9e28a
 last_verified_date: 2026-07-28
 source_paths:
   - ai_youtube
