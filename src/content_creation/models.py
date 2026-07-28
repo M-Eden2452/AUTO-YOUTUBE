@@ -97,6 +97,10 @@ class ExecutionFlags:
     resume: bool = False
     until_stage: str = ""
     stage: str = ""
+    # Re-run an already-completed news_to_short stage instead of skipping it on
+    # resume. False everywhere by default and equivalent to pipeline.py's
+    # --force-stage, exposed here so a repair resume never needs the legacy CLI.
+    force_stage: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)

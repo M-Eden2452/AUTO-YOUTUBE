@@ -231,6 +231,13 @@ def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--language", default="ru")
     parser.add_argument("--title", default="")
     parser.add_argument("--topic", default="", help="Topic/idea (fullscreen_voiceover_v1).")
+    parser.add_argument(
+        "--target-duration",
+        dest="target_duration_sec",
+        type=int,
+        default=50,
+        help="Target duration in seconds for fullscreen_voiceover_v1 (default: 50).",
+    )
     parser.add_argument("--text", default="", help="Card headline text (story_card_text_only_v1).")
     parser.add_argument("--comment", default="", help="Card bottom-comment text (story_card_text_only_v1).")
     parser.add_argument("--source-asset", dest="source_asset_path", default="", help="Local video file (story_card_text_only_v1).")
@@ -274,6 +281,12 @@ def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--approve-paid-generation", action="store_true", help="Explicitly allow paid ElevenLabs synthesis.")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
+        "--force-stage",
+        action="store_true",
+        help="On --resume, re-run a news_to_short stage even if already marked completed "
+        "(e.g. after a visual_plan/asset_search wiring fix). Never forces a paid TTS call by itself.",
+    )
+    parser.add_argument(
         "--completion-mode",
         choices=["strict", "draft_complete"],
         default="",
@@ -314,6 +327,7 @@ def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
         text=text,
         source_asset_path=args.source_asset_path,
         topic=args.topic,
+        target_duration_sec=getattr(args, "target_duration_sec", 50),
         visual_briefs=_load_visual_briefs(getattr(args, "visual_brief_path", "")),
         completion_mode=getattr(args, "completion_mode", ""),
         script_adaptation=getattr(args, "script_adaptation", ""),
@@ -332,6 +346,7 @@ def _request_from_args(args: argparse.Namespace) -> ContentCreationRequest:
             dry_run=args.dry_run,
             prepare_only=args.prepare_only,
             resume=args.resume,
+            force_stage=getattr(args, "force_stage", False),
             stage="",
             until_stage="",
         ),

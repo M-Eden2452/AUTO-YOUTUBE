@@ -247,6 +247,92 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
             self.assertEqual(approval["voice_id"], "hDfThiytYnsDMuVgm6Qy")
             self.assertEqual(approval["model_id"], "eleven_multilingual_v2")
 
+    def test_visual_brief_can_be_attached_on_resume_not_only_at_creation(self) -> None:
+        """A real E2E run needed a visual_brief for scenes whose script.json already
+        existed (untranslated Russian narration left the general per-scene query
+        empty for every provider). Before this fix, --visual-brief was only ever
+        merged into the job at creation - request.visual_briefs was silently ignored
+        on resume. The merge is additive: a brief attached on an earlier resume must
+        not be erased by a later resume that only supplies a different scene's brief."""
+        from src.news.pipeline import create_news_to_short_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            projects_root = Path(tmp)
+            with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]):
+                job = create_news_to_short_job(
+                    projects_root=projects_root,
+                    channel_id="nature_science_news_ru",
+                    topic="Почему косатки взрывают рыбу",
+                    language="ru",
+                )
+            from src.news.project_store import NewsProjectStore
+
+            store = NewsProjectStore(projects_root)
+            job.visual_briefs = {"scene_001": {"subject": "orca"}}
+            store.save_job(job)
+
+            request = ContentCreationRequest(
+                project_id=job.job_id,
+                channel_id="nature_science_news_ru",
+                template_id="fullscreen_voiceover_v1",
+                language="ru",
+                visual_briefs={"scene_002": {"subject": "ocean sunfish"}},
+                execution=ExecutionFlags(resume=True),
+                project_overrides={"projects_root": str(projects_root)},
+            )
+            with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]), patch(
+                "src.news.pipeline.run_news_to_short_job"
+            ):
+                try:
+                    create_content(request)
+                except Exception:
+                    pass  # only the persisted job state matters for this test
+
+            reloaded = store.load_job(job.job_id)
+            self.assertEqual(reloaded.visual_briefs["scene_001"], {"subject": "orca"})
+            self.assertEqual(reloaded.visual_briefs["scene_002"], {"subject": "ocean sunfish"})
+
+    def test_force_stage_flows_from_request_to_the_asset_search_resume_call(self) -> None:
+        """A real E2E run needed to re-run visual_plan/asset_search after a wiring fix
+        for a project whose stages were already marked completed. The canonical
+        service had no way to do that - only pipeline.py's legacy --force-stage did.
+        This is the wiring test for the fix: ExecutionFlags.force_stage must reach
+        run_news_to_short_job's own force_stage, without touching the voice call
+        (never forces a paid TTS re-run by itself)."""
+        from src.news.pipeline import create_news_to_short_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            projects_root = Path(tmp)
+            with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]):
+                job = create_news_to_short_job(
+                    projects_root=projects_root,
+                    channel_id="nature_science_news_ru",
+                    topic="Почему у зебр полосы",
+                    language="ru",
+                )
+            request = ContentCreationRequest(
+                project_id=job.job_id,
+                channel_id="nature_science_news_ru",
+                template_id="fullscreen_voiceover_v1",
+                language="ru",
+                execution=ExecutionFlags(resume=True, force_stage=True),
+                project_overrides={"projects_root": str(projects_root)},
+            )
+            with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]), patch(
+                "src.news.pipeline.run_news_to_short_job"
+            ) as mocked:
+                mocked.return_value.completed_stages = []
+                mocked.return_value.status = "in_progress"
+                try:
+                    create_content(request)
+                except Exception:
+                    pass  # only the call arguments matter for this test
+
+            asset_search_call = next(
+                call for call in mocked.call_args_list if call.kwargs.get("until_stage") == "asset_search"
+            )
+            self.assertTrue(asset_search_call.kwargs.get("force_stage"))
+
     def test_explicit_profile_resolves_globally_for_channel_without_voices_yaml(self) -> None:
         # This is the exact bug report: nature_pulse has no voices.yaml of its own, but
         # the user explicitly passed --voice-profile ru_dom (registered in

@@ -497,6 +497,14 @@ def _create_fullscreen_voiceover(
     _notify(progress_callback, "project_create", "running")
     if request.execution.resume and request.project_id:
         job = store.load_job(request.project_id)
+        if request.visual_briefs:
+            # --visual-brief was only ever honored at creation (before script.json is
+            # first written); a real run needed to attach a brief after the fact, once
+            # the untranslated Russian narration had already left every scene's search
+            # query empty. Merged rather than replaced, so a brief written for one
+            # scene on an earlier resume survives a later resume that only adds another.
+            job.visual_briefs = {**job.visual_briefs, **{str(k): dict(v) for k, v in request.visual_briefs.items()}}
+            store.save_job(job)
     else:
         job = create_news_to_short_job(
             projects_root=projects_root,
@@ -551,6 +559,7 @@ def _create_fullscreen_voiceover(
             job_id=job.job_id,
             until_stage="asset_search",
             resume=True,
+            force_stage=bool(request.execution.force_stage),
             completion_mode=request.completion_mode,
             script_adaptation=request.script_adaptation,
         )

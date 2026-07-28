@@ -1,9 +1,11 @@
 """Replace one visual slot without rerunning research, scripting, or asset search.
 
-The replacement command is an explicit author action.  The supplied file is copied
-into the project, technically validated, recorded as confirmed user-owned material,
-and attached to exactly one existing :class:`VisualSlot`.  Derived render state is
-then marked stale so a normal pipeline resume can rebuild it.
+The replacement command is an explicit author action.  A new external file requires
+owner confirmation.  A file that is already a selected, rights-cleared project asset
+may instead be reused without rewriting its licence as ``user_owned``.  The supplied
+file is copied into the project, technically validated, and attached to exactly one
+existing :class:`VisualSlot`.  Derived render state is then marked stale so a normal
+pipeline resume can rebuild it.
 
 This module deliberately does not introduce another project repository.  Project kind
 is detected through the read-only :class:`ProjectRepository`; the news project's own
@@ -16,6 +18,7 @@ import json
 import os
 import re
 import shutil
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -38,7 +41,9 @@ from src.assets.semantic_selection.decision import (
     RESOLVED,
     RESOLVED_NEEDS_REVIEW,
     SUPPORT_FULL,
+    SUPPORT_PARTIAL,
     VERDICT_COMPLETE,
+    VERDICT_PARTIAL,
     SelectionDecision,
     framing_decision,
     read_decision,
@@ -108,13 +113,6 @@ def replace_visual_slot(
         raise VisualSlotReplacementError("A scene id is required.", code="scene_id_required")
     if not slot_id:
         raise VisualSlotReplacementError("A slot id is required.", code="slot_id_required")
-    if not confirm_user_owned:
-        raise VisualSlotReplacementError(
-            "Replacing a renderable slot requires explicit confirmation that the user "
-            "owns or controls the supplied media rights.",
-            code="rights_confirmation_required",
-        )
-
     repository = ProjectRepository(projects_root)
     root = _checked_project_root(repository, project_id)
     if repository.detect_kind(project_id) != PROJECT_KIND_NEWS_JOB:
@@ -145,6 +143,17 @@ def replace_visual_slot(
     validation = _validate_source(source, media_type)
     checksum = _checksum(source, label="replacement file")
     now = utc_now_iso()
+    reusable_source = None if confirm_user_owned else _find_reusable_asset(
+        assets_manifest,
+        checksum=checksum,
+    )
+    if not confirm_user_owned and reusable_source is None:
+        raise VisualSlotReplacementError(
+            "A new external replacement requires explicit confirmation that the user "
+            "owns or controls the supplied media rights. Files already selected in "
+            "this project may be reused without changing their recorded licence.",
+            code="rights_confirmation_required",
+        )
 
     proof_source = _checked_license_file(license_file)
     proof_checksum = _checksum(proof_source, label="license proof") if proof_source else ""
@@ -171,18 +180,31 @@ def replace_visual_slot(
     previous_slot = slot.to_dict()
     previous_asset = dict(slot.selected_asset)
     proof_record = _proof_record(proof_source, proof_target, proof_checksum)
-    replacement_asset, crop_decision = _build_replacement_asset(
-        project_id=project_id,
-        scene_id=scene_id,
-        slot=slot,
-        source=source,
-        target=media_target,
-        source_url=str(source_url or "").strip(),
-        checksum=checksum,
-        validation=validation,
-        proof_record=proof_record,
-        now=now,
-    )
+    if reusable_source is not None:
+        replacement_asset, crop_decision = _build_reused_asset(
+            project_id=project_id,
+            scene_id=scene_id,
+            slot=slot,
+            source_asset=reusable_source,
+            source=source,
+            target=media_target,
+            checksum=checksum,
+            validation=validation,
+            now=now,
+        )
+    else:
+        replacement_asset, crop_decision = _build_replacement_asset(
+            project_id=project_id,
+            scene_id=scene_id,
+            slot=slot,
+            source=source,
+            target=media_target,
+            source_url=str(source_url or "").strip(),
+            checksum=checksum,
+            validation=validation,
+            proof_record=proof_record,
+            now=now,
+        )
 
     # Validate every record that must be preserved before copying or writing anything.
     history_path = root / "assets" / "replacements" / "replacement_history.json"
@@ -209,6 +231,11 @@ def replace_visual_slot(
             assembly.completion_mode or str(completion_settings(job).get("mode") or "")
         ),
         now=now,
+        reused_asset_id=(
+            str(reusable_source.get("asset_id") or "")
+            if reusable_source is not None
+            else ""
+        ),
     )
     scene_usable = assembly.usable_in_draft
     if scene_usable:
@@ -228,7 +255,7 @@ def replace_visual_slot(
     )
 
     history_entry = {
-        "operation": "replace_visual_slot",
+        "operation": "reuse_visual_slot" if reusable_source is not None else "replace_visual_slot",
         "operation_id": f"replace_{checksum[:16]}_{now}",
         "replaced_at": now,
         "project_id": project_id,
@@ -239,6 +266,11 @@ def replace_visual_slot(
         "previous_slot": previous_slot,
         "previous_asset_id": str(previous_asset.get("asset_id") or ""),
         "replacement_asset_id": str(replacement_asset.get("asset_id") or ""),
+        "reused_asset_id": (
+            str(reusable_source.get("asset_id") or "")
+            if reusable_source is not None
+            else ""
+        ),
         "replacement_path": str(media_target),
         "checksum_sha256": checksum,
         "license_proof": proof_record,
@@ -278,7 +310,7 @@ def replace_visual_slot(
         warnings.append(f"replacement_report_not_regenerated:{type(exc).__name__}:{exc}")
 
     return {
-        "status": "replaced",
+        "status": "reused" if reusable_source is not None else "replaced",
         "project_id": project_id,
         "scene_id": scene_id,
         "slot_id": slot_id,
@@ -295,6 +327,48 @@ def replace_visual_slot(
         "report_paths": report_paths,
         "warnings": warnings,
     }
+
+
+def _find_reusable_asset(
+    manifest: dict[str, Any],
+    *,
+    checksum: str,
+) -> dict[str, Any] | None:
+    """Return a selected, rights-cleared asset with the same physical bytes."""
+
+    for scene in manifest.get("scenes") if isinstance(manifest.get("scenes"), list) else []:
+        if not isinstance(scene, dict):
+            continue
+        assets: list[dict[str, Any]] = []
+        selected = scene.get("selected_asset")
+        if isinstance(selected, dict):
+            assets.append(selected)
+        assembly = scene.get("visual_assembly")
+        if isinstance(assembly, dict):
+            for slot in assembly.get("slots") if isinstance(assembly.get("slots"), list) else []:
+                asset = slot.get("selected_asset") if isinstance(slot, dict) else None
+                if isinstance(asset, dict):
+                    assets.append(asset)
+        for asset in assets:
+            asset_checksum = str(
+                asset.get("checksum_sha256")
+                or (asset.get("provenance") or {}).get("checksum_sha256")
+                or ""
+            )
+            license_data = asset.get("license") if isinstance(asset.get("license"), dict) else {}
+            allowed = bool(
+                asset.get("allowed_for_render")
+                if "allowed_for_render" in asset
+                else license_data.get("allowed_for_render")
+            )
+            review_required = bool(
+                asset.get("review_required")
+                if "review_required" in asset
+                else license_data.get("review_required")
+            )
+            if asset_checksum == checksum and allowed and not review_required:
+                return deepcopy(asset)
+    return None
 
 
 def _checked_project_root(repository: ProjectRepository, project_id: str) -> Path:
@@ -660,6 +734,99 @@ def _build_replacement_asset(
     return asset, crop_decision
 
 
+def _build_reused_asset(
+    *,
+    project_id: str,
+    scene_id: str,
+    slot: VisualSlot,
+    source_asset: dict[str, Any],
+    source: Path,
+    target: Path,
+    checksum: str,
+    validation: dict[str, Any],
+    now: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Clone a project-vetted asset without inventing a new rights declaration."""
+
+    source_asset_id = str(source_asset.get("asset_id") or "")
+    asset = deepcopy(source_asset)
+    asset_id = stable_asset_id("safe_slot_reuse", project_id, scene_id, slot.slot_id, checksum)
+    asset.update(
+        {
+            "asset_id": asset_id,
+            "project_id": project_id,
+            "scene_id": scene_id,
+            "local_path": str(target),
+            "path": str(target),
+            "downloaded_path": str(target),
+            "original_filename": source.name,
+            "downloaded_at": now,
+            "checksum_sha256": checksum,
+            "technical_validation": dict(validation),
+            "selected_by": "safe_reuse",
+            "support_status": SUPPORT_PARTIAL,
+            "slot_verdict": VERDICT_PARTIAL,
+            "safe_reuse": {
+                "source_asset_id": source_asset_id,
+                "reused_at": now,
+                "source_scene_id": str(source_asset.get("scene_id") or ""),
+            },
+        }
+    )
+    provenance = deepcopy(asset.get("provenance") or {})
+    provenance.update(
+        {
+            "project_id": project_id,
+            "scene_id": scene_id,
+            "original_filename": source.name,
+            "downloaded_at": now,
+            "checksum_sha256": checksum,
+        }
+    )
+    metadata = deepcopy(provenance.get("metadata_snapshot") or {})
+    metadata["safe_reuse"] = {
+        "source_asset_id": source_asset_id,
+        "source_scene_id": str(source_asset.get("scene_id") or ""),
+        "target_slot_id": slot.slot_id,
+    }
+    provenance["metadata_snapshot"] = metadata
+    asset["provenance"] = provenance
+
+    prior_decision = deepcopy(asset.get(DECISION_KEY) or {})
+    prior_decision.update(
+        {
+            "scene_id": scene_id,
+            "asset_id": asset_id,
+            "support_status": SUPPORT_PARTIAL,
+            "support_requirements": ["safe_reuse"],
+            "slot_verdict": VERDICT_PARTIAL,
+            "render_ready": True,
+        }
+    )
+    reasons = list(prior_decision.get("selection_reasons") or [])
+    for reason in ("selected_by:safe_reuse", "author_confirmed_scene_fit"):
+        if reason not in reasons:
+            reasons.append(reason)
+    prior_decision["selection_reasons"] = reasons
+    asset[DECISION_KEY] = prior_decision
+
+    crop_decision = framing_decision(asset)
+    detected_status = str(crop_decision.get("status") or "")
+    if detected_status in FRAMING_HARD_REJECT:
+        raise VisualSlotReplacementError(
+            f"Reused asset cannot fill the project frame safely: "
+            f"{crop_decision.get('reason') or detected_status}",
+            code="technically_unsuitable",
+        )
+    crop_decision["automated_status"] = detected_status
+    crop_decision["manual_confirmation"] = True
+    crop_decision["confirmation_source"] = "safe_reuse"
+    if detected_status == FRAMING_CROP_REVIEW:
+        crop_decision["status"] = _MANUAL_CROP_APPROVED
+        crop_decision["render_ready"] = True
+    return asset, crop_decision
+
+
 def _apply_replacement(
     *,
     scene_entry: dict[str, Any],
@@ -669,11 +836,13 @@ def _apply_replacement(
     crop_decision: dict[str, Any],
     mode: str,
     now: str,
+    reused_asset_id: str = "",
 ) -> None:
+    quality_tier = TIER_EMERGENCY if reused_asset_id else TIER_EXACT
     usability = evaluate_usability(
         asset,
         mode=mode,
-        quality_tier=TIER_EXACT,
+        quality_tier=quality_tier,
         require_local_file=True,
     )
     if usability.blocked or not usability.usable_in_draft:
@@ -685,24 +854,38 @@ def _apply_replacement(
 
     slot.selected_asset = dict(asset)
     slot.media_types = [str(asset.get("media_type") or asset.get("type") or "")]
-    slot.support_status = SUPPORT_FULL
-    slot.quality_tier = TIER_EXACT
+    slot.support_status = (
+        str(asset.get("support_status") or SUPPORT_PARTIAL)
+        if reused_asset_id
+        else SUPPORT_FULL
+    )
+    slot.quality_tier = quality_tier
     slot.usability = usability
     slot.provenance = dict(asset.get("provenance") or {})
+    license_data = dict(asset.get("license") or {})
     slot.rights = {
-        "status": "user_owned",
-        "allowed_for_render": True,
-        "review_required": False,
-        "license": dict(asset.get("license") or {}),
-        "license_name": "user_owned",
+        "status": str(asset.get("rights_status") or license_data.get("rights_status") or ""),
+        "allowed_for_render": bool(
+            asset.get("allowed_for_render")
+            if "allowed_for_render" in asset
+            else license_data.get("allowed_for_render")
+        ),
+        "review_required": bool(
+            asset.get("review_required")
+            if "review_required" in asset
+            else license_data.get("review_required")
+        ),
+        "license": license_data,
+        "license_name": str(asset.get("license_name") or license_data.get("license_name") or ""),
         "rights_declaration": dict(asset.get("rights_declaration") or {}),
     }
     slot.crop_decision = dict(crop_decision)
     slot.replacement_priority = usability.replacement_priority
-    slot.reuse_of_asset = ""
-    slot.reuse_reason = ""
-    slot.ladder_level = "manual_replacement"
-    note = f"manual_replacement:{now}"
+    slot.reuse_of_asset = reused_asset_id
+    slot.reuse_reason = "author_selected_safe_project_reuse" if reused_asset_id else ""
+    slot.ladder_level = "safe_reuse" if reused_asset_id else "manual_replacement"
+    operation = "safe_reuse" if reused_asset_id else "manual_replacement"
+    note = f"{operation}:{now}"
     if note not in slot.notes:
         slot.notes.append(note)
 
@@ -712,7 +895,7 @@ def _apply_replacement(
         for item in assembly.replacement_recommendations
         if str(item.get("slot_id") or "") != slot.slot_id
     ]
-    assembly.ladder_trace.append(f"manual_replacement:{slot.slot_id}")
+    assembly.ladder_trace.append(f"{operation}:{slot.slot_id}")
     _refresh_assembly_status(assembly)
     attach_assembly(scene_entry, assembly)
 

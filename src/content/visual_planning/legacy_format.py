@@ -166,6 +166,7 @@ def scene_to_legacy(
     data: dict[str, Any] = {
         "scene_id": scene.scene_id,
         "narration": narration,
+        "on_screen_text": str((script_scene or {}).get("on_screen_text") or ""),
         "target_duration_sec": float((script_scene or {}).get("target_duration_sec") or scene.duration_sec or 3.5),
         "visual_type": MEDIA_KIND_SEARCH_TYPE.get(scene.preferred_media_kind, "video")
         if scene.preferred_media_kind != MEDIA_ANIMATED_IMAGE

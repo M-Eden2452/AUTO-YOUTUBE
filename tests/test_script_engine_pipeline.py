@@ -138,6 +138,24 @@ class PublicContractTest(unittest.TestCase):
     def test_result_is_json_serialisable(self) -> None:
         json.dumps(build_script(_job(), _research()), ensure_ascii=False)
 
+    def test_orca_topic_gets_video_first_retrieval_briefs_without_hard_exact_gate(self) -> None:
+        job = _job(
+            topic="Почему косатки взрывают огромных рыб",
+            input_text=(
+                "Косатки охотятся на рыбу-луну. "
+                "Учёные изучают точную координацию двух животных."
+            ),
+            script_source="user_script",
+        )
+        script = build_script(job, {})
+        briefs = [scene.get("visual_brief") for scene in script["scenes"]]
+        self.assertTrue(briefs)
+        self.assertTrue(all(brief and brief["subject"] == "orca killer whale" for brief in briefs))
+        self.assertTrue(all(brief["media_types"] == ["video", "image"] for brief in briefs))
+        self.assertTrue(all(not brief.get("must_include") for brief in briefs))
+        self.assertIn("dolphin", briefs[0]["must_avoid"])
+        self.assertTrue(briefs[0]["provider_queries"]["default"])
+
     def test_the_default_no_longer_produces_the_fixed_six(self) -> None:
         """The point of Q1: an article gets a script shaped by its own content."""
         script = build_script(_job(), _research())

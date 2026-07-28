@@ -101,6 +101,25 @@ def _ass_escape(text: str) -> str:
     return text.replace("{", "").replace("}", "").replace("\r", "").replace(NEWLINE, "\\N")
 
 
+def _ass_cue_text(cue: SubtitleCue, style: SubtitleStyle) -> str:
+    """Escape one cue and shrink only the unusually long line.
+
+    Segmentation normally keeps every line inside the configured width. A long
+    unbreakable word or a deliberately balanced two-line phrase can still exceed that
+    estimate; a small per-cue ASS override keeps it inside the horizontal safe area
+    without changing the global documentary style.
+    """
+    text = _apply_capitalization(cue.text, style)
+    escaped = _ass_escape(text)
+    longest = max((len(line) for line in text.splitlines()), default=0)
+    safe = max(1, style.effective_characters_per_line)
+    if longest <= safe:
+        return escaped
+    scale = safe / float(longest)
+    font_size = max(44, min(style.font_size, int(style.font_size * scale)))
+    return f"{{\\fs{font_size}}}{escaped}"
+
+
 def to_ass(cues: tuple[SubtitleCue, ...] | list[SubtitleCue], *, style: SubtitleStyle | None = None) -> str:
     effective = style or SubtitleStyle()
     header = [
@@ -119,7 +138,7 @@ def to_ass(cues: tuple[SubtitleCue, ...] | list[SubtitleCue], *, style: Subtitle
     ]
     events = [
         f"Dialogue: 0,{format_ass_time(cue.start_sec)},{format_ass_time(cue.end_sec)},Default,,0,0,0,,"
-        f"{_ass_escape(_apply_capitalization(cue.text, effective))}"
+        f"{_ass_cue_text(cue, effective)}"
         for cue in cues
     ]
     return NEWLINE.join(header + events) + NEWLINE

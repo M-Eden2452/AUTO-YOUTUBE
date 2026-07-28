@@ -19,7 +19,13 @@ from src.assets.completion.assembly import (
     read_assembly,
     slot_from_asset,
 )
-from src.assets.completion.modes import MODE_STRICT, TIER_EXACT, evaluate_usability
+from src.assets.completion.modes import (
+    MODE_DRAFT_COMPLETE,
+    MODE_STRICT,
+    TIER_EMERGENCY,
+    TIER_EXACT,
+    evaluate_usability,
+)
 from src.assets.completion.replacement import (
     VisualSlotReplacementError,
     replace_visual_slot,
@@ -599,6 +605,40 @@ class ManualAssetReplacementTests(unittest.TestCase):
             for path, previous in before.items():
                 self.assertEqual(path.read_bytes(), previous)
             self.assertFalse((project / "assets" / "replacements").exists())
+
+    def test_rights_cleared_project_asset_can_be_safely_reused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            projects_root, project, job = self._project(workspace)
+            manifest_path = project / "assets" / "assets_manifest.json"
+            manifest = _read(manifest_path)
+            manifest["scenes"][0]["visual_assembly"]["completion_mode"] = MODE_DRAFT_COMPLETE
+            manifest_path.write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            source = project / "assets" / "original_primary.png"
+
+            result = replace_visual_slot(
+                projects_root=projects_root,
+                project_id=job.job_id,
+                scene_id="scene_001",
+                slot_id="scene_001_slot_002",
+                source_file=source,
+            )
+
+            self.assertEqual(result["status"], "reused")
+            assembly = read_assembly(_read(manifest_path)["scenes"][0])
+            slot = assembly.slots[1]
+            self.assertEqual(slot.selected_asset["provider"], "fake")
+            self.assertEqual(slot.selected_asset["license_name"], "fake_test_license")
+            self.assertEqual(slot.reuse_of_asset, "old_primary")
+            self.assertEqual(slot.quality_tier, TIER_EMERGENCY)
+            self.assertNotEqual(slot.rights["status"], "user_owned")
+            self.assertEqual(
+                slot.selected_asset["safe_reuse"]["source_asset_id"],
+                "old_primary",
+            )
 
     def test_corrupt_media_fails_without_mutating_project(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

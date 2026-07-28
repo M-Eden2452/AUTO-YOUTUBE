@@ -275,8 +275,10 @@ def _voice_profile_label(profile: dict[str, Any], channel_id: str) -> str:
     return label
 
 TARGET_DURATION_CHOICES = [
-    ("30", "30 секунд"),
+    ("50", "50 секунд — рекомендуемый Shorts"),
     ("45", "45 секунд"),
+    ("55", "55 секунд"),
+    ("30", "30 секунд"),
     ("60", "60 секунд"),
     ("90", "90 секунд"),
     ("manual", "Указать вручную"),
@@ -338,6 +340,7 @@ class _WizardState:
 
 def _build_request(state: _WizardState) -> ContentCreationRequest:
     text: dict[str, str] = {"top": state.text_top} if state.text_top else {}
+    video_first = state.template_id == "fullscreen_voiceover_v1"
     return ContentCreationRequest(
         project_id=state.project_id,
         title=state.title,
@@ -366,6 +369,10 @@ def _build_request(state: _WizardState) -> ContentCreationRequest:
         execution=ExecutionFlags(
             dry_run=state.dry_run, prepare_only=state.prepare_only, resume=bool(state.project_id)
         ),
+        # The Wizard owns no creation logic: these are the working defaults it passes
+        # into the same service used by the flag-based CLI.
+        completion_mode="draft_complete" if video_first else "",
+        script_adaptation="light" if video_first else "",
     )
 
 
@@ -569,7 +576,21 @@ class _Wizard:
             state.voice_mode = "disabled"
             state.audio_file = ""
             return
-        provider_choices = [(p["provider_id"], f"{p['display_name']} ({p['provider_id']})") for p in capabilities.list_voice_providers()]
+        providers = capabilities.list_voice_providers()
+        if state.template_id == "fullscreen_voiceover_v1":
+            # Enter should choose a working narrated Short when ElevenLabs is
+            # configured. Disabled remains available, but is no longer the accidental
+            # default for a template whose defining feature is voice-over.
+            providers.sort(
+                key=lambda item: (
+                    0
+                    if item["provider_id"] == "elevenlabs" and item.get("available")
+                    else 1
+                    if item["provider_id"] == "audio_file"
+                    else 2
+                )
+            )
+        provider_choices = [(p["provider_id"], f"{p['display_name']} ({p['provider_id']})") for p in providers]
         state.voice_provider = self._select("voice", "Источник озвучки:", provider_choices)
         state.voice_profile = ""
         state.voice_profile_display_name = ""
@@ -660,6 +681,8 @@ class _Wizard:
             return
         subtitle_ids = set(template_caps["subtitle_style_ids"])
         options = [s for s in capabilities.list_subtitle_styles() if s["style_id"] in subtitle_ids]
+        if state.template_id == "fullscreen_voiceover_v1":
+            options.sort(key=lambda item: 0 if item["style_id"] == "documentary" else 1)
         choices = [(s["style_id"], f"{s['display_name']} ({s['style_id']})") for s in options]
         state.subtitle_style = self._select("subtitles", "Субтитры:", choices)
 
@@ -831,6 +854,10 @@ class _Wizard:
             print(f"    Текст карточки: {state.text_top}")
         if state.template_id == "fullscreen_voiceover_v1":
             print(f"{icons['timing']} Целевая длительность: {state.target_duration_sec} сек")
+            print("    Режим завершения: draft_complete")
+            print("    Адаптация сценария: light")
+            print("    Визуальный режим: video-first")
+            print("    Инфографический fallback: disabled")
         profile_label = state.voice_profile or "не настроено"
         if state.voice_profile_display_name:
             profile_label += f" (display_name={state.voice_profile_display_name}, model={state.voice_profile_model_id})"

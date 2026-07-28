@@ -3,11 +3,44 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
 
 class NewsToShortAssetTests(unittest.TestCase):
+    def test_standard_news_manifest_never_creates_emergency_infographic(self) -> None:
+        from src.news.asset_manager import build_news_asset_manifest
+
+        plan = {
+            "language": "ru",
+            "scenes": [
+                {
+                    "scene_id": "scene_001",
+                    "visual_type": "video",
+                    "allowed_media_kinds": ["video", "image"],
+                    "target_duration_sec": 4.0,
+                    "primary_query": "orca",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "src.news.asset_manager.create_default_asset_providers", return_value=[]
+        ):
+            manifest = build_news_asset_manifest(
+                visual_plan=plan,
+                user_assets=[],
+                dry_run=False,
+                project_root=tmp,
+                project_id="video_first",
+                completion_mode="draft_complete",
+            )
+
+        self.assertEqual(manifest["visual_mode"], "video_first")
+        self.assertFalse(manifest["infographic_fallback"])
+        self.assertIsNone(manifest["scenes"][0]["selected_asset"])
+        self.assertEqual(manifest["scenes"][0]["visual_assembly"]["slots"], [])
+
     def test_user_assets_are_selected_first_with_user_owned_rights(self) -> None:
         from src.news.asset_manager import build_assets_manifest
 

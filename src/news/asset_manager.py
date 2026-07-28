@@ -87,6 +87,8 @@ def build_assets_manifest(
     max_download_attempts: int = 3,
     completion_mode: str = "",
     reuse_ledger: ReuseLedger | None = None,
+    allow_infographic_fallback: bool = True,
+    allow_emergency_backdrop: bool = True,
 ) -> dict[str, Any]:
     completion_mode = normalize_mode(completion_mode)
     reuse = reuse_ledger if reuse_ledger is not None else ReuseLedger()
@@ -232,7 +234,12 @@ def build_assets_manifest(
                     scene_provider_attempts.append(attempt)
                     provider_attempts.append(attempt)
         generated_asset: dict[str, Any] | None = None
-        if source_class == CLASS_DATA_INFOGRAPHIC and project_root_path and not dry_run:
+        if (
+            allow_infographic_fallback
+            and source_class == CLASS_DATA_INFOGRAPHIC
+            and project_root_path
+            and not dry_run
+        ):
             # There is no footage of a statistic. Draw it from the scene's own numbers
             # instead of accepting whatever a stock search returns for the words.
             spec = spec_from_scene(scene)
@@ -425,6 +432,7 @@ def build_assets_manifest(
                 routing_decision=routing_decision,
                 provider_capabilities=provider_capabilities,
                 scene_provider_attempts=scene_provider_attempts,
+                allow_emergency_backdrop=allow_emergency_backdrop,
             )
             download_attempts.extend(ladder_attempts)
         if scene_review_bundle is not None:
@@ -569,6 +577,8 @@ def build_assets_manifest(
     return {
         "schema_version": ASSET_SCHEMA_VERSION,
         "dry_run": dry_run,
+        "visual_mode": "video_first" if not allow_emergency_backdrop else "mixed",
+        "infographic_fallback": bool(allow_infographic_fallback),
         "asset_selection": selection_config,
         "provider_order": ["user_assets", "local_library", *[provider.name for provider in providers or []]],
         "routing_decisions": routing_decisions,
@@ -624,6 +634,11 @@ def build_news_asset_manifest(
         project_id=project_id,
         completion_mode=completion_mode,
         reuse_ledger=reuse_ledger,
+        # fullscreen_voiceover_v1 is the ordinary video-first template. Generated
+        # figures remain available to explicit/direct infographic callers of
+        # build_assets_manifest, but are never its silent fallback.
+        allow_infographic_fallback=False,
+        allow_emergency_backdrop=False,
     )
 
 
@@ -849,6 +864,7 @@ def _complete_scene_assembly(
     routing_decision: dict[str, Any] | None = None,
     provider_capabilities: dict[str, dict[str, Any]] | None = None,
     scene_provider_attempts: list[dict[str, Any]] | None = None,
+    allow_emergency_backdrop: bool = True,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     """Fill one scene under ``draft_complete``, downloading whatever the ladder chose.
 
@@ -882,7 +898,7 @@ def _complete_scene_assembly(
         )
 
     emergency_factory = None
-    if project_root is not None and not dry_run:
+    if allow_emergency_backdrop and project_root is not None and not dry_run:
         emergency_factory = lambda target: _emergency_backdrop(  # noqa: E731 - one-line adapter
             target, project_root=project_root, project_id=project_id
         )
@@ -1497,22 +1513,41 @@ def _search_provider(
     project_id: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    media_type = _scene_media_type(scene)
     if _supports_stock_contract(provider):
-        request = AssetSearchRequest(
-            query=query,
-            media_type=media_type,
-            target_aspect_ratio="9:16",
-            orientation_preference="vertical",
-            min_width=720,
-            min_height=1280 if media_type in {"image", "video"} else 0,
-            max_results=limit,
-            scene_id=str(scene.get("scene_id") or ""),
-            project_id=project_id,
-            semantic_scene=semantic_scene,
-            negative_terms=list(semantic_scene.get("must_not_include") or scene.get("negative_keywords") or []),
-        )
-        return [_candidate_to_rankable(candidate) for candidate in provider.search(request)]  # type: ignore[arg-type]
+        preferred = _scene_media_type(scene)
+        media_types = [preferred]
+        allowed = {str(item) for item in (scene.get("allowed_media_kinds") or [])}
+        try:
+            supported = {str(item) for item in provider.capabilities().media_types}  # type: ignore[attr-defined]
+        except Exception:
+            supported = {preferred}
+        # The ordinary template is video-first, not video-only. A provider such as
+        # Wikimedia often has no clip for a rare animal but does have a properly
+        # licensed high-resolution photograph. Keep it in the same candidate pool so
+        # the existing ladder can choose it after suitable video.
+        if preferred == "video" and "image" in allowed and "image" in supported:
+            media_types.append("image")
+
+        results: list[dict[str, Any]] = []
+        for media_type in media_types:
+            request = AssetSearchRequest(
+                query=query,
+                media_type=media_type,
+                target_aspect_ratio="9:16",
+                orientation_preference="vertical",
+                min_width=720,
+                min_height=1280 if media_type in {"image", "video"} else 0,
+                max_results=limit,
+                scene_id=str(scene.get("scene_id") or ""),
+                project_id=project_id,
+                semantic_scene=semantic_scene,
+                negative_terms=list(semantic_scene.get("must_not_include") or scene.get("negative_keywords") or []),
+            )
+            results.extend(
+                _candidate_to_rankable(candidate)
+                for candidate in provider.search(request)  # type: ignore[arg-type]
+            )
+        return results
     try:
         return provider.search(query, scene, limit=limit)
     except TypeError:

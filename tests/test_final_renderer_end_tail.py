@@ -55,6 +55,46 @@ def _mean_volume_db(path: Path, start: float, length: float) -> float:
 
 
 class FinalRendererEndTailTests(unittest.TestCase):
+    def test_fullscreen_pacing_reaches_floor_with_bounded_adjustments(self) -> None:
+        from src.news.final_renderer import (
+            MAX_RESPONSE_HOLD_SEC,
+            MIN_NATURAL_SPEECH_TEMPO,
+            _delivery_pacing,
+        )
+
+        pacing = _delivery_pacing(
+            template_id="fullscreen_voiceover_v1",
+            preferred_duration_sec=50.0,
+            narration_duration_sec=36.45875,
+            visual_duration_sec=36.459,
+            baseline_duration_sec=37.20875,
+            tail_sec=0.75,
+        )
+
+        self.assertAlmostEqual(pacing["target_duration_sec"], 45.0, places=3)
+        self.assertGreaterEqual(pacing["speech_tempo"], MIN_NATURAL_SPEECH_TEMPO)
+        self.assertLessEqual(pacing["response_hold_sec"], MAX_RESPONSE_HOLD_SEC)
+
+    def test_retimes_ass_dialogue_without_changing_text(self) -> None:
+        from src.news.final_renderer import _retime_ass_subtitles
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.ass"
+            target = root / "retimed.ass"
+            source.write_text(
+                "[Events]\n"
+                "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+                "Dialogue: 0,0:00:10.00,0:00:20.00,Default,,0,0,0,,One, two\n",
+                encoding="utf-8",
+            )
+
+            _retime_ass_subtitles(source, target, time_scale=1.1)
+
+            rendered = target.read_text(encoding="utf-8")
+            self.assertIn("0:00:11.00,0:00:22.00", rendered)
+            self.assertIn("One, two", rendered)
+
     def test_final_render_trims_to_narration_plus_tail_not_visual_timeline(self) -> None:
         from src.assets.frame_sampling import ffprobe_media_info
         from src.audio.end_tail_policy import DEFAULT_TAIL_SEC

@@ -465,6 +465,30 @@ class LegacyFormatTest(unittest.TestCase):
     def test_the_stored_plan_is_serialisable(self) -> None:
         json.loads(json.dumps(self._stored(), ensure_ascii=False))
 
+    def test_on_screen_text_travels_from_the_script_scene_into_the_stored_plan(self) -> None:
+        """A real E2E run found every scene's emergency-backdrop fallback collapsing
+        onto one identical, reuse-limited asset: ``on_screen_text`` was never copied
+        from ``script.json`` into ``visual_plan.json``, so ``_emergency_backdrop``
+        (which reads it from the *visual plan* scene, not the script scene) always
+        built the card from an empty label, giving every scene the same fingerprint.
+        """
+        script = {
+            "scenes": [
+                {"scene_id": "scene_001", "on_screen_text": "Косатки научились взрывать рыбу"},
+                {"scene_id": "scene_002", "on_screen_text": "Одна косатка хватает добычу"},
+            ]
+        }
+        plan = build_plan(_request()).result
+        stored = to_legacy_visual_plan(plan, language="ru", script=script)
+
+        by_id = {scene["scene_id"]: scene for scene in stored["scenes"]}
+        self.assertEqual(by_id["scene_001"]["on_screen_text"], "Косатки научились взрывать рыбу")
+        self.assertEqual(by_id["scene_002"]["on_screen_text"], "Одна косатка хватает добычу")
+
+    def test_missing_on_screen_text_is_an_empty_string_not_a_missing_key(self) -> None:
+        stored = self._stored()
+        self.assertEqual(stored["scenes"][0]["on_screen_text"], "")
+
 
 if __name__ == "__main__":
     unittest.main()

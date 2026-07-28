@@ -392,15 +392,14 @@ class SerializationTests(unittest.TestCase):
             self.assertAlmostEqual(parsed.start_sec, original.start_sec, places=3)
             self.assertAlmostEqual(parsed.end_sec, original.end_sec, places=3)
 
-    def test_ass_style_line_matches_the_pre_q3_header(self) -> None:
-        """Подключение стиля канала само по себе не меняет картинку."""
+    def test_default_style_keeps_legacy_header_and_channel_style_uses_safe_margins(self) -> None:
         self.assertEqual(
             ass_style_line(SubtitleStyle()),
             "Style: Default,Arial,72,&H00FFFFFF,&H00000000,1,4,0,2,80,80,260,1",
         )
         self.assertEqual(
             ass_style_line(resolve_subtitle_style(channel_id="nature_science_news_ru")),
-            "Style: Default,Arial,72,&H00FFFFFF,&H00000000,1,4,0,2,80,80,260,1",
+            "Style: Default,Arial,64,&H00FFFFFF,&H00000000,1,4,0,2,120,120,360,1",
         )
 
     def test_ass_escapes_line_breaks_and_never_writes_negative_time(self) -> None:
@@ -410,6 +409,20 @@ class SerializationTests(unittest.TestCase):
         self.assertNotIn("\n\\N", text)
         self.assertNotIn("Dialogue: 0,-", text)
         self.assertEqual(text.count("Dialogue:"), len(result.cues))
+
+    def test_ass_shrinks_an_unusually_long_unbreakable_line(self) -> None:
+        cue = SubtitleCue(
+            cue_id="cue_001",
+            scene_id="scene_001",
+            index=1,
+            scene_cue_index=1,
+            start_sec=0.0,
+            end_sec=2.0,
+            text="сверхдлинноесловобезпереносакотороенельзяобрезать",
+        )
+        text = to_ass([cue], style=SubtitleStyle(font_size=64, max_characters_per_line=24))
+        self.assertIn(r"{\fs", text)
+        self.assertIn("сверхдлинноеслово", text)
 
     def test_unsupported_format_is_refused(self) -> None:
         from src.subtitles import serialize

@@ -541,6 +541,7 @@ def _dispatch_stage(
                         assets_manifest=assets,
                         voice_manifest=voice,
                         completion_mode=mode,
+                        preferred_duration_sec=job.target_duration_sec,
                     )
                     manifest["draft_render_gate"] = gate
                     manifest["publish_ready"] = False
@@ -553,6 +554,7 @@ def _dispatch_stage(
                     assets_manifest=assets,
                     voice_manifest=voice,
                     completion_mode=mode,
+                    preferred_duration_sec=job.target_duration_sec,
                 )
         store.write_json(root / "render" / "final_render_manifest.json", manifest)
         if mode == MODE_DRAFT_COMPLETE:

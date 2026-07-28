@@ -2197,6 +2197,118 @@ Offline dry-run (временная директория, без сети) пр�
 формулировкой запроса при пустом результате, targeted search в strict-режиме (по
 дизайну — strict не должен автоматически расширять поиск).
 
+## Stage Q2.4 — Real Production Shorts E2E + Unified Entry-Point Repair — ЗАВЕРШЁН
+
+Первый настоящий сквозной прогон создания ролика: подтверждённый пользователем
+сценарий → `draft_complete` → реальный поиск (Pexels/Pixabay/Wikimedia/NASA/Internet
+Archive) → Q2.3 targeted retrieval → реальная генерация ElevenLabs → субтитры →
+FFmpeg-рендер → готовый MP4 → replacement report. Не offline dry-run и не
+fake-provider тест — реальные сеть, реальный платный вызов, реальный файл на диске.
+
+### Диагностика (до этапа)
+
+Пользователь запустил создание через Wizard и получил `needs_review` с пустым
+`voice_manifest` (`provider_selection_required`) несмотря на подтверждённую платную
+генерацию. Аудит показал: `approval.json` записан корректно (provider/voice_id/
+script_hash/settings_hash совпадают с `voice_manifest.json`), но
+`src/news/voice_stage.py:169` проверяет `localization.tts_allowed` **до** чтения
+approval — а `voice_manifest.secret_configured=false` означало, что
+`ELEVENLABS_API_KEY` не был виден пайплайну на момент того прогона. Не баг мастера;
+проектная документация не читает и не показывает значения ключа.
+
+### Реальные блокеры, найденные E2E (не offline/fake-provider тестами)
+
+1. **`on_screen_text` не долетал до emergency-backdrop.** `visual_plan.json` никогда
+   не копировал `on_screen_text` из `script.json`
+   (`src/content/visual_planning/legacy_format.py:scene_to_legacy`). Emergency-backdrop
+   (`_emergency_backdrop` в `src/news/asset_manager.py`) строит `InfographicSpec` из
+   этого поля; при его отсутствии заголовок был пустым у **каждой** сцены →
+   идентичный `fingerprint()` → идентичный PNG → reuse-ledger (`max_uses=2,
+   min_scene_gap=1`) блокировал материал уже после второй сцены, оставляя 10 из 12
+   сцен вообще без слотов. Исправление: одна строка — `on_screen_text` теперь копируется
+   в `scene_to_legacy`. Тест:
+   `test_on_screen_text_travels_from_the_script_scene_into_the_stored_plan`
+   (`tests/test_visual_planning.py`).
+2. **`--force-stage` не существовал в каноническом сервисе.** Только у legacy
+   `pipeline.py` был этот флаг; после фикса выше требовалось пересобрать уже
+   `completed` стадии `visual_plan`/`asset_search`, а канонический
+   `content_creation.cli resume` не давал такой возможности — resume был объективно
+   заблокирован. Добавлено: `ExecutionFlags.force_stage`, флаг `--force-stage`
+   (`src/content_creation/cli.py`), проводка в `_create_fullscreen_voiceover`
+   (`src/content_creation/service.py`) — только к `until_stage=asset_search`,
+   никогда не форсирует платную генерацию голоса. Тест:
+   `test_force_stage_flows_from_request_to_the_asset_search_resume_call`.
+3. **`--visual-brief` работал только при создании проекта.** Пользовательский
+   сценарий не содержит `visual_brief` ни для одной сцены, а маленький закрытый
+   глоссарий (`src/assets/query_adapter.py`) не знает слов «косатка»/«рыба-луна» —
+   реальные провайдеры получали пустой запрос и помечались
+   `query_translation_required` (задокументированное, а не новое ограничение).
+   `request.visual_briefs` при этом применялся только в ветке создания проекта
+   (`_create_fullscreen_voiceover`), полностью игнорировался на resume — то есть
+   привязать бриф к уже созданному проекту было невозможно без пересоздания.
+   Исправление: на resume `request.visual_briefs` теперь **сливается** (не заменяет)
+   с `job.visual_briefs`. Автор брифа в этом прогоне — сам агент (перевод содержания
+   12 сцен на английский вручную, без LLM/сети), что и есть штатный путь
+   («автор задаёт visual_brief», не изобретённый перевод системой). Тест:
+   `test_visual_brief_can_be_attached_on_resume_not_only_at_creation`.
+
+### Что НЕ было багом
+
+Реальные Pexels/Pixabay/Internet Archive результаты (`whale`, `dolphin swimming`,
+`lizard hunting`) были корректно отклонены семантическим слоем (`support_status=
+unsupported` → `factually_misleading`) — это существующая защита Q2.2A-2 отказывает
+неверному материалу, а не ошибка проводки. Для темы «косатки взрывают рыбу» бесплатные
+библиотеки объективно не имеют подходящих кадров; все 12 сцен честно попали в
+`F_emergency` fallback — ожидаемый, а не аварийный исход `draft_complete`.
+
+### Итоговый прогон
+
+- Проект: `2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb-3`, канал
+  `nature_science_news_ru`, `completion_mode=draft_complete`,
+  `script_adaptation=light`, голос `elevenlabs/ru_dom` (Dom).
+- 12/12 сцен `usable_in_draft`, 0 `publish_ready`, 0 rights-blocked, 0 must_avoid,
+  0 unresolved. Все 12 — единственный emergency-slot с уникальным (после фикса)
+  сгенерированным PNG-фоном.
+- Реальная генерация ElevenLabs: `narration.wav`, 6.5 МБ, `voice_manifest.status=
+  completed`, `provider=elevenlabs`.
+- Финальный MP4: `draft_1080x1920.mp4`, 2.1 МБ, video=h264 1080×1920, audio=aac,
+  duration=68.7s. Декодирование первых и последних секунд — без ошибок (`ffprobe`
+  + `ffmpeg -f null`). Субтитры визуально подтверждены (кадр с горящим текстом
+  сохранён и проверен).
+- `quality_check.status=needs_review` (0 errors, 12 warnings) — ожидаемо для
+  черновика с одними emergency-фрагментами; `needs_review` не означает отсутствие
+  результата.
+- Все четыре replacement-артефакта (`replacement_report.json/.html`,
+  `replacement_queue.json`, `timeline_replacement_map.csv`) на диске, с timecodes,
+  scene/slot id, причиной, `search_queries`, готовой командой
+  `assets replace ... --confirm-user-owned`.
+- Повторный `resume` без `--approve-paid-generation`/`--force-stage` подтверждён
+  идемпотентным по платным/сетевым действиям: `narration.wav` не тронут (mtime
+  не изменился, голос не перегенерировался), `voice` stage вернул
+  `skipped_existing_audio`. Известное ограничение: `subtitles/preview_render/
+  quality_check/final_render/export` в каноническом сервисе перезапускаются на
+  каждом resume безусловно (не пропускаются по already-completed) — впустую
+  тратит CPU на повторный ffmpeg-рендер того же контента, но не платные вызовы
+  и не сетевые скачивания. Не исправлено в рамках этапа (не запрошено явно,
+  требует более широкой правки `_create_fullscreen_voiceover`).
+
+### Unified entry-point
+
+`--force-stage` и merge-семантика `--visual-brief` на resume добавлены в
+`ContentCreationRequest`/`ExecutionFlags` — единственный контракт, которым
+пользуются и canonical CLI (`create`/`resume`), и Wizard (по умолчанию `force_stage=
+False`, поведение не меняется), и любой будущий UI. Ни Wizard, ни CLI не получили
+собственной бизнес-логики — оба остаются тонкими фронтендами над
+`src.content_creation.service.create_content`.
+
+Targeted regression: 230 тестов (включая новые 4), OK. Полный suite: **1306 тестов,
+OK**.
+
+Не реализовано и не запускалось: Envato/Storyblocks, scraping, платный Vision, AI
+image generation, YouTube publishing, полноценный UI. Известное ограничение узкой
+глоссарий-таблицы (`src/assets/query_adapter.py`) для неанглоязычных тем без
+visual_brief остаётся прежним, задокументированным поведением.
+
 
 ---
 
