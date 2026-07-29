@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 0d2cd67
+last_verified_commit: 802a54c
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -20,6 +20,9 @@ source_paths:
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
+  - src/assets/frame_primitives.py
+  - src/assets/frame_sampling.py
+  - src/assets/perceptual_similarity.py
   - src/news
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -43,6 +46,7 @@ source_paths:
   - tests/test_content_creation_service_internals_contract.py
   - tests/test_semantic_visual_evaluation_internals_contract.py
   - tests/test_legacy_pipeline_internals_contract.py
+  - tests/test_asset_import_boundaries.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -137,4 +141,7 @@ offline tooling от controlled live runtime без нового engine или �
 root-pipeline import. Подэтап 6F оставил root `pipeline.py` 122-строчным
 compatibility facade и отделил parser, maintenance handlers и legacy
 channel/video workflow без изменения public command contract или patch-points.
-Следующий отдельный подэтап — 6G.
+Подэтап 6G вынес `SampledFrame`, file SHA-256 и perceptual image hash в
+`src.assets.frame_primitives`; прежние импорты из `frame_sampling`,
+`perceptual_similarity` и `src.assets` сохранены, а встречные static edges
+между sampling и similarity устранены. Следующий этап — 7.

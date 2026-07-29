@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 0d2cd67
+last_verified_commit: 802a54c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,18 +16,18 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `0d2cd67`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `802a54c`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure и подэтапов 6A–6F; это не разрешение на массовое перемещение файлов.
+stage 5 closure и подэтапов 6A–6G; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 278 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 270 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 236;
-- 106 модулей `tests/test_*.py`;
+- 279 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 271 production Python-файл: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 237;
+- 107 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
@@ -49,7 +49,7 @@ stage 5 closure и подэтапов 6A–6F; это не разрешение 
 
 | Область | Python-файлов | Фактическая роль |
 |---|---:|---|
-| `assets` | 45 | contracts, selection, download, preview, completion и split semantic tooling/runtime |
+| `assets` | 46 | contracts, selection, download, preview, completion и split semantic tooling/runtime |
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
@@ -131,13 +131,12 @@ planned adapter
 | `src.audio` | service, news voice/render, localization и subtitles timing | voice/narration/timeline/policy/manifest/end-tail families | сохранить approval, manifest и timing contracts |
 | `src.subtitles` | adapter `src.news.subtitles`, CLI и catalog | subtitle engine + pipeline integration | сохранить единственным subtitle engine |
 | `pipeline.py` + `src.legacy_pipeline` | `apps.youtube_pipeline`; facade сохраняет legacy engine/news/diagnostic imports и передаёт module patch-points split handlers | `test_legacy_pipeline_internals_contract`, Stage 1 characterization, apps structure, workspace paths, catalog, asset CLI wiring | 6F завершён: 122-строчный facade, 27-строчный `main`, parser/maintenance/workflow разделены; public command contract и patch-points сохранены |
-| `frame_sampling` ↔ `perceptual_similarity` | top-level edge similarity → sampling и local edge sampling → similarity | visual preview foundation/integration, temporal analysis | разорвать static cycle отдельным slice 6G |
+| `frame_sampling` + `perceptual_similarity` + `frame_primitives` | sampling и similarity зависят только от shared data/hash primitives; прежние public imports сохранены | `test_asset_import_boundaries`, visual preview foundation/integration, temporal analysis | 6G (`802a54c`) устранил оба встречных static edges |
 
-Локальный import в `frame_sampling.py:159` на
-`perceptual_similarity.image_perceptual_hash` и top-level import в
-`perceptual_similarity.py:10` на `SampledFrame, sha256_file` образуют
-подтверждённый двунаправленный static edge. CLI ↔ Wizard cycle, отмеченный
-исходным аудитом, в текущем коде уже отсутствует: направление осталось только
+Подэтап 6G вынес `SampledFrame`, `sha256_file` и `image_perceptual_hash` в
+минимальный `frame_primitives.py`. AST-characterization запрещает прежние
+встречные imports и требует общий primitive dependency. CLI ↔ Wizard cycle,
+отмеченный исходным аудитом, также отсутствует: направление осталось только
 CLI → Wizard через lazy import.
 
 ## Persisted contracts

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 0d2cd67
+last_verified_commit: 802a54c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -20,6 +20,9 @@ source_paths:
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
+  - src/assets/frame_primitives.py
+  - src/assets/frame_sampling.py
+  - src/assets/perceptual_similarity.py
   - pipeline.py
   - src/legacy_pipeline
   - src/news/models.py
@@ -43,6 +46,7 @@ source_paths:
   - tests/test_content_creation_service_internals_contract.py
   - tests/test_semantic_visual_evaluation_internals_contract.py
   - tests/test_legacy_pipeline_internals_contract.py
+  - tests/test_asset_import_boundaries.py
   - tests/test_news_stage_idempotency.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
@@ -51,9 +55,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `0d2cd67`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `802a54c`. Код и Git имеют приоритет.
 
-- Rescue stages 0–5 и подэтапы 6A–6F завершены; этап 6 продолжается с 6G.
+- Rescue stages 0–6, включая подэтапы 6A–6G, завершены; следующий этап — 7.
   Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
@@ -118,6 +122,11 @@ source_paths:
   самая длинная orchestration-функция split-модулей — 77 строк; command
   contract, workspace resolution, safe paid-call gates и старый workflow
   сохранены.
+- Подэтап 6G устранил подтверждённый static import-cycle
+  `frame_sampling` ↔ `perceptual_similarity`: `SampledFrame`, file SHA-256 и
+  perceptual image hash вынесены в минимальный `frame_primitives.py`.
+  Прежние public imports из обоих модулей и `src.assets`, image sampling,
+  signature generation, visual-preview и temporal-analysis поведение сохранены.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -140,8 +149,7 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- cycle frame sampling ↔ perceptual similarity — оставшийся подэтап 6G;
-- provider consolidation и вертикальные переносы приложений ещё не начаты;
+- provider consolidation этапа 7 и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не
   выполнялись.

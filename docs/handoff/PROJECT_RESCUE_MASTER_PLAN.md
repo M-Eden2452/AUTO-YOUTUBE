@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–5 и подэтапы 6A–6F завершены; этап 4.5 сохранён как
-историческая диагностика и снят с critical path; этап 6 продолжается,
-следующий отдельный подэтап — 6G Import cycles**
+Статус: **выполняется; этапы 0–6, включая подэтапы 6A–6G, завершены; этап 4.5
+сохранён как историческая диагностика и снят с critical path; следующий этап —
+7 Консолидация providers**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -807,7 +807,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 6. Разделение крупных модулей
 
-Статус: [~] выполняется; 6A–6F завершены 2026-07-29, следующий подэтап — 6G
+Статус: [x] завершён 2026-07-29; 6A–6G завершены
 
 Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
 Не объединять их в одну сессию без записанного исключения из бюджета области.
@@ -952,6 +952,23 @@ tooling.
 
 Устранить cycle frame sampling ↔ perceptual similarity и другие обнаруженные
 циклы отдельными малыми изменениями.
+
+Статус: [x] завершён 2026-07-29; implementation commit `802a54c`.
+
+Результат:
+
+- characterization-first зафиксировал прежние public imports
+  `SampledFrame`, `sha256_file`, `image_perceptual_hash`, package export
+  `src.assets.SampledFrame` и image sampling/signature behavior;
+- `SampledFrame`, file SHA-256 и perceptual image hash вынесены в минимальный
+  `src/assets/frame_primitives.py`;
+- `frame_sampling.py` и `perceptual_similarity.py` больше не импортируют друг
+  друга и зависят только от shared primitive; старые public import paths
+  сохранены;
+- targeted verification: 48 tests OK для import-boundary, visual-preview
+  foundation/integration и temporal analysis; compile/diff checks OK; full
+  offline suite, сеть, provider calls/download, Vision, TTS и render не
+  запускались.
 
 Критерий готовности:
 
@@ -1109,12 +1126,13 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только 6G Import cycles:
-> characterization-first подтвердить оба static edges
-> `frame_sampling` ↔ `perceptual_similarity`, public imports и visual-preview
-> tests. Вынести только минимальный shared data/hash primitive и доказать
-> отсутствие cycle. Не переоткрывать 6A–6F и не объединять 6G с provider
-> consolidation, vertical moves или cleanup.
+> В следующей отдельной сессии начать только этап 7 Provider consolidation:
+> read-only перепроверить существующий contract
+> `src.assets.provider_contract` + `src.providers`, его callers и compatibility
+> adapters D01/D02 из cleanup registry. Перед переводом первого bounded caller
+> добавить characterization. Не удалять adapters/downloader до отдельного
+> caller/replacement evidence, не выполнять provider search/download и не
+> объединять этап 7 с vertical moves или cleanup.
 
 Не начинать с:
 
@@ -1138,54 +1156,48 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 6F Legacy pipeline
-Текущий этап: 6 выполняется; 6A–6F завершены
-Следующий этап: 6G Import cycles — не начат
-Исходный HEAD 6F: 10c6827
-Implementation HEAD 6F: 0d2cd67
+Завершённый этап: 6G Import cycles; этап 6 завершён
+Текущий этап: этапы 0–6 завершены
+Следующий этап: 7 Provider consolidation — не начат
+Исходный HEAD 6G: d58cd5d
+Implementation HEAD 6G: 802a54c
 Ветка: master
-Git до работы: clean, HEAD 10c6827
+Git до работы: clean, HEAD d58cd5d
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены parser/dispatch, handler families, apps caller, root imports и test patch-points
-- characterization зафиксировал root facade signatures/delegation, старые module-level patch-points и synthetic --skip-render legacy workflow
-- root pipeline.py уменьшен с 703 до 122 строк; main — с 512 до 27 строк
-- public parser вынесен в src/legacy_pipeline/cli.py без изменения аргументов/defaults
-- maintenance/diagnostic handlers вынесены в src/legacy_pipeline/maintenance.py
-- legacy channel/video planning, render и evaluation orchestration вынесены в src/legacy_pipeline/workflow.py
-- facade передаёт свой namespace split handlers, поэтому старые monkeypatch-points управляют фактическим execution path без дублирования business logic
-- longest orchestration function split-модулей — 77 строк; нового dispatcher, workflow contract, path resolver или project system не создавалось
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены оба static edges, public imports, package export, production callers и visual-preview/temporal tests
+- characterization до production change зафиксировал импорты SampledFrame/sha256_file/image_perceptual_hash, src.assets.SampledFrame и image sampling/signature behavior
+- SampledFrame, file SHA-256 и perceptual image hash вынесены в минимальный src/assets/frame_primitives.py
+- frame_sampling.py и perceptual_similarity.py больше не импортируют друг друга и зависят только от shared primitive
+- прежние import paths из frame_sampling, perceptual_similarity и src.assets сохранены; provider contract, asset pipeline и orchestration не менялись
 Изменения production code:
-- pipeline.py
-- src/legacy_pipeline/__init__.py
-- src/legacy_pipeline/cli.py
-- src/legacy_pipeline/maintenance.py
-- src/legacy_pipeline/workflow.py
-Characterization tests: tests/test_legacy_pipeline_internals_contract.py и существующие tests/test_stage1_characterization.py, tests/test_stage3_workspace_paths.py, tests/test_production_catalog_foundation.py, tests/test_asset_cli_wiring.py, tests/test_semantic_visual_evaluation_internals_contract.py, tests/test_apps_structure.py
-ADR: не нужен; публичный contract и system boundary не изменялись
+- src/assets/frame_primitives.py
+- src/assets/frame_sampling.py
+- src/assets/perceptual_similarity.py
+Characterization tests: tests/test_asset_import_boundaries.py и существующие tests/test_visual_preview_foundation.py, tests/test_visual_preview_integration.py, tests/test_temporal_video_analysis.py
+ADR: не нужен; публичные import paths и system boundary сохранены
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- root facade, parser/workspace, catalog и semantic command wiring: OK, 53 tests
-- apps compatibility wrapper structure: OK, 1 test
-- compileall root facade/split legacy modules/characterization: OK
-- static size check: root main 27 lines, longest split orchestration function 77 lines
+- pre-change characterization compatibility contract: OK, 2 tests
+- import boundary, visual-preview foundation/integration и temporal analysis: OK, 48 tests
+- compileall shared primitive/sampling/similarity/characterization: OK
+- AST boundary: оба прежних встречных static imports отсутствуют; оба модуля импортируют frame_primitives
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 6F:
-- pipeline.py смешивал 131-строчный parser, maintenance/diagnostic commands и legacy channel/video orchestration в одном 512-строчном main
-- apps.youtube_pipeline зависит только от root main, но tests и external compatibility используют root imports как monkeypatch-points
-- безопасный split требует dependency adapter к root namespace, иначе patching facade перестаёт влиять на перенесённые handlers
+Найденные root causes 6G:
+- perceptual_similarity top-level импортировал SampledFrame и sha256_file из frame_sampling
+- frame_sampling function-local импортировал image_perceptual_hash из perceptual_similarity
+- SampledFrame, file SHA-256 и perceptual image hash являются независимыми data/hash primitives, общими для обоих модулей
 Новый known issue:
 - новых нет; существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не возвращать parser, maintenance handlers или legacy workflow orchestration в root pipeline.py facade
-- не удалять root compatibility imports/patch-points до отдельного caller и compatibility evidence
-- не создавать второй dispatcher, path resolver, legacy workflow contract или project system
-- не смешивать 6G import-cycle slice с provider consolidation, vertical moves или cleanup
+- не возвращать встречные imports между frame_sampling и perceptual_similarity
+- не переносить public imports прямо на frame_primitives без отдельного compatibility evidence
+- не создавать второй hash/frame contract и не смешивать завершённый 6G с provider consolidation
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только characterization 6G для frame_sampling ↔ perceptual_similarity: подтвердить оба edges, public imports и visual-preview tests; не запускать сеть, provider calls, Vision, TTS или render.
+После проверки Git начать только read-only caller/contract audit этапа 7 для src.assets.provider_contract, src.providers и compatibility D01/D02; не удалять adapters/downloader и не запускать provider search/download.
 ```
 
 ---

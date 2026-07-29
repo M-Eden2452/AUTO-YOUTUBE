@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 0d2cd67
+last_verified_commit: 802a54c
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -22,6 +22,9 @@ source_paths:
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
+  - src/assets/frame_primitives.py
+  - src/assets/frame_sampling.py
+  - src/assets/perceptual_similarity.py
   - pipeline.py
   - src/legacy_pipeline
   - src/news/asset_manager.py
@@ -36,6 +39,7 @@ source_paths:
   - tests/test_content_creation_service_internals_contract.py
   - tests/test_semantic_visual_evaluation_internals_contract.py
   - tests/test_legacy_pipeline_internals_contract.py
+  - tests/test_asset_import_boundaries.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -53,8 +57,9 @@ AI-YouTube — локальная offline-first система производ�
 
 Текущий rescue plan: [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md).
 Этап 5 Project и storage foundation и подэтапы 6A Asset manager,
-6B Внутренности CLI, 6C Wizard, 6D Application service, 6E Semantic evaluation
-и 6F Legacy pipeline завершены; следующий отдельный подэтап — 6G Import cycles.
+6B Внутренности CLI, 6C Wizard, 6D Application service, 6E Semantic evaluation,
+6F Legacy pipeline и 6G Import cycles завершены; следующий этап — 7 Provider
+consolidation.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

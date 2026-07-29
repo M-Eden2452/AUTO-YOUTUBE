@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 0d2cd67
+last_verified_commit: 802a54c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,9 +18,9 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `0d2cd67`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `802a54c`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. Подэтапы 6A–6F выполнили только bounded split production code; runtime и
+этапа 4.6. Подэтапы 6A–6G выполнили только bounded split production code; runtime и
 user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
@@ -44,7 +44,7 @@ user data не перемещались и не удалялись.
 | S04 | `src/content_creation/service.py` + use case modules | `split` | 6D (`8e087c7`) уменьшил facade с 878 до 123 строк, разделил Story Card/Fullscreen Voiceover use cases и явные fullscreen phases | выполнено; единый `create_content`, private imports, paid gate, tolerant resume и progress callback защищены characterization | 6D complete |
 | S05 | `src/assets/semantic_visual_evaluation.py` + tooling/runtime modules | `split` | 6E (`8c89a67`) оставил 53-строчный facade и отделил offline dataset/metrics/reporting от controlled live execution/checkpoints | выполнено; public signatures, dataclass shapes, root-pipeline import и paid-call gates защищены characterization | 6E complete |
 | S06 | `pipeline.py` + `src/legacy_pipeline` | `split` | 6F (`0d2cd67`) уменьшил root facade с 703 до 122 строк и разделил parser, maintenance handlers и legacy workflow | выполнено; старые imports, module patch-points, command/output contract и workspace resolution защищены characterization | 6F complete |
-| S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
+| S07 | `frame_sampling.py` + `perceptual_similarity.py` + `frame_primitives.py` | `split` | 6G (`802a54c`) вынес shared frame data/file hash/image hash primitives и устранил оба встречных static edges | выполнено; прежние public imports и visual-preview/temporal behavior защищены characterization | 6G complete |
 | M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock; 5D (`e3c90c3`) завершил output-validated idempotency | общий storage primitive и lock используются manifest owner; repeatable stages `research`–`export` проверяют обязательные outputs | 5 complete |
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system | 5 |
 | V01 | `anime_factory/` | `move` | отдельный рабочий CLI/workflow; catalog app `video_repurposer` disabled | переносить целиком через adapter с old entrypoint | 8 |
@@ -268,15 +268,27 @@ handoff. Порядок не разрешает перепрыгивать че�
   Full offline suite, сеть, provider calls/download, Vision, TTS и render не
   запускались.
 
+### Завершённый structural slice: 6G Import cycles
+
+- `tests/test_asset_import_boundaries.py` characterization-first зафиксировал
+  прежние imports `SampledFrame`, `sha256_file` и `image_perceptual_hash`,
+  package export `src.assets.SampledFrame` и image sampling/signature behavior.
+- `SampledFrame`, file SHA-256 и perceptual image hash вынесены в минимальный
+  `src/assets/frame_primitives.py` (`802a54c`).
+- `frame_sampling.py` и `perceptual_similarity.py` теперь зависят только от
+  shared primitive и больше не импортируют друг друга; старые public import
+  paths сохранены re-export-ами.
+- Targeted verification: 48 tests OK для import-boundary, visual-preview
+  foundation/integration и temporal analysis; compile и diff checks OK.
+  Full offline suite, сеть, provider calls/download, Vision, TTS и render не
+  запускались.
+
 ### Последующая очередь
 
-1. **6G:** выполнить registry entry S07 отдельным characterization-first
-   подэтапом; следующий отдельный подэтап — import cycle
-   `frame_sampling` ↔ `perceptual_similarity`.
-2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
-3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
-4. **9:** удалять только entries со статусом `delete` и актуальным evidence.
-5. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
+1. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
+2. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
+3. **9:** удалять только entries со статусом `delete` и актуальным evidence.
+4. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
 
 ## Closure rule
 
