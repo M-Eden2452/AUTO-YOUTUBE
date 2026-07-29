@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 75a2715
+last_verified_commit: 9f3ddba
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -22,6 +22,7 @@ source_paths:
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
   - docs/adr/0015-retire-news-stock-downloader.md
+  - docs/adr/0016-two-engine-product-architecture.md
   - content
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -29,7 +30,7 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 от clean HEAD `75a2715`. Код и Git имеют
+Проверено 2026-07-29 от clean HEAD `9f3ddba`. Код и Git имеют
 приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
@@ -37,7 +38,8 @@ source_paths:
 slices этапа 8 завершили canonical boundaries, documentary gate 8E закрыт без
 migration. Они не завершили ownership transfer старых package owners. Runtime и
 user data не перемещались и не удалялись. Этап 9A завершил D01–D03 отдельными
-bounded commits; 9B–9E добавлены после owner review и не начаты.
+bounded commits. 9B-P01 подтвердил два target engines; caller/ownership
+inventory C01–C16 ещё не выполнен.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `replace`, `archive`,
 `delete`, `do_not_touch`. `compatibility wrapper` — переходное состояние, а не
@@ -66,9 +68,9 @@ bounded commits; 9B–9E добавлены после owner review и не на
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system; physical ownership — отдельный 9D slice | 9D |
 | V00 | `src/content_creation/fullscreen_voiceover_use_case.py` | `delete` | slice 8A (`f8ac67e`, `06e6a25`) перенёс application use case в `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`; old path — 29-строчный wrapper | 9B callers, 9C canonical imports, 9E delete; `src.news` workflow ownership проверяется отдельно | 9B–9E |
 | V03 | `src/content_creation/story_card_use_case.py` | `delete` | slice 8B (`01cfc6f`) перенёс application use case в `src.ai_youtube.apps.content_creator.workflows.story_card`; old path — 12-строчный wrapper | 9B callers, 9C canonical imports, 9E delete; template/project/evidence ownership проверяется отдельно | 9B–9E |
-| V01 | `anime_factory/` | `move` | slice 8C (`7d0ce1e`) создал canonical lazy adapter; `anime_factory` всё ещё владеет CLI, `EpisodePaths`, workflow/output layout; catalog disabled/planned | 9B owner решает finish migration или archive; при keep 9D переносит ownership без копирования, 9E retires old package | 9B–9E |
+| V01 | `anime_factory/` | `move` | slice 8C (`7d0ce1e`) создал canonical lazy adapter; `anime_factory` всё ещё владеет CLI, `EpisodePaths`, workflow/output layout; catalog disabled/planned | owner P01 сохранил `video_repurposer` как второй target engine; 9B картирует modules, 9D обобщает/переносит без копирования, 9E retires old package | 9B–9E |
 | V02 | root legacy engines + `pipeline.py` + `src/legacy_pipeline` | `replace` | slice 8D (`cfe6ae6`) создал canonical lazy adapter; root facade остаётся namespace/patch-point owner, `src.legacy_pipeline` — behavior owner | 9B классифицирует команды; 9D сохраняет только нужные maintenance services; 9E удаляет root entrypoint последним | 9B–9E |
-| V04 | documentary channels + Solar fixed production plan | `archive` | gate 8E (`a3536a9`) подтвердил отсутствие template, disabled `longform`, legacy-only profiles, bespoke project contract и прямые live calls | 9B owner decision; не включать capability; inactive code не оставлять placeholder в active tree, runtime/user data не удалять | 9B decision |
+| V04 | documentary channels + Solar fixed production plan | `archive` | gate 8E (`a3536a9`) подтвердил отсутствие template, disabled `longform`, legacy-only profiles, bespoke project contract и прямые live calls | ADR 0016: future documentary — workflow/template `content_creator`; legacy path не переносить целиком, reusable parts только после audit; runtime/user data не удалять | 9B–9E |
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
 | D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | stage 9 zero-caller audit подтвердил только definitions/re-export/test references; active factory использует canonical `StockProvider` implementations | завершено: classes, raw provider imports и `asset_manager` re-exports удалены; `AssetProvider`/factory patch-point сохранены | 9 D01 complete |
@@ -80,7 +82,7 @@ bounded commits; 9B–9E добавлены после owner review и не на
 | N03 | `assets/`, `manual_assets/`, `music/`, voice samples | `do_not_touch` | runtime/config callers и rights-sensitive user media | backup/checksums до любой миграции; не удалять автоматически | всегда |
 | N04 | `content/`, включая `story_card_jobs.tsv` | `do_not_touch` | TSV не имеет runtime caller, но каталог содержит versioned legacy source content | отсутствие caller не доказывает право удалить user/source data | всегда |
 | N05 | `project_solar_vs_nuclear/` | `do_not_touch` | 102 runtime/experiment файла, 0 tracked | сохранять до отдельного owner decision | всегда |
-| N06 | `MOSS_TTS_Nano/`, `venv/` | `do_not_touch` | локальные toolchain roots, 0 tracked; MOSS вызывается legacy provider | не переносить/удалять в архитектурном slice | всегда |
+| N06 | `MOSS_TTS_Nano/`, model weights, `venv/` | `do_not_touch` | локальные runtime/toolchain roots, 0 tracked; MOSS/Whisper нужны существующим paths | C01/10 inventory: models → Workspace `model_cache` только copy/verify/switch; venv воспроизводить вне clean root; ничего не удалять автоматически | 9B/10 |
 
 ## 9B compatibility и ownership inventory
 
@@ -98,11 +100,16 @@ dependency, public promise, replacement и exit condition. Test-only caller са
 | C04 | `apps.news_to_short`, `apps.anime_factory`, `apps.youtube_pipeline` | compatibility packages и документированные module entrypoints | owner/external promise decision; убрать бессрочный `keep always` |
 | C05 | `src.news` против Fullscreen canonical boundary | application use case перенесён, staged workflow/project/assets всё ещё принадлежат `src.news` | определить app-specific и shared ownership, затем переносить без копирования |
 | C06 | `src.templates.story_card`/`src.production_plan` против Story Card boundary | project/evidence/render contracts остаются у прежних owners | определить shared contracts и workflow owner; не создавать второй renderer |
-| C07 | `anime_factory` против Anime Clipper adapter | adapter новый, implementation/output layout старые, capability disabled | owner decision `finish migration` или `archive` |
+| C07 | `anime_factory` против Anime Clipper adapter | adapter новый, implementation/output layout старые, capability disabled | P01: finish migration в единый `video_repurposer`; C01 должен разложить modules по app-specific/shared ownership |
 | C08 | `pipeline.py`/`src.legacy_pipeline` против legacy adapter | root namespace, patch-points и behavior разделены между переходными paths | классифицировать каждую command family; root wrapper удалить последним |
 | C09 | `src.assets.semantic_visual_evaluation` | public facade нужен root pipeline | пересмотреть после C08; не удалять раньше единственного caller |
 | C10 | `src.projects` + `src.project_foundation` + manifest writers | один read API и storage primitives, но physical owners разделены persisted forms | единый public owner поверх tolerant formats, без массовой manifest migration |
 | C11 | exact-identical production entry stubs | две package `__main__` копии и три `apps/*/__main__.py` копии | удалять вместе с parent surface; не добавлять shared boilerplate abstraction |
+| C12 | `src.audio.music_manifest` против `src.music_engine`/`music_finder`/`music_tools` | modern manifest/rights path и legacy search/download/mix paths сосуществуют; final renderers используют разные части | выбрать один shared music owner, сохранить license manifest/ducking, raw network перевести на provider/approval contracts или retire |
+| C13 | `anime_factory.modules.subtitles` против `src.subtitles` | Anime пишет candidate-relative SRT/ASS своим formatter; общий subtitle engine уже имеет timing/style/serialization/manifests | сохранить только app-specific relative-cue adapter, использовать общий engine/serialization вместо второго subtitle stack |
+| C14 | Anime FFmpeg/crop/render helpers против news/root renderers | несколько FFmpeg runners и render orchestrations; crop/scoring действительно domain-specific | один shared FFmpeg execution boundary и render contracts; crop/layout orchestration остаётся у workflow, не создавать один giant renderer |
+| C15 | Anime `EpisodePaths`/JSON layout против `WorkspacePaths`/`ProjectRepository` | Anime runtime живёт под package root и не распознаётся общим repository | app-scoped project path через существующий resolver, tolerant legacy episode reader; не создавать third project system |
+| C16 | Anime transcription/audio/scene analysis/candidate scoring | единственная рабочая source-to-clips реализация уже существует в Anime modules | переносить/обобщать существующие modules внутри `video_repurposer`; shared service только при доказанном втором caller |
 
 ## Delete evidence
 
@@ -505,12 +512,13 @@ handoff. Порядок не разрешает перепрыгивать че�
 ### Последующая очередь
 
 1. **9A:** D01–D03 завершены отдельными проверенными commits.
-2. **9B:** выполнить read-only compatibility/product-surface/ownership
-   inventory и заполнить C01–C11 фактическими callers/decisions.
-3. **9C:** переводить callers на canonical imports по одному family.
-4. **9D:** передавать ownership реализации по одному workflow/subsystem.
-5. **9E:** удалять old wrappers/package roots после zero-caller gate.
-6. **10:** только после этапа 9 начать раздельные docs/generated/cache/runtime/
+2. **9B-P01:** два target engines и место documentary подтверждены ADR 0016.
+3. **9B-C01:** выполнить read-only compatibility/ownership inventory и
+   заполнить C01–C16 фактическими callers/decisions.
+4. **9C:** переводить callers на canonical imports по одному family.
+5. **9D:** передавать ownership реализации по одному workflow/subsystem.
+6. **9E:** удалять old wrappers/package roots после zero-caller gate.
+7. **10:** только после этапа 9 начать раздельные docs/generated/cache/runtime/
    root-minimization slices; никаких user-data deletions.
 
 ## Closure rule

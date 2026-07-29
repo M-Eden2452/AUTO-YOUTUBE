@@ -42,13 +42,18 @@
 
 - `python -m ai_youtube` — канонический CLI; `src.content_creation.cli`,
   `pipeline.py` и `apps/*` — переходные compatibility entrypoints этапа 9.
-- Активное приложение — `content_creator`. Не представляй disabled/planned приложения
-  как готовые.
+- Целевые application engines — `content_creator` и `video_repurposer`; сейчас
+  активен только `content_creator`. Не представляй planned/disabled repurposer как готовый.
 - Активные шаблоны: `fullscreen_voiceover_v1` и `story_card_text_only_v1`.
+- Anime Factory — существующий migration source для `video_repurposer`, а не
+  повод создавать второй clip pipeline. Documentary/longform относится к
+  будущим workflows/templates `content_creator`, а не к третьему приложению.
 - `src/projects/ProjectRepository` — общий read-only слой над существующими
   `job.json` и `project.json`; не создавай третью project-систему.
 - Не создавай второй provider contract, asset pipeline, voice registry, subtitle engine,
   configuration resolver, readiness contract или completion ladder.
+- Новые source types и video formats добавляй через существующий catalog,
+  workflow/template policies и shared services, а не копированием engine.
 - `strict` остаётся режимом completion по умолчанию. `draft_complete` — явный opt-in,
   всегда `publish_ready=false` и не ослабляет права, `must_avoid`, conflict и
   misleading-content gates.

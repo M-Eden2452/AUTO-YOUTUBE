@@ -4,8 +4,9 @@
 сохранён как историческая диагностика и снят с critical path; этап 8 создал
 canonical application boundaries, но не завершил передачу владения всей
 реализацией; этап 9A завершён bounded slices D01–D03; после owner review цель
-усилена до фактической консолидации, поэтому первый незавершённый этап —
-9B compatibility и canonical-ownership inventory**
+усилена до фактической консолидации; 9B-P01 зафиксировал два целевых application
+engines на основе уже существующего кода; первый незавершённый checkpoint —
+9B-C01 compatibility и canonical-ownership inventory**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -164,7 +165,8 @@ HEAD на момент аудита: `8d61a06`
 
 Не переписывать без необходимости:
 
-- `src/content_creation/` как существующий application service и canonical CLI;
+- `src/content_creation/` как существующий application service и временный
+  compatibility CLI;
 - `src/news/` как основной рабочий `fullscreen_voiceover` workflow;
 - `src/projects/ProjectRepository`;
 - `src/project_foundation/`;
@@ -178,7 +180,7 @@ HEAD на момент аудита: `8d61a06`
 - manual asset replacement;
 - network guard в тестах;
 - старые manifests и tolerant readers;
-- compatibility wrappers;
+- compatibility wrappers до их callers/replacement/retirement gate;
 - реальные проекты, рендеры, voice samples и доказательства лицензий.
 
 ---
@@ -246,53 +248,79 @@ CLI, Wizard, asset manager и application service одновременно:
 ## 6. Целевая продуктовая модель
 
 ```text
-Application
+Shared platform
+  → projects / catalog / paths / rights
+  → assets / providers
+  → audio / TTS / music
+  → subtitles
+  → rendering / FFmpeg / export
+
+Application engine
   content_creator
-    → fullscreen_voiceover
-    → story_card
+    → создаёт новые короткие и длинные видео
+    → current: fullscreen_voiceover, story_card
+    → future: longform/documentary workflows через templates
 
   video_repurposer
-    → anime_clipper
-
-  documentary
-    → будущие longform workflows
+    → делает нарезки из существующих длинных видео
+    → source types: streams, animation, films, podcasts, local/source video
+    → current implementation source: Anime Factory
+    → target workflow family: source_to_clips
 
   legacy_pipeline
-    → только обратная совместимость
+    → только временная compatibility/maintenance boundary
 ```
 
-Story Card рассматривается как workflow/template внутри `content_creator`, а не как
-отдельная инфраструктурная платформа.
+Это два application engines, а не две копии платформы. Они обязаны использовать
+одни и те же project, workspace, catalog, rights, asset/provider, audio/music,
+subtitle, rendering и export contracts.
 
-До этапа 9B подтверждённый обязательный product surface ограничен активным
-`content_creator` и двумя шаблонами. Остальные ветви требуют явного решения
-владельца:
+Фактический и целевой product surface:
 
 | Capability | Текущее состояние | Финальное правило |
 |---|---|---|
-| `content_creator/fullscreen_voiceover` | active | сохранить и передать одному canonical owner |
-| `content_creator/story_card` | active | сохранить как workflow/template, без второй платформы |
-| `video_repurposer/anime_clipper` | adapter есть, capability disabled | либо завершить ownership transfer и включать только после evidence, либо архивировать implementation вне active tree |
+| `content_creator` | active только для двух short templates | один engine для short/long creation; новые форматы добавляются templates/workflows поверх shared services |
+| `fullscreen_voiceover_v1` | active | сохранить как template/workflow текущего engine |
+| `story_card_text_only_v1` | active | сохранить как template/workflow, без второй платформы |
+| `video_repurposer` | catalog entry planned/disabled; рабочая основа находится в `anime_factory` | обязательный второй engine; обобщить существующую реализацию, не писать новый clip pipeline |
+| Anime/stream/film/podcast clipping | реально существует только anime MVP для local MP4 | различия задавать template policies/strategies; отдельный полный engine на каждый source type запрещён |
 | `legacy_pipeline` | compatibility + maintenance | сохранить только доказанно нужные maintenance/migration команды на ограниченный период; остальное retire |
-| documentary/Solar/longform/horizontal | planned, experimental или legacy-only | не держать как активные placeholders; archive/backlog до отдельного product stage |
+| documentary/longform | format planned, реального template нет | будущий workflow/template внутри `content_creator`, а не третье приложение |
+| Solar/старые documentary profiles | experimental или legacy-only | не переносить как новую платформу; reusable части определять audit-ом, остальное archive |
 
-Отсутствие активного caller означает необходимость owner decision, а не
-разрешение автоматически удалить пользовательские данные или исторически
-ценный код.
+`video_repurposer` остаётся disabled в текущем catalog до завершения migration,
+project/workspace integration и targeted evidence. Целевой статус не разрешает
+представлять его пользователю как уже готовый.
 
-Базовая модель:
+### 6.1. Engine, tool, workflow и template
+
+- **Engine/Application** владеет use cases и выбирает workflow.
+- **Workflow** задаёт последовательность stages, но использует shared services.
+- **Template** является versioned конфигурацией format, duration, selection,
+  asset, audio, subtitle, render и quality policies; template не копирует engine.
+- **Tool/CLI command** принимает задачу пользователя и выбирает application +
+  template; внутри него нет второй orchestration implementation.
+- **Channel/Profile** задаёт defaults/policies и может выбирать templates, но не
+  является отдельным engine.
+- **Project** — runtime instance с `application_id`, `workflow/template_id`,
+  source, stages, artifacts и exports.
+
+Связи не являются строгим деревом `template → channel`. Правильная модель:
 
 ```text
-Application
-  → Workflow
-    → Format
-      → Template
-        → Channel
-          → Project
-            → Stages
-              → Artifacts
-                → Exports
+CLI tool
+  → Application engine
+    → Workflow
+      → shared services
+
+Template ──declares──> format + policies + workflow binding
+Channel ──selects──> defaults + allowed templates
+Project ──references──> application + workflow/template + optional channel
+Project → stages → artifacts → exports
 ```
+
+Новый Anime, podcast, stream или film template регистрируется только вместе с
+реальным workflow binding и tests. Пустые каталоги «на будущее» не создаются.
 
 ---
 
@@ -320,6 +348,7 @@ AI-YouTube/
         main.py
         commands/
           create.py
+          repurpose.py
           project.py
           assets.py
           diagnostics.py
@@ -339,15 +368,16 @@ AI-YouTube/
           workflows/
             fullscreen_voiceover/
             story_card/
+            # longform добавляется только вместе с реальной реализацией
 
         video_repurposer/
           service.py
           workflows/
-            anime_clipper/
+            source_to_clips/     # ownership target существующего Anime Factory
 
       services/
         assets/
-        audio/
+        audio/                   # voice, TTS orchestration и music manifest
         subtitles/
         rendering/
         export/
@@ -400,7 +430,7 @@ callers/replacement gate. Это целевая структура, а не ра
 
 ---
 
-## 8. Три логические зоны
+## 8. Три логические и физически разделяемые зоны
 
 ### 8.1. Репозиторий с кодом
 
@@ -434,21 +464,32 @@ callers/replacement gate. Это целевая структура, а не ра
   projects\
     content_creator\
     video_repurposer\
-    documentary\
   exports\
+    content_creator\
+    video_repurposer\
   artifacts\
+    content_creator\
+    video_repurposer\
   media_library\
     user\
     providers\
+    music\
+    voices\
   provider_cache\
+  model_cache\
   temp\
   runtime_reports\
   user_config\
+    channels\
+    templates\
 ```
 
 Workspace выбирается через CLI, environment или path config. Ни один drive
 letter не является обязательным; `G:\AI-YouTube-Workspace` допустим только как
-локальный пример.
+локальный пример. Существующие `projects/`, `outputs/`, `assets/library/`,
+`manual_assets/`, `music/` и Anime `episodes/` переводятся через существующий
+`WorkspacePaths` и tolerant readers; MOSS/Whisper и другие runtime model weights
+относятся к `model_cache`. Второй path resolver запрещён.
 
 ### 8.3. Versioned знания и skills для AI-агентов
 
@@ -475,6 +516,23 @@ knowledge-базой, но не содержит уникальных обяза
 является source of truth. Клонирование репозитория должно быть достаточным для
 работы Codex, Claude и другого агента, способного читать `AGENTS.md` и Markdown.
 
+Желаемая третья физическая зона допустима в переносимом виде:
+
+```text
+<AI_YOUTUBE_SYSTEM>\
+  knowledge\
+  policies\
+  skills\
+  handoffs\
+  templates\
+  mirrors\project_current_docs\
+```
+
+Она хранит пользовательские/global agent resources и generated mirrors.
+Project-specific architecture, ADR, current docs и versioned skills остаются в
+Git. `<AI_YOUTUBE_SYSTEM>` не требуется для запуска приложения или offline
+tests.
+
 Каждая current knowledge-страница должна содержать:
 
 - `status`;
@@ -498,13 +556,18 @@ knowledge-базой, но не содержит уникальных обяза
 | `src/providers/` | `infrastructure/providers/` | После удаления старых provider adapters |
 | `src/audio/` | `services/audio/` | С сохранением approval/manifests |
 | `src/subtitles/` | `services/subtitles/` | После сохранения старых imports |
-| `anime_factory/` | `apps/video_repurposer/workflows/anime_clipper/` либо archive | После product-scope decision; переносить ownership, не создавать второй workflow |
+| `anime_factory/` | `apps/video_repurposer/workflows/source_to_clips/` + template policies | Product scope подтверждён 9B-P01; обобщать существующий workflow, не создавать второй clip engine |
+| Anime `EpisodePaths`/JSON/output layout | общий project/workspace owner с tolerant legacy episode reader | После schema/callers inventory; без массовой migration |
+| Anime subtitles/FFmpeg/render helpers | существующие shared subtitles/rendering/FFmpeg owners + app-specific crop/selection | Переносить только подтверждённо generic части; domain crop/scoring остаются workflow policy |
+| `src/music_engine.py`, `src/music_finder.py`, `src/music_tools.py`, `src/audio/music_manifest.py` | один shared audio/music service | После callers/rights/network audit; сохранить manifest, approval и license evidence |
+| legacy documentary/Solar code | archive или reusable shared parts | Future documentary создаётся template внутри `content_creator`, legacy live-call path не переносится целиком |
 | top-level `apps/*` | canonical CLI/app packages либо delete | После перевода production/docs/tests callers и завершения compatibility gate |
 | `pipeline.py` + `src/legacy_pipeline/` | только подтверждённые maintenance services; затем delete/archive | Root entrypoint удалять последним |
 | старые `src/*.py` | соответствующий canonical owner либо archive/delete | После import map и tests; постоянный свалочный `legacy/` не создавать |
 | `docs/handoff/*` | `docs/current` или `docs/archive` | После создания короткого current state |
 | runtime-папки | внешний Workspace | Copy → verify → switch |
-| `venv`, `MOSS_TTS_Nano` | внешняя toolchain/vendor зона | После воспроизводимой установки |
+| `MOSS_TTS_Nano`, Whisper/model weights | Workspace `model_cache/` | Только copy → verify → switch; не удалять source автоматически |
+| `venv` | воспроизводимая toolchain вне чистого code root | После проверки lock/install; не переносить как source code |
 
 ### 9.1. Правило единственного владельца
 
@@ -514,10 +577,17 @@ knowledge-базой, но не содержит уникальных обяза
 | Capability | Целевой canonical owner |
 |---|---|
 | installed package и CLI | `src/ai_youtube/cli` как import `ai_youtube.cli` |
-| applications/workflows | `src/ai_youtube/apps/<application>/workflows/<workflow>` |
+| создание short/long | `src/ai_youtube/apps/content_creator` |
+| нарезка source video | `src/ai_youtube/apps/video_repurposer`; существующий Anime Factory является migration source |
+| applications/workflows | `src/ai_youtube/apps/<application>/workflows/<workflow>`; template не владеет копией engine |
+| catalog/formats/templates/export targets | существующий `ProductionCatalog`/registries, перенесённые без второго catalog |
 | project read/storage primitives | один API в `src/ai_youtube/core/projects`, перенесённый из существующих owners без третьей системы |
 | provider contract/registry | один contract и adapters под `src/ai_youtube/infrastructure/providers` |
-| assets/audio/subtitles/render/export | соответствующий shared service; workflow хранит только app-specific orchestration |
+| source analysis/candidate selection/reframing | существующие Anime modules, обобщённые внутри `video_repurposer`; shared boundary только при доказанном втором caller |
+| assets/providers | shared service; stock/local/user/generated methods выбираются template asset policy |
+| voice/TTS/music | один shared audio service; legacy music search/mix paths консолидируются, rights manifest сохраняется |
+| subtitles | существующий `src/subtitles` engine; Anime relative-cue logic становится adapter/policy, не вторым engine |
+| rendering/FFmpeg/export | shared execution/contracts; workflow хранит layout, crop и montage orchestration |
 | configuration и paths | единственный resolver, без локальных параллельных loaders |
 
 Точный physical move выполняется только после проверки фактических imports,
@@ -1241,7 +1311,7 @@ ownership, превращение старых путей в wrappers и их у
 ### Этап 9. Canonical ownership, retirement и доказанное удаление
 
 Статус: [ ] выполняется; 9A завершён 2026-07-29 отдельными D01–D03 commits;
-9B–9E добавлены после owner review и не начаты
+9B-P01 product boundary завершён; 9B-C01 и этапы 9C–9E не начаты
 
 #### 9A. Удаление доказанного dead code
 
@@ -1327,7 +1397,8 @@ replacement evidence, отдельный commit и ограниченный roll
 
 #### 9B. Product surface, compatibility и ownership inventory
 
-Статус: [ ] не начат
+Статус: [ ] выполняется; P01 product/application boundary decision завершён,
+следующий checkpoint C01 — read-only caller/ownership inventory
 
 Это первый незавершённый этап. Он read-only относительно production code,
 runtime и пользовательских данных.
@@ -1335,11 +1406,14 @@ runtime и пользовательских данных.
 Задачи:
 
 1. Подтвердить обязательный product surface:
-   - `content_creator` и два активных workflow сохраняются;
-   - для `anime_clipper` получить решение `finish migration` или `archive`;
+   - `content_creator` сохраняется как engine для short/long creation;
+   - `video_repurposer` сохраняется как второй engine, а Anime Factory является
+     существующим migration source;
+   - documentary/longform развивается как workflow/template
+     `content_creator`, а не третье приложение;
    - для каждой legacy/maintenance команды определить `keep temporarily`,
      `replace`, `archive` или `delete`;
-   - documentary/Solar/longform/horizontal не считать активными tools.
+   - planned target не считать уже активным tool.
 2. Расширить существующий `docs/current/CLEANUP_REGISTRY.md`, не создавать
    второй compatibility registry.
 3. Для каждого старого path и wrapper записать:
@@ -1357,6 +1431,8 @@ runtime и пользовательских данных.
    - `src.news` и Fullscreen canonical boundary;
    - `src.templates.story_card` и Story Card boundary;
    - `anime_factory` и Anime Clipper adapter;
+   - Anime `EpisodePaths`, transcription, subtitles, FFmpeg/crop/render helpers;
+   - `src.audio.music_manifest` и legacy music engine/finder/tools;
    - `pipeline.py`, `src.legacy_pipeline` и legacy adapter;
    - semantic evaluation facade, project layers и другие re-export paths.
 5. Построить exact-duplicate hash report для tracked production files,
@@ -1370,6 +1446,21 @@ runtime и пользовательских данных.
 - test-only caller явно отделён от внешнего/public caller;
 - зафиксирован owner decision для disabled/planned tools;
 - выбран один переход с минимальным dependency radius и targeted tests.
+
+Результат P01:
+
+- owner подтвердил два целевых application engines:
+  `content_creator` и `video_repurposer`;
+- фактический audit подтвердил, что новые engines создавать не нужно:
+  `ProductionCatalog`, `ProjectRepository`, `WorkspacePaths`, providers/assets,
+  audio/TTS/music, subtitles/renderers и Anime Factory уже существуют;
+- `video_repurposer` остаётся disabled до migration/evidence, но больше не
+  является кандидатом на archive;
+- future documentary/longform закреплён за `content_creator`;
+- domain source types Anime/stream/film/podcast должны различаться templates и
+  policies, а не полными копиями pipeline;
+- решение target boundary зафиксировано ADR 0016; production/runtime behavior
+  не менялось.
 
 #### 9C. Перевод callers на canonical imports и entrypoints
 
@@ -1539,6 +1630,11 @@ Orphan-module и caller результаты являются кандидата
   принадлежащий `src/ai_youtube`;
 - существует один канонический CLI; noncanonical entrypoints удалены либо имеют
   ADR, реального внешнего caller и статус permanent adapter без business logic;
+- `content_creator` и `video_repurposer` являются двумя canonical application
+  engines; documentary/longform и source-specific variants не создают третьи
+  engine stacks;
+- catalog регистрирует только templates с реальным workflow binding/tests и
+  честным active/planned status;
 - каждая поддерживаемая capability имеет одного canonical owner;
 - существует один ProjectRepository;
 - существует один storage primitive и явно разделённые tolerant manifest owners,
@@ -1546,7 +1642,11 @@ Orphan-module и caller результаты являются кандидата
 - существует один path/config resolver;
 - существует один provider contract;
 - существует по одному asset, voice/TTS, subtitle и rendering engine contract;
+- оба application engines используют эти shared contracts, а app-specific
+  scoring/crop/layout остаётся bounded workflow policy;
 - runtime по умолчанию находится вне Git и code root;
+- новые projects/exports/artifacts разделены по application, а user/provider/
+  music/voice media разрешаются через один workspace resolver;
 - нет production hardcode конкретного компьютера;
 - CI выполняет offline suite;
 - нет import-cycle;
@@ -1574,11 +1674,12 @@ Orphan-module и caller результаты являются кандидата
 
 Первое действие при возобновлении плана:
 
-> Начать 9B только с read-only compatibility/product-surface inventory:
-> перечислить public entrypoints, package roots, wrappers, current
-> implementation owners и production/test/docs callers; обновить только
-> существующий `CLEANUP_REGISTRY.md`. Ничего не переносить и не удалять в этом
-> checkpoint.
+> Продолжить 9B-C01 read-only inventory: перечислить public entrypoints,
+> package roots, wrappers, current implementation owners и
+> production/test/docs callers. Отдельно картировать existing Anime
+> project/path/transcription/subtitle/render modules и legacy/shared music
+> paths. Обновить только существующий `CLEANUP_REGISTRY.md`; ничего не
+> переносить и не удалять.
 
 Не начинать с:
 
@@ -1605,27 +1706,30 @@ Orphan-module и caller результаты являются кандидата
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый bounded slice: 9A D03 packages placeholder
-Текущий этап: 9A завершён; общий этап 9 расширен после owner review и выполняется
-Следующий этап: 9B, первый read-only checkpoint — compatibility/product-surface/ownership inventory
-Исходный HEAD пересмотра плана: 75a2715
+Завершённый bounded slice: 9B-P01 two-engine product/application boundary
+Текущий этап: 9B выполняется; product surface подтверждён, caller/ownership inventory не завершён
+Следующий этап: 9B-C01 read-only compatibility/caller/ownership inventory
+Исходный HEAD P01: 9f3ddba
 Commit D01: 1683b24
 Commit D02: dcd6a3c
 Commit D03/закрытие 9A: 75a2715
-Commit пересмотра плана: текущий commit
+Commit пересмотра cleanup plan: 9f3ddba
+Commit P01: текущий commit
 Ветка: master
-Git до работы: clean, HEAD 75a2715
+Git до работы: clean, HEAD 9f3ddba
 Выполнено:
-- owner-provided review сопоставлен с фактическим Git, package discovery, wrappers, current docs и cleanup registry
-- жёсткая цель дополнена одним owner/implementation на capability, одним package root, root allowlist и model-neutral self-contained agent context
-- этап 8 уточнён как canonical boundary migration, а не завершённый ownership transfer
-- этап 9 расширен подэтапами 9B inventory, 9C caller migration, 9D ownership transfer и 9E retirement
-- этап 10 разделён на docs, generated outputs, cache/empty dirs, runtime inventory/switch, root minimization и report-only minimalism QA
-- отдельный compatibility registry не создан; единственным реестром остаётся docs/current/CLEANUP_REGISTRY.md
+- owner product goal сопоставлен с ProductionCatalog, content_creator, Anime Factory, WorkspacePaths, ProjectRepository и shared services
+- подтверждены два target engines: content_creator для short/long creation и video_repurposer для source-to-clips
+- video_repurposer закреплён как migration existing Anime Factory, а не новый pipeline; catalog остаётся disabled до evidence
+- documentary/longform закреплён как future workflow/template content_creator, а не третье приложение
+- Anime/stream/film/podcast различаются templates/policies/strategies поверх одного workflow
+- workspace target дополнен app-scoped projects/exports/artifacts и shared media library для user/providers/music/voices
+- external AI-YouTube-System разрешён как optional physical agent zone, но не source of truth
+- cleanup registry расширен кандидатами music, Anime subtitles/render/paths/transcription
 Изменения production code: отсутствуют
 Characterization tests: не добавлялись; изменение только план/metadata
 Targeted test maintenance: не требовалась
-ADR: не требовался; runtime/public contract не изменён, будущие breaking slices требуют собственные ADR
+ADR: docs/adr/0016-two-engine-product-architecture.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
@@ -1634,19 +1738,21 @@ Targeted checks:
 - .\venv\Scripts\python.exe -m unittest tests.test_stage2_agent_onboarding: OK, 3 tests
 Full offline suite: не требуется; production/runtime contracts не менялись
 Найденные root causes:
-- прежний план гарантировал безопасную compatibility migration, но позволял бессрочные wrappers и old implementation owners
-- stage 8 boundary adapters ошибочно могли восприниматься как полная физическая migration
-- fixed G:\ paths для внешнего knowledge/workspace выглядели как target contract и ослабляли переносимость
+- оба желаемых engines уже частично существуют; новый implementation создал бы дублирование
+- Anime Factory содержит полный MVP source-to-clips, но использует собственные paths, subtitle formatter и FFmpeg/render helpers
+- modern music manifest/rights path сосуществует с legacy music search/download/mix modules
+- строгая цепочка Application→Workflow→Format→Template→Channel была неверна: channel и template независимо выбираются project policy
 Новый known issue:
-- точные callers/owner decisions для 9B ещё не собраны; текущие registry rows требуют расширения
+- точные callers/ownership для registry C01–C16 ещё не собраны
+- video_repurposer project schema/workspace integration и enable evidence отсутствуют
 - stage 10 A01/A02/D04 и runtime inventory ещё не начаты и теперь следуют после этапа 9
 Что нельзя повторять:
-- не считать thin wrapper доказательством завершённого ownership transfer
-- не сохранять wrapper бессрочно только из-за test-only caller
-- не смешивать 9B inventory с caller migration, move или delete
-- не создавать второй registry, repository, resolver, provider или engine contract
+- не создавать новый clip engine вместо переноса Anime Factory
+- не создавать отдельные engines для Anime/stream/film/podcast или documentary
+- не переносить Anime generic-looking helper в shared service без доказанного второго caller
+- не смешивать C01 inventory с move, enable capability или runtime migration
 Следующая точная read-only команда: git status --short --branch
-После проверки Git выполнить: inventory package roots, entrypoints, wrappers и production/test/docs callers для первой 9B registry matrix
+После проверки Git выполнить: C01 inventory package roots/wrappers, Anime modules, music paths и production/test/docs callers
 ```
 
 ---

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 75a2715
+last_verified_commit: 9f3ddba
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -42,6 +42,10 @@ source_paths:
   - src/news/project_store.py
   - src/project_foundation/storage.py
   - src/providers/registry.py
+  - src/audio
+  - src/music_engine.py
+  - src/music_finder.py
+  - src/music_tools.py
   - src/production_plan/youtube_shorts.py
   - src/production_plan/solar_vs_nuclear_render.py
   - src/production_catalog
@@ -59,6 +63,7 @@ source_paths:
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
   - docs/adr/0015-retire-news-stock-downloader.md
+  - docs/adr/0016-two-engine-product-architecture.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -79,7 +84,7 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 от clean HEAD `75a2715`. Код и Git имеют
+Проверено 2026-07-29 от clean HEAD `9f3ddba`. Код и Git имеют
 приоритет.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
@@ -100,7 +105,10 @@ source_paths:
   planning directory после package/docs gate; package discovery не менялся.
   После owner review общий этап 9 расширен подэтапами 9B–9E: inventory,
   caller migration, ownership transfer и wrapper/package retirement.
-  Следующий checkpoint — read-only 9B; production code не менялся.
+  9B-P01 подтвердил два target engines: `content_creator` для short/long
+  creation и `video_repurposer` на основе Anime Factory. Catalog status не
+  менялся; repurposer остаётся disabled. Следующий checkpoint — read-only
+  9B-C01; production code не менялся.
 - Этап 4.6 создал проверенные
   [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
@@ -239,9 +247,10 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- documentary gate 8E закрыт без migration; будущая documentary application
-  требует отдельного реального catalog template, canonical project/approval/
-  provider contracts и targeted workflow evidence; физические Anime
+- documentary gate 8E закрыт без migration; ADR 0016 определил future
+  documentary как workflow/template `content_creator`, которому нужны реальный
+  catalog template, canonical project/approval/provider contracts и targeted
+  evidence; физические Anime
   Factory workflow/output contracts остаются у `anime_factory`, root legacy
   engine/patch-point contracts — у `pipeline.py`, а documentary и
   fixed-production-plan HTTP paths остаются внутри будущего bounded slice;
@@ -251,9 +260,10 @@ source_paths:
 - этап 8 установил application boundaries, но не завершил ownership transfer:
   `src.news`, `src.templates.story_card`, `anime_factory`, `pipeline.py` и
   `src.legacy_pipeline` всё ещё владеют частью реализации;
-- 9B должен дополнить cleanup registry точными production/test/docs callers,
-  product owner decisions и exit conditions для package roots/wrappers. До
-  завершения 9B перенос и удаление этих paths запрещены.
+- 9B-C01 должен дополнить cleanup registry точными production/test/docs callers
+  и exit conditions для package roots/wrappers, Anime project/transcription/
+  subtitle/render modules и legacy/shared music paths. До завершения C01
+  перенос и удаление этих paths запрещены.
 
 Создание, продолжение, TTS, render и визуальная проверка reference video больше
 не являются этапами rescue plan. Архитектурные изменения выполняются малыми

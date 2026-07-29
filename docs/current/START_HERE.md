@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 75a2715
+last_verified_commit: 9f3ddba
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -25,8 +25,9 @@ source_paths:
 
 # Start Here
 
-AI-YouTube — локальная offline-first система производства Shorts. Код и Git имеют
-приоритет над этим документом.
+AI-YouTube — локальная offline-first платформа создания видео и переработки
+длинных source videos. Сейчас production-ready только два Shorts templates;
+код и Git имеют приоритет над этим документом.
 
 Для начала работы достаточно:
 
@@ -40,9 +41,11 @@ AI-YouTube — локальная offline-first система производ�
 `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy pipeline, но
 оставшиеся old owners и wrappers ещё не retired. Documentary gate 8E закрыт
 без migration. Этап 9A удалил D01 provider names, D02 standalone downloader и
-D03 `packages/` placeholder. После owner review этап 9 расширен: следующий
-checkpoint — read-only 9B inventory product surface, package roots, wrappers,
-implementation owners и callers. Ничего не переносить и не удалять в 9B.
+D03 `packages/` placeholder. 9B-P01 зафиксировал два target engines:
+`content_creator` для short/long creation и `video_repurposer` на основе
+существующего Anime Factory. Repurposer пока disabled. Следующий checkpoint —
+read-only 9B-C01 inventory package roots, wrappers, implementation owners,
+Anime/shared modules и callers. Ничего не переносить и не удалять в C01.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

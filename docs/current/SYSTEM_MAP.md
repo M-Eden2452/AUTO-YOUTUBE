@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 75a2715
+last_verified_commit: 9f3ddba
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -43,6 +43,9 @@ source_paths:
   - src/production_plan/youtube_shorts.py
   - src/production_plan/solar_vs_nuclear_render.py
   - src/audio
+  - src/music_engine.py
+  - src/music_finder.py
+  - src/music_tools.py
   - src/subtitles
   - anime_factory
   - apps/anime_factory
@@ -58,6 +61,7 @@ source_paths:
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
   - docs/adr/0015-retire-news-stock-downloader.md
+  - docs/adr/0016-two-engine-product-architecture.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -91,7 +95,7 @@ source_paths:
 | Ассеты | `src/assets/`, `src/news/asset_*.py` | shared selection/preview/completion contracts и app-specific manifest orchestration/adapters |
 | Semantic evaluation | `src/assets/semantic_visual_evaluation*.py` | compatibility facade, offline dataset/metrics/report tooling и controlled live runtime |
 | Providers | `src/assets/provider_contract.py`, `src/providers/` | единый `StockProvider` contract, canonical registry и provider adapters |
-| Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
+| Audio/music | `src/audio/`, `src/localization/`, legacy `src/music_*` | canonical voice/TTS manifests/timeline; music ownership ещё требует 9B consolidation |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
 | Legacy/maintenance | `src/ai_youtube/apps/legacy_pipeline/`, `pipeline.py`, `src/legacy_pipeline/`, `apps/youtube_pipeline/` | canonical lazy adapter, root compatibility namespace, parser, maintenance handlers и legacy workflow |
 | Video repurposing | `src/ai_youtube/apps/video_repurposer/workflows/anime_clipper/`, `anime_factory/` | canonical lazy adapter и существующий владелец Anime Factory workflow/project-output layout |
@@ -106,6 +110,12 @@ content_creator
 video_repurposer
   └─ planned/disabled (Anime Clipper adapter существует, product capability не включён)
 ```
+
+Целевая модель ADR 0016: два application engines поверх общих services.
+`content_creator` создаёт short/long; `video_repurposer` обобщает существующий
+Anime Factory для Anime/stream/film/podcast source videos. Documentary — future
+template/workflow `content_creator`, не третье приложение. Это target boundary:
+repurposer остаётся disabled до migration и evidence.
 
 Ключевые переходные ограничения:
 
@@ -211,9 +221,9 @@ Documentary migration не выполнялась, этап 8 boundary migration
 Ownership `src.news`, `src.templates.story_card`, `anime_factory`,
 `pipeline.py` и `src.legacy_pipeline` при этом не считался физически
 перенесённым. Этап 9A завершил D01/D02 compatibility retirement и D03
-placeholder deletion. После owner review общий этап 9 расширен: следующий
-read-only checkpoint 9B должен зафиксировать product surface, package roots,
-wrappers, implementation owners и callers до любого move/delete. Финальная
-цель — один physical `src/ai_youtube` package, устанавливаемый как
-`ai_youtube`, и один owner business logic на capability; это цель плана, а не
-текущее состояние кода.
+placeholder deletion. 9B-P01 зафиксировал два target engines ADR 0016 без
+изменения catalog status. Следующий read-only checkpoint 9B-C01 должен
+зафиксировать package roots, wrappers, callers, Anime project/transcription/
+subtitle/render modules и legacy/shared music paths до любого move/delete.
+Финальная цель — один physical `src/ai_youtube` package и один owner business
+logic на capability; это цель плана, а не текущее состояние кода.
