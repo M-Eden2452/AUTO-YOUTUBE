@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 3abbfac
+last_verified_commit: 40f3557
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,7 +18,7 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `3abbfac`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `40f3557`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. На этом этапе production code, runtime и user data не перемещались и
 не удалялись.
@@ -45,7 +45,7 @@ source_paths:
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
 | S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
-| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock | stage idempotency выполняется отдельными bounded slices 5D; `research` и `script` завершены | 5A–5D in progress |
+| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock | stage idempotency выполняется отдельными bounded slices 5D; `research`, `script` и `visual_plan` завершены | 5A–5D in progress |
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system | 5 |
 | V01 | `anime_factory/` | `move` | отдельный рабочий CLI/workflow; catalog app `video_repurposer` disabled | переносить целиком через adapter с old entrypoint | 8 |
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
@@ -143,7 +143,10 @@ handoff. Порядок не разрешает перепрыгивать че�
 - `script` (`3abbfac`) проверяет локализованный `script/script.json`: файл
   должен быть читаемым JSON-объектом с непустыми `narration_text` и списком
   сцен-объектов.
-- Оба семейства защищены characterization для normal repeat, `resume`,
+- `visual_plan` (`40f3557`) проверяет локализованный
+  `visual/visual_plan.json`: файл должен быть читаемым JSON-объектом с непустым
+  списком сцен-объектов.
+- Все три семейства защищены characterization для normal repeat, `resume`,
   `force-stage`, отсутствующего и повреждённого output.
 - Manifest schema, lock policy, runtime projects и user media не менялись.
 - Следующие stage families остаются отдельными bounded slices, без универсального
@@ -151,7 +154,7 @@ handoff. Порядок не разрешает перепрыгивать че�
 
 ### Последующая очередь
 
-1. **Следующий slice 5D — `visual_plan` idempotency:** один stage family за diff,
+1. **Следующий slice 5D — `asset_search` idempotency:** один stage family за diff,
    с repeat/resume/force-stage characterization.
 2. **6A–6G:** выполнять registry entries S01–S07 по одному подэтапу в порядке
    master plan; public imports сохранять adapters.

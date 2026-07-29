@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 3abbfac
+last_verified_commit: 40f3557
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,9 +16,9 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `3abbfac`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `40f3557`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-slice 5D для `script`; это не разрешение на массовое перемещение файлов.
+slice 5D для `visual_plan`; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
@@ -107,7 +107,7 @@ planned adapter
 | `src.news.asset_manager` | news pipeline, quality/draft completion и replacement summary; использует `src.assets` и `src.providers` | assets, provider integration, slot-aware retrieval, semantic decisions, schema tests | разделять orchestration/search/download/completion в 6A |
 | `src.assets.semantic_visual_evaluation` | root pipeline и один выделенный test module | `test_semantic_visual_evaluation` | отделить offline evaluation/reporting от controlled live runtime в 6E |
 | `src.projects.ProjectRepository` | CLI, service, Wizard, replacement и rights report | `test_project_repository`, rights report, config parity, resume | сохранить единственным read API; writer не добавлять |
-| `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | news models/pipeline, service, renderer, repository tests | writer использует общий atomic primitive с 5A, schema v1 с 5B, fail-fast project lock с 5C и output validation для `research`/`script` с 5D |
+| `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | news models/pipeline, service, renderer, repository tests | writer использует общий atomic primitive с 5A, schema v1 с 5B, fail-fast project lock с 5C и output validation для `research`/`script`/`visual_plan` с 5D |
 | `src.project_foundation` | Story Card service/integration, catalog, projects/rights | project foundation/factory, Story Card integration/provenance, schemas | сохранить `project.json` owner и atomic storage |
 | `src.config_resolver.paths` | CLI, apps, project stores, providers, audio/subtitles и legacy adapters | `test_stage3_workspace_paths`, config resolver/parity | сохранить единственным path/workspace resolver |
 | `src.assets.provider_contract` + `src.providers` | asset manager, preview/download/diagnostics и provider adapters | provider foundation/hardening, provider integration, documentary providers | сохранить единым asset provider contract |
