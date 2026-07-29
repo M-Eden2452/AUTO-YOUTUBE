@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–5 завершены; этап 4.5 сохранён как
-историческая диагностика и снят с critical path; этап 6 не начат,
-следующий отдельный подэтап — 6A Asset manager**
+Статус: **выполняется; этапы 0–5 и подэтап 6A завершены; этап 4.5 сохранён как
+историческая диагностика и снят с critical path; этап 6 продолжается,
+следующий отдельный подэтап — 6B Внутренности CLI**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -807,7 +807,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 6. Разделение крупных модулей
 
-Статус: [ ] не начат
+Статус: [~] выполняется; 6A завершён 2026-07-29, следующий подэтап — 6B
 
 Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
 Не объединять их в одну сессию без записанного исключения из бюджета области.
@@ -816,6 +816,22 @@ Wizard и service, уменьшение крупных функций и пер�
 
 `src/news/asset_manager.py`: отделить orchestration от provider search,
 selection, download и completion.
+
+Статус: [x] завершён 2026-07-29; implementation commits `cba1cf7`,
+`20750ab`, `59b39d3`, `fe5ba44`; characterization commit `0515e02`.
+
+Результат:
+
+- `asset_manager.py` уменьшен с 2119 до 266 строк и оставлен compatibility
+  facade с прежними публичными сигнатурами/imports/patch-points;
+- manifest summaries/coverage, scene completion/assembly, provider
+  search/download adapters и manifest builder разделены по отдельным модулям;
+- `build_assets_manifest()` стал коротким orchestration facade, а сценовый
+  проход разделён на небольшие методы;
+- существующий `src.assets.provider_contract`, manifest schemas,
+  `NewsProjectStore.validate_stage_output()` и persisted projects не менялись;
+- targeted verification: 181 tests OK, compile/import smoke OK; full offline
+  suite, сеть, provider download, TTS, Vision и render не запускались.
 
 #### 6B. Внутренности CLI
 
@@ -1003,11 +1019,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только 6A Asset manager:
-> characterization-first зафиксировать public functions, callers и orchestration
-> boundary `src/news/asset_manager.py`. Не объединять 6A с 6B–6G, provider
-> consolidation или cleanup. Текущая сессия по решению владельца остановлена до
-> этапа 6.
+> В следующей отдельной сессии начать только 6B Внутренности CLI:
+> characterization-first повторно картировать фактические handlers и
+> presentation после canonical CLI migration. `src/content_creation/cli.py`
+> уже является 75-строчным compatibility wrapper, поэтому не делить его
+> механически и не переоткрывать 6A. Не объединять 6B с 6C–6G, provider
+> consolidation или cleanup.
 
 Не начинать с:
 
@@ -1031,37 +1048,53 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 5 Project и storage foundation
-Текущий этап: 5 завершён
-Следующий этап: 6A Asset manager — не начат
-Исходный HEAD stage 5 closure: 179ea0a
-Implementation commit stage 5 closure: e3c90c3
+Завершённый этап: 6A Asset manager
+Текущий этап: 6 выполняется; 6A завершён
+Следующий этап: 6B Внутренности CLI — не начат
+Исходный HEAD 6A: 161d6f5
+Implementation HEAD 6A: fe5ba44
 Ветка: master
-Git до работы: clean, HEAD 179ea0a
+Git до работы: clean, HEAD 161d6f5
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены callers, manifests, schemas и реальные persisted output shapes
-- до production change characterization ожидаемо упала: completed downstream states без обязательного output ошибочно пропускались
-- NewsProjectStore.validate_stage_output расширен для asset_search, voice, subtitles, preview_render, quality_check, final_render и export
-- normal repeat/resume пропускают только пригодный output; force-stage выполняет stage; отсутствующий, пустой, malformed или структурно непригодный output восстанавливается
-- completed voice/final render проверяют declared media; subtitles проверяют declared files, но protected/user_supplied artifacts не перезаписываются
-- pre-schema asset dry-run, legacy voice/subtitle manifests и обе project manifest forms сохранены tolerant
-- ProjectRepository, ProjectView, atomic_write_json, project_lock и news schema v1 не дублировались и не меняли public shape
-Изменения production code: src/news/project_store.py (1 файл)
-Characterization tests: tests/test_news_stage_idempotency.py
-ADR: docs/adr/0006-news-stage-idempotency.md завершён для repeatable stages research–export
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены public functions, callers, test patch-points и provider contract
+- characterization commit 0515e02 фиксирует пять публичных сигнатур, compatibility imports, empty manifest shape и module-level factory patch-point
+- cba1cf7 вынес чистые manifest summaries и video coverage
+- 20750ab вынес scene completion/assembly и bounded targeted slot search
+- 59b39d3 вынес provider search/download adapters без нового provider contract
+- fe5ba44 оставил asset_manager.py 266-строчным compatibility facade и разделил manifest builder на короткие сценовые методы
+- сохранены старые imports/re-exports, build_news_asset_manifest factory patch, load_dotenv patch и select_best_candidate patch
+Изменения production code:
+- src/news/asset_manager.py
+- src/news/asset_manifest_builder.py
+- src/news/asset_manifest_summaries.py
+- src/news/asset_scene_completion.py
+- src/news/asset_provider_adapters.py
+Characterization tests: tests/test_news_asset_manager_contract.py
+ADR: не нужен; публичный contract и system boundary не изменялись
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
 Targeted checks:
-- characterization before production change: expected FAIL/ERROR, missing and corrupt downstream outputs were skipped/read later
-- targeted dependency radius: OK, 112 tests
-- read-only persisted audit: 86 completed downstream states checked; legacy manifests accepted; 8 genuinely missing preview/final media outputs correctly invalidated
+- pre-change public characterization + asset behavior: OK, 25 tests
+- summaries slice: OK, 25 tests
+- scene completion/assembly radius: OK, 82 tests
+- provider/search/download radius: OK, 125 tests
+- final combined unique dependency radius: OK, 181 tests
+- compileall split modules: OK
+- import smoke facade/builder/provider contract: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденный root cause:
-- NewsProjectStore.validate_stage_output возвращал True для всех completed downstream stages после visual_plan, поэтому job.json status имел приоритет над отсутствующим/corrupt manifest или media
+Известные test-fixture несоответствия вне 6A:
+- 3 CompletionModeWiringTests создают completed research/script/visual_plan без обязательных outputs этапа 5 и поэтому ожидают устаревший skip
+- delivery paid-denial fixture при общем прогоне зависает после того же invalid completed-state setup; три соседних delivery tests проходят отдельно
+Найденный root cause 6A:
+- один module одновременно владел manifest orchestration, summaries/coverage, scene completion, provider search/download и compatibility imports; прямой перенос ломал бы module-level patch-points
+Что нельзя повторять:
+- не переносить/переименовывать asset_manager facade без отдельного compatibility checkpoint
+- не удалять legacy provider classes/re-exports до этапа 7/9
+- не трогать NewsProjectStore.validate_stage_output в рамках 6B
 Следующая точная read-only команда: git status --short --branch
-Остановить исполнение и передать отчёт пользователю. Этап 6 в этой сессии не начинать.
+После проверки Git начать только characterization 6B по фактическим CLI handlers; src/content_creation/cli.py уже 75-строчный wrapper.
 ```
 
 ---

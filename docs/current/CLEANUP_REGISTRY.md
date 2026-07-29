@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: e3c90c3
+last_verified_commit: fe5ba44
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,10 +18,10 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `e3c90c3`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `fe5ba44`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. На этом этапе production code, runtime и user data не перемещались и
-не удалялись.
+этапа 4.6. Подэтап 6A выполнил только bounded split production code; runtime и
+user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
 `do_not_touch`.
@@ -38,8 +38,8 @@ source_paths:
 | K06 | `src/audio/` | `keep` | approval, voice manifests, timeline и TTS manager защищены отдельными tests | не создавать второй voice/TTS contract | всегда |
 | K07 | `src/subtitles/` | `keep` | единственный engine, news использует adapter | не создавать второй subtitle engine | всегда |
 | K08 | `apps/*` wrappers | `keep` | `test_apps_structure`; внешние `python -m apps.*` entrypoints | compatibility до отдельного retirement evidence | 8–9 |
-| S01 | `src/news/asset_manager.py` | `split` | 2119 строк; orchestration, search, download, ranking и completion в одном module | разделить по 6A, сохранив public functions/adapters | 6A |
-| S02 | `src/content_creation/cli.py` | `split` | 1208 строк; parsing, presentation и command handlers | parser/public commands неизменны; handlers/presentation разделяются | 6B |
+| S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
+| S02 | CLI internals после canonical migration | `split` | `src/content_creation/cli.py` теперь 75-строчный compatibility wrapper; remaining handlers/presentation нужно повторно картировать в `src/ai_youtube/cli` и `src/content_creation/commands` | не делить wrapper вслепую; сначала characterization фактических handlers и public command contract | 6B |
 | S03 | `src/content_creation/wizard.py` | `split` | 1229 строк; adapters, state, steps и presentation | сохранить `run_wizard` и request builder | 6C |
 | S04 | `src/content_creation/service.py` | `split` | 878 строк; два workflow и paid preflight в одном module | use cases внутри одного application service | 6D |
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
@@ -51,7 +51,7 @@ source_paths:
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
-| D01 | embedded `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` | `delete` | repo-wide Python search находит только определения; factory использует `*StockProvider` из `src/providers` | удалить отдельным diff после повторного zero-caller check | 7/9 |
+| D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | 6A вынес definitions из facade, но сохранил re-export; factory использует `*StockProvider` из `src/providers` | удалить только после provider consolidation и повторного external/zero-caller check | 7/9 |
 | D02 | `src/news/stock_video_downloader.py` | `delete` | repo-wide search находит только собственные функции; public function уже delegates в `build_news_asset_manifest` | удалить после compatibility check; canonical replacement — news asset stage/manager | 7/9 |
 | D03 | `packages/README.md` и пустая planning directory | `delete` | нет runtime imports; только historical docs references; packaging идёт из `src*` по `pyproject.toml` | удалить directory и исправить исторически-необязательные current links, если появятся | 9 |
 | D04 | untracked `__pycache__/`, `*.pyc` | `delete` | 0 tracked matches; bytecode воспроизводим | удалять только filesystem-cleanup slice, не вместе с refactor | 10 |
@@ -68,7 +68,7 @@ source_paths:
 
 | ID | Callers/imports | Рабочая замена | Compatibility period | Targeted verification | Persisted/media risk |
 |---|---|---|---|---|---|
-| D01 | внутренних callers нет; имена встречаются только в строках `class` | `PexelsStockProvider`, `PixabayStockProvider`; Unsplash не зарегистрирован как active provider, raw helper остаётся только до provider review | сохранить до provider-consolidation checkpoint; перед delete повторить repo-wide `rg` и проверить external API/export absence | `test_asset_foundation_providers`, `test_news_to_short_provider_integration`, `test_news_to_short_assets`, Stage 1 characterization | manifest schema не менять; provider ids/provenance должны остаться прежними |
+| D01 | внутренних callers нет; 6A сохранил имена через `asset_manager` re-export | `PexelsStockProvider`, `PixabayStockProvider`; Unsplash не зарегистрирован как active provider, raw helper остаётся только до provider review | сохранить до provider-consolidation checkpoint; перед delete повторить repo-wide `rg` и проверить external API/export absence | `test_news_asset_manager_contract`, `test_asset_foundation_providers`, `test_news_to_short_provider_integration`, `test_news_to_short_assets` | manifest schema не менять; provider ids/provenance должны остаться прежними |
 | D02 | внутренних callers нет; module импортирует manager, обратного import нет | `src.news.asset_manager.build_news_asset_manifest` через normal `asset_search` stage | один отдельный compatibility checkpoint этапа 7; удалить только если entrypoint/docs/tests не появились | `test_news_to_short_assets`, `test_news_to_short_pipeline`, `test_stage1_characterization`, import smoke | не запускать download; существующие `assets_manifest.json` и downloaded media не менять |
 | D03 | runtime/import callers нет; только исторические docs | `pyproject.toml` уже package-discovery из `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | не требуется для runtime; отдельный docs-only cleanup commit | `tools.qa.check_agent_docs`, `test_stage2_agent_onboarding`, package discovery smoke | отсутствует |
 | D04 | 0 tracked files; interpreter cache only | Python воспроизводит cache | не требуется; только после проверки абсолютного target path | `git status --short`, ближайший targeted test изменённой области | не затрагивать source, venv, projects или media |
@@ -161,10 +161,32 @@ handoff. Порядок не разрешает перепрыгивать че�
   `article_ingestion` не входят в автоматическую retry-policy ADR 0006.
 - Manifest schema, lock policy, runtime projects и user media не менялись.
 
+### Завершённый structural slice: 6A Asset manager
+
+- Characterization commit `0515e02` зафиксировал пять публичных сигнатур,
+  compatibility imports, пустой manifest shape и module-level factory patch-point.
+- Чистые manifest summaries и video coverage вынесены в
+  `src/news/asset_manifest_summaries.py` (`cba1cf7`).
+- Scene completion/assembly и bounded targeted slot search вынесены в
+  `src/news/asset_scene_completion.py` (`20750ab`).
+- Existing provider search/download translation вынесена в
+  `src/news/asset_provider_adapters.py` (`59b39d3`) без изменения
+  `src.assets.provider_contract`.
+- `src/news/asset_manager.py` оставлен 266-строчным compatibility facade;
+  manifest orchestration разделён на короткие методы
+  `src/news/asset_manifest_builder.py` (`fe5ba44`).
+- Старые public/private imports и patch-points `load_dotenv`,
+  `create_default_asset_providers`, `select_best_candidate` сохранены.
+- Targeted verification: 181 tests OK, compile/import smoke OK. Full offline suite
+  не запускался; сеть, provider download, TTS, Vision и render не выполнялись.
+- Manifest schema, persisted projects, runtime/user media и
+  `NewsProjectStore.validate_stage_output()` не менялись.
+
 ### Последующая очередь
 
-1. **6A–6G:** выполнять registry entries S01–S07 по одному подэтапу в порядке
-   master plan; public imports сохранять adapters.
+1. **6B–6G:** выполнять registry entries S02–S07 по одному подэтапу в порядке
+   master plan; перед 6B повторно картировать фактические CLI handlers, потому
+   что `src/content_creation/cli.py` уже стал compatibility wrapper.
 2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
 3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
 4. **9:** удалять только entries со статусом `delete` и актуальным evidence.

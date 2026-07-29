@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: e3c90c3
+last_verified_commit: fe5ba44
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,23 +16,25 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `e3c90c3`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `fe5ba44`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure; это не разрешение на массовое перемещение файлов.
+stage 5 closure и подэтапа 6A; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 249 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 241 production Python-файл: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 207;
-- 100 модулей `tests/test_*.py`;
-- крупнейшие orchestration-модули: `src/news/asset_manager.py` — 2119 строк,
-  `src/assets/semantic_visual_evaluation.py` — 1719,
+- 262 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 254 production Python-файла: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 220;
+- 101 модуль `tests/test_*.py`;
+- крупнейшие модули: `src/assets/semantic_visual_evaluation.py` — 1719 строк,
+  `src/news/asset_manifest_builder.py` — 1413 строк с короткими
+  orchestration-методами,
   `src/content_creation/wizard.py` — 1229,
-  `src/content_creation/cli.py` — 1208,
   `src/content_creation/service.py` — 878, `pipeline.py` — 703.
+  Compatibility facade `src/news/asset_manager.py` — 266 строк;
+  `src/content_creation/cli.py` — 75 строк после structural migration.
 
 Основные области внутри `src/`:
 
@@ -41,7 +43,7 @@ stage 5 closure; это не разрешение на массовое пере
 | `assets` | 43 | contracts, selection, download, preview, completion и semantic tooling |
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
-| `news` | 19 | fullscreen voiceover workflow и `job.json` writer |
+| `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
 | `content_creation` | 16 | CLI/Wizard/application service |
 | `providers` | 10 | adapters общего asset provider contract |
 | `subtitles` | 9 | единый subtitle engine |
@@ -104,7 +106,7 @@ planned adapter
 | `src.content_creation.wizard` | вызывается CLI; использует service, capabilities и `ProjectRepository` | `test_content_creation_wizard`, `test_project_naming_and_resume`, localization integration | разделять state/steps/presentation в 6C |
 | `src.content_creation.service` | вызывается CLI и Wizard; маршрутизирует оба active workflow | `test_content_creation_service`, Wizard/resume и Stage 4 tests | разделять use cases в 6D, не создавать второй service |
 | `src.news.pipeline` | service, `apps.news_to_short`, root pipeline; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить fullscreen workflow boundary |
-| `src.news.asset_manager` | news pipeline, quality/draft completion и replacement summary; использует `src.assets` и `src.providers` | assets, provider integration, slot-aware retrieval, semantic decisions, schema tests | разделять orchestration/search/download/completion в 6A |
+| `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |
 | `src.assets.semantic_visual_evaluation` | root pipeline и один выделенный test module | `test_semantic_visual_evaluation` | отделить offline evaluation/reporting от controlled live runtime в 6E |
 | `src.projects.ProjectRepository` | CLI, service, Wizard, replacement и rights report | `test_project_repository`, rights report, config parity, resume | сохранить единственным read API; writer не добавлять |
 | `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | `test_news_stage_idempotency`, news models/pipeline, service, renderer, repository tests | writer использует общий atomic primitive с 5A, schema v1 с 5B, fail-fast project lock с 5C и output validation для repeatable stages `research`–`export` с 5D |

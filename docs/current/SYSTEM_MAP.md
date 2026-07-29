@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: e3c90c3
+last_verified_commit: fe5ba44
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -8,6 +8,11 @@ source_paths:
   - src/config_resolver/paths.py
   - src/content_creation
   - src/news
+  - src/news/asset_manager.py
+  - src/news/asset_manifest_builder.py
+  - src/news/asset_manifest_summaries.py
+  - src/news/asset_scene_completion.py
+  - src/news/asset_provider_adapters.py
   - src/projects
   - src/project_foundation
   - schemas/job.schema.json
@@ -19,6 +24,7 @@ source_paths:
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/adr/0006-news-stage-idempotency.md
+  - tests/test_news_asset_manager_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -35,7 +41,7 @@ source_paths:
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
 | Проекты | `src/projects/`, `src/project_foundation/`, `src/news/project_store.py` | общий read API, atomic storage/lock primitives и output-validated news stage state |
-| Ассеты | `src/assets/` | selection, preview, semantic checks, completion |
+| Ассеты | `src/assets/`, `src/news/asset_*.py` | shared selection/preview/completion contracts и app-specific manifest orchestration/adapters |
 | Providers | `src/providers/` | provider adapters и общий contract |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
@@ -80,5 +86,8 @@ storage layer. Slice 5B добавил additive news schema version v1: новы
 stage idempotency для всех повторяемых downstream-семейств от `research` до
 `export`, сохранив legacy asset/voice/subtitle manifests и protected user
 subtitles. `input` и потенциально сетевой `article_ingestion` не включены в
-автоматическую retry-policy по ADR 0006. Следующий этап — 6A; его production code
-ещё не изменялся.
+автоматическую retry-policy по ADR 0006. Подэтап 6A разделил
+`src/news/asset_manager.py` на compatibility facade, manifest builder, чистые
+summary/coverage-расчёты, scene completion и provider search/download adapters.
+Существующий `src.assets.provider_contract` и старые import/patch points сохранены.
+Следующий отдельный подэтап — 6B.
