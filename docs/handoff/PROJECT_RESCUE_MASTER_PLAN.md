@@ -1,9 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–4.6, slices 5A–5C и bounded 5D families
-`research`/`script`/`visual_plan` завершены; этап 4.5
-сохранён как историческая диагностика и снят с critical path; этап 5 —
-Project и storage foundation — выполняется, следующий slice 5D `asset_search`**
+Статус: **выполняется; этапы 0–5 завершены; этап 4.5 сохранён как
+историческая диагностика и снят с critical path; этап 6 не начат,
+следующий отдельный подэтап — 6A Asset manager**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -764,9 +763,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 5. Project и storage foundation
 
-Статус: [ ] выполняется; slices 5A–5C и 5D families
-`research`/`script`/`visual_plan` завершены, следующий slice 5D —
-`asset_search`
+Статус: [x] завершён 2026-07-29; implementation commit `e3c90c3`
 
 Задачи:
 
@@ -779,9 +776,10 @@ Wizard и service, уменьшение крупных функций и пер�
    implementation commit `87e272a`.**
 6. Добавить project lock. **Выполнено в slice 5C, implementation commit
    `f7b3a3c`.**
-7. Добавить idempotency для повторных стадий. **`research`, `script` и
-   `visual_plan` завершены отдельными bounded slices 5D; следующий —
-   `asset_search`.**
+7. Добавить idempotency для повторных стадий. **Все repeatable downstream
+   families от `research` до `export` покрыты output validation. `input` и
+   потенциально сетевой `article_ingestion` намеренно исключены из
+   автоматической retry-policy ADR 0006.**
 8. Сохранить чтение старых `job.json` и `project.json`.
 9. Не выполнять массовую миграцию.
 
@@ -791,6 +789,19 @@ Wizard и service, уменьшение крупных функций и пер�
 - один storage primitive;
 - старые проекты читаются;
 - новые записи атомарны.
+
+Результат:
+
+- `ProjectRepository`/`ProjectView` остаются единственным read-only API над
+  `job.json` и `project.json`;
+- `NewsProjectStore` пишет через общий `atomic_write_json` под общим project
+  lock, не создавая новый storage/repository contract;
+- news schema v1 остаётся additive, старые manifests читаются tolerant;
+- normal repeat, `resume`, `force-stage`, отсутствующие, структурно непригодные
+  и повреждённые outputs покрыты characterization для `research`–`export`;
+- legacy asset/voice/subtitle shapes и protected user subtitles сохранены;
+- массовая миграция, runtime/user-media changes, provider search, TTS и render
+  не выполнялись.
 
 ---
 
@@ -992,10 +1003,11 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> Начать только следующий slice 5D для семейства `asset_search` и
-> characterization-first зафиксировать повторный запуск, `resume`,
-> `force-stage`, отсутствующий и повреждённый output; не расширять изменение на
-> другие stage families, schema, project lock или cleanup.
+> В следующей отдельной сессии начать только 6A Asset manager:
+> characterization-first зафиксировать public functions, callers и orchestration
+> boundary `src/news/asset_manager.py`. Не объединять 6A с 6B–6G, provider
+> consolidation или cleanup. Текущая сессия по решению владельца остановлена до
+> этапа 6.
 
 Не начинать с:
 
@@ -1019,65 +1031,37 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый bounded slice: 5D stage idempotency for news visual_plan stage family
-Текущий этап: 5 Project и storage foundation — выполняется
-Следующий bounded slice: 5D stage idempotency for asset_search stage family
-Исходный HEAD slice 5D (visual_plan): 3abbfac
-Implementation commit slice 5D (visual_plan): 40f3557
-Исходный HEAD slice 5D (script): 69a79d0
-Implementation commit slice 5D (script): 3abbfac
-Исходный HEAD CLI migration slice: 40e6c17
-Implementation commit CLI migration slice: bb9e28a
-Исходный HEAD slice 5D (research): 5c17c4e
-Implementation commit slice 5D (research): 56dd2eb
-Исходный HEAD slice 5C: 5413185
-Implementation commit slice 5C: f7b3a3c
-Исходный HEAD slice 5B: ac30199
-Implementation commit slice 5B: 42d5b99
-Исходный HEAD slice 5A: 736f0c6
-Implementation commit slice 5A: 87e272a
+Завершённый этап: 5 Project и storage foundation
+Текущий этап: 5 завершён
+Следующий этап: 6A Asset manager — не начат
+Исходный HEAD stage 5 closure: 179ea0a
+Implementation commit stage 5 closure: e3c90c3
 Ветка: master
-Git до slice 5D (visual_plan): не проверялся по явному указанию пользователя; исходным baseline объявлен последний завершённый commit
-Исходный HEAD аудита: 8d61a06
-Проверенный code baseline HEAD: 8485a21
-Коммит этапа 1: c8eb8f6
-Коммит этапа 2 и agent context: b7350b3
-Коммит handoff этапа 2: 8ed340d
-Исходный HEAD этапа 3: 8ed340d
-Implementation HEAD этапа 3: 0cd0e11
-Коммит handoff этапа 3: ac9c313
-Исходный HEAD этапа 4: ac9c313
-Implementation HEAD этапа 4: 94034f2
-Коммит handoff этапа 4: 65cef10
-Evidence-коммит этапа 4.5: fb374fd
-Коммит локального аудита 4.5-R: 05cc8ed
-Коммит этапа 4.6: 736f0c6
+Git до работы: clean, HEAD 179ea0a
 Выполнено:
-- полностью прочитаны master plan и skill architecture-change; проверены относящиеся к slice current docs, callers, tests и persisted output paths
-- добавлена characterization family для normal repeat, resume, force-stage, отсутствующего, структурно непригодного и повреждённого visual_plan.json
-- до production-изменения подтверждено ожидаемое падение: completed visual_plan без локализованного visual_plan.json ошибочно считался завершённым
-- NewsProjectStore.validate_stage_output расширен только для stage family visual_plan
-- обязательный output определяется по job.language и проверяется как JSON-объект с непустым списком scene-объектов
-- master/master_visual_plan.json не включён в completeness check: stage сохраняет result_path на локализованный план, asset_search читает локализованный план, production-readers master copy не найдены
-- отсутствующий, структурно непригодный или повреждённый visual_plan.json автоматически восстанавливается повторным запуском stage
-- сохранены tolerant legacy reads; новый schema/storage/lock/stage framework не создавался
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены callers, manifests, schemas и реальные persisted output shapes
+- до production change characterization ожидаемо упала: completed downstream states без обязательного output ошибочно пропускались
+- NewsProjectStore.validate_stage_output расширен для asset_search, voice, subtitles, preview_render, quality_check, final_render и export
+- normal repeat/resume пропускают только пригодный output; force-stage выполняет stage; отсутствующий, пустой, malformed или структурно непригодный output восстанавливается
+- completed voice/final render проверяют declared media; subtitles проверяют declared files, но protected/user_supplied artifacts не перезаписываются
+- pre-schema asset dry-run, legacy voice/subtitle manifests и обе project manifest forms сохранены tolerant
+- ProjectRepository, ProjectView, atomic_write_json, project_lock и news schema v1 не дублировались и не меняли public shape
 Изменения production code: src/news/project_store.py (1 файл)
-Characterization tests: tests/test_news_to_short_pipeline.py
-ADR: docs/adr/0006-news-stage-idempotency.md расширен для visual_plan family
+Characterization tests: tests/test_news_stage_idempotency.py
+ADR: docs/adr/0006-news-stage-idempotency.md завершён для repeatable stages research–export
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
 Targeted checks:
-- characterization before production change: expected FAIL, missing visual_plan.json was skipped
-- tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory tests.test_project_naming_and_resume tests.test_visual_planning_pipeline: OK, 104 tests
+- characterization before production change: expected FAIL/ERROR, missing and corrupt downstream outputs were skipped/read later
+- targeted dependency radius: OK, 112 tests
+- read-only persisted audit: 86 completed downstream states checked; legacy manifests accepted; 8 genuinely missing preview/final media outputs correctly invalidated
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался; bounded change проверен указанным targeted family
+Full offline suite: не запускался по запросу пользователя и test budget
 Найденный root cause:
-- NewsProjectStore.validate_stage_output возвращал True для любой completed stage, кроме research и script, поэтому visual_plan status в job.json имел приоритет над фактическим output
-Ограничения текущей реализации:
-- idempotency по обязательному output подтверждён только для research, script и visual_plan; следующее отдельное семейство — asset_search
+- NewsProjectStore.validate_stage_output возвращал True для всех completed downstream stages после visual_plan, поэтому job.json status имел приоритет над отсутствующим/corrupt manifest или media
 Следующая точная read-only команда: git status --short --branch
-Остановить исполнение и передать отчёт пользователю. Не начинать следующий slice автоматически.
+Остановить исполнение и передать отчёт пользователю. Этап 6 в этой сессии не начинать.
 ```
 
 ---

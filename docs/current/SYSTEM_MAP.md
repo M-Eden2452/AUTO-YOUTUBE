@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 40f3557
+last_verified_commit: e3c90c3
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -18,6 +18,8 @@ source_paths:
   - anime_factory
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
+  - docs/adr/0006-news-stage-idempotency.md
+  - tests/test_news_stage_idempotency.py
 ---
 
 # System Map
@@ -32,7 +34,7 @@ source_paths:
 | Создание контента | `src/content_creation/` | compatibility CLI, wizard и application service |
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
-| Проекты | `src/projects/`, `src/project_foundation/` | общий read API и atomic storage primitive для project manifests |
+| Проекты | `src/projects/`, `src/project_foundation/`, `src/news/project_store.py` | общий read API, atomic storage/lock primitives и output-validated news stage state |
 | Ассеты | `src/assets/` | selection, preview, semantic checks, completion |
 | Providers | `src/providers/` | provider adapters и общий contract |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
@@ -74,6 +76,9 @@ storage layer. Slice 5B добавил additive news schema version v1: новы
 версионированы, а старые `job.json` без поля читаются как v1 без массовой
 миграции. Slice 5C добавил общий fail-fast project-lock primitive и применил его
 к `NewsProjectStore.write_json`; stale lock старше пяти минут перехватывается
-автоматически. Три bounded slice 5D добавили output-validated stage idempotency
-для семейств `research`, `script` и `visual_plan`; следующее семейство
-`asset_search` остаётся отдельным slice.
+автоматически. Этап 5 завершён: bounded slices 5D добавили output-validated
+stage idempotency для всех повторяемых downstream-семейств от `research` до
+`export`, сохранив legacy asset/voice/subtitle manifests и protected user
+subtitles. `input` и потенциально сетевой `article_ingestion` не включены в
+автоматическую retry-policy по ADR 0006. Следующий этап — 6A; его production code
+ещё не изменялся.

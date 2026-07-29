@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 40f3557
+last_verified_commit: e3c90c3
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -19,6 +19,7 @@ source_paths:
   - docs/adr/0005-news-project-lock.md
   - docs/adr/0006-news-stage-idempotency.md
   - docs/adr/0007-canonical-cli-package.md
+  - tests/test_news_stage_idempotency.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -26,11 +27,10 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `40f3557`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `e3c90c3`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6, slices 5A–5C и bounded 5D families
-  `research`/`script`/`visual_plan` завершены; этап 5 продолжается. Физическая
-  перестройка канонической структуры начата.
+- Rescue stages 0–5 завершены; этап 6 не начат. Физическая перестройка
+  канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -40,9 +40,11 @@ source_paths:
 - Slice 5A перевёл `NewsProjectStore.write_json` на существующий
   `project_foundation.atomic_write_json`. Slice 5B добавил `NEWS_JOB_SCHEMA_VERSION=1`.
   Slice 5C добавил общий fail-fast project lock.
-  Bounded slices 5D добавили output-validated stage idempotency для семейств
-  `research`, `script` и `visual_plan`: завершённое состояние признаётся только
-  при наличии структурно пригодного обязательного JSON-артефакта.
+  Bounded slices 5D добавили output-validated stage idempotency для всех
+  повторяемых downstream-семейств от `research` до `export`: завершённое
+  состояние признаётся только при наличии пригодного обязательного
+  manifest/media output. Legacy asset/voice/subtitle shapes и protected
+  пользовательские субтитры остаются tolerant.
   Первый structural migration slice перенёс канонический CLI-слой в `src/ai_youtube/cli/`
   с доменными модулями команд (`create`, `project`, `assets`, `diagnostics`), а `src/content_creation/cli.py`
   сохранён как тонкий compatibility wrapper.
@@ -69,9 +71,9 @@ source_paths:
 Известные переходные долги:
 
 - две формы project manifests сохраняются tolerant readers; lock сериализует
-  отдельные news JSON writes; после `research`, `script` и `visual_plan`
-  остальные stage families, начиная с `asset_search`, получают idempotency
-  только отдельными bounded slices 5D;
+  отдельные news JSON writes; output validation покрывает повторяемые стадии от
+  `research` до `export`. `input` и потенциально сетевой `article_ingestion`
+  намеренно не включены в автоматическую retry-policy ADR 0006;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter

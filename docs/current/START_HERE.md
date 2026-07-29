@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 40f3557
+last_verified_commit: e3c90c3
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -10,6 +10,8 @@ source_paths:
   - ai_youtube/cli/main.py
   - src/config_resolver/paths.py
   - src/content_creation/cli.py
+  - src/news/project_store.py
+  - tests/test_news_stage_idempotency.py
 ---
 
 # Start Here
@@ -25,6 +27,8 @@ AI-YouTube — локальная offline-first система производ�
    [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
 
 Текущий rescue plan: [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md).
+Этап 5 Project и storage foundation завершён; следующий отдельный этап — 6A,
+разделение `src/news/asset_manager.py`.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 40f3557
+last_verified_commit: e3c90c3
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,7 +18,7 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `40f3557`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `e3c90c3`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. На этом этапе production code, runtime и user data не перемещались и
 не удалялись.
@@ -45,7 +45,7 @@ source_paths:
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
 | S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
-| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock | stage idempotency выполняется отдельными bounded slices 5D; `research`, `script` и `visual_plan` завершены | 5A–5D in progress |
+| M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock; 5D (`e3c90c3`) завершил output-validated idempotency | общий storage primitive и lock используются manifest owner; repeatable stages `research`–`export` проверяют обязательные outputs | 5 complete |
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system | 5 |
 | V01 | `anime_factory/` | `move` | отдельный рабочий CLI/workflow; catalog app `video_repurposer` disabled | переносить целиком через adapter с old entrypoint | 8 |
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
@@ -146,22 +146,29 @@ handoff. Порядок не разрешает перепрыгивать че�
 - `visual_plan` (`40f3557`) проверяет локализованный
   `visual/visual_plan.json`: файл должен быть читаемым JSON-объектом с непустым
   списком сцен-объектов.
-- Все три семейства защищены characterization для normal repeat, `resume`,
-  `force-stage`, отсутствующего и повреждённого output.
+- Stage 5 closure (`e3c90c3`) добавил те же guarantees для `asset_search`,
+  `voice`, `subtitles`, `preview_render`, `quality_check`, `final_render` и
+  `export`. Обязательные declared audio/subtitle/render media также проверяются.
+- Closure объединён в один commit по явному запросу владельца завершить весь
+  этап 5 до этапа 6: изменение осталось в одной completeness boundary
+  `NewsProjectStore`, одном production-файле и одной characterization matrix,
+  без независимых schema/storage/dispatcher решений.
+- Все повторяемые семейства от `research` до `export` защищены characterization
+  для normal repeat, `resume`, `force-stage`, отсутствующего, структурно
+  непригодного и повреждённого output.
+- Pre-schema asset manifest, legacy voice/subtitle shapes и protected
+  пользовательские субтитры остаются tolerant. `input` и потенциально сетевой
+  `article_ingestion` не входят в автоматическую retry-policy ADR 0006.
 - Manifest schema, lock policy, runtime projects и user media не менялись.
-- Следующие stage families остаются отдельными bounded slices, без универсального
-  stage framework.
 
 ### Последующая очередь
 
-1. **Следующий slice 5D — `asset_search` idempotency:** один stage family за diff,
-   с repeat/resume/force-stage characterization.
-2. **6A–6G:** выполнять registry entries S01–S07 по одному подэтапу в порядке
+1. **6A–6G:** выполнять registry entries S01–S07 по одному подэтапу в порядке
    master plan; public imports сохранять adapters.
-3. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
-4. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
-5. **9:** удалять только entries со статусом `delete` и актуальным evidence.
-6. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
+2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
+3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
+4. **9:** удалять только entries со статусом `delete` и актуальным evidence.
+5. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
 
 ## Closure rule
 
