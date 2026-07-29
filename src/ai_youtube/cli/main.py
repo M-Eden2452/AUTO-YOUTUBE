@@ -82,14 +82,23 @@ def _print_json(data: Any) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
 
 
-def run_content_creation_cli(args: argparse.Namespace) -> int:
+def run_content_creation_cli(
+    args: argparse.Namespace,
+    *,
+    create_content_fn: Any = None,
+) -> int:
     _resolve_cli_paths(args)
     command = args.command
 
     if command == "create" or command == "resume":
         if command == "resume":
             args.resume = True
-        return create.handle_create(args, resolve_paths_fn=_resolve_cli_paths, print_json_fn=_print_json)
+        return create.handle_create(
+            args,
+            resolve_paths_fn=_resolve_cli_paths,
+            print_json_fn=_print_json,
+            create_content_fn=create_content_fn,
+        )
 
     if command == "wizard":
         return create.handle_wizard(args)

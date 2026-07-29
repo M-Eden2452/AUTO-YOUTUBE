@@ -11,12 +11,22 @@ def register_commands(subparsers: Any, *, common: argparse.ArgumentParser) -> No
     _register_content(subparsers, common=common)
 
 
-def handle_create(args: argparse.Namespace, *, resolve_paths_fn: Any, print_json_fn: Any) -> int:
+def handle_create(
+    args: argparse.Namespace,
+    *,
+    resolve_paths_fn: Any,
+    print_json_fn: Any,
+    create_content_fn: Any = None,
+) -> int:
     from src.content_creation.models import ContentCreationError
     from src.content_creation.output_report import describe_output_file
     from src.content_creation.presentation import print_rights_lines
     from src.content_creation.request_builder import from_cli_namespace
-    from src.content_creation.service import create_content
+
+    if create_content_fn is None:
+        from src.content_creation.service import create_content
+
+        create_content_fn = create_content
 
     resolve_paths_fn(args)
     request = from_cli_namespace(
@@ -27,10 +37,10 @@ def handle_create(args: argparse.Namespace, *, resolve_paths_fn: Any, print_json
     )
 
     if getattr(args, "debug", False):
-        result = create_content(request)
+        result = create_content_fn(request)
     else:
         try:
-            result = create_content(request)
+            result = create_content_fn(request)
         except ContentCreationError as exc:
             if args.json_output:
                 print_json_fn({"status": "failed", "error": str(exc), "reason": exc.reason, "retryable": exc.retryable})

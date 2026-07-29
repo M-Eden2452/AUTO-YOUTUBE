@@ -15,12 +15,12 @@ from src.ai_youtube.cli.main import (
     _resolve_cli_paths as _resolve_cli_paths_impl,
     build_parser as _build_parser_impl,
     configure_console_encoding as _configure_console_encoding_impl,
-    main as _main_impl,
     run_content_creation_cli as _run_content_creation_cli_impl,
 )
 from src.content_creation.models import ContentCreationRequest
 from src.content_creation.presentation import print_rights_lines as _print_rights_lines_impl
 from src.content_creation.request_builder import from_cli_namespace, load_visual_briefs
+from src.content_creation.service import create_content
 
 
 def configure_console_encoding() -> None:
@@ -32,11 +32,17 @@ def build_parser(*, prog: str = "content-creation") -> argparse.ArgumentParser:
 
 
 def run_content_creation_cli(args: argparse.Namespace) -> int:
-    return _run_content_creation_cli_impl(args)
+    return _run_content_creation_cli_impl(
+        args,
+        create_content_fn=create_content,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
-    return _main_impl(argv)
+    configure_console_encoding()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return run_content_creation_cli(args)
 
 
 def _add_create_arguments(parser: argparse.ArgumentParser) -> None:
