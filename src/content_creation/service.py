@@ -13,6 +13,10 @@ from src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover.use_case
     resolve_script_source as _resolve_script_source,
     resolve_voice_inputs as _resolve_voice_inputs,
 )
+from src.ai_youtube.apps.content_creator.workflows.story_card.use_case import (
+    create_story_card as _create_story_card,
+    story_card_rerun_command as _story_card_rerun_command,
+)
 from src.content_creation.models import (
     ContentCreationError,
     ContentCreationRequest,
@@ -22,10 +26,6 @@ from src.content_creation.service_support import (
     ProgressCallback,
     notify as _notify,
     request_path_context as _request_path_context,
-)
-from src.content_creation.story_card_use_case import (
-    create_story_card as _create_story_card,
-    story_card_rerun_command as _story_card_rerun_command,
 )
 from src.production_catalog.catalog import get_default_catalog
 from src.production_catalog.models import CatalogValidationError
