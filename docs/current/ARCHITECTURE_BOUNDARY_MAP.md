@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1f9495c
+last_verified_commit: b9f8212
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,24 +16,26 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `1f9495c`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `b9f8212`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure и подэтапов 6A–6B; это не разрешение на массовое перемещение файлов.
+stage 5 closure и подэтапов 6A–6C; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 266 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 258 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 224;
-- 102 модуля `tests/test_*.py`;
+- 269 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 261 production Python-файл: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 227;
+- 103 модуля `tests/test_*.py`;
 - крупнейшие модули: `src/assets/semantic_visual_evaluation.py` — 1719 строк,
   `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
-  `src/content_creation/wizard.py` — 1229,
+  `src/content_creation/wizard_steps.py` — 939 строк без функций длиннее
+  111 строк,
   `src/content_creation/service.py` — 878, `pipeline.py` — 703.
   Compatibility facade `src/news/asset_manager.py` — 266 строк;
+  `src/content_creation/wizard.py` — 175 строк;
   canonical diagnostics facade — 78 строк, `src/content_creation/cli.py` —
   81 строка после восстановления compatibility patch-point.
 
@@ -45,7 +47,7 @@ stage 5 closure и подэтапов 6A–6B; это не разрешение 
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
-| `content_creation` | 16 | CLI/Wizard/application service |
+| `content_creation` | 19 | CLI/Wizard/application service |
 | `providers` | 10 | adapters общего asset provider contract |
 | `subtitles` | 9 | единый subtitle engine |
 | `project_foundation` | 9 | `project.json`, evidence и atomic storage |
@@ -108,7 +110,7 @@ planned adapter
 | Boundary | Production callers / dependencies | Защитные тесты | Решение |
 |---|---|---|---|
 | `src.ai_youtube.cli` + `src.content_creation.cli` | canonical dispatcher/domain handlers и legacy facade; вызывают service, lazy Wizard, projects и shared presentation | `test_cli_internals_contract`, `test_content_creation_cli`, `test_stage1_characterization`, `test_stage3_workspace_paths`, `test_stage4_canonical_cli`, script/visual/assets/subtitle wiring | 6B завершён: command/output contract и patch-points сохранены, handlers/presentation разделены |
-| `src.content_creation.wizard` | вызывается CLI; использует service, capabilities и `ProjectRepository` | `test_content_creation_wizard`, `test_project_naming_and_resume`, localization integration | разделять state/steps/presentation в 6C |
+| `src.content_creation.wizard` + `wizard_state`/`wizard_steps`/`wizard_presentation` | facade вызывается CLI; steps используют service, capabilities и `ProjectRepository`, state делегирует общему request builder | `test_wizard_internals_contract`, `test_content_creation_wizard`, `test_project_naming_and_resume`, localization integration | 6C завершён: `run_wizard`, compatibility imports, request-builder patch-point и lazy CLI boundary сохранены |
 | `src.content_creation.service` | вызывается CLI и Wizard; маршрутизирует оба active workflow | `test_content_creation_service`, Wizard/resume и Stage 4 tests | разделять use cases в 6D, не создавать второй service |
 | `src.news.pipeline` | service, `apps.news_to_short`, root pipeline; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить fullscreen workflow boundary |
 | `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |

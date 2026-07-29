@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1f9495c
+last_verified_commit: b9f8212
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,9 +18,9 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `1f9495c`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `b9f8212`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. Подэтапы 6A–6B выполнили только bounded split production code; runtime и
+этапа 4.6. Подэтапы 6A–6C выполнили только bounded split production code; runtime и
 user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
@@ -40,7 +40,7 @@ user data не перемещались и не удалялись.
 | K08 | `apps/*` wrappers | `keep` | `test_apps_structure`; внешние `python -m apps.*` entrypoints | compatibility до отдельного retirement evidence | 8–9 |
 | S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
 | S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
-| S03 | `src/content_creation/wizard.py` | `split` | 1229 строк; adapters, state, steps и presentation | сохранить `run_wizard` и request builder | 6C |
+| S03 | `src/content_creation/wizard.py` + `wizard_state`/`wizard_steps`/`wizard_presentation` | `split` | 6C (`b9f8212`) уменьшил facade с 1229 до 175 строк и разделил state/request translation, steps/execution и terminal presentation | выполнено; `run_wizard`, private compatibility imports, module request-builder patch-point и lazy CLI boundary защищены characterization | 6C complete |
 | S04 | `src/content_creation/service.py` | `split` | 878 строк; два workflow и paid preflight в одном module | use cases внутри одного application service | 6D |
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
@@ -199,10 +199,27 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Schemas, persisted projects, runtime/user media и application service не
   менялись.
 
+### Завершённый structural slice: 6C Wizard
+
+- `tests/test_wizard_internals_contract.py` зафиксировал signatures и import
+  surface Wizard facade, module-level `_build_request` patch-point и фактическую
+  делегацию в split-модули.
+- `src/content_creation/wizard.py` уменьшен с 1229 до 175 строк и оставлен
+  compatibility facade с прежним `run_wizard`, prompt adapters и private
+  imports.
+- Working state и перевод через существующий общий request builder вынесены в
+  `wizard_state.py`; terminal adapters/summaries/results — в
+  `wizard_presentation.py`; шаги, resume/edit и execution orchestration — в
+  `wizard_steps.py` (`b9f8212`).
+- В split Wizard нет orchestration-функций длиннее 111 строк; application
+  service, schema, persisted projects и lazy CLI → Wizard boundary не менялись.
+- Targeted verification: 124 tests OK, compile/import checks OK. Full offline
+  suite, сеть, provider download, TTS, Vision и render не запускались.
+
 ### Последующая очередь
 
-1. **6C–6G:** выполнять registry entries S03–S07 по одному подэтапу в порядке
-   master plan; следующий отдельный подэтап — 6C Wizard.
+1. **6D–6G:** выполнять registry entries S04–S07 по одному подэтапу в порядке
+   master plan; следующий отдельный подэтап — 6D Application service.
 2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
 3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
 4. **9:** удалять только entries со статусом `delete` и актуальным evidence.

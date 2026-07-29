@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1f9495c
+last_verified_commit: b9f8212
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -9,6 +9,10 @@ source_paths:
   - src/ai_youtube/cli
   - src/config_resolver/paths.py
   - src/content_creation/capabilities.py
+  - src/content_creation/wizard.py
+  - src/content_creation/wizard_state.py
+  - src/content_creation/wizard_steps.py
+  - src/content_creation/wizard_presentation.py
   - src/news/models.py
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -26,6 +30,7 @@ source_paths:
   - docs/adr/0007-canonical-cli-package.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
+  - tests/test_wizard_internals_contract.py
   - tests/test_news_stage_idempotency.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
@@ -34,9 +39,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `1f9495c`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `b9f8212`. Код и Git имеют приоритет.
 
-- Rescue stages 0–5 и подэтапы 6A–6B завершены; этап 6 продолжается с 6C.
+- Rescue stages 0–5 и подэтапы 6A–6C завершены; этап 6 продолжается с 6D.
   Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
@@ -71,6 +76,13 @@ source_paths:
   Public command set, JSON/text output и старые module-level patch-points
   сохранены; потерянный migration-ом `create_content` patch-point восстановлен
   через явную dependency injection.
+- Подэтап 6C уменьшил `src/content_creation/wizard.py` с 1229 до 175 строк:
+  facade сохраняет `run_wizard`, prompt adapters, private compatibility imports
+  и module-level request-builder patch-point. Working state и translation через
+  общий `request_builder` вынесены в `wizard_state.py`, terminal presentation —
+  в `wizard_presentation.py`, интерактивные шаги и execution orchestration —
+  в `wizard_steps.py`. Lazy CLI → Wizard boundary и application service не
+  менялись.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -93,8 +105,8 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- оставшиеся Wizard/service/legacy command handlers, semantic evaluation и
-  cycle frame sampling ↔ perceptual similarity — подэтапы 6C–6G;
+- оставшиеся service/legacy command handlers, semantic evaluation и cycle
+  frame sampling ↔ perceptual similarity — подэтапы 6D–6G;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не

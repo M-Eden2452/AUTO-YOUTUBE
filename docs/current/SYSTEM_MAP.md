@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1f9495c
+last_verified_commit: b9f8212
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -8,6 +8,10 @@ source_paths:
   - pipeline.py
   - src/config_resolver/paths.py
   - src/content_creation
+  - src/content_creation/wizard.py
+  - src/content_creation/wizard_state.py
+  - src/content_creation/wizard_steps.py
+  - src/content_creation/wizard_presentation.py
   - src/news
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -27,6 +31,7 @@ source_paths:
   - docs/adr/0006-news-stage-idempotency.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
+  - tests/test_wizard_internals_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -72,7 +77,10 @@ video_repurposer
 - произвольный workspace выбирается через CLI/env/path config, а versioned resources
   остаются привязаны к репозиторию;
 - definitions и handlers CLI-команд разделены по domain-модулям; text/terminal
-  rendering вынесен в общий presentation module, а старый CLI остаётся facade.
+  rendering вынесен в общий presentation module, а старый CLI остаётся facade;
+- `src.content_creation.wizard` остаётся compatibility facade с прежним
+  `run_wizard`; working state/request translation, terminal presentation и
+  интерактивные steps разделены по отдельным модулям.
 
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
@@ -95,4 +103,7 @@ summary/coverage-расчёты, scene completion и provider search/download ad
 Подэтап 6B разделил canonical CLI internals на catalog,
 localization/subtitles и authoring handlers, оставил 78-строчный diagnostics
 facade и вынес terminal formatting в `src/ai_youtube/cli/presentation.py`.
-Следующий отдельный подэтап — 6C.
+Подэтап 6C оставил `src/content_creation/wizard.py` 175-строчным compatibility
+facade и вынес state/request translation, terminal presentation/adapters и
+steps/execution orchestration в отдельные модули без изменения общего request
+builder или lazy CLI → Wizard boundary. Следующий отдельный подэтап — 6D.

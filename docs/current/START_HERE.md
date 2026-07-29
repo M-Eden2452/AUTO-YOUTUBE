@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1f9495c
+last_verified_commit: b9f8212
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -11,6 +11,10 @@ source_paths:
   - src/ai_youtube/cli
   - src/config_resolver/paths.py
   - src/content_creation/cli.py
+  - src/content_creation/wizard.py
+  - src/content_creation/wizard_state.py
+  - src/content_creation/wizard_steps.py
+  - src/content_creation/wizard_presentation.py
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
   - src/news/asset_manifest_summaries.py
@@ -19,6 +23,7 @@ source_paths:
   - src/news/project_store.py
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
+  - tests/test_wizard_internals_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -35,8 +40,9 @@ AI-YouTube — локальная offline-first система производ�
    [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
 
 Текущий rescue plan: [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md).
-Этап 5 Project и storage foundation и подэтапы 6A Asset manager и
-6B Внутренности CLI завершены; следующий отдельный подэтап — 6C Wizard.
+Этап 5 Project и storage foundation и подэтапы 6A Asset manager,
+6B Внутренности CLI и 6C Wizard завершены; следующий отдельный подэтап —
+6D Application service.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).
