@@ -147,7 +147,160 @@ class NewsProjectStore:
                 )
             except Exception:
                 return False
+        if stage == "asset_search":
+            manifest = self._read_json_object(root / "assets" / "assets_manifest.json")
+            if manifest is None:
+                return False
+            scenes = manifest.get("scenes")
+            missing_scenes = manifest.get("missing_scenes")
+            if "schema_version" not in manifest and scenes is None:
+                return (
+                    isinstance(manifest.get("dry_run"), bool)
+                    and isinstance(manifest.get("assets"), list)
+                    and isinstance(missing_scenes, list)
+                    and all(isinstance(scene, dict) for scene in missing_scenes)
+                    and isinstance(manifest.get("warnings"), list)
+                )
+            return (
+                isinstance(scenes, list)
+                and bool(scenes)
+                and all(isinstance(scene, dict) for scene in scenes)
+                and isinstance(missing_scenes, list)
+                and all(isinstance(scene, dict) for scene in missing_scenes)
+            )
+        if stage == "voice":
+            manifest = self._read_json_object(
+                root
+                / "localizations"
+                / job.language
+                / "voice"
+                / "voice_manifest.json"
+            )
+            if manifest is None:
+                return False
+            status = manifest.get("voice_stage_status") or manifest.get("status")
+            audio_path = manifest.get("audio_path", "")
+            if not isinstance(status, str) or not status.strip():
+                return False
+            if not isinstance(audio_path, str):
+                return False
+            if status == "completed":
+                return self._declared_file_exists(root, audio_path)
+            return True
+        if stage == "subtitles":
+            manifest = self._read_json_object(
+                root
+                / "localizations"
+                / job.language
+                / "subtitles"
+                / "subtitles_manifest.json"
+            )
+            if manifest is None:
+                return False
+            status = manifest.get("status")
+            cues = manifest.get("cues")
+            segments = cues if isinstance(cues, list) and cues else manifest.get("segments")
+            if not isinstance(status, str) or not status.strip():
+                return False
+            if manifest.get("protected") or manifest.get("source") == "user_supplied":
+                return True
+            if (
+                not isinstance(segments, list)
+                or not segments
+                or not all(isinstance(segment, dict) for segment in segments)
+            ):
+                return False
+            declared_paths = manifest.get("paths")
+            if isinstance(declared_paths, dict) and declared_paths:
+                paths = list(declared_paths.values())
+            else:
+                paths = [
+                    manifest.get(name)
+                    for name in ("srt_path", "ass_path")
+                    if manifest.get(name)
+                ]
+            return bool(paths) and all(
+                self._declared_file_exists(root, path) for path in paths
+            )
+        if stage == "preview_render":
+            return self._is_nonempty_file(root / "preview" / "preview.mp4")
+        if stage == "quality_check":
+            report = self._read_json_object(root / "quality" / "quality_report.json")
+            if report is None:
+                return False
+            return (
+                report.get("status") in {"passed", "needs_review", "failed"}
+                and isinstance(report.get("errors"), list)
+                and isinstance(report.get("warnings"), list)
+                and isinstance(report.get("checks"), list)
+            )
+        if stage == "final_render":
+            manifest = self._read_json_object(
+                root / "render" / "final_render_manifest.json"
+            )
+            return (
+                manifest is not None
+                and manifest.get("status") == "completed"
+                and self._declared_file_exists(root, manifest.get("output_path"))
+            )
+        if stage == "export":
+            manifest = self._read_json_object(
+                root
+                / "localizations"
+                / job.language
+                / "output"
+                / "project_manifest.json"
+            )
+            required = {
+                "job_id",
+                "mode",
+                "channel_id",
+                "language",
+                "status",
+                "description_path",
+                "sources_path",
+                "quality_report",
+                "outputs",
+            }
+            return (
+                manifest is not None
+                and required.issubset(manifest)
+                and isinstance(manifest.get("language"), str)
+                and bool(manifest["language"].strip())
+                and isinstance(manifest.get("description_path"), str)
+                and bool(manifest["description_path"].strip())
+                and isinstance(manifest.get("sources_path"), str)
+                and bool(manifest["sources_path"].strip())
+                and isinstance(manifest.get("quality_report"), dict)
+                and isinstance(manifest.get("outputs"), dict)
+            )
         return True
+
+    @staticmethod
+    def _read_json_object(path: Path) -> dict[str, Any] | None:
+        if not path.is_file():
+            return None
+        try:
+            data = NewsProjectStore.read_json(path)
+        except (OSError, ValueError, TypeError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _is_nonempty_file(path: Path) -> bool:
+        try:
+            return path.is_file() and path.stat().st_size > 0
+        except OSError:
+            return False
+
+    def _declared_file_exists(self, root: Path, value: Any) -> bool:
+        if not isinstance(value, str) or not value.strip():
+            return False
+        declared = Path(value)
+        candidates = [declared]
+        if not declared.is_absolute():
+            candidates.extend((root / declared, self.projects_root.parent / declared))
+        return any(self._is_nonempty_file(candidate) for candidate in candidates)
 
     def completed_stage_names(self, job: NewsJob) -> set[str]:
         return {name for name in job.stages if self.is_stage_completed(job, name)}
