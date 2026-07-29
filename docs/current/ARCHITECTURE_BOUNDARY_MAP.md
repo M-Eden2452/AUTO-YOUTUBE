@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 8e087c7
+last_verified_commit: 8c89a67
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,21 +16,23 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `8e087c7`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `8c89a67`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure и подэтапов 6A–6D; это не разрешение на массовое перемещение файлов.
+stage 5 closure и подэтапов 6A–6E; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 272 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 264 production Python-файла: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 230;
-- 104 модуля `tests/test_*.py`;
-- крупнейшие модули: `src/assets/semantic_visual_evaluation.py` — 1719 строк,
-  `src/news/asset_manifest_builder.py` — 1413 строк с короткими
+- 274 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 266 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 232;
+- 105 модулей `tests/test_*.py`;
+- крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
+  `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
+  `src/assets/semantic_visual_evaluation_tooling.py` — 982 строки без функций
+  длиннее 68 строк,
   `src/content_creation/wizard_steps.py` — 939 строк без функций длиннее
   111 строк,
   `src/content_creation/fullscreen_voiceover_use_case.py` — 904 строки без
@@ -38,6 +40,7 @@ stage 5 closure и подэтапов 6A–6D; это не разрешение 
   Compatibility facade `src/news/asset_manager.py` — 266 строк;
   `src/content_creation/wizard.py` — 175 строк;
   `src/content_creation/service.py` — 123 строки;
+  `src/assets/semantic_visual_evaluation.py` — 53 строки;
   canonical diagnostics facade — 78 строк, `src/content_creation/cli.py` —
   81 строка после восстановления compatibility patch-point.
 
@@ -45,7 +48,7 @@ stage 5 closure и подэтапов 6A–6D; это не разрешение 
 
 | Область | Python-файлов | Фактическая роль |
 |---|---:|---|
-| `assets` | 43 | contracts, selection, download, preview, completion и semantic tooling |
+| `assets` | 45 | contracts, selection, download, preview, completion и split semantic tooling/runtime |
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
@@ -116,7 +119,7 @@ planned adapter
 | `src.content_creation.service` + `service_support`/workflow use cases | единый facade вызывается CLI и Wizard; facade валидирует request/template и маршрутизирует оба active workflow | `test_content_creation_service_internals_contract`, `test_content_creation_service`, CLI, Wizard paid confirmation, resume и Stage 4 tests | 6D завершён: `create_content`, private compatibility imports, paid gate, tolerant resume и progress callback сохранены; use cases и orchestration phases разделены |
 | `src.news.pipeline` | service, `apps.news_to_short`, root pipeline; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить fullscreen workflow boundary |
 | `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |
-| `src.assets.semantic_visual_evaluation` | root pipeline и один выделенный test module | `test_semantic_visual_evaluation` | отделить offline evaluation/reporting от controlled live runtime в 6E |
+| `src.assets.semantic_visual_evaluation` + `semantic_visual_evaluation_tooling`/`runtime` | 53-строчный facade импортирует root pipeline; tooling владеет offline dataset/metrics/reporting, runtime — gated execution/checkpoints | `test_semantic_visual_evaluation_internals_contract`, `test_semantic_visual_evaluation`, `test_asset_cli_wiring` | 6E завершён: public signatures/dataclass shapes/root caller сохранены; runtime и tooling разделены без второго engine |
 | `src.projects.ProjectRepository` | CLI, service, Wizard, replacement и rights report | `test_project_repository`, rights report, config parity, resume | сохранить единственным read API; writer не добавлять |
 | `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | `test_news_stage_idempotency`, news models/pipeline, service, renderer, repository tests | writer использует общий atomic primitive с 5A, schema v1 с 5B, fail-fast project lock с 5C и output validation для repeatable stages `research`–`export` с 5D |
 | `src.project_foundation` | Story Card service/integration, catalog, projects/rights | project foundation/factory, Story Card integration/provenance, schemas | сохранить `project.json` owner и atomic storage |

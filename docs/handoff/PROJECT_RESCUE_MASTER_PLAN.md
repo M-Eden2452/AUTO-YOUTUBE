@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–5 и подэтапы 6A–6D завершены; этап 4.5 сохранён как
+Статус: **выполняется; этапы 0–5 и подэтапы 6A–6E завершены; этап 4.5 сохранён как
 историческая диагностика и снят с critical path; этап 6 продолжается,
-следующий отдельный подэтап — 6E Semantic evaluation**
+следующий отдельный подэтап — 6F Legacy pipeline**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -807,7 +807,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 6. Разделение крупных модулей
 
-Статус: [~] выполняется; 6A–6D завершены 2026-07-29, следующий подэтап — 6E
+Статус: [~] выполняется; 6A–6E завершены 2026-07-29, следующий подэтап — 6F
 
 Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
 Не объединять их в одну сессию без записанного исключения из бюджета области.
@@ -906,6 +906,23 @@ selection, download и completion.
 
 Разделить в `src/assets/semantic_visual_evaluation.py` runtime и evaluation
 tooling.
+
+Статус: [x] завершён 2026-07-29; implementation commit `8c89a67`.
+
+Результат:
+
+- `src/assets/semantic_visual_evaluation.py` уменьшен с 1719 до 53 строк и
+  сохранён как public facade для root `pipeline.py`;
+- offline dataset loading, synthetic frames, metrics и report/comparison
+  artifacts вынесены в `semantic_visual_evaluation_tooling.py`, controlled
+  OpenAI execution, authorization/budget limits и checkpoints —
+  в `semantic_visual_evaluation_runtime.py`;
+- public signatures, dataset dataclass shapes, dry-run/mock/fake-client paths,
+  root-pipeline import и paid-call gates сохранены;
+- 59 из 63 прежних top-level definitions перенесены AST-идентично; longest
+  function после split — 68 строк;
+- targeted verification: 30 tests OK, compile/import и diff checks OK; full
+  offline suite, сеть, provider calls, Vision, TTS и render не запускались.
 
 #### 6F. Legacy pipeline
 
@@ -1073,13 +1090,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только 6E Semantic evaluation:
-> characterization-first картировать offline metrics/reporting, controlled live
-> runtime, root-pipeline caller и test patch-points в
-> `src/assets/semantic_visual_evaluation.py`. Отделить evaluation tooling от
-> runtime backend без второго engine и без сетевых/Vision/provider вызовов. Не
-> переоткрывать 6A–6D и не объединять 6E с 6F–6G, provider consolidation или
-> cleanup.
+> В следующей отдельной сессии начать только 6F Legacy pipeline:
+> characterization-first картировать parser/dispatch, handler families,
+> compatibility callers и test patch-points в `pipeline.py`. Выносить только
+> одну подтверждённую handler family за bounded slice, оставляя `pipeline.py`
+> тонким facade без дублирования бизнес-логики. Не переоткрывать 6A–6E и не
+> объединять 6F с 6G, provider consolidation или cleanup.
 
 Не начинать с:
 
@@ -1103,53 +1119,52 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 6D Application service
-Текущий этап: 6 выполняется; 6A–6D завершены
-Следующий этап: 6E Semantic evaluation — не начат
-Исходный HEAD 6D: cf613ff
-Implementation HEAD 6D: 8e087c7
+Завершённый этап: 6E Semantic evaluation
+Текущий этап: 6 выполняется; 6A–6E завершены
+Следующий этап: 6F Legacy pipeline — не начат
+Исходный HEAD 6E: 1845555
+Implementation HEAD 6E: 8c89a67
 Ветка: master
-Git до работы: clean, HEAD cf613ff
+Git до работы: dirty, HEAD 1845555; существовала незакоммиченная заготовка 6E в четырёх целевых файлах
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены create_content, callers CLI/Wizard, два active workflow, paid preflight/approval, progress callback и private compatibility imports
-- pre-change characterization подтвердил service signatures/import surface, dispatch patch-points, progress callback и безопасный no-script paid preflight
-- src/content_creation/service.py уменьшен с 878 до 123 строк и оставлен единой точкой входа create_content
-- общие progress/path helpers вынесены в service_support.py
-- Story Card use case вынесен в story_card_use_case.py
-- Fullscreen Voiceover use case вынесен в fullscreen_voiceover_use_case.py; project setup, safe pipeline, voice/paid gate, draft completion, subtitles/music и render/export разделены на методы
-- бывшая 344-строчная fullscreen orchestration устранена; longest fullscreen method — 93 строки, longest service-slice function — 115 строк
-- create_content, private imports/rerun commands, paid approval/preflight, existing-narration protection, resume/force-stage, tolerant project roots и progress callback сохранены
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены public surface, root pipeline caller, offline metrics/reporting, controlled live runtime и test patch-points
+- существующая characterization зафиксировала public signatures, dataclass shapes, root-pipeline import и фактическую делегацию facade
+- src/assets/semantic_visual_evaluation.py уменьшен с 1719 до 53 строк и оставлен public compatibility facade
+- offline dataset loading, synthetic frames, metrics и report/comparison artifacts вынесены в semantic_visual_evaluation_tooling.py
+- controlled OpenAI execution, runtime authorization, budget/attempt caps и execution checkpoints вынесены в semantic_visual_evaluation_runtime.py
+- 59 из 63 прежних top-level definitions перенесены AST-идентично; три orchestration-функции разделены на helpers, private checkpoint writer переименован без внешних callers
+- longest function split-модулей — 68 строк; второго semantic engine/provider contract не создавалось
+- public dry-run/mock/fake-client behavior, root pipeline import и paid-call gates сохранены
 Изменения production code:
-- src/content_creation/service.py
-- src/content_creation/service_support.py
-- src/content_creation/story_card_use_case.py
-- src/content_creation/fullscreen_voiceover_use_case.py
-Characterization tests: tests/test_content_creation_service_internals_contract.py и существующие service/CLI/Wizard paid confirmation/resume/Stage 4 contracts
+- src/assets/semantic_visual_evaluation.py
+- src/assets/semantic_visual_evaluation_runtime.py
+- src/assets/semantic_visual_evaluation_tooling.py
+Characterization tests: tests/test_semantic_visual_evaluation_internals_contract.py и существующие tests/test_semantic_visual_evaluation.py, tests/test_asset_cli_wiring.py
 ADR: не нужен; публичный contract и system boundary не изменялись
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
 Targeted checks:
-- pre-change 6D characterization: OK, 4 tests
-- post-change 6D characterization: OK, 4 tests; после delegation assertion — 5 tests
-- tests.test_content_creation_service: OK, 25 tests
-- final unique service/CLI/Wizard paid confirmation/resume/Stage 4 radius: OK, 97 tests
-- compileall split service modules: OK
+- semantic evaluation characterization + regression: OK, 23 tests
+- root semantic-backend/semantic-visual CLI wiring: OK, 7 tests
+- compileall split semantic evaluation modules/test: OK
+- AST comparison: 59 definitions identical, longest new function 68 lines
+- git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 6D:
-- service.py смешивал template/request validation, Story Card, Fullscreen Voiceover, paid voice policy, resume/project tolerance и render/export в одном 878-строчном module
-- Fullscreen Voiceover выполнял project creation, safe stages, voice approval, draft completion и render/export одной 344-строчной orchestration-функцией
-- внешний compatibility surface шире create_content: Stage 4 импортирует rerun helpers, service tests напрямую используют _create_paid_voice_approval, а module use-case names полезны как dispatch patch-points
+Найденные root causes 6E:
+- semantic_visual_evaluation.py смешивал offline dataset/fixtures/metrics/reporting с gated paid runtime, budget enforcement и execution checkpoints в одном 1719-строчном module
+- root pipeline зависит только от public run_semantic_visual_evaluation, а tests импортируют ещё четыре public tooling functions и две dataclass shapes
+- controlled runtime использует существующий OpenAISemanticVisualBackend; split не требует второго engine или provider contract
 Новый known issue:
 - новых нет; существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не возвращать workflow orchestration или paid voice policy в service.py facade
-- не создавать второй create service, project contract, progress API или approval gate
-- не удалять private service compatibility imports/rerun helpers без отдельного compatibility checkpoint
-- не смешивать 6E semantic evaluation с 6F–6G или provider consolidation
+- не возвращать offline metrics/reporting или controlled runtime orchestration в semantic_visual_evaluation.py facade
+- не создавать второй semantic engine, provider contract, budget gate или evaluation dataset contract
+- не ослаблять allowlisted dataset/model/detail, budget, call/image caps или explicit confirmation
+- не смешивать 6F legacy pipeline с 6G или provider consolidation
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только characterization 6E по offline evaluation/reporting, controlled live runtime, root-pipeline caller и test patch-points без сетевых/Vision/provider вызовов.
+После проверки Git начать только characterization 6F по parser/dispatch, handler families, compatibility callers и test patch-points в pipeline.py без сети, provider calls, Vision, TTS или render.
 ```
 
 ---

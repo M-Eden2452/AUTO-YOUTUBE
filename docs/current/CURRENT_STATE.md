@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 8e087c7
+last_verified_commit: 8c89a67
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -17,6 +17,9 @@ source_paths:
   - src/content_creation/service_support.py
   - src/content_creation/story_card_use_case.py
   - src/content_creation/fullscreen_voiceover_use_case.py
+  - src/assets/semantic_visual_evaluation.py
+  - src/assets/semantic_visual_evaluation_runtime.py
+  - src/assets/semantic_visual_evaluation_tooling.py
   - src/news/models.py
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -36,6 +39,7 @@ source_paths:
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
   - tests/test_content_creation_service_internals_contract.py
+  - tests/test_semantic_visual_evaluation_internals_contract.py
   - tests/test_news_stage_idempotency.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
@@ -44,9 +48,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `8e087c7`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `8c89a67`. Код и Git имеют приоритет.
 
-- Rescue stages 0–5 и подэтапы 6A–6D завершены; этап 6 продолжается с 6E.
+- Rescue stages 0–5 и подэтапы 6A–6E завершены; этап 6 продолжается с 6F.
   Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
@@ -95,6 +99,14 @@ source_paths:
   явные project, safe-pipeline, voice/approval, draft и render/export фазы;
   longest method — 93 строки. Paid approval/preflight, resume/force-stage,
   tolerant existing narration и progress callback сохранены.
+- Подэтап 6E уменьшил `src/assets/semantic_visual_evaluation.py` с 1719 до
+  53 строк и сохранил его public facade для root `pipeline.py`. Offline
+  dataset loading, synthetic frames, metrics и report artifacts вынесены в
+  `semantic_visual_evaluation_tooling.py`; gated OpenAI execution, budget,
+  authorization и checkpoint state — в
+  `semantic_visual_evaluation_runtime.py`. Public signatures, dataclass shapes,
+  dry-run/mock/fake-client paths и paid-call gates сохранены; самая длинная
+  функция split-модулей — 68 строк.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -117,8 +129,8 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- semantic evaluation, legacy command handlers и cycle frame sampling ↔
-  perceptual similarity — оставшиеся подэтапы 6E–6G;
+- legacy command handlers и cycle frame sampling ↔ perceptual similarity —
+  оставшиеся подэтапы 6F–6G;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не

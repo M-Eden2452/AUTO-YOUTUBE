@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 8e087c7
+last_verified_commit: 8c89a67
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -16,6 +16,9 @@ source_paths:
   - src/content_creation/service_support.py
   - src/content_creation/story_card_use_case.py
   - src/content_creation/fullscreen_voiceover_use_case.py
+  - src/assets/semantic_visual_evaluation.py
+  - src/assets/semantic_visual_evaluation_runtime.py
+  - src/assets/semantic_visual_evaluation_tooling.py
   - src/news
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -37,6 +40,7 @@ source_paths:
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
   - tests/test_content_creation_service_internals_contract.py
+  - tests/test_semantic_visual_evaluation_internals_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -54,6 +58,7 @@ source_paths:
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
 | Проекты | `src/projects/`, `src/project_foundation/`, `src/news/project_store.py` | общий read API, atomic storage/lock primitives и output-validated news stage state |
 | Ассеты | `src/assets/`, `src/news/asset_*.py` | shared selection/preview/completion contracts и app-specific manifest orchestration/adapters |
+| Semantic evaluation | `src/assets/semantic_visual_evaluation*.py` | compatibility facade, offline dataset/metrics/report tooling и controlled live runtime |
 | Providers | `src/providers/` | provider adapters и общий contract |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
@@ -90,6 +95,10 @@ video_repurposer
   `create_content`; request/template validation выполняет facade, а два active
   workflow делегируются `story_card_use_case` и
   `fullscreen_voiceover_use_case` с общими progress/path helpers.
+- `src.assets.semantic_visual_evaluation` остаётся public facade для root
+  `pipeline.py`; offline dataset/metrics/reporting находятся в
+  `semantic_visual_evaluation_tooling`, а gated execution —
+  в `semantic_visual_evaluation_runtime`.
 
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
@@ -118,4 +127,6 @@ steps/execution orchestration в отдельные модули без изме
 builder или lazy CLI → Wizard boundary. Подэтап 6D оставил
 `src/content_creation/service.py` 123-строчным facade и отделил use cases Story
 Card и Fullscreen Voiceover; paid gate, tolerant resume и progress callback
-сохранены. Следующий отдельный подэтап — 6E.
+сохранены. Подэтап 6E оставил semantic evaluation 53-строчным facade и отделил
+offline tooling от controlled live runtime без нового engine или изменения
+root-pipeline import. Следующий отдельный подэтап — 6F.

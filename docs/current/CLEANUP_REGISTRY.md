@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 8e087c7
+last_verified_commit: 8c89a67
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,9 +18,9 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `8e087c7`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `8c89a67`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. Подэтапы 6A–6D выполнили только bounded split production code; runtime и
+этапа 4.6. Подэтапы 6A–6E выполнили только bounded split production code; runtime и
 user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
@@ -42,7 +42,7 @@ user data не перемещались и не удалялись.
 | S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
 | S03 | `src/content_creation/wizard.py` + `wizard_state`/`wizard_steps`/`wizard_presentation` | `split` | 6C (`b9f8212`) уменьшил facade с 1229 до 175 строк и разделил state/request translation, steps/execution и terminal presentation | выполнено; `run_wizard`, private compatibility imports, module request-builder patch-point и lazy CLI boundary защищены characterization | 6C complete |
 | S04 | `src/content_creation/service.py` + use case modules | `split` | 6D (`8e087c7`) уменьшил facade с 878 до 123 строк, разделил Story Card/Fullscreen Voiceover use cases и явные fullscreen phases | выполнено; единый `create_content`, private imports, paid gate, tolerant resume и progress callback защищены characterization | 6D complete |
-| S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
+| S05 | `src/assets/semantic_visual_evaluation.py` + tooling/runtime modules | `split` | 6E (`8c89a67`) оставил 53-строчный facade и отделил offline dataset/metrics/reporting от controlled live execution/checkpoints | выполнено; public signatures, dataclass shapes, root-pipeline import и paid-call gates защищены characterization | 6E complete |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
 | S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
 | M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock; 5D (`e3c90c3`) завершил output-validated idempotency | общий storage primitive и lock используются manifest owner; repeatable stages `research`–`export` проверяют обязательные outputs | 5 complete |
@@ -235,10 +235,26 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Targeted verification: 97 tests OK, compile/import checks OK. Full offline
   suite, сеть, provider download, TTS, Vision и render не запускались.
 
+### Завершённый structural slice: 6E Semantic evaluation
+
+- `tests/test_semantic_visual_evaluation_internals_contract.py` зафиксировал
+  public signatures, dataset dataclass shapes, root `pipeline.py` caller и
+  делегацию facade в split-модули.
+- `src/assets/semantic_visual_evaluation.py` уменьшен с 1719 до 53 строк и
+  оставлен public compatibility facade.
+- Offline dataset loading, synthetic fixtures, metrics и report/comparison
+  artifacts вынесены в `semantic_visual_evaluation_tooling.py`; controlled
+  OpenAI runtime, authorization/budget limits, attempt caps и execution
+  checkpoints — в `semantic_visual_evaluation_runtime.py` (`8c89a67`).
+- 59 из 63 прежних top-level definitions перенесены AST-идентично; изменённые
+  orchestration-функции разделены на helpers, longest function — 68 строк.
+- Targeted verification: 30 tests OK, compile/import checks и diff check OK.
+  Full offline suite, сеть, provider calls, Vision, TTS и render не запускались.
+
 ### Последующая очередь
 
-1. **6E–6G:** выполнять registry entries S05–S07 по одному подэтапу в порядке
-   master plan; следующий отдельный подэтап — 6E Semantic evaluation.
+1. **6F–6G:** выполнять registry entries S06–S07 по одному подэтапу в порядке
+   master plan; следующий отдельный подэтап — 6F Legacy pipeline.
 2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
 3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
 4. **9:** удалять только entries со статусом `delete` и актуальным evidence.
