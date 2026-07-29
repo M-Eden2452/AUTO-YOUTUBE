@@ -1,33 +1,14 @@
 from __future__ import annotations
 
-import dataclasses
-import hashlib
 import json
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import imageio_ffmpeg
 from PIL import Image
 
-
-@dataclass
-class SampledFrame:
-    frame_index: int
-    requested_timestamp_sec: float = 0.0
-    actual_timestamp_sec: float = 0.0
-    local_frame_path: str = ""
-    width: int = 0
-    height: int = 0
-    sha256: str = ""
-    extraction_status: str = "pending"
-    extraction_error: str = ""
-    perceptual_hash: str = ""
-    technical_metrics: dict[str, Any] = dataclasses.field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return dataclasses.asdict(self)
+from .frame_primitives import SampledFrame, image_perceptual_hash, sha256_file
 
 
 def planned_sample_timestamps(
@@ -133,14 +114,6 @@ def ffprobe_media_info(path: str | Path) -> dict[str, Any]:
     }
 
 
-def sha256_file(path: str | Path) -> str:
-    sha = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            sha.update(chunk)
-    return sha.hexdigest()
-
-
 def _image_as_frame(source: Path, output: Path) -> SampledFrame:
     frame = SampledFrame(frame_index=0, requested_timestamp_sec=0.0, actual_timestamp_sec=0.0, local_frame_path=str(source))
     if not source.exists():
@@ -156,8 +129,6 @@ def _fill_frame_metadata(frame: SampledFrame, path: Path) -> None:
         with Image.open(path) as image:
             frame.width, frame.height = image.size
         frame.sha256 = sha256_file(path)
-        from .perceptual_similarity import image_perceptual_hash
-
         frame.perceptual_hash = image_perceptual_hash(path)
         frame.extraction_status = "extracted"
     except Exception as exc:

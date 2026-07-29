@@ -5,9 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
-
-from .frame_sampling import SampledFrame, sha256_file
+from .frame_primitives import SampledFrame, image_perceptual_hash, sha256_file
 
 
 @dataclass
@@ -37,22 +35,6 @@ class SimilarityResult:
 
     def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
-
-
-def image_perceptual_hash(path: str | Path, *, hash_size: int = 8) -> str:
-    with Image.open(path) as image:
-        gray = image.convert("L").resize((hash_size + 1, hash_size), Image.Resampling.LANCZOS)
-        pixels = list(gray.getdata())
-    bits = []
-    width = hash_size + 1
-    for y in range(hash_size):
-        row = y * width
-        for x in range(hash_size):
-            bits.append(1 if pixels[row + x] > pixels[row + x + 1] else 0)
-    value = 0
-    for bit in bits:
-        value = (value << 1) | bit
-    return f"{value:0{hash_size * hash_size // 4}x}"
 
 
 def hamming_distance(first: str, second: str) -> int:
