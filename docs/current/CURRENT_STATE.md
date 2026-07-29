@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 802a54c
+last_verified_commit: fb93a05
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -23,6 +23,7 @@ source_paths:
   - src/assets/frame_primitives.py
   - src/assets/frame_sampling.py
   - src/assets/perceptual_similarity.py
+  - src/assets/provider_contract.py
   - pipeline.py
   - src/legacy_pipeline
   - src/news/models.py
@@ -31,8 +32,10 @@ source_paths:
   - src/news/asset_manifest_summaries.py
   - src/news/asset_scene_completion.py
   - src/news/asset_provider_adapters.py
+  - src/news/stock_video_downloader.py
   - src/news/project_store.py
   - src/project_foundation/storage.py
+  - src/providers/registry.py
   - src/production_catalog
   - src/projects
   - schemas/job.schema.json
@@ -40,6 +43,7 @@ source_paths:
   - docs/adr/0005-news-project-lock.md
   - docs/adr/0006-news-stage-idempotency.md
   - docs/adr/0007-canonical-cli-package.md
+  - docs/adr/0008-canonical-provider-registry.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -55,9 +59,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `802a54c`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `fb93a05`. Код и Git имеют приоритет.
 
-- Rescue stages 0–6, включая подэтапы 6A–6G, завершены; следующий этап — 7.
+- Rescue stages 0–7, включая подэтапы 6A–6G, завершены; следующий этап — 8.
   Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
@@ -127,6 +131,14 @@ source_paths:
   perceptual image hash вынесены в минимальный `frame_primitives.py`.
   Прежние public imports из обоих модулей и `src.assets`, image sampling,
   signature generation, visual-preview и temporal-analysis поведение сохранены.
+- Этап 7 закрепил `src.assets.provider_contract.StockProvider` единственным
+  canonical provider contract и перенёс default automatic factory в
+  `src.providers.registry`. Активный news workflow получает canonical
+  implementations из `src.providers`; timeout/retry/rate-limit translation,
+  diagnostics, download validation и license normalization остаются в общих
+  `src.assets` components. `stock_video_downloader` сокращён до 35-строчного
+  compatibility wrapper без raw HTTP. D01 legacy provider names и D02 wrapper
+  сохранены до отдельного retirement checkpoint этапа 9.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -149,7 +161,10 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- provider consolidation этапа 7 и вертикальные переносы приложений ещё не начаты;
+- вертикальные переносы приложений этапа 8 ещё не начаты; legacy documentary и
+  fixed-production-plan HTTP paths остаются внутри этой будущей границы;
+- D01 news-only provider names и D02 downloader wrapper сохраняются как
+  compatibility до отдельного zero-caller/retirement evidence этапа 9;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не
   выполнялись.

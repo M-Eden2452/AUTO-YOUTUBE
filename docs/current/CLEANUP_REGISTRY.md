@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 802a54c
+last_verified_commit: fb93a05
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,10 +18,10 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `802a54c`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `fb93a05`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. Подэтапы 6A–6G выполнили только bounded split production code; runtime и
-user data не перемещались и не удалялись.
+этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
+изменениями; runtime и user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
 `do_not_touch`.
@@ -34,7 +34,7 @@ user data не перемещались и не удалялись.
 | K02 | `src/production_catalog` + capabilities | `keep` | единственный честный registry active/planned apps и templates | не создавать второй catalog | всегда |
 | K03 | `src/config_resolver` | `keep` | используется CLI, stores, providers, audio/subtitles и legacy adapters | единственный resolver, legacy read fallback сохраняется | всегда |
 | K04 | `src/projects/ProjectRepository` | `keep` | читает `job.json` и `project.json`, ничего не пишет | единый read API; writers остаются у manifest owners | 5 |
-| K05 | `src/assets/provider_contract.py` + `src/providers/` | `keep` | общий contract импортируют adapters, download, preview и asset manager | единственный provider contract | 7 |
+| K05 | `src/assets/provider_contract.py` + `src/providers/` | `keep` | этап 7 (`fb93a05`) закрепил `StockProvider` canonical contract и перенёс default factory в `src.providers.registry`; adapters/download/preview/diagnostics используют общую foundation | единственный provider contract и registry | 7 complete |
 | K06 | `src/audio/` | `keep` | approval, voice manifests, timeline и TTS manager защищены отдельными tests | не создавать второй voice/TTS contract | всегда |
 | K07 | `src/subtitles/` | `keep` | единственный engine, news использует adapter | не создавать второй subtitle engine | всегда |
 | K08 | `apps/*` wrappers | `keep` | `test_apps_structure`; внешние `python -m apps.*` entrypoints | compatibility до отдельного retirement evidence | 8–9 |
@@ -51,8 +51,8 @@ user data не перемещались и не удалялись.
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
-| D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | 6A вынес definitions из facade, но сохранил re-export; factory использует `*StockProvider` из `src/providers` | удалить только после provider consolidation и повторного external/zero-caller check | 7/9 |
-| D02 | `src/news/stock_video_downloader.py` | `delete` | repo-wide search находит только собственные функции; public function уже delegates в `build_news_asset_manifest` | удалить после compatibility check; canonical replacement — news asset stage/manager | 7/9 |
+| D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | этап 7 подтвердил отсутствие active/internal callers, но contract test всё ещё фиксирует re-export; default factory использует только `StockProvider` implementations из registry | сохранить до отдельного stage 9 retirement checkpoint | 9 |
+| D02 | `src/news/stock_video_downloader.py` | `delete` | этап 7 удалил недостижимый raw-HTTP дубль и оставил 35-строчный public wrapper; characterization фиксирует delegation и два manifest outputs | удалить wrapper только после отдельного external/entrypoint check этапа 9 | 9 |
 | D03 | `packages/README.md` и пустая planning directory | `delete` | нет runtime imports; только historical docs references; packaging идёт из `src*` по `pyproject.toml` | удалить directory и исправить исторически-необязательные current links, если появятся | 9 |
 | D04 | untracked `__pycache__/`, `*.pyc` | `delete` | 0 tracked matches; bytecode воспроизводим | удалять только filesystem-cleanup slice, не вместе с refactor | 10 |
 | N01 | `.env`, `.env.*`, credentials/private keys | `do_not_touch` | конфигурация может содержать secrets; содержимое не проверялось | никогда не читать/коммитить/удалять автоматически | всегда |
@@ -68,8 +68,8 @@ user data не перемещались и не удалялись.
 
 | ID | Callers/imports | Рабочая замена | Compatibility period | Targeted verification | Persisted/media risk |
 |---|---|---|---|---|---|
-| D01 | внутренних callers нет; 6A сохранил имена через `asset_manager` re-export | `PexelsStockProvider`, `PixabayStockProvider`; Unsplash не зарегистрирован как active provider, raw helper остаётся только до provider review | сохранить до provider-consolidation checkpoint; перед delete повторить repo-wide `rg` и проверить external API/export absence | `test_news_asset_manager_contract`, `test_asset_foundation_providers`, `test_news_to_short_provider_integration`, `test_news_to_short_assets` | manifest schema не менять; provider ids/provenance должны остаться прежними |
-| D02 | внутренних callers нет; module импортирует manager, обратного import нет | `src.news.asset_manager.build_news_asset_manifest` через normal `asset_search` stage | один отдельный compatibility checkpoint этапа 7; удалить только если entrypoint/docs/tests не появились | `test_news_to_short_assets`, `test_news_to_short_pipeline`, `test_stage1_characterization`, import smoke | не запускать download; существующие `assets_manifest.json` и downloaded media не менять |
+| D01 | active/internal callers нет; `asset_manager` re-export и contract test подтверждают продолжающийся compatibility promise | `src.providers.registry` создаёт `PexelsStockProvider`/`PixabayStockProvider`; Unsplash не active | этап 7 завершён без premature deletion; перед stage 9 delete повторить repo-wide `rg` и проверить внешний import period | `test_news_asset_manager_contract`, `test_asset_foundation_providers`, `test_news_to_short_provider_integration`, `test_news_to_short_assets` | manifest schema не менять; provider ids/provenance должны остаться прежними |
+| D02 | внутренних callers нет; stage 7 оставил только public delegating function, которую теперь фиксирует characterization | `src.news.asset_manager.build_news_asset_manifest` через normal `asset_search` stage | отдельный stage 9 retirement checkpoint; удалить только после external/entrypoint recheck | `test_news_asset_manager_contract`, `test_news_to_short_assets`, `test_news_to_short_pipeline`, `test_stage1_characterization`, import smoke | не запускать download; существующие `assets_manifest.json` и downloaded media не менять |
 | D03 | runtime/import callers нет; только исторические docs | `pyproject.toml` уже package-discovery из `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | не требуется для runtime; отдельный docs-only cleanup commit | `tools.qa.check_agent_docs`, `test_stage2_agent_onboarding`, package discovery smoke | отсутствует |
 | D04 | 0 tracked files; interpreter cache only | Python воспроизводит cache | не требуется; только после проверки абсолютного target path | `git status --short`, ближайший targeted test изменённой области | не затрагивать source, venv, projects или media |
 
@@ -283,12 +283,33 @@ handoff. Порядок не разрешает перепрыгивать че�
   Full offline suite, сеть, provider calls/download, Vision, TTS и render не
   запускались.
 
+### Завершённый structural slice: 7 Provider consolidation
+
+- `src.assets.provider_contract.StockProvider` подтверждён единственным
+  canonical contract; новый contract/provider layer не создавался.
+- Default automatic provider factory и environment-enabled policy перенесены из
+  news boundary в `src.providers.registry` (`fb93a05`).
+- `src.news.asset_provider_adapters.create_default_asset_providers` сохранил
+  прежний patch-point и делегирует registry; default set состоит только из
+  полных `StockProvider` implementations.
+- Общие `ProviderHttpClient`, provider diagnostics, download validation и
+  license policy подтверждены как владельцы timeout/retry/rate-limit,
+  diagnostics, technical download validation и license normalization.
+- `src.news.stock_video_downloader` сокращён до 35-строчного compatibility
+  wrapper; недостижимые private raw search/download helpers удалены.
+- D01 legacy names и D02 public wrapper сохранены из-за подтверждённого
+  compatibility surface и переоценены для отдельного retirement этапа 9.
+- Targeted verification: 55 provider/asset tests и 23 pipeline/CLI tests OK,
+  compile/import smoke и docs QA OK. Full offline suite, сеть, provider
+  search/download, TTS, Vision и render не запускались.
+
 ### Последующая очередь
 
-1. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
-2. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
-3. **9:** удалять только entries со статусом `delete` и актуальным evidence.
-4. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
+1. **8:** переносить active workflows, V01/V02 только вертикальными slices с
+   compatibility wrappers; первым — `fullscreen_voiceover`.
+2. **9:** повторно проверить и удалять только D01/D02/D03 с актуальным
+   zero-caller и compatibility evidence.
+3. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
 
 ## Closure rule
 

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 802a54c
+last_verified_commit: fb93a05
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,17 +16,18 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `802a54c`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `fb93a05`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure и подэтапов 6A–6G; это не разрешение на массовое перемещение файлов.
+stage 5 closure, подэтапов 6A–6G и этапа 7; это не разрешение на массовое
+перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 279 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 271 production Python-файл: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 237;
+- 280 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 272 production Python-файла: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 238;
 - 107 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
@@ -54,7 +55,7 @@ stage 5 closure и подэтапов 6A–6G; это не разрешение 
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
 | `content_creation` | 22 | CLI/Wizard/application service и два active use cases |
-| `providers` | 10 | adapters общего asset provider contract |
+| `providers` | 11 | canonical registry и adapters общего asset provider contract |
 | `subtitles` | 9 | единый subtitle engine |
 | `project_foundation` | 9 | `project.json`, evidence и atomic storage |
 | `config_resolver` | 7 | versioned resources и runtime workspace |
@@ -127,7 +128,7 @@ planned adapter
 | `src.news.NewsProjectStore` | news pipeline, service, voice CLI, replacement | `test_news_stage_idempotency`, news models/pipeline, service, renderer, repository tests | writer использует общий atomic primitive с 5A, schema v1 с 5B, fail-fast project lock с 5C и output validation для repeatable stages `research`–`export` с 5D |
 | `src.project_foundation` | Story Card service/integration, catalog, projects/rights | project foundation/factory, Story Card integration/provenance, schemas | сохранить `project.json` owner и atomic storage |
 | `src.config_resolver.paths` | CLI, apps, project stores, providers, audio/subtitles и legacy adapters | `test_stage3_workspace_paths`, config resolver/parity | сохранить единственным path/workspace resolver |
-| `src.assets.provider_contract` + `src.providers` | asset manager, preview/download/diagnostics и provider adapters | provider foundation/hardening, provider integration, documentary providers | сохранить единым asset provider contract |
+| `src.assets.provider_contract` + `src.providers` | canonical registry, asset manager, preview/download/diagnostics и provider adapters | provider contract characterization, foundation/hardening, provider integration, documentary providers | этап 7: `StockProvider` — единственный canonical contract; default factory принадлежит `src.providers.registry`, news wrapper делегирует |
 | `src.audio` | service, news voice/render, localization и subtitles timing | voice/narration/timeline/policy/manifest/end-tail families | сохранить approval, manifest и timing contracts |
 | `src.subtitles` | adapter `src.news.subtitles`, CLI и catalog | subtitle engine + pipeline integration | сохранить единственным subtitle engine |
 | `pipeline.py` + `src.legacy_pipeline` | `apps.youtube_pipeline`; facade сохраняет legacy engine/news/diagnostic imports и передаёт module patch-points split handlers | `test_legacy_pipeline_internals_contract`, Stage 1 characterization, apps structure, workspace paths, catalog, asset CLI wiring | 6F завершён: 122-строчный facade, 27-строчный `main`, parser/maintenance/workflow разделены; public command contract и patch-points сохранены |
@@ -138,6 +139,15 @@ planned adapter
 встречные imports и требует общий primitive dependency. CLI ↔ Wizard cycle,
 отмеченный исходным аудитом, также отсутствует: направление осталось только
 CLI → Wizard через lazy import.
+
+Этап 7 перенёс default automatic provider factory из news boundary в
+`src.providers.registry`. Активный news workflow использует implementations
+полного `StockProvider` contract; общий HTTP client, provider diagnostics,
+download validation и license policy остаются единственными владельцами своих
+политик. `stock_video_downloader` сохранён 35-строчным compatibility wrapper без
+raw HTTP. D01 provider names и D02 module не являются active path и сохраняются
+до отдельного retirement evidence этапа 9. Legacy documentary/fixed-plan HTTP
+callers остаются в границе вертикальных переносов этапа 8.
 
 ## Persisted contracts
 
@@ -186,8 +196,9 @@ Read-only snapshot файлов на 2026-07-28:
 3. `ProjectRepository` остаётся общим read API поверх двух persisted форм;
    write convergence использует общий atomic primitive и project-lock primitive,
    а не третью schema или writer.
-4. Asset providers реализуют `src.assets.provider_contract`; workflow не должен
-   знать HTTP API после этапа 7.
+4. Asset providers реализуют `src.assets.provider_contract.StockProvider`, а
+   default registry находится в `src.providers`; active workflow не знает HTTP
+   API.
 5. Audio approval/manifests, subtitle engine и path resolver — shared services,
    которые переиспользуются, а не дублируются при переносе приложений.
 6. `pipeline.py` и `apps/*` остаются compatibility zone до проверенного периода

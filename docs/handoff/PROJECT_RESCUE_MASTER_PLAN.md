@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–6, включая подэтапы 6A–6G, завершены; этап 4.5
+Статус: **выполняется; этапы 0–7, включая подэтапы 6A–6G, завершены; этап 4.5
 сохранён как историческая диагностика и снят с critical path; следующий этап —
-7 Консолидация providers**
+8 Миграция приложений вертикальными срезами**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -981,7 +981,7 @@ tooling.
 
 ### Этап 7. Консолидация providers
 
-Статус: [ ] не начат
+Статус: [x] завершён 2026-07-29; implementation commit `fb93a05`
 
 Задачи:
 
@@ -1002,6 +1002,28 @@ tooling.
 
 - provider добавляется одним adapter-модулем;
 - renderer и workflow не знают детали HTTP API.
+
+Результат:
+
+- `src.assets.provider_contract.StockProvider` подтверждён единственным
+  canonical provider contract; второй provider contract не создавался;
+- default automatic provider set и environment-enabled policy перенесены в
+  `src.providers.registry`, а news factory сохранён compatibility wrapper;
+- активный Fullscreen Voiceover asset path получает только canonical
+  implementations из `src.providers`;
+- timeout/retry/rate-limit translation, diagnostics, download validation и
+  license normalization остаются у существующих общих `src.assets`
+  components;
+- standalone `stock_video_downloader` сокращён до 35-строчного compatibility
+  wrapper без raw HTTP; недостижимая private legacy реализация удалена;
+- D01 legacy provider names и D02 public wrapper сохранены до отдельного
+  retirement этапа 9, поскольку characterization подтверждает compatibility
+  surface; преждевременного удаления entrypoints не выполнялось;
+- legacy documentary/fixed-production-plan HTTP paths оставлены в границе
+  вертикальных переносов этапа 8, без смешивания с provider stage;
+- targeted verification: 55 provider/asset tests и 23 pipeline/CLI tests OK,
+  compile/import smoke и docs QA OK; сеть, provider search/download и full
+  offline suite не запускались.
 
 ---
 
@@ -1126,13 +1148,14 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только этап 7 Provider consolidation:
-> read-only перепроверить существующий contract
-> `src.assets.provider_contract` + `src.providers`, его callers и compatibility
-> adapters D01/D02 из cleanup registry. Перед переводом первого bounded caller
-> добавить characterization. Не удалять adapters/downloader до отдельного
-> caller/replacement evidence, не выполнять provider search/download и не
-> объединять этап 7 с vertical moves или cleanup.
+> В следующей отдельной сессии начать только первый vertical slice этапа 8:
+> read-only перепроверить активный `fullscreen_voiceover` путь от
+> `src.content_creation.service` через use case к `src.news.pipeline`, его
+> project contract, compatibility entrypoints и targeted tests. Перед первым
+> переносом добавить characterization и определить один bounded application
+> boundary; не перемещать каталог целиком без caller/import evidence. Не
+> выполнять provider search/download, TTS, render или физическую миграцию
+> runtime.
 
 Не начинать с:
 
@@ -1142,6 +1165,7 @@ tooling.
 - создания нового репозитория с переписанным кодом;
 - массового форматирования;
 - добавления новых providers;
+- удаления D01/D02 compatibility surface в vertical slice;
 - создания или рендера reference video;
 - UI;
 - RAG или vector database;
@@ -1156,48 +1180,55 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 6G Import cycles; этап 6 завершён
-Текущий этап: этапы 0–6 завершены
-Следующий этап: 7 Provider consolidation — не начат
-Исходный HEAD 6G: d58cd5d
-Implementation HEAD 6G: 802a54c
+Завершённый этап: 7 Provider consolidation
+Текущий этап: этапы 0–7 завершены
+Следующий этап: 8 Миграция приложений вертикальными срезами — не начат; первый slice fullscreen_voiceover
+Исходный HEAD 7: c767816
+Implementation HEAD 7: fb93a05
 Ветка: master
-Git до работы: clean, HEAD d58cd5d
+Git до работы: clean, HEAD c767816
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены оба static edges, public imports, package export, production callers и visual-preview/temporal tests
-- characterization до production change зафиксировал импорты SampledFrame/sha256_file/image_perceptual_hash, src.assets.SampledFrame и image sampling/signature behavior
-- SampledFrame, file SHA-256 и perceptual image hash вынесены в минимальный src/assets/frame_primitives.py
-- frame_sampling.py и perceptual_similarity.py больше не импортируют друг друга и зависят только от shared primitive
-- прежние import paths из frame_sampling, perceptual_similarity и src.assets сохранены; provider contract, asset pipeline и orchestration не менялись
+- полностью прочитаны master plan, current docs, architecture/boundary map, cleanup registry и skill architecture-change
+- read-only перепроверены src.assets.provider_contract, src.providers, default/news callers, shared HTTP/download/diagnostics/license components и D01/D02 evidence
+- characterization до production change зафиксировал default provider order, полный canonical StockProvider surface и public stock downloader delegation/manifest outputs
+- default automatic factory и environment-enabled policy перенесены в src.providers.registry
+- src.news.asset_provider_adapters.create_default_asset_providers сохранён как compatibility wrapper; active default path использует только StockProvider implementations
+- недостижимая private raw-HTTP реализация stock_video_downloader удалена; public function и outputs сохранены
+- D01 legacy provider names и D02 public wrapper сохранены для отдельного retirement этапа 9
 Изменения production code:
-- src/assets/frame_primitives.py
-- src/assets/frame_sampling.py
-- src/assets/perceptual_similarity.py
-Characterization tests: tests/test_asset_import_boundaries.py и существующие tests/test_visual_preview_foundation.py, tests/test_visual_preview_integration.py, tests/test_temporal_video_analysis.py
-ADR: не нужен; публичные import paths и system boundary сохранены
+- src/providers/registry.py
+- src/providers/__init__.py
+- src/news/asset_provider_adapters.py
+- src/news/stock_video_downloader.py
+Characterization tests: tests/test_news_asset_manager_contract.py
+ADR: docs/adr/0008-canonical-provider-registry.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change characterization compatibility contract: OK, 2 tests
-- import boundary, visual-preview foundation/integration и temporal analysis: OK, 48 tests
-- compileall shared primitive/sampling/similarity/characterization: OK
-- AST boundary: оба прежних встречных static imports отсутствуют; оба модуля импортируют frame_primitives
+- pre-change characterization compatibility contract: OK, 5 tests
+- provider contract/foundation/HTTP/download/diagnostics/routing/news integration/assets: OK, 55 tests
+- news pipeline, Stage 1 characterization и asset CLI wiring: OK, 23 tests
+- compileall registry/package/news adapters/downloader/characterization: OK
+- import smoke provider contract/registry/news manager/downloader: OK
+- boundary search: downloader не содержит requests/raw provider imports/private legacy implementation; private legacy callers отсутствуют
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 6G:
-- perceptual_similarity top-level импортировал SampledFrame и sha256_file из frame_sampling
-- frame_sampling function-local импортировал image_perceptual_hash из perceptual_similarity
-- SampledFrame, file SHA-256 и perceptual image hash являются независимыми data/hash primitives, общими для обоих модулей
+Найденные root causes 7:
+- canonical StockProvider foundation уже существовала, но active default factory оставалась внутри news boundary
+- news module сохранял второй legacy AssetProvider Protocol и D01 classes как compatibility surface
+- standalone downloader уже делегировал canonical asset stage, но содержал недостижимый private raw-HTTP дубль
 Новый known issue:
-- новых нет; существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
+- D01 legacy provider names и D02 wrapper требуют повторного zero-caller/external compatibility checkpoint этапа 9
+- legacy documentary/fixed-production-plan HTTP paths остаются для vertical slices этапа 8
+- существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не возвращать встречные imports между frame_sampling и perceptual_similarity
-- не переносить public imports прямо на frame_primitives без отдельного compatibility evidence
-- не создавать второй hash/frame contract и не смешивать завершённый 6G с provider consolidation
+- не возвращать active default provider factory или raw HTTP в workflow/news downloader
+- не создавать второй provider contract/registry и не добавлять provider в ходе migration
+- не удалять D01/D02 вместе с vertical slice этапа 8
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только read-only caller/contract audit этапа 7 для src.assets.provider_contract, src.providers и compatibility D01/D02; не удалять adapters/downloader и не запускать provider search/download.
+После проверки Git начать read-only caller/application-contract audit первого slice этапа 8 для fullscreen_voiceover; не перемещать каталоги и не запускать provider search/download, TTS или render.
 ```
 
 ---

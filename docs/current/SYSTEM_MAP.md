@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 802a54c
+last_verified_commit: fb93a05
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -23,23 +23,27 @@ source_paths:
   - src/assets/frame_primitives.py
   - src/assets/frame_sampling.py
   - src/assets/perceptual_similarity.py
+  - src/assets/provider_contract.py
   - src/news
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
   - src/news/asset_manifest_summaries.py
   - src/news/asset_scene_completion.py
   - src/news/asset_provider_adapters.py
+  - src/news/stock_video_downloader.py
   - src/projects
   - src/project_foundation
   - schemas/job.schema.json
   - src/assets
   - src/providers
+  - src/providers/registry.py
   - src/audio
   - src/subtitles
   - anime_factory
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/adr/0006-news-stage-idempotency.md
+  - docs/adr/0008-canonical-provider-registry.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -65,7 +69,7 @@ source_paths:
 | Проекты | `src/projects/`, `src/project_foundation/`, `src/news/project_store.py` | общий read API, atomic storage/lock primitives и output-validated news stage state |
 | Ассеты | `src/assets/`, `src/news/asset_*.py` | shared selection/preview/completion contracts и app-specific manifest orchestration/adapters |
 | Semantic evaluation | `src/assets/semantic_visual_evaluation*.py` | compatibility facade, offline dataset/metrics/report tooling и controlled live runtime |
-| Providers | `src/providers/` | provider adapters и общий contract |
+| Providers | `src/assets/provider_contract.py`, `src/providers/` | единый `StockProvider` contract, canonical registry и provider adapters |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
 | Legacy/maintenance | `pipeline.py`, `src/legacy_pipeline/`, `apps/` | root compatibility facade, parser, maintenance handlers и legacy workflow |
@@ -108,6 +112,9 @@ video_repurposer
 - root `pipeline.py` остаётся compatibility facade и сохраняет старые imports
   и patch-points; parser, maintenance handlers и legacy channel/video
   orchestration разделены в `src.legacy_pipeline`.
+- `src.providers.registry` владеет default automatic provider set активного
+  workflow. News factory делегирует registry; старые news-only provider names
+  и `stock_video_downloader` остаются compatibility surface до этапа 9.
 
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
@@ -144,4 +151,7 @@ channel/video workflow без изменения public command contract или 
 Подэтап 6G вынес `SampledFrame`, file SHA-256 и perceptual image hash в
 `src.assets.frame_primitives`; прежние импорты из `frame_sampling`,
 `perceptual_similarity` и `src.assets` сохранены, а встречные static edges
-между sampling и similarity устранены. Следующий этап — 7.
+между sampling и similarity устранены. Этап 7 перенёс default provider factory
+в `src.providers.registry`, закрепил `StockProvider` единственным canonical
+contract и удалил недостижимый raw-HTTP дубль из standalone downloader,
+сохранив его публичный wrapper. Следующий этап — 8.

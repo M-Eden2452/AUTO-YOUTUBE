@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 802a54c
+last_verified_commit: fb93a05
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -25,6 +25,7 @@ source_paths:
   - src/assets/frame_primitives.py
   - src/assets/frame_sampling.py
   - src/assets/perceptual_similarity.py
+  - src/assets/provider_contract.py
   - pipeline.py
   - src/legacy_pipeline
   - src/news/asset_manager.py
@@ -32,7 +33,10 @@ source_paths:
   - src/news/asset_manifest_summaries.py
   - src/news/asset_scene_completion.py
   - src/news/asset_provider_adapters.py
+  - src/news/stock_video_downloader.py
   - src/news/project_store.py
+  - src/providers/registry.py
+  - docs/adr/0008-canonical-provider-registry.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -56,10 +60,9 @@ AI-YouTube — локальная offline-first система производ�
    [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
 
 Текущий rescue plan: [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md).
-Этап 5 Project и storage foundation и подэтапы 6A Asset manager,
-6B Внутренности CLI, 6C Wizard, 6D Application service, 6E Semantic evaluation,
-6F Legacy pipeline и 6G Import cycles завершены; следующий этап — 7 Provider
-consolidation.
+Этап 5 Project и storage foundation, подэтапы 6A–6G и этап 7 Provider
+consolidation завершены; следующий этап — 8, миграция приложений вертикальными
+срезами, начиная с `fullscreen_voiceover`.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).
