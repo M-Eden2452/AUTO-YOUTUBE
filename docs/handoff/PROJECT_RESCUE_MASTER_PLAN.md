@@ -4,7 +4,8 @@
 сохранён как историческая диагностика и снят с critical path; этап 8 перенёс
 vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy
 pipeline, а documentary gate 8E закрыт без migration из-за отсутствия реального
-рабочего шаблона; следующий этап — 9**
+рабочего шаблона; этап 9 выполняется, D01 завершён, следующий bounded slice —
+D02**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1166,7 +1167,7 @@ tooling.
 
 ### Этап 9. Retire compatibility и удалить доказанное лишнее
 
-Статус: [ ] не начат
+Статус: [ ] выполняется; D01 завершён 2026-07-29, следующий bounded slice — D02
 
 Задачи:
 
@@ -1193,6 +1194,21 @@ tooling.
   tests;
 - в commit нет runtime или пользовательских данных;
 - rollback каждого slice ограничен одним commit.
+
+Результат D01:
+
+- pre-change characterization и повторный repo-wide audit подтвердили
+  отсутствие production callers/package exports для
+  `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider`;
+- временные classes, raw provider-module imports и `asset_manager` re-exports
+  удалены после compatibility period stages 7–8;
+- news `AssetProvider`, factory patch-point и canonical
+  `PexelsStockProvider`/`PixabayStockProvider` сохранены;
+- schemas, manifests, provider ids/provenance, runtime projects и media не
+  менялись;
+- targeted verification: 41 provider/news asset test, import/compile smoke и
+  docs QA OK; сеть/provider search/download/TTS/Vision/render не запускались;
+- решение public compatibility boundary зафиксировано ADR 0014.
 
 ---
 
@@ -1257,12 +1273,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать этап 9 с read-only перепроверки кандидата
-> D01: legacy provider names в `src.news.asset_provider_adapters`, их repo-wide
-> imports/callers, external compatibility promise, canonical replacements из
-> `src.providers.registry` и targeted test radius. Удаление допускается только
-> при актуальном zero-caller evidence; не включать D02/D03, runtime cleanup или
-> documentary product work в тот же bounded slice.
+> Продолжить этап 9 отдельным read-only checkpoint D02:
+> `src.news.stock_video_downloader`, repo-wide imports/entrypoints,
+> external compatibility promise, делегацию в
+> `src.news.asset_manager.build_news_asset_manifest` и targeted test radius.
+> Удаление допускается только при актуальном zero-caller evidence; не включать
+> D03, runtime cleanup или documentary product work в тот же bounded slice.
 
 Не начинать с:
 
@@ -1272,7 +1288,7 @@ tooling.
 - создания нового репозитория с переписанным кодом;
 - массового форматирования;
 - добавления новых providers;
-- удаления D01/D02 compatibility surface в vertical slice;
+- удаления D02 compatibility surface без отдельного callers/entrypoint gate;
 - создания или рендера reference video;
 - UI;
 - RAG или vector database;
@@ -1287,50 +1303,45 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 8E documentary migration gate; этап 8 закрыт
-Текущий этап: этапы 0–8 завершены
-Следующий этап: 9, первый bounded slice — повторный audit и возможный retirement D01
-Исходный HEAD 8E: 065676b
-Gate HEAD 8E: a3536a9
+Завершённый bounded slice: 9 D01 news-only provider class retirement
+Текущий этап: 9 выполняется; D01 завершён
+Следующий bounded slice: D02 stock_video_downloader external/entrypoint audit
+Исходный HEAD D01: b584932
+Commit D01: текущий commit
 Ветка: master
-Git до работы: clean, HEAD 065676b
+Git до работы: clean, HEAD b584932
 Выполнено:
-- полностью прочитаны master plan, current docs, architecture/boundary map, cleanup registry и skill architecture-change
-- read-only перепроверены documentary/size-comparison channels, Solar fixed-plan create/render paths за root pipeline.py, exact callers, catalog/capability status, persisted/output shapes и targeted test radius
-- safe canonical CLI подтвердил: active только content_creator; longform disabled/planned; templates только fullscreen_voiceover_v1 и story_card_text_only_v1; legacy documentary channels unusable_for_content_creation
-- установлено, что Solar plan пишет bespoke project_config.json/scenes.json за пределами job.json/project.json и определяется ProjectRepository как unknown
-- установлено, что Solar render напрямую загружает .env и имеет ElevenLabs/Pexels/Pixabay/requests calls без application-level paid/provider gate
-- characterization до изменения статусов зафиксировал catalog, legacy channel, bespoke project, root owner и live-call stop-gates
-- documentary boundary/application/template не создавались, longform/capability не включались, root facade и fixed-plan layout не менялись
-- ADR 0013 закрыл 8E как evaluated but not eligible for migration; этап 8 завершён четырьмя фактически перенесёнными slices
-Изменения production code: отсутствуют
-Characterization tests: tests/test_documentary_migration_gate.py
-ADR: docs/adr/0013-documentary-migration-gate.md
+- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, architecture/boundary map, cleanup registry и skill architecture-change
+- repo-wide и tracked audit подтвердил, что D01 names имеют только definitions/re-export/test/docs references; production callers и package exports отсутствуют
+- stages 7–8 составили compatibility period без появления нового caller
+- pre-change characterization зафиксировал zero internal callers
+- удалены PexelsAssetProvider, PixabayAssetProvider, UnsplashAssetProvider, их raw provider-module imports и asset_manager re-exports
+- сохранены AssetProvider protocol, news factory patch-point, canonical StockProvider contract/registry и PexelsStockProvider/PixabayStockProvider
+Изменения production code: src/news/asset_provider_adapters.py, src/news/asset_manager.py
+Characterization tests: tests/test_news_asset_manager_contract.py
+ADR: docs/adr/0014-retire-news-provider-class-compatibility.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-doc documentary migration gate characterization: OK, 5 tests
-- documentary gate, catalog/capability, Stage 4 CLI, fixed plan, legacy boundary/internals и ProjectRepository: OK, 56 tests
-- safe CLI applications/formats/templates/channels listing: OK; documentary не рекламируется, longform disabled, legacy channels unusable
+- pre-change D01 zero-caller characterization: OK, 1 test
+- asset-manager contract, provider foundation/integration и news assets: OK, 41 tests
+- compile/import smoke: OK
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 8E:
-- наличие documentary-named components и fixture tests не означает наличие реального catalog template/application service
-- legacy documentary channel schema принадлежит root pipeline.py и несовместима с обоими active content_creator workflows
-- Solar fixed plan является третьим bespoke project/output contract и обходит canonical application paid/provider gates; перенос закрепил бы архитектурный долг
+Full offline suite: не запускался; D01 не меняет canonical provider/storage/schema/compatibility entrypoints, targeted radius достаточен
+Найденные root causes D01:
+- три legacy classes были только временным news import surface; active registry и workflow их не создавали
+- единственным препятствием удаления был намеренно сохранённый compatibility test, а не runtime caller
 Новый known issue:
-- legacy documentary/fixed-plan paths остаются за root compatibility facade; будущий documentary требует отдельного product/application stage с реальным template и canonical contracts
-- D01/D02 provider compatibility surface остаётся до этапа 9; первым проверяется только D01
-- существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
+- D02 standalone downloader wrapper остаётся public compatibility surface до отдельного external/entrypoint audit
+- historical audits продолжают упоминать retired D01 names как исторический snapshot и не являются current contract
 Что нельзя повторять:
-- не регистрировать documentary/longform capability по наличию legacy code или component tests
-- не переносить Solar bespoke writer/layout как новый project contract
-- не вызывать fixed-plan TTS/provider/download paths без отдельного explicit approval и canonical gates
-- не удалять root facade, project_solar_vs_nuclear, outputs/projects/media или module patch-points в stage 9 cleanup
+- не удалять D02 вместе с D03 или runtime cleanup
+- не удалять AssetProvider/factory patch-point: у них есть реальные internal/test callers
+- не добавлять новый provider contract или менять manifest/provider ids
 Следующая точная read-only команда: git status --short --branch
-После проверки Git выполнить: rg -n "PexelsAssetProvider|PixabayAssetProvider|UnsplashAssetProvider" src tests apps ai_youtube
+После проверки Git выполнить: rg -n "stock_video_downloader|download_stock_videos_for_project" src tests apps ai_youtube
 ```
 
 ---

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: a3536a9
+last_verified_commit: b584932
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -21,6 +21,7 @@ source_paths:
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
+  - docs/adr/0014-retire-news-provider-class-compatibility.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
@@ -28,7 +29,7 @@ source_paths:
 
 Проверено 2026-07-29 по gate HEAD `a3536a9`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G, этапа 7 и завершения этапа 8;
+stage 5 closure, подэтапов 6A–6G, этапа 7, завершения этапа 8 и D01 этапа 9;
 это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
@@ -178,9 +179,10 @@ CLI → Wizard через lazy import.
 полного `StockProvider` contract; общий HTTP client, provider diagnostics,
 download validation и license policy остаются единственными владельцами своих
 политик. `stock_video_downloader` сохранён 35-строчным compatibility wrapper без
-raw HTTP. D01 provider names и D02 module не являются active path и сохраняются
-до отдельного retirement evidence этапа 9. Legacy documentary/fixed-plan HTTP
-callers остаются в границе вертикальных переносов этапа 8.
+raw HTTP. D01 provider names удалены после отдельного zero-caller retirement
+checkpoint этапа 9; D02 module не является active path и сохраняется до
+следующего external/entrypoint audit. Legacy documentary/fixed-plan HTTP callers
+остаются за root compatibility boundary.
 
 Первый slice этапа 8 перенёс application-level Fullscreen Voiceover use case в
 `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`.

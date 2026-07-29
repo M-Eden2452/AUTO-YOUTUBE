@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: a3536a9
+last_verified_commit: b584932
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -49,6 +49,7 @@ source_paths:
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
+  - docs/adr/0014-retire-news-provider-class-compatibility.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -84,8 +85,10 @@ AI-YouTube — локальная offline-first система производ�
 wrappers, а `video_repurposer` остаётся planned/disabled. Documentary candidate
 был проверен gate 8E (`a3536a9`) и не мигрирован: реального
 catalog template, canonical project contract и безопасного application-level
-paid/provider gate нет. Следующий этап rescue plan — 9, первый bounded кандидат
-для повторного callers/compatibility audit — D01.
+paid/provider gate нет. Этап 9 выполняется: bounded slice D01 удалил три
+news-only provider class names после zero-caller audit, сохранив canonical
+registry и news factory patch-point. Следующий bounded кандидат — D02,
+`src.news.stock_video_downloader`.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

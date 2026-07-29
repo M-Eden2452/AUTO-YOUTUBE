@@ -37,9 +37,6 @@ from .asset_manifest_summaries import (
 )
 from .asset_provider_adapters import (
     AssetProvider,
-    PexelsAssetProvider,
-    PixabayAssetProvider,
-    UnsplashAssetProvider,
     candidate_to_rankable as _candidate_to_rankable,
     create_default_asset_providers as _create_default_asset_providers,
     ensure_selected_asset_downloaded as _ensure_selected_asset_downloaded,

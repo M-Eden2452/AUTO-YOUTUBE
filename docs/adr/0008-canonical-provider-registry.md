@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted and implemented on 2026-07-29.
+Accepted and implemented on 2026-07-29. The temporary D01 class compatibility
+surface was retired by ADR 0014.
 
 ## Context
 

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: a3536a9
+last_verified_commit: b584932
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -57,6 +57,7 @@ source_paths:
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
+  - docs/adr/0014-retire-news-provider-class-compatibility.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -140,8 +141,9 @@ video_repurposer
   boundary, а root `pipeline.py` остаётся владельцем compatibility namespace
   и engine patch-points.
 - `src.providers.registry` владеет default automatic provider set активного
-  workflow. News factory делегирует registry; старые news-only provider names
-  и `stock_video_downloader` остаются compatibility surface до этапа 9.
+  workflow. News factory делегирует registry; D01 news-only provider names
+  удалены после zero-caller audit. `stock_video_downloader` остаётся отдельной
+  D02 compatibility surface этапа 9.
 - `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper` лениво
   переэкспортирует существующие workflow и `EpisodePaths` contracts из
   `anime_factory`; `apps.anime_factory` использует эту canonical boundary, но
@@ -204,4 +206,5 @@ parser/maintenance/workflow behavior. Gate 8E (`a3536a9`) подтвердил �
 шаблона, legacy documentary channels не поддерживаются `content_creator`, а
 Solar fixed plan использует отдельный `project_config.json`/`scenes.json`
 contract и прямые live provider/TTS paths без application approval boundary.
-Documentary migration не выполнялась, этап 8 закрыт; следующий этап — 9.
+Documentary migration не выполнялась, этап 8 закрыт. Этап 9 выполняется:
+D01 retirement завершён, следующий bounded кандидат — D02.

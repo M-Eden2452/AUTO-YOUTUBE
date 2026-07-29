@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: a3536a9
+last_verified_commit: b584932
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -58,6 +58,7 @@ source_paths:
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
+  - docs/adr/0014-retire-news-provider-class-compatibility.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -88,6 +89,11 @@ source_paths:
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
+- Этап 9 выполняется bounded deletion slices. D01 завершён: после повторного
+  repo-wide zero-caller audit удалены news-only `PexelsAssetProvider`,
+  `PixabayAssetProvider`, `UnsplashAssetProvider` и их re-exports.
+  `AssetProvider`, news factory patch-point и canonical `StockProvider`
+  implementations сохранены. Следующий кандидат — D02.
 - Этап 4.6 создал проверенные
   [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
@@ -159,8 +165,9 @@ source_paths:
   implementations из `src.providers`; timeout/retry/rate-limit translation,
   diagnostics, download validation и license normalization остаются в общих
   `src.assets` components. `stock_video_downloader` сокращён до 35-строчного
-  compatibility wrapper без raw HTTP. D01 legacy provider names и D02 wrapper
-  сохранены до отдельного retirement checkpoint этапа 9.
+  compatibility wrapper без raw HTTP. D01 legacy provider names удалены
+  bounded slice этапа 9 после zero-caller audit; D02 wrapper сохранён до
+  отдельного retirement checkpoint.
 - Первый slice этапа 8 (`f8ac67e`, `06e6a25`) установил canonical Fullscreen Voiceover
   application boundary в
   `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`.
@@ -230,12 +237,12 @@ source_paths:
   Factory workflow/output contracts остаются у `anime_factory`, root legacy
   engine/patch-point contracts — у `pipeline.py`, а documentary и
   fixed-production-plan HTTP paths остаются внутри будущего bounded slice;
-- D01 news-only provider names и D02 downloader wrapper сохраняются как
-  compatibility до отдельного zero-caller/retirement evidence этапа 9;
+- D01 news-only provider names удалены после отдельного zero-caller retirement
+  checkpoint; D02 downloader wrapper сохраняется до следующего bounded
+  external/entrypoint audit этапа 9;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не
-  выполнялись; следующий этап 9 начинается с повторного callers/compatibility
-  audit кандидата D01.
+  выполнялись; этап 9 продолжается с external/entrypoint audit кандидата D02.
 
 Создание, продолжение, TTS, render и визуальная проверка reference video больше
 не являются этапами rescue plan. Архитектурные изменения выполняются малыми

@@ -17,8 +17,32 @@ class _OfflineProvider:
 
 
 class NewsAssetManagerContractTests(unittest.TestCase):
-    def test_provider_consolidation_keeps_legacy_names_off_active_path(self) -> None:
+    def test_d01_legacy_provider_names_have_no_internal_callers(self) -> None:
+        legacy_names = (
+            "PexelsAssetProvider",
+            "PixabayAssetProvider",
+            "UnsplashAssetProvider",
+        )
+        repository_root = Path(__file__).resolve().parents[1]
+        compatibility_modules = {
+            repository_root / "src" / "news" / "asset_manager.py",
+            repository_root / "src" / "news" / "asset_provider_adapters.py",
+        }
+        callers: list[str] = []
+
+        for source_root in ("ai_youtube", "apps", "anime_factory", "src"):
+            for source_path in (repository_root / source_root).rglob("*.py"):
+                if source_path in compatibility_modules:
+                    continue
+                source = source_path.read_text(encoding="utf-8")
+                if any(name in source for name in legacy_names):
+                    callers.append(source_path.relative_to(repository_root).as_posix())
+
+        self.assertEqual(callers, [])
+
+    def test_provider_consolidation_retires_legacy_names(self) -> None:
         from src.news import asset_provider_adapters, stock_video_downloader
+        from src.news import asset_manager
         from src.providers import create_default_stock_providers
 
         factory_source = inspect.getsource(
@@ -37,15 +61,16 @@ class NewsAssetManagerContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, downloader_source)
 
-        for compatibility_name in (
+        for retired_name in (
             "PexelsAssetProvider",
             "PixabayAssetProvider",
             "UnsplashAssetProvider",
         ):
-            self.assertTrue(
-                hasattr(asset_provider_adapters, compatibility_name),
-                compatibility_name,
+            self.assertFalse(
+                hasattr(asset_provider_adapters, retired_name),
+                retired_name,
             )
+            self.assertFalse(hasattr(asset_manager, retired_name), retired_name)
 
     def test_default_factory_returns_only_canonical_stock_providers(self) -> None:
         from src.news.asset_provider_adapters import create_default_asset_providers
@@ -140,9 +165,6 @@ class NewsAssetManagerContractTests(unittest.TestCase):
 
         for compatibility_name in (
             "AssetProvider",
-            "PexelsAssetProvider",
-            "PixabayAssetProvider",
-            "UnsplashAssetProvider",
             "_ensure_selected_asset_downloaded",
             "_search_provider",
             "_select_best_candidate",
