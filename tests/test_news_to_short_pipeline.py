@@ -193,6 +193,110 @@ class NewsToShortPipelineTests(unittest.TestCase):
             self.assertIn("claims", data)
             self.assertIsInstance(data["claims"], list)
 
+    def test_script_stage_idempotency_normal_resume_and_force(self) -> None:
+        from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job = create_news_to_short_job(
+                projects_root=root,
+                channel_id="nature_science_news_ru",
+                topic="Как морские птицы ориентируются над открытым океаном",
+                language="ru",
+                now="2026-07-29T12:00:00+03:00",
+            )
+
+            first = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="script",
+                dry_run=True,
+            )
+            self.assertIn("script", first.completed_stages)
+
+            repeated = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="script",
+                dry_run=True,
+            )
+            self.assertNotIn("script", repeated.completed_stages)
+
+            resumed = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                resume=True,
+                until_stage="script",
+                dry_run=True,
+            )
+            self.assertNotIn("script", resumed.completed_stages)
+
+            forced = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                stage="script",
+                force_stage=True,
+                dry_run=True,
+            )
+            self.assertIn("script", forced.completed_stages)
+
+    def test_script_stage_idempotency_missing_and_invalid_output(self) -> None:
+        from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job = create_news_to_short_job(
+                projects_root=root,
+                channel_id="nature_science_news_ru",
+                topic="Наблюдения за миграцией морских черепах",
+                language="ru",
+                now="2026-07-29T12:00:00+03:00",
+            )
+
+            run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="script",
+                dry_run=True,
+            )
+            script_path = (
+                root
+                / job.job_id
+                / "localizations"
+                / "ru"
+                / "script"
+                / "script.json"
+            )
+            self.assertTrue(script_path.is_file())
+
+            store = NewsProjectStore(root)
+            loaded_job = store.load_job(job.job_id)
+            self.assertEqual(loaded_job.stages["script"].status, "completed")
+
+            script_path.unlink()
+            missing = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="script",
+                dry_run=True,
+            )
+            self.assertIn("script", missing.completed_stages)
+            self.assertTrue(script_path.is_file())
+
+            store.write_json(script_path, {})
+            invalid = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                resume=True,
+                until_stage="script",
+                dry_run=True,
+            )
+            self.assertIn("script", invalid.completed_stages)
+            data = store.read_json(script_path)
+            self.assertTrue(data["narration_text"].strip())
+            self.assertTrue(data["scenes"])
+
 
 
 def _write_tiny_video(path: Path) -> bool:

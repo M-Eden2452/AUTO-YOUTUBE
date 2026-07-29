@@ -102,6 +102,30 @@ class NewsProjectStore:
                 return isinstance(data, dict) and isinstance(data.get("claims"), list)
             except Exception:
                 return False
+        if stage == "script":
+            script_path = (
+                root
+                / "localizations"
+                / job.language
+                / "script"
+                / "script.json"
+            )
+            if not script_path.is_file():
+                return False
+            try:
+                data = self.read_json(script_path)
+                scenes = data.get("scenes")
+                narration_text = data.get("narration_text")
+                return (
+                    isinstance(data, dict)
+                    and isinstance(narration_text, str)
+                    and bool(narration_text.strip())
+                    and isinstance(scenes, list)
+                    and bool(scenes)
+                    and all(isinstance(scene, dict) for scene in scenes)
+                )
+            except Exception:
+                return False
         return True
 
     def completed_stage_names(self, job: NewsJob) -> set[str]:

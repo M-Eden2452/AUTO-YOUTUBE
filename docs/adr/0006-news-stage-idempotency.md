@@ -1,8 +1,9 @@
-# ADR 0006: Stage idempotency policy for news research stage
+# ADR 0006: Stage idempotency policy for news research and script stages
 
 ## Status
 
-Accepted on 2026-07-28; implemented by slice 5D.
+Accepted on 2026-07-28; extended to the `script` stage family on 2026-07-29
+by a second bounded slice 5D.
 
 ## Context
 
@@ -14,8 +15,9 @@ If a stage state was set to `"completed"` but its mandatory output file on disk 
 deleted (missing) or corrupted (invalid format), the pipeline skipped re-executing
 the stage, causing downstream stages to fail or operate on invalid data.
 
-This slice implements stage output validation and idempotency for the `research`
-stage family without creating a new storage layer, universal dependency graph, or
+The first slice implemented stage output validation and idempotency for the
+`research` stage family. The second bounded slice applies the same policy to
+`script` without creating a new storage layer, universal dependency graph, or
 stage orchestration framework.
 
 ## Decision
@@ -29,6 +31,14 @@ stage orchestration framework.
   - Mandatory output: `<project_root>/research/claims.json`.
   - Validation: file exists, is valid JSON, and contains a dictionary with a list of
     `claims`.
+- For the `script` stage:
+  - Mandatory output:
+    `<project_root>/localizations/<job.language>/script/script.json`.
+  - Validation: file exists, is valid JSON, and contains a dictionary with
+    non-empty `narration_text` plus a non-empty list of scene dictionaries.
+  - `narration.txt` is not part of the completeness check. `script.json` is the
+    canonical result consumed by downstream stages, while later workflow steps
+    may legally adapt or annotate it.
 - Re-execution policy:
   - `status == "completed"` + mandatory output valid + no `force_stage` -> skip stage.
   - `status == "completed"` + mandatory output missing or invalid -> re-execute stage.
@@ -41,6 +51,11 @@ Deleting or corrupting `claims.json` in a completed project causes the pipeline 
 automatically re-run the `research` stage on resume or repeat run, restoring valid
 claims without requiring manual job reset or `force_stage`.
 
+Deleting `script.json`, replacing it with invalid JSON, or removing its mandatory
+usable content causes the same automatic recovery for the localized `script`
+stage. Completed legacy scripts remain readable because no new schema field is
+required.
+
 No manifest shape, schema version, project lock, runtime projects, or user media
 are altered by this decision.
 
@@ -49,6 +64,7 @@ are altered by this decision.
 Run:
 
 ```powershell
-.\venv\Scripts\python.exe -m unittest tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory
+$env:PYTHONIOENCODING='utf-8'
+.\venv\Scripts\python.exe -m unittest tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory tests.test_project_naming_and_resume
 .\venv\Scripts\python.exe -m tools.qa.check_agent_docs
 ```
