@@ -1,8 +1,8 @@
 """Bridge between ``VisualPlanResult`` and the ``visual_plan.json`` already on disk.
 
 The stored format is not replaced. Every key the pipeline writes today is still
-written, with the same meaning, so ``asset_manager``, ``final_renderer``,
-``stock_video_downloader`` and ``visual_preview`` keep working untouched.
+written, with the same meaning, so ``asset_manager``, ``final_renderer`` and
+``visual_preview`` keep working untouched.
 
 Two additions carry the new plan downstream:
 

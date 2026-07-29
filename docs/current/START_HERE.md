@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b584932
+last_verified_commit: 1683b24
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -37,7 +37,6 @@ source_paths:
   - src/news/asset_manifest_summaries.py
   - src/news/asset_scene_completion.py
   - src/news/asset_provider_adapters.py
-  - src/news/stock_video_downloader.py
   - src/news/project_store.py
   - src/providers/registry.py
   - src/production_catalog/catalog.py
@@ -50,6 +49,7 @@ source_paths:
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
+  - docs/adr/0015-retire-news-stock-downloader.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -87,8 +87,9 @@ wrappers, а `video_repurposer` остаётся planned/disabled. Documentary c
 catalog template, canonical project contract и безопасного application-level
 paid/provider gate нет. Этап 9 выполняется: bounded slice D01 удалил три
 news-only provider class names после zero-caller audit, сохранив canonical
-registry и news factory patch-point. Следующий bounded кандидат — D02,
-`src.news.stock_video_downloader`.
+registry и news factory patch-point. D02 затем удалил standalone
+`src.news.stock_video_downloader` после отдельного zero-caller/entrypoint
+audit. Следующий bounded кандидат — D03, пустая planning directory `packages/`.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

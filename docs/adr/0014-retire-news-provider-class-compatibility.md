@@ -33,7 +33,7 @@ stages 7 and 8 completed without a caller appearing.
 - Do not change manifest schemas, provider identifiers, provenance, license
   policy or downloaded media.
 - Keep retirement of `src.news.stock_video_downloader` as the separate D02
-  checkpoint.
+  checkpoint, subsequently completed by ADR 0015.
 
 ## Consequences
 

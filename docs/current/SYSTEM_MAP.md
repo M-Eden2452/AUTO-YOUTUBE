@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b584932
+last_verified_commit: 1683b24
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -34,7 +34,6 @@ source_paths:
   - src/news/asset_manifest_summaries.py
   - src/news/asset_scene_completion.py
   - src/news/asset_provider_adapters.py
-  - src/news/stock_video_downloader.py
   - src/projects
   - src/project_foundation
   - schemas/job.schema.json
@@ -58,6 +57,7 @@ source_paths:
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
+  - docs/adr/0015-retire-news-stock-downloader.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -142,8 +142,9 @@ video_repurposer
   и engine patch-points.
 - `src.providers.registry` владеет default automatic provider set активного
   workflow. News factory делегирует registry; D01 news-only provider names
-  удалены после zero-caller audit. `stock_video_downloader` остаётся отдельной
-  D02 compatibility surface этапа 9.
+  удалены после zero-caller audit. D02 standalone downloader также удалён после
+  отдельного imports/entrypoint gate; active asset stage остаётся в
+  `src.news.asset_manager`.
 - `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper` лениво
   переэкспортирует существующие workflow и `EpisodePaths` contracts из
   `anime_factory`; `apps.anime_factory` использует эту canonical boundary, но
@@ -207,4 +208,4 @@ parser/maintenance/workflow behavior. Gate 8E (`a3536a9`) подтвердил �
 Solar fixed plan использует отдельный `project_config.json`/`scenes.json`
 contract и прямые live provider/TTS paths без application approval boundary.
 Documentary migration не выполнялась, этап 8 закрыт. Этап 9 выполняется:
-D01 retirement завершён, следующий bounded кандидат — D02.
+D01 и D02 retirement завершены, следующий bounded кандидат — D03.

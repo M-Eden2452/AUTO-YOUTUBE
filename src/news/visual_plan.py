@@ -8,8 +8,8 @@ observation") for every video ever made, and a ``visual_type`` that alternated o
 
 ``build_visual_plan(script, language=..., user_assets=...)`` keeps its exact
 signature and still returns the ``visual_plan.json`` dict the rest of the pipeline
-reads, so ``asset_manager``, ``stock_video_downloader``, ``final_renderer`` and
-``visual_preview`` did not have to change.
+reads, so ``asset_manager``, ``final_renderer`` and ``visual_preview`` did not
+have to change.
 """
 
 from __future__ import annotations

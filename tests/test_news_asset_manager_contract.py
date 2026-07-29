@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import ast
+import importlib.util
 import inspect
-import json
 import os
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -40,9 +40,75 @@ class NewsAssetManagerContractTests(unittest.TestCase):
 
         self.assertEqual(callers, [])
 
+    def test_d02_stock_downloader_has_no_internal_import_or_callers(self) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        downloader_path = (
+            repository_root / "src" / "news" / "stock_video_downloader.py"
+        )
+        offenders: list[str] = []
+
+        for source_root in ("ai_youtube", "apps", "anime_factory", "src"):
+            for source_path in (repository_root / source_root).rglob("*.py"):
+                if source_path == downloader_path:
+                    continue
+                tree = ast.parse(
+                    source_path.read_text(encoding="utf-8"),
+                    filename=str(source_path),
+                )
+                for node in ast.walk(tree):
+                    imports_downloader = (
+                        isinstance(node, ast.Import)
+                        and any(
+                            alias.name == "src.news.stock_video_downloader"
+                            for alias in node.names
+                        )
+                    )
+                    imports_downloader_symbol = (
+                        isinstance(node, ast.ImportFrom)
+                        and (
+                            str(node.module or "").endswith(
+                                "stock_video_downloader"
+                            )
+                            or any(
+                                alias.name
+                                in {
+                                    "stock_video_downloader",
+                                    "download_stock_videos_for_project",
+                                }
+                                for alias in node.names
+                            )
+                        )
+                    )
+                    calls_downloader = (
+                        isinstance(node, ast.Call)
+                        and (
+                            (
+                                isinstance(node.func, ast.Name)
+                                and node.func.id
+                                == "download_stock_videos_for_project"
+                            )
+                            or (
+                                isinstance(node.func, ast.Attribute)
+                                and node.func.attr
+                                == "download_stock_videos_for_project"
+                            )
+                        )
+                    )
+                    if (
+                        imports_downloader
+                        or imports_downloader_symbol
+                        or calls_downloader
+                    ):
+                        offenders.append(
+                            source_path.relative_to(repository_root).as_posix()
+                        )
+                        break
+
+        self.assertEqual(offenders, [])
+
     def test_provider_consolidation_retires_legacy_names(self) -> None:
-        from src.news import asset_provider_adapters, stock_video_downloader
         from src.news import asset_manager
+        from src.news import asset_provider_adapters
         from src.providers import create_default_stock_providers
 
         factory_source = inspect.getsource(
@@ -50,16 +116,6 @@ class NewsAssetManagerContractTests(unittest.TestCase):
         )
         self.assertIn("create_default_stock_providers", factory_source)
         self.assertTrue(callable(create_default_stock_providers))
-
-        downloader_source = inspect.getsource(stock_video_downloader)
-        for forbidden in (
-            "requests",
-            "pexels_provider",
-            "pixabay_provider",
-            "_legacy_download_stock_videos_for_project",
-            "_search_real_video_candidates",
-        ):
-            self.assertNotIn(forbidden, downloader_source)
 
         for retired_name in (
             "PexelsAssetProvider",
@@ -237,72 +293,13 @@ class NewsAssetManagerContractTests(unittest.TestCase):
         self.assertFalse(manifest["completion"]["draft_complete"])
         self.assertFalse(manifest["completion"]["publish_ready"])
 
-    def test_stock_video_downloader_keeps_public_delegating_entrypoint(self) -> None:
-        from src.news.stock_video_downloader import (
-            download_stock_videos_for_project,
+    def test_d02_stock_video_downloader_module_is_retired(self) -> None:
+        from src.news.asset_manager import build_news_asset_manifest
+
+        self.assertIsNone(
+            importlib.util.find_spec("src.news.stock_video_downloader")
         )
-
-        manifest = {
-            "schema_version": 1,
-            "assets": [],
-            "scenes": [],
-            "missing_scenes": [{"scene_id": "scene_001"}],
-        }
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            plan_path = (
-                root
-                / "localizations"
-                / "ru"
-                / "visual"
-                / "visual_plan.json"
-            )
-            plan_path.parent.mkdir(parents=True)
-            plan_path.write_text(
-                json.dumps(
-                    {
-                        "scenes": [
-                            {"scene_id": "scene_001"},
-                            {"scene_id": "scene_002"},
-                        ]
-                    }
-                ),
-                encoding="utf-8",
-            )
-
-            with patch(
-                "src.news.stock_video_downloader.load_dotenv"
-            ) as load_environment, patch(
-                "src.news.stock_video_downloader.build_news_asset_manifest",
-                return_value=manifest,
-            ) as build_manifest:
-                result = download_stock_videos_for_project(root, max_scenes=1)
-
-            load_environment.assert_called_once_with()
-            build_manifest.assert_called_once_with(
-                visual_plan={"scenes": [{"scene_id": "scene_001"}]},
-                user_assets=[],
-                dry_run=False,
-                project_root=root,
-                project_id=root.name,
-            )
-            self.assertIs(result, manifest)
-            self.assertEqual(
-                json.loads(
-                    (root / "assets" / "assets_manifest.json").read_text(
-                        encoding="utf-8"
-                    )
-                ),
-                manifest,
-            )
-            self.assertEqual(
-                json.loads(
-                    (root / "assets" / "missing_assets.json").read_text(
-                        encoding="utf-8"
-                    )
-                ),
-                {"missing_scenes": manifest["missing_scenes"]},
-            )
+        self.assertTrue(callable(build_news_asset_manifest))
 
 
 if __name__ == "__main__":

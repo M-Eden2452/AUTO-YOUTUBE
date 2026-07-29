@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b584932
+last_verified_commit: 1683b24
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -22,23 +22,25 @@ source_paths:
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
+  - docs/adr/0015-retire-news-stock-downloader.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по gate HEAD `a3536a9`. Код и Git имеют приоритет.
+Проверено 2026-07-29 от HEAD `1683b24` с bounded D02 diff. Код и Git имеют
+приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G, этапа 7, завершения этапа 8 и D01 этапа 9;
+stage 5 closure, подэтапов 6A–6G, этапа 7, завершения этапа 8 и D01–D02 этапа 9;
 это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 292 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 284 production Python-файла: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 250;
+- 291 production-файл в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 283 production Python-файла: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 249;
 - 112 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
@@ -68,7 +70,7 @@ stage 5 closure, подэтапов 6A–6G, этапа 7, завершения 
 | `assets` | 46 | contracts, selection, download, preview, completion и split semantic tooling/runtime |
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
-| `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
+| `news` | 22 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
 | `content_creation` | 22 | compatibility CLI/Wizard, shared application service и два use-case wrappers |
 | `ai_youtube/apps` | 12 | canonical boundaries для Fullscreen Voiceover, Story Card, Anime Clipper и legacy pipeline adapters |
 | `providers` | 11 | canonical registry и adapters общего asset provider contract |
@@ -180,9 +182,9 @@ CLI → Wizard через lazy import.
 download validation и license policy остаются единственными владельцами своих
 политик. `stock_video_downloader` сохранён 35-строчным compatibility wrapper без
 raw HTTP. D01 provider names удалены после отдельного zero-caller retirement
-checkpoint этапа 9; D02 module не является active path и сохраняется до
-следующего external/entrypoint audit. Legacy documentary/fixed-plan HTTP callers
-остаются за root compatibility boundary.
+checkpoint этапа 9; D02 standalone module также удалён после подтверждения
+отсутствия imports, package export и CLI entrypoint. Legacy
+documentary/fixed-plan HTTP callers остаются за root compatibility boundary.
 
 Первый slice этапа 8 перенёс application-level Fullscreen Voiceover use case в
 `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`.

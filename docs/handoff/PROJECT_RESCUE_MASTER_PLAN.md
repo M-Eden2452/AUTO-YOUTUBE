@@ -4,8 +4,8 @@
 сохранён как историческая диагностика и снят с critical path; этап 8 перенёс
 vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy
 pipeline, а documentary gate 8E закрыт без migration из-за отсутствия реального
-рабочего шаблона; этап 9 выполняется, D01 завершён, следующий bounded slice —
-D02**
+рабочего шаблона; этап 9 выполняется, D01–D02 завершены, следующий bounded
+slice — D03**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1167,7 +1167,8 @@ tooling.
 
 ### Этап 9. Retire compatibility и удалить доказанное лишнее
 
-Статус: [ ] выполняется; D01 завершён 2026-07-29, следующий bounded slice — D02
+Статус: [ ] выполняется; D01–D02 завершены 2026-07-29, следующий bounded
+slice — D03
 
 Задачи:
 
@@ -1209,6 +1210,23 @@ tooling.
 - targeted verification: 41 provider/news asset test, import/compile smoke и
   docs QA OK; сеть/provider search/download/TTS/Vision/render не запускались;
 - решение public compatibility boundary зафиксировано ADR 0014.
+
+Результат D02:
+
+- pre-change AST characterization и повторный repo-wide audit подтвердили
+  отсутствие production imports/calls, package export, CLI/console script и
+  current command для `src.news.stock_video_downloader`;
+- единственный executable caller был временным characterization test;
+- standalone wrapper удалён, два production docstring больше не называют его
+  visual-plan consumer;
+- canonical `src.news.asset_manager.build_news_asset_manifest` и active
+  `asset_search` stage сохранены; новый wrapper/CLI не создавался;
+- schemas, manifests, downloaded media, runtime projects и user data не
+  менялись;
+- targeted verification: 46 news asset/pipeline/compatibility tests,
+  import/compile smoke и docs QA OK; сеть/provider search/download/TTS/Vision/
+  render не запускались;
+- решение public compatibility boundary зафиксировано ADR 0015.
 
 ---
 
@@ -1273,12 +1291,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> Продолжить этап 9 отдельным read-only checkpoint D02:
-> `src.news.stock_video_downloader`, repo-wide imports/entrypoints,
-> external compatibility promise, делегацию в
-> `src.news.asset_manager.build_news_asset_manifest` и targeted test radius.
-> Удаление допускается только при актуальном zero-caller evidence; не включать
-> D03, runtime cleanup или documentary product work в тот же bounded slice.
+> Продолжить этап 9 отдельным read-only checkpoint D03: проверить
+> `packages/README.md`, фактическое содержимое directory, repo-wide runtime/docs
+> references и package discovery из `pyproject.toml`. Удаление допускается
+> только если directory остаётся planning placeholder без runtime/package
+> caller; не включать runtime cleanup или documentary product work в тот же
+> bounded slice.
 
 Не начинать с:
 
@@ -1288,7 +1306,7 @@ tooling.
 - создания нового репозитория с переписанным кодом;
 - массового форматирования;
 - добавления новых providers;
-- удаления D02 compatibility surface без отдельного callers/entrypoint gate;
+- удаления runtime/generated directories вместе с D03;
 - создания или рендера reference video;
 - UI;
 - RAG или vector database;
@@ -1303,45 +1321,45 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый bounded slice: 9 D01 news-only provider class retirement
-Текущий этап: 9 выполняется; D01 завершён
-Следующий bounded slice: D02 stock_video_downloader external/entrypoint audit
-Исходный HEAD D01: b584932
-Commit D01: текущий commit
+Завершённый bounded slice: 9 D02 standalone stock downloader retirement
+Текущий этап: 9 выполняется; D01–D02 завершены
+Следующий bounded slice: D03 packages planning placeholder audit
+Исходный HEAD D02: 1683b24
+Commit D01: 1683b24
+Commit D02: текущий commit
 Ветка: master
-Git до работы: clean, HEAD b584932
+Git до работы: clean, HEAD 1683b24
 Выполнено:
-- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, architecture/boundary map, cleanup registry и skill architecture-change
-- repo-wide и tracked audit подтвердил, что D01 names имеют только definitions/re-export/test/docs references; production callers и package exports отсутствуют
-- stages 7–8 составили compatibility period без появления нового caller
-- pre-change characterization зафиксировал zero internal callers
-- удалены PexelsAssetProvider, PixabayAssetProvider, UnsplashAssetProvider, их raw provider-module imports и asset_manager re-exports
-- сохранены AssetProvider protocol, news factory patch-point, canonical StockProvider contract/registry и PexelsStockProvider/PixabayStockProvider
-Изменения production code: src/news/asset_provider_adapters.py, src/news/asset_manager.py
+- repo-wide/AST audit подтвердил отсутствие production imports/calls, src.news export, CLI/console script и current command для D02
+- единственным executable caller был temporary characterization test; historical audits являются snapshots
+- pre-change characterization зафиксировал zero internal imports/callers
+- удалён src/news/stock_video_downloader.py; два production docstring очищены от устаревшего consumer claim
+- сохранены build_news_asset_manifest, normal asset_search stage и canonical provider/download contracts
+Изменения production code: удалён src/news/stock_video_downloader.py; docstring-only изменения src/content/visual_planning/legacy_format.py и src/news/visual_plan.py
 Characterization tests: tests/test_news_asset_manager_contract.py
-ADR: docs/adr/0014-retire-news-provider-class-compatibility.md
+ADR: docs/adr/0015-retire-news-stock-downloader.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change D01 zero-caller characterization: OK, 1 test
-- asset-manager contract, provider foundation/integration и news assets: OK, 41 tests
+- pre-change D02 zero-import/caller characterization: OK, 1 test
+- asset-manager contract, news assets/pipeline и Stage 1 compatibility: OK, 46 tests
 - compile/import smoke: OK
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался; D01 не меняет canonical provider/storage/schema/compatibility entrypoints, targeted radius достаточен
-Найденные root causes D01:
-- три legacy classes были только временным news import surface; active registry и workflow их не создавали
-- единственным препятствием удаления был намеренно сохранённый compatibility test, а не runtime caller
+Full offline suite: не запускался; D02 не меняет active workflow/provider/storage/schema contract, targeted radius достаточен
+Найденные root causes D02:
+- standalone module не был зарегистрированным entrypoint и не имел runtime caller после stage 7 delegation
+- сохранённый wrapper поддерживался только characterization test, а не фактической compatibility usage
 Новый known issue:
-- D02 standalone downloader wrapper остаётся public compatibility surface до отдельного external/entrypoint audit
-- historical audits продолжают упоминать retired D01 names как исторический snapshot и не являются current contract
+- D03 packages planning directory остаётся до отдельного package/docs audit
+- historical audits продолжают упоминать retired D01/D02 paths как snapshot и не являются current contract
 Что нельзя повторять:
-- не удалять D02 вместе с D03 или runtime cleanup
-- не удалять AssetProvider/factory patch-point: у них есть реальные internal/test callers
-- не добавлять новый provider contract или менять manifest/provider ids
+- не удалять generated/runtime directories вместе с D03
+- не создавать replacement downloader/CLI
+- не изменять manifests или удалять downloaded media
 Следующая точная read-only команда: git status --short --branch
-После проверки Git выполнить: rg -n "stock_video_downloader|download_stock_videos_for_project" src tests apps ai_youtube
+После проверки Git выполнить: rg -n "(^|[/\\\\])packages([/\\\\]|$)|packages/README" . --glob "!docs/archive/**"
 ```
 
 ---

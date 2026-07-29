@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b584932
+last_verified_commit: 1683b24
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -21,6 +21,7 @@ source_paths:
   - docs/adr/0012-legacy-pipeline-application-boundary.md
   - docs/adr/0013-documentary-migration-gate.md
   - docs/adr/0014-retire-news-provider-class-compatibility.md
+  - docs/adr/0015-retire-news-stock-downloader.md
   - content
   - packages
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
@@ -29,7 +30,8 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по gate HEAD `a3536a9`. Код и Git имеют приоритет.
+Проверено 2026-07-29 от HEAD `1683b24` с bounded D02 diff. Код и Git имеют
+приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
 изменениями; Fullscreen Voiceover, Story Card, Anime Clipper и legacy pipeline
@@ -68,7 +70,7 @@ user data не перемещались и не удалялись.
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
 | D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | stage 9 zero-caller audit подтвердил только definitions/re-export/test references; active factory использует canonical `StockProvider` implementations | завершено: classes, raw provider imports и `asset_manager` re-exports удалены; `AssetProvider`/factory patch-point сохранены | 9 D01 complete |
-| D02 | `src/news/stock_video_downloader.py` | `delete` | этап 7 удалил недостижимый raw-HTTP дубль и оставил 35-строчный public wrapper; characterization фиксирует delegation и два manifest outputs | удалить wrapper только после отдельного external/entrypoint check этапа 9 | 9 |
+| D02 | `src/news/stock_video_downloader.py` | `delete` | stage 9 AST/repo audit подтвердил отсутствие production imports/calls, package export, CLI и current command; test был единственным executable caller | завершено: wrapper удалён, два исторических production docstring исправлены; canonical asset stage сохранён | 9 D02 complete |
 | D03 | `packages/README.md` и пустая planning directory | `delete` | нет runtime imports; только historical docs references; packaging идёт из `src*` по `pyproject.toml` | удалить directory и исправить исторически-необязательные current links, если появятся | 9 |
 | D04 | untracked `__pycache__/`, `*.pyc` | `delete` | 0 tracked matches; bytecode воспроизводим | удалять только filesystem-cleanup slice, не вместе с refactor | 10 |
 | N01 | `.env`, `.env.*`, credentials/private keys | `do_not_touch` | конфигурация может содержать secrets; содержимое не проверялось | никогда не читать/коммитить/удалять автоматически | всегда |
@@ -85,7 +87,7 @@ user data не перемещались и не удалялись.
 | ID | Callers/imports | Рабочая замена | Compatibility period | Targeted verification | Persisted/media risk |
 |---|---|---|---|---|---|
 | D01 | повторный tracked/repo-wide audit: production callers и package exports отсутствуют; stages 7–8 прошли без нового caller | `src.providers.registry` создаёт `PexelsStockProvider`/`PixabayStockProvider`; Unsplash не active | выполнен отдельный stage 9 checkpoint после полного stage 8 compatibility period | 41 test: `test_news_asset_manager_contract`, `test_asset_foundation_providers`, `test_news_to_short_provider_integration`, `test_news_to_short_assets`; import/compile smoke | schemas, provider ids, provenance, runtime projects и media не изменены |
-| D02 | внутренних callers нет; stage 7 оставил только public delegating function, которую теперь фиксирует characterization | `src.news.asset_manager.build_news_asset_manifest` через normal `asset_search` stage | отдельный stage 9 retirement checkpoint; удалить только после external/entrypoint recheck | `test_news_asset_manager_contract`, `test_news_to_short_assets`, `test_news_to_short_pipeline`, `test_stage1_characterization`, import smoke | не запускать download; существующие `assets_manifest.json` и downloaded media не менять |
+| D02 | повторный AST/tracked audit: production imports/calls, `src.news` export, CLI/console script и current command отсутствуют | `src.news.asset_manager.build_news_asset_manifest` через normal `asset_search` stage | выполнен отдельный stage 9 checkpoint после stage 7–8 compatibility period | 46 test: `test_news_asset_manager_contract`, `test_news_to_short_assets`, `test_news_to_short_pipeline`, `test_stage1_characterization`; import/compile smoke | download не запускался; существующие `assets_manifest.json`, missing-assets summaries и media не изменены |
 | D03 | runtime/import callers нет; только исторические docs | `pyproject.toml` уже package-discovery из `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | не требуется для runtime; отдельный docs-only cleanup commit | `tools.qa.check_agent_docs`, `test_stage2_agent_onboarding`, package discovery smoke | отсутствует |
 | D04 | 0 tracked files; interpreter cache only | Python воспроизводит cache | не требуется; только после проверки абсолютного target path | `git status --short`, ближайший targeted test изменённой области | не затрагивать source, venv, projects или media |
 
@@ -314,8 +316,8 @@ handoff. Порядок не разрешает перепрыгивать че�
 - `src.news.stock_video_downloader` сокращён до 35-строчного compatibility
   wrapper; недостижимые private raw search/download helpers удалены.
 - D01 legacy names были сохранены для compatibility period stages 7–8 и
-  удалены отдельным zero-caller slice этапа 9; D02 public wrapper остаётся до
-  собственного checkpoint.
+  удалены отдельным zero-caller slice этапа 9; D02 public wrapper затем удалён
+  собственным imports/entrypoint checkpoint.
 - Targeted verification: 55 provider/asset tests и 23 pipeline/CLI tests OK,
   compile/import smoke и docs QA OK. Full offline suite, сеть, provider
   search/download, TTS, Vision и render не запускались.
@@ -441,10 +443,28 @@ handoff. Порядок не разрешает перепрыгивать че�
   provider ids/provenance, runtime projects и user media не менялись; сеть,
   provider search/download, TTS, Vision и render не запускались.
 
+### Завершённый deletion slice: 9 D02 standalone stock downloader
+
+- Pre-change AST characterization подтвердил отсутствие production imports и
+  calls за пределами самого wrapper.
+- Повторный tracked/repo audit подтвердил отсутствие `src.news` package export,
+  CLI/console-script registration и current command; единственным executable
+  caller был временный characterization test.
+- `src/news/stock_video_downloader.py` удалён; два production docstring больше
+  не называют его сохранённым visual-plan consumer.
+- Existing `src.news.asset_manager.build_news_asset_manifest` и normal
+  `asset_search` stage остаются canonical asset path; новый wrapper/CLI не
+  создавался.
+- Targeted verification: 46 tests OK для asset-manager contract, news assets,
+  news pipeline и Stage 1 compatibility; import/compile smoke OK.
+- Решение public compatibility boundary: ADR 0015. Schemas, manifests,
+  downloaded media, runtime projects и user data не менялись; сеть/provider
+  search/download, TTS, Vision и render не запускались.
+
 ### Последующая очередь
 
-1. **9:** D01 завершён; далее отдельно проверить D02, затем D03 с актуальным
-   zero-caller и compatibility evidence.
+1. **9:** D01 и D02 завершены; далее отдельно проверить D03 с актуальным
+   package/docs evidence.
 2. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
 
 ## Closure rule
