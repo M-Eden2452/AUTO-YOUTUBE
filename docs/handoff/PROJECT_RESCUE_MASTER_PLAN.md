@@ -1,10 +1,10 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–7, включая подэтапы 6A–6G, завершены; этап 4.5
-сохранён как историческая диагностика и снят с critical path; этап 8 начат,
+Статус: **выполняется; этапы 0–8, включая подэтапы 6A–6G, завершены; этап 4.5
+сохранён как историческая диагностика и снят с critical path; этап 8 перенёс
 vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy
-pipeline завершены; следующий возможный — documentary после подтверждения
-реального рабочего шаблона**
+pipeline, а documentary gate 8E закрыт без migration из-за отсутствия реального
+рабочего шаблона; следующий этап — 9**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1031,9 +1031,10 @@ tooling.
 
 ### Этап 8. Миграция приложений вертикальными срезами
 
-Статус: [ ] выполняется; vertical slices `fullscreen_voiceover`, `story_card`,
-`anime_clipper` и legacy pipeline завершены 2026-07-29, последние
-implementation commits `06e6a25`, `01cfc6f`, `7d0ce1e`, `cfe6ae6`
+Статус: [x] завершён 2026-07-29; vertical slices `fullscreen_voiceover`,
+`story_card`, `anime_clipper` и legacy pipeline перенесены, documentary gate
+8E закрыт без migration; последние implementation/gate commits `06e6a25`,
+`01cfc6f`, `7d0ce1e`, `cfe6ae6`, `a3536a9`
 
 Порядок:
 
@@ -1041,7 +1042,8 @@ implementation commits `06e6a25`, `01cfc6f`, `7d0ce1e`, `cfe6ae6`
 2. [x] `story_card`;
 3. [x] `anime_clipper` через `video_repurposer` adapter;
 4. [x] legacy pipeline;
-5. [ ] documentary — только после реального рабочего шаблона.
+5. [x] documentary — gate проверен; реального рабочего шаблона нет, migration
+   не выполнялась.
 
 Каждый перенос включает:
 
@@ -1136,6 +1138,29 @@ implementation commits `06e6a25`, `01cfc6f`, `7d0ce1e`, `cfe6ae6`
   radius 23 tests OK; compile/import/diff/docs QA OK;
 - full offline suite, сеть, provider calls/download, TTS, Vision, render и
   платные действия не запускались.
+
+Результат documentary gate 8E:
+
+- production catalog не содержит `documentary` application/template;
+  `longform` остаётся planned/disabled и без зарегистрированного шаблона;
+- legacy profiles `psychology`, `quotes`, `survival` и `size_comparison`
+  доступны только через root `pipeline.py --channel/--video` и намеренно не
+  поддерживаются `content_creator`;
+- Solar fixed production plan пишет отдельные `project_config.json` и
+  `scenes.json`, которые не являются `job.json`/`project.json` и определяются
+  `ProjectRepository` как unknown;
+- Solar render path напрямую загружает `.env`, вызывает ElevenLabs,
+  Pexels/Pixabay и HTTP download без application-level paid/provider gate;
+- characterization зафиксировал catalog/channel/project/root-owner/live-call
+  stop-gates; ADR 0013 запрещает создавать ложный documentary boundary или
+  включать capability по наличию legacy кода;
+- production code, schemas, runtime projects, user media и capability registry
+  не менялись; сеть, provider calls/download, TTS, Vision и render не
+  запускались;
+- targeted verification: 56 tests OK для documentary gate, catalog/capability,
+  Stage 4 CLI, fixed plan, legacy boundary и `ProjectRepository`; docs QA и
+  diff checks OK;
+- этап 8 закрыт с четырьмя фактически перенесёнными vertical slices.
 
 ---
 
@@ -1232,12 +1257,12 @@ implementation commits `06e6a25`, `01cfc6f`, `7d0ce1e`, `cfe6ae6`
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии read-only перепроверить documentary и
-> fixed-production-plan paths за root `pipeline.py`, их catalog status,
-> callers, persisted/output contracts и targeted tests. Пятый vertical slice
-> этапа 8 начинать только при наличии подтверждённого реального рабочего
-> шаблона. Не включать planned capability по одному наличию legacy кода, не
-> удалять root facade и не мигрировать runtime.
+> В следующей отдельной сессии начать этап 9 с read-only перепроверки кандидата
+> D01: legacy provider names в `src.news.asset_provider_adapters`, их repo-wide
+> imports/callers, external compatibility promise, canonical replacements из
+> `src.providers.registry` и targeted test radius. Удаление допускается только
+> при актуальном zero-caller evidence; не включать D02/D03, runtime cleanup или
+> documentary product work в тот же bounded slice.
 
 Не начинать с:
 
@@ -1262,56 +1287,50 @@ implementation commits `06e6a25`, `01cfc6f`, `7d0ce1e`, `cfe6ae6`
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 8D legacy pipeline application adapter boundary
-Текущий этап: этапы 0–7 завершены; этап 8 выполняется, первые четыре vertical slices завершены
-Следующий этап: 8E documentary — только после подтверждения реального рабочего шаблона
-Исходный HEAD 8D: e859cbe
-Implementation HEAD 8D: cfe6ae6
+Завершённый этап: 8E documentary migration gate; этап 8 закрыт
+Текущий этап: этапы 0–8 завершены
+Следующий этап: 9, первый bounded slice — повторный audit и возможный retirement D01
+Исходный HEAD 8E: 065676b
+Gate HEAD 8E: a3536a9
 Ветка: master
-Git до работы: clean, HEAD e859cbe
+Git до работы: clean, HEAD 065676b
 Выполнено:
 - полностью прочитаны master plan, current docs, architecture/boundary map, cleanup registry и skill architecture-change
-- read-only перепроверен apps.youtube_pipeline -> root pipeline.py -> src.legacy_pipeline, public command/patch-point contracts, root engine identities и targeted test radius
-- characterization до production change зафиксировал root main/parse/maintenance/workflow signatures, LegacyPipelineArtifacts shape, engine patch-point identities и wrapper delegation
-- создан canonical lazy adapter src.ai_youtube.apps.legacy_pipeline.adapter
-- apps.youtube_pipeline переведён на canonical adapter с сохранением прежнего main signature, delegation и return behavior
-- canonical boundary переэкспортирует существующие root facade и artifact/workflow contracts без нового dispatcher, engine, writer или schema
-- root pipeline.py оставлен compatibility namespace owner, src.legacy_pipeline — behavior owner; documentary, provider retirement и runtime migration не включались
-Изменения production code:
-- src/ai_youtube/apps/legacy_pipeline/__init__.py
-- src/ai_youtube/apps/legacy_pipeline/adapter.py
-- apps/youtube_pipeline/main.py
-Characterization tests: tests/test_legacy_pipeline_application_boundary.py
-ADR: docs/adr/0012-legacy-pipeline-application-boundary.md
+- read-only перепроверены documentary/size-comparison channels, Solar fixed-plan create/render paths за root pipeline.py, exact callers, catalog/capability status, persisted/output shapes и targeted test radius
+- safe canonical CLI подтвердил: active только content_creator; longform disabled/planned; templates только fullscreen_voiceover_v1 и story_card_text_only_v1; legacy documentary channels unusable_for_content_creation
+- установлено, что Solar plan пишет bespoke project_config.json/scenes.json за пределами job.json/project.json и определяется ProjectRepository как unknown
+- установлено, что Solar render напрямую загружает .env и имеет ElevenLabs/Pexels/Pixabay/requests calls без application-level paid/provider gate
+- characterization до изменения статусов зафиксировал catalog, legacy channel, bespoke project, root owner и live-call stop-gates
+- documentary boundary/application/template не создавались, longform/capability не включались, root facade и fixed-plan layout не менялись
+- ADR 0013 закрыл 8E как evaluated but not eligible for migration; этап 8 завершён четырьмя фактически перенесёнными slices
+Изменения production code: отсутствуют
+Characterization tests: tests/test_documentary_migration_gate.py
+ADR: docs/adr/0013-documentary-migration-gate.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change legacy pipeline boundary characterization: OK, 4 tests
-- legacy pipeline boundary, root internals, Stage 1 CLI и apps structure: OK, 10 tests
-- workspace paths, production catalog CLI и semantic facade radius: OK, 23 tests
-- compileall canonical legacy adapter/compatibility files/root facade/split workflow/characterization: OK
-- import identity: canonical boundary использует прежние root function и LegacyPipelineArtifacts objects
-- boundary search: apps.youtube_pipeline использует canonical adapter; direct root/split paths остались owner/compatibility/tests
+- pre-doc documentary migration gate characterization: OK, 5 tests
+- documentary gate, catalog/capability, Stage 4 CLI, fixed plan, legacy boundary/internals и ProjectRepository: OK, 56 tests
+- safe CLI applications/formats/templates/channels listing: OK; documentary не рекламируется, longform disabled, legacy channels unusable
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 8D:
-- root pipeline.py уже является bounded compatibility facade, а parser/maintenance/workflow behavior уже разделено в src.legacy_pipeline; физический move создал бы лишний риск без value
-- root globals намеренно передаются split handlers как compatibility namespace, поэтому adapter должен лениво разрешать root objects и сохранять monkeypatch contracts
-- единственный production app-caller — apps.youtube_pipeline; прямые imports pipeline и src.legacy_pipeline сохраняют внешний compatibility surface
+Найденные root causes 8E:
+- наличие documentary-named components и fixture tests не означает наличие реального catalog template/application service
+- legacy documentary channel schema принадлежит root pipeline.py и несовместима с обоими active content_creator workflows
+- Solar fixed plan является третьим bespoke project/output contract и обходит canonical application paid/provider gates; перенос закрепил бы архитектурный долг
 Новый known issue:
-- root pipeline.py остаётся владельцем широкого engine/diagnostic patch-point namespace до отдельного compatibility retirement evidence
-- documentary и fixed-production-plan paths остаются за пределами 8D и не являются подтверждённым active application/template
-- D01/D02 provider compatibility surface остаётся до этапа 9
+- legacy documentary/fixed-plan paths остаются за root compatibility facade; будущий documentary требует отдельного product/application stage с реальным template и canonical contracts
+- D01/D02 provider compatibility surface остаётся до этапа 9; первым проверяется только D01
 - существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не копировать root dispatcher, engine functions, LegacyPipelineArtifacts или output contract внутрь app boundary
-- не удалять root facade, его direct imports или module patch-points без отдельного compatibility evidence
-- не перемещать outputs/projects/media и не менять workspace/runtime layout в application slice
-- не начинать documentary slice и не включать capability без подтверждённого реального рабочего шаблона
+- не регистрировать documentary/longform capability по наличию legacy code или component tests
+- не переносить Solar bespoke writer/layout как новый project contract
+- не вызывать fixed-plan TTS/provider/download paths без отдельного explicit approval и canonical gates
+- не удалять root facade, project_solar_vs_nuclear, outputs/projects/media или module patch-points в stage 9 cleanup
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только read-only audit documentary/fixed-production-plan callers, catalog status, contracts и tests; implementation допускается лишь при подтверждённом рабочем шаблоне.
+После проверки Git выполнить: rg -n "PexelsAssetProvider|PixabayAssetProvider|UnsplashAssetProvider" src tests apps ai_youtube
 ```
 
 ---

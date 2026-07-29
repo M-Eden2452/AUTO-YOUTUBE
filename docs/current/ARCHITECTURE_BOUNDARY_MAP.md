@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: cfe6ae6
+last_verified_commit: a3536a9
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -10,21 +10,25 @@ source_paths:
   - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
   - src/ai_youtube/apps/legacy_pipeline
   - pipeline.py
+  - src/production_plan/youtube_shorts.py
+  - src/production_plan/solar_vs_nuclear_render.py
   - src
   - schemas
   - tests
   - tests/test_anime_clipper_application_boundary.py
   - tests/test_legacy_pipeline_application_boundary.py
+  - tests/test_documentary_migration_gate.py
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
+  - docs/adr/0013-documentary-migration-gate.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `cfe6ae6`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по gate HEAD `a3536a9`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G, этапа 7 и первых четырёх vertical slices этапа 8;
+stage 5 closure, подэтапов 6A–6G, этапа 7 и завершения этапа 8;
 это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
@@ -34,7 +38,7 @@ stage 5 closure, подэтапов 6A–6G, этапа 7 и первых чет
 - 292 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
 - 284 production Python-файла: `ai_youtube` — 6, `apps` — 10,
   `anime_factory` — 18, `src` — 250;
-- 111 модулей `tests/test_*.py`;
+- 112 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
@@ -134,6 +138,9 @@ planned/disabled application
 - `longform` и `horizontal_clip` не имеют active template.
 - legacy documentary/size-comparison модули остаются за `pipeline.py` и не
   становятся active application только из-за наличия кода.
+- gate 8E подтвердил, что Solar fixed plan также не является template:
+  `project_config.json`/`scenes.json` не входят в два canonical project
+  contracts, а live render path не имеет application-level paid/provider gate.
 
 ## Dependency и test map
 
@@ -146,6 +153,7 @@ planned/disabled application
 | `src.ai_youtube.apps.content_creator.workflows.story_card` | application service; canonical use case делегирует существующим project/evidence/template contracts | `test_story_card_application_boundary`, service internals/Story Card paths, project factory/repository, artifact schemas и provenance | slice 8B (`01cfc6f`): canonical boundary установлен; старый use-case path — wrapper, contracts не дублируются |
 | `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper` | `apps.anime_factory`; boundary лениво делегирует `anime_factory.pipeline` и переэкспортирует существующий `EpisodePaths` layout | `test_anime_clipper_application_boundary`, Stage 1 Anime Factory characterization, apps structure, Anime Factory path/cleanup/candidate/crop/transcribe tests | slice 8C (`7d0ce1e`): canonical adapter установлен; legacy package остаётся owner, catalog planned/disabled |
 | `src.ai_youtube.apps.legacy_pipeline.adapter` | `apps.youtube_pipeline`; boundary лениво делегирует root facade и переэкспортирует существующий artifact/workflow surface | `test_legacy_pipeline_application_boundary`, legacy internals, Stage 1 characterization, apps structure, workspace paths, catalog и semantic facade contracts | slice 8D (`cfe6ae6`): canonical adapter установлен; root `pipeline.py` остаётся compatibility namespace owner, `src.legacy_pipeline` — behavior owner |
+| documentary/fixed production plan gate | root `pipeline.py` импортирует legacy documentary engines и Solar create/render entrypoints; legacy channels вызываются только через `--channel/--video` | `test_documentary_migration_gate`, capability consistency, Stage 4 CLI, fixed-plan, legacy boundary и project repository tests | gate 8E (`a3536a9`): migration не выполнялась; application/template/project/paid-provider contracts не подтверждены |
 | `src.news.pipeline` | canonical fullscreen boundary, root pipeline и direct compatibility callers; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить владельцем working workflow до отдельного bounded move |
 | `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |
 | `src.assets.semantic_visual_evaluation` + `semantic_visual_evaluation_tooling`/`runtime` | 53-строчный facade импортирует root pipeline; tooling владеет offline dataset/metrics/reporting, runtime — gated execution/checkpoints | `test_semantic_visual_evaluation_internals_contract`, `test_semantic_visual_evaluation`, `test_asset_cli_wiring` | 6E завершён: public signatures/dataclass shapes/root caller сохранены; runtime и tooling разделены без второго engine |
@@ -202,6 +210,14 @@ boundary; прямой legacy CLI, `EpisodePaths`, runtime episodes и output la
 engine patch-points, parser/maintenance/workflow behavior, outputs и runtime
 layout не менялись.
 
+Gate 8E проверил documentary channels и Solar fixed plan без production/runtime
+изменений. Catalog не содержит documentary application/template, `longform`
+disabled без template, legacy profiles не поддерживаются `content_creator`.
+Solar layout не читается `ProjectRepository`, а live render orchestration
+напрямую использует TTS/HTTP dependencies без общего application approval
+contract. Поэтому новый boundary не создавался, capability не включалась и
+этап 8 закрыт с четырьмя фактически мигрированными slices.
+
 ## Persisted contracts
 
 | Contract | Writer / reader | Версия и tolerance | Обязательная защита |
@@ -246,8 +262,9 @@ Read-only snapshot файлов на 2026-07-28:
    `core/services/infrastructure` не является самоцелью.
 2. `content_creator` владеет двумя active workflows, но не их shared
    infrastructure contracts. `video_repurposer` имеет canonical Anime Clipper
-   adapter, но остаётся planned/disabled; следующий возможный vertical slice —
-   documentary, только после подтверждения реального рабочего шаблона.
+   adapter, но остаётся planned/disabled. Documentary не имеет application
+   boundary/template; будущая реализация требует отдельного подтверждённого
+   product stage, а не переноса legacy/fixed-plan кода по наличию.
 3. `ProjectRepository` остаётся общим read API поверх двух persisted форм;
    write convergence использует общий atomic primitive и project-lock primitive,
    а не третью schema или writer.

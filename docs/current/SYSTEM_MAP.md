@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: cfe6ae6
+last_verified_commit: a3536a9
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -41,6 +41,8 @@ source_paths:
   - src/assets
   - src/providers
   - src/providers/registry.py
+  - src/production_plan/youtube_shorts.py
+  - src/production_plan/solar_vs_nuclear_render.py
   - src/audio
   - src/subtitles
   - anime_factory
@@ -54,6 +56,7 @@ source_paths:
   - docs/adr/0010-story-card-application-boundary.md
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
+  - docs/adr/0013-documentary-migration-gate.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -66,6 +69,7 @@ source_paths:
   - tests/test_story_card_application_boundary.py
   - tests/test_anime_clipper_application_boundary.py
   - tests/test_legacy_pipeline_application_boundary.py
+  - tests/test_documentary_migration_gate.py
 ---
 
 # System Map
@@ -195,5 +199,9 @@ application-level Story Card use case в соседний canonical boundary, с
 Четвёртый slice этапа 8 (`cfe6ae6`) создал canonical legacy pipeline adapter,
 перевёл `apps.youtube_pipeline` на новую boundary и сохранил root `pipeline.py`
 владельцем compatibility namespace, а `src.legacy_pipeline` — владельцем
-parser/maintenance/workflow behavior. Следующий возможный slice этапа 8 —
-documentary, только после подтверждения реального рабочего шаблона.
+parser/maintenance/workflow behavior. Gate 8E (`a3536a9`) подтвердил отсутствие
+реального documentary catalog template: `longform` остаётся disabled без
+шаблона, legacy documentary channels не поддерживаются `content_creator`, а
+Solar fixed plan использует отдельный `project_config.json`/`scenes.json`
+contract и прямые live provider/TTS paths без application approval boundary.
+Documentary migration не выполнялась, этап 8 закрыт; следующий этап — 9.

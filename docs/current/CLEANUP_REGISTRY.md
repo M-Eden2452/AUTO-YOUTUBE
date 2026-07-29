@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: cfe6ae6
+last_verified_commit: a3536a9
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -10,12 +10,16 @@ source_paths:
   - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
   - src/ai_youtube/apps/legacy_pipeline
   - pipeline.py
+  - src/production_plan/youtube_shorts.py
+  - src/production_plan/solar_vs_nuclear_render.py
   - src
   - tests
   - tests/test_anime_clipper_application_boundary.py
   - tests/test_legacy_pipeline_application_boundary.py
+  - tests/test_documentary_migration_gate.py
   - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/adr/0012-legacy-pipeline-application-boundary.md
+  - docs/adr/0013-documentary-migration-gate.md
   - content
   - packages
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
@@ -24,12 +28,12 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `cfe6ae6`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по gate HEAD `a3536a9`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
 изменениями; Fullscreen Voiceover, Story Card, Anime Clipper и legacy pipeline
-slices этапа 8 также завершены. Runtime и user data не перемещались и не
-удалялись.
+slices этапа 8 завершены, documentary gate 8E закрыт без migration. Runtime и
+user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
 `do_not_touch`.
@@ -59,6 +63,7 @@ slices этапа 8 также завершены. Runtime и user data не п�
 | V03 | `src/content_creation/story_card_use_case.py` | `move` | slice 8B (`01cfc6f`) перенёс implementation в `src.ai_youtube.apps.content_creator.workflows.story_card`; service использует canonical boundary | выполнено; старый import path — 12-строчный wrapper, project/evidence/template contracts не дублированы | 8B complete |
 | V01 | `anime_factory/` | `move` | slice 8C (`7d0ce1e`) создал canonical lazy adapter в `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper`; `apps.anime_factory` использует boundary, catalog остаётся disabled/planned | выполнено без физического move: legacy CLI, `EpisodePaths`, workflow/output layout и runtime остаются у `anime_factory` | 8C complete |
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | slice 8D (`cfe6ae6`) создал canonical lazy adapter в `src.ai_youtube.apps.legacy_pipeline`; `apps.youtube_pipeline` использует boundary, а characterization фиксирует root engine identities и patch-points | выполнено без физического move: root facade остаётся compatibility namespace owner, `src.legacy_pipeline` — behavior owner, engines/runtime не перемещены | 8D complete |
+| V04 | documentary channels + Solar fixed production plan | `keep` | gate 8E (`a3536a9`) подтвердил отсутствие documentary catalog template, disabled `longform`, legacy-only channel profiles, bespoke unknown project contract и прямые live TTS/HTTP paths без application approval gate | не мигрировать и не включать capability; оставить за root compatibility facade до отдельного реального product/application stage | 8E complete |
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
 | D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | этап 7 подтвердил отсутствие active/internal callers, но contract test всё ещё фиксирует re-export; default factory использует только `StockProvider` implementations из registry | сохранить до отдельного stage 9 retirement checkpoint | 9 |
@@ -397,14 +402,29 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Migration decision: ADR 0012. Outputs, persisted projects, runtime layout и
   user media не менялись.
 
+### Завершённый gate: 8E Documentary
+
+- Catalog/application audit подтвердил отсутствие `documentary` application и
+  template; `longform` остаётся planned/disabled без template.
+- `psychology`, `quotes`, `survival` и `size_comparison` подтверждены как
+  legacy `pipeline.py --channel/--video` profiles без поддерживаемого
+  `content_creator` template.
+- Solar fixed plan остаётся bespoke root-only workflow:
+  `project_config.json`/`scenes.json` не читаются как `job.json` или
+  `project.json`, а render entrypoint имеет прямые TTS/HTTP dependencies без
+  application-level approval gate.
+- Characterization `tests/test_documentary_migration_gate.py` фиксирует catalog,
+  channel, project-contract, root-owner и paid/provider stop-gates.
+- Migration, capability registration, production/schema/runtime changes,
+  network/provider/TTS/render и user-media operations не выполнялись.
+- Decision: ADR 0013. Этап 8 закрыт с четырьмя перенесёнными slices; documentary
+  требует отдельного будущего product/application stage.
+
 ### Последующая очередь
 
-1. **8:** documentary рассматривать только после read-only подтверждения
-   реального рабочего шаблона; не включать planned capability по наличию
-   legacy кода.
-2. **9:** повторно проверить и удалять только D01/D02/D03 с актуальным
+1. **9:** повторно проверить и удалять только D01/D02/D03 с актуальным
    zero-caller и compatibility evidence.
-3. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
+2. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
 
 ## Closure rule
 
