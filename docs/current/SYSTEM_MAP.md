@@ -1,7 +1,7 @@
 ---
 status: current
-last_verified_commit: bb9e28a
-last_verified_date: 2026-07-28
+last_verified_commit: 3abbfac
+last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
   - pipeline.py
@@ -74,4 +74,6 @@ storage layer. Slice 5B добавил additive news schema version v1: новы
 версионированы, а старые `job.json` без поля читаются как v1 без массовой
 миграции. Slice 5C добавил общий fail-fast project-lock primitive и применил его
 к `NewsProjectStore.write_json`; stale lock старше пяти минут перехватывается
-автоматически. Следующий отдельный slice 5D добавляет stage idempotency.
+автоматически. Два bounded slice 5D добавили output-validated stage idempotency
+для семейств `research` и `script`; следующее семейство `visual_plan` остаётся
+отдельным slice.

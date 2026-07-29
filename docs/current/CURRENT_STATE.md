@@ -1,7 +1,7 @@
 ---
 status: current
-last_verified_commit: bb9e28a
-last_verified_date: 2026-07-28
+last_verified_commit: 3abbfac
+last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
   - .github/workflows/offline-tests.yml
@@ -26,9 +26,10 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-28 по implementation HEAD `bb9e28a`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `3abbfac`. Код и Git имеют приоритет.
 
-- Rescue stages 0–4.6 и bounded slices 5A–5D завершены. Физическая перестройка канонической структуры начата.
+- Rescue stages 0–4.6, slices 5A–5C и bounded 5D families `research`/`script`
+  завершены; этап 5 продолжается. Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -38,7 +39,9 @@ source_paths:
 - Slice 5A перевёл `NewsProjectStore.write_json` на существующий
   `project_foundation.atomic_write_json`. Slice 5B добавил `NEWS_JOB_SCHEMA_VERSION=1`.
   Slice 5C добавил общий fail-fast project lock.
-  Slice 5D добавил output-validated stage idempotency для семейства стадий `research`.
+  Bounded slices 5D добавили output-validated stage idempotency для семейств
+  `research` и `script`: завершённое состояние признаётся только при наличии
+  структурно пригодного обязательного JSON-артефакта.
   Первый structural migration slice перенёс канонический CLI-слой в `src/ai_youtube/cli/`
   с доменными модулями команд (`create`, `project`, `assets`, `diagnostics`), а `src/content_creation/cli.py`
   сохранён как тонкий compatibility wrapper.
@@ -65,7 +68,8 @@ source_paths:
 Известные переходные долги:
 
 - две формы project manifests сохраняются tolerant readers; lock сериализует
-  отдельные news JSON writes, а stage idempotency остаётся отдельным slice 5D;
+  отдельные news JSON writes; после `research` и `script` остальные stage families
+  получают idempotency только отдельными bounded slices 5D;
 - крупные command handlers и cycle frame sampling ↔ perceptual similarity — этап 6;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter

@@ -1,8 +1,9 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–4.6 и bounded slices 5A–5C завершены; этап 4.5
+Статус: **выполняется; этапы 0–4.6, slices 5A–5C и bounded 5D families
+`research`/`script` завершены; этап 4.5
 сохранён как историческая диагностика и снят с critical path; этап 5 —
-Project и storage foundation — выполняется, следующий slice 5D**
+Project и storage foundation — выполняется, следующий slice 5D `visual_plan`**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -763,7 +764,8 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 5. Project и storage foundation
 
-Статус: [ ] выполняется; slices 5A–5C завершены 2026-07-28, следующий slice 5D
+Статус: [ ] выполняется; slices 5A–5C и 5D families `research`/`script`
+завершены, следующий slice 5D — `visual_plan`
 
 Задачи:
 
@@ -776,7 +778,8 @@ Wizard и service, уменьшение крупных функций и пер�
    implementation commit `87e272a`.**
 6. Добавить project lock. **Выполнено в slice 5C, implementation commit
    `f7b3a3c`.**
-7. Добавить idempotency для повторных стадий. **Следующий slice 5D.**
+7. Добавить idempotency для повторных стадий. **`research` и `script`
+   завершены отдельными bounded slices 5D; следующий — `visual_plan`.**
 8. Сохранить чтение старых `job.json` и `project.json`.
 9. Не выполнять массовую миграцию.
 
@@ -987,10 +990,10 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> Начать только slice 5D: выбрать одно семейство news stages и
-> characterization-first зафиксировать повторный запуск, `resume` и
-> `force-stage`; не расширять изменение на другие stage families, schema,
-> project lock или cleanup.
+> Начать только следующий slice 5D для семейства `visual_plan` и
+> characterization-first зафиксировать повторный запуск, `resume`,
+> `force-stage`, отсутствующий и повреждённый output; не расширять изменение на
+> другие stage families, schema, project lock или cleanup.
 
 Не начинать с:
 
@@ -1013,14 +1016,16 @@ tooling.
 Этот раздел обновляется после каждого выполненного этапа.
 
 ```text
-Последнее обновление: 2026-07-28
-Завершённый bounded slice: Canonical CLI package migration to src/ai_youtube/cli
-Текущий этап: 5 Project и storage foundation / Structural migration — выполняется
-Следующий bounded slice: Следующий вертикальный перенос (например, core/projects или content_creator service)
+Последнее обновление: 2026-07-29
+Завершённый bounded slice: 5D stage idempotency for news script stage family
+Текущий этап: 5 Project и storage foundation — выполняется
+Следующий bounded slice: 5D stage idempotency for visual_plan stage family
+Исходный HEAD slice 5D (script): 69a79d0
+Implementation commit slice 5D (script): 3abbfac
 Исходный HEAD CLI migration slice: 40e6c17
 Implementation commit CLI migration slice: bb9e28a
-Исходный HEAD slice 5D: 5c17c4e
-Implementation commit slice 5D: 56dd2eb
+Исходный HEAD slice 5D (research): 5c17c4e
+Implementation commit slice 5D (research): 56dd2eb
 Исходный HEAD slice 5C: 5413185
 Implementation commit slice 5C: f7b3a3c
 Исходный HEAD slice 5B: ac30199
@@ -1028,7 +1033,7 @@ Implementation commit slice 5B: 42d5b99
 Исходный HEAD slice 5A: 736f0c6
 Implementation commit slice 5A: 87e272a
 Ветка: master
-Git до CLI migration slice: чистый
+Git до slice 5D (script): чистый
 Исходный HEAD аудита: 8d61a06
 Проверенный code baseline HEAD: 8485a21
 Коммит этапа 1: c8eb8f6
@@ -1044,23 +1049,28 @@ Evidence-коммит этапа 4.5: fb374fd
 Коммит локального аудита 4.5-R: 05cc8ed
 Коммит этапа 4.6: 736f0c6
 Выполнено:
-- прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, AGENTS.md, ADRs и skills
-- физически создан канонический пакет CLI: src/ai_youtube/cli/ main.py, commands/ (create.py, project.py, assets.py, diagnostics.py)
-- команды распределены по доменным модулям с ленивой загрузкой тяжелых зависимостей (Wizard)
-- src/content_creation/cli.py превращён в тонкий compatibility wrapper над ai_youtube.cli.main
-- корневые wrappers (ai_youtube/__main__.py, ai_youtube/cli/main.py) перенаправлены на src.ai_youtube.cli.main
-- сохранена работа всех legacy entrypoints (python -m src.content_creation.cli, pipeline.py)
-Изменения production code: src/ai_youtube/ (новые файлы), ai_youtube/ (wrappers), src/content_creation/cli.py
-ADR: docs/adr/0007-canonical-cli-package.md
+- полностью прочитаны master plan, START_HERE, CURRENT_STATE, SYSTEM_MAP, architecture map, cleanup registry, AGENTS.md и skill architecture-change
+- добавлена characterization family для normal repeat, resume, force-stage, отсутствующего и повреждённого script.json
+- до production-изменения подтверждено ожидаемое падение: completed script без script.json ошибочно считался завершённым
+- NewsProjectStore.validate_stage_output расширен только для stage family script
+- обязательный output определяется по job.language и проверяется как JSON-объект с непустыми narration_text и списком scene-объектов
+- отсутствующий или повреждённый script.json автоматически восстанавливается повторным запуском stage
+- сохранены tolerant legacy reads; новый schema/storage/lock/stage framework не создавался
+Изменения production code: src/news/project_store.py (1 файл)
+Characterization tests: tests/test_news_to_short_pipeline.py
+ADR: docs/adr/0006-news-stage-idempotency.md расширен для script family
+Schemas/Manifests: не изменялись
+Runtime projects/user media: не затрагивались
+Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
 Targeted checks:
-- py_compile всех CLI-файлов: OK
-- Smoke test импортов (ai_youtube, ai_youtube.cli.main, src.ai_youtube, src.content_creation.cli): OK
-- Smoke test команд CLI (--help): python -m ai_youtube --help, python -m src.content_creation.cli --help, pipeline.py --help: OK
-- Targeted test suite: tests/test_stage4_canonical_cli.py tests/test_content_creation_cli.py tests/test_news_to_short_pipeline.py tests/test_news_to_short_models.py tests/test_project_repository.py tests/test_project_factory.py: OK, 68 tests
+- characterization before production change: expected FAIL, missing script.json was skipped
+- tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory tests.test_project_naming_and_resume: OK, 76 tests
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался; bounded change проверен указанным targeted family
+Найденный root cause:
+- NewsProjectStore.validate_stage_output возвращал True для любой completed stage, кроме research, поэтому script status в job.json имел приоритет над фактическим output
 Ограничения текущей реализации:
-- перенесён только CLI dispatch и регистрация команд; Wizard, application service, storage и renderer остались в исходных пакетах до следующих вертикальных срезов
+- idempotency по обязательному output подтверждён только для research и script; следующее отдельное семейство — visual_plan
 Следующая точная read-only команда: git status --short --branch
 Остановить исполнение и передать отчёт пользователю. Не начинать следующий slice автоматически.
 ```

@@ -1,7 +1,7 @@
 ---
 status: current
-last_verified_commit: bb9e28a
-last_verified_date: 2026-07-28
+last_verified_commit: 3abbfac
+last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
