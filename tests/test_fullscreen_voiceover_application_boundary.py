@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+import subprocess
+import sys
 import unittest
 
 
@@ -173,6 +175,28 @@ class FullscreenVoiceoverApplicationBoundaryCharacterizationTests(
         self.assertIs(
             fullscreen_voiceover.run_news_to_short_job,
             run_news_to_short_job,
+        )
+
+    def test_service_import_keeps_news_pipeline_lazy(self) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys; "
+                    "import src.content_creation.service; "
+                    "assert 'src.news.pipeline' not in sys.modules"
+                ),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=completed.stderr or completed.stdout,
         )
 
 
