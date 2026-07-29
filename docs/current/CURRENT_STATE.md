@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 7d0ce1e
+last_verified_commit: cfe6ae6
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -20,7 +20,9 @@ source_paths:
   - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
   - src/ai_youtube/apps/content_creator/workflows/story_card
   - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
+  - src/ai_youtube/apps/legacy_pipeline
   - apps/anime_factory
+  - apps/youtube_pipeline
   - anime_factory
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
@@ -52,6 +54,7 @@ source_paths:
   - docs/adr/0009-fullscreen-voiceover-application-boundary.md
   - docs/adr/0010-story-card-application-boundary.md
   - docs/adr/0011-anime-clipper-application-boundary.md
+  - docs/adr/0012-legacy-pipeline-application-boundary.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -63,6 +66,7 @@ source_paths:
   - tests/test_fullscreen_voiceover_application_boundary.py
   - tests/test_story_card_application_boundary.py
   - tests/test_anime_clipper_application_boundary.py
+  - tests/test_legacy_pipeline_application_boundary.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -70,11 +74,12 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `7d0ce1e`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `cfe6ae6`. Код и Git имеют приоритет.
 
 - Rescue stages 0–7, включая подэтапы 6A–6G, завершены. Этап 8 выполняется:
-  vertical slices `fullscreen_voiceover`, `story_card` и `anime_clipper`
-  завершены, следующий — legacy pipeline.
+  vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и
+  legacy pipeline завершены. Следующий возможный slice — documentary, только
+  после подтверждения реального рабочего шаблона.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -177,6 +182,13 @@ source_paths:
   единственными владельцами поведения и project/output layout. Catalog
   `video_repurposer` не включён и остаётся planned/disabled; runtime episodes
   не перемещались.
+- Четвёртый slice этапа 8 (`cfe6ae6`) установил canonical legacy pipeline
+  adapter в `src.ai_youtube.apps.legacy_pipeline.adapter`.
+  `apps.youtube_pipeline` разрешает root `pipeline.main` через новую границу,
+  а root facade остаётся владельцем compatibility namespace и engine
+  patch-points. Существующие parser, maintenance и channel/video workflow
+  contracts продолжают принадлежать `src.legacy_pipeline`; engines, outputs,
+  runtime projects и media не перемещались.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -199,10 +211,11 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- после первых трёх vertical slices этапа 8 legacy pipeline и documentary ещё
-  не перенесены; физические Anime Factory workflow/output contracts остаются у
-  `anime_factory`, а legacy documentary и
-  fixed-production-plan HTTP paths остаются внутри будущих bounded slices;
+- после первых четырёх vertical slices этапа 8 documentary ещё не перенесён и
+  требует сначала подтверждения реального рабочего шаблона; физические Anime
+  Factory workflow/output contracts остаются у `anime_factory`, root legacy
+  engine/patch-point contracts — у `pipeline.py`, а documentary и
+  fixed-production-plan HTTP paths остаются внутри будущего bounded slice;
 - D01 news-only provider names и D02 downloader wrapper сохраняются как
   compatibility до отдельного zero-caller/retirement evidence этапа 9;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter

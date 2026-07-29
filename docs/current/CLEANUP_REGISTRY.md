@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 7d0ce1e
+last_verified_commit: cfe6ae6
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -8,11 +8,14 @@ source_paths:
   - apps
   - anime_factory
   - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
+  - src/ai_youtube/apps/legacy_pipeline
   - pipeline.py
   - src
   - tests
   - tests/test_anime_clipper_application_boundary.py
+  - tests/test_legacy_pipeline_application_boundary.py
   - docs/adr/0011-anime-clipper-application-boundary.md
+  - docs/adr/0012-legacy-pipeline-application-boundary.md
   - content
   - packages
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
@@ -21,11 +24,12 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `7d0ce1e`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `cfe6ae6`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
-изменениями; Fullscreen Voiceover, Story Card и Anime Clipper slices этапа 8
-также завершены. Runtime и user data не перемещались и не удалялись.
+изменениями; Fullscreen Voiceover, Story Card, Anime Clipper и legacy pipeline
+slices этапа 8 также завершены. Runtime и user data не перемещались и не
+удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
 `do_not_touch`.
@@ -54,7 +58,7 @@ source_paths:
 | V00 | `src/content_creation/fullscreen_voiceover_use_case.py` | `move` | slice 8A (`f8ac67e`, `06e6a25`) перенёс implementation в `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`; service и `apps.news_to_short` используют canonical boundary | выполнено; старый import path — 29-строчный wrapper, `src.news` contracts не дублированы, service import остаётся lazy | 8A complete |
 | V03 | `src/content_creation/story_card_use_case.py` | `move` | slice 8B (`01cfc6f`) перенёс implementation в `src.ai_youtube.apps.content_creator.workflows.story_card`; service использует canonical boundary | выполнено; старый import path — 12-строчный wrapper, project/evidence/template contracts не дублированы | 8B complete |
 | V01 | `anime_factory/` | `move` | slice 8C (`7d0ce1e`) создал canonical lazy adapter в `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper`; `apps.anime_factory` использует boundary, catalog остаётся disabled/planned | выполнено без физического move: legacy CLI, `EpisodePaths`, workflow/output layout и runtime остаются у `anime_factory` | 8C complete |
-| V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
+| V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | slice 8D (`cfe6ae6`) создал canonical lazy adapter в `src.ai_youtube.apps.legacy_pipeline`; `apps.youtube_pipeline` использует boundary, а characterization фиксирует root engine identities и patch-points | выполнено без физического move: root facade остаётся compatibility namespace owner, `src.legacy_pipeline` — behavior owner, engines/runtime не перемещены | 8D complete |
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
 | D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | этап 7 подтвердил отсутствие active/internal callers, но contract test всё ещё фиксирует re-export; default factory использует только `StockProvider` implementations из registry | сохранить до отдельного stage 9 retirement checkpoint | 9 |
@@ -374,10 +378,30 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Migration decision: ADR 0011. Runtime episodes и user media не менялись;
   `video_repurposer` остаётся planned/disabled.
 
+### Завершённый vertical slice: 8D Legacy pipeline boundary
+
+- Characterization-first зафиксировал root command/workflow signatures,
+  `LegacyPipelineArtifacts` shape, engine function identities и
+  `apps.youtube_pipeline` delegation.
+- Canonical lazy adapter создан в
+  `src.ai_youtube.apps.legacy_pipeline.adapter` (`cfe6ae6`).
+- Adapter переэкспортирует существующие root `main`, parser, maintenance,
+  channel/video workflow и `limit_scene_plan` contracts; нового dispatcher,
+  project/artifact contract или engine не создавалось.
+- `apps.youtube_pipeline` использует canonical boundary, а root `pipeline.py`
+  и прямые `src.legacy_pipeline` imports остаются совместимыми.
+- Targeted verification: pre-change characterization 4 tests OK;
+  boundary/internals/Stage 1/apps 10 tests OK; workspace/catalog/semantic
+  radius 23 tests OK; compile/import/diff checks OK. Full offline suite, сеть,
+  provider calls/download, TTS, Vision и render не запускались.
+- Migration decision: ADR 0012. Outputs, persisted projects, runtime layout и
+  user media не менялись.
+
 ### Последующая очередь
 
-1. **8:** следующим отдельным vertical slice переносить V02 legacy pipeline
-   только с compatibility wrappers и отдельным caller evidence.
+1. **8:** documentary рассматривать только после read-only подтверждения
+   реального рабочего шаблона; не включать planned capability по наличию
+   legacy кода.
 2. **9:** повторно проверить и удалять только D01/D02/D03 с актуальным
    zero-caller и compatibility evidence.
 3. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.

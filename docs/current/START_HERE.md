@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 7d0ce1e
+last_verified_commit: cfe6ae6
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -22,6 +22,7 @@ source_paths:
   - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
   - src/ai_youtube/apps/content_creator/workflows/story_card
   - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
+  - src/ai_youtube/apps/legacy_pipeline
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
@@ -43,6 +44,7 @@ source_paths:
   - docs/adr/0009-fullscreen-voiceover-application-boundary.md
   - docs/adr/0010-story-card-application-boundary.md
   - docs/adr/0011-anime-clipper-application-boundary.md
+  - docs/adr/0012-legacy-pipeline-application-boundary.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -54,6 +56,7 @@ source_paths:
   - tests/test_fullscreen_voiceover_application_boundary.py
   - tests/test_story_card_application_boundary.py
   - tests/test_anime_clipper_application_boundary.py
+  - tests/test_legacy_pipeline_application_boundary.py
 ---
 
 # Start Here
@@ -70,10 +73,12 @@ AI-YouTube — локальная offline-first система производ�
 
 Текущий rescue plan: [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md).
 Этапы 0–7 завершены. В этапе 8 vertical slices `fullscreen_voiceover`
-(`f8ac67e`, `06e6a25`), `story_card` (`01cfc6f`) и `anime_clipper`
-(`7d0ce1e`) завершены. Canonical boundaries находятся в `src.ai_youtube.apps`;
-прежние use-case/entrypoint paths сохранены wrappers, а `video_repurposer`
-остаётся planned/disabled. Следующий slice этапа 8 — legacy pipeline.
+(`f8ac67e`, `06e6a25`), `story_card` (`01cfc6f`), `anime_clipper`
+(`7d0ce1e`) и legacy pipeline (`cfe6ae6`) завершены. Canonical boundaries
+находятся в `src.ai_youtube.apps`; прежние use-case/entrypoint paths сохранены
+wrappers, а `video_repurposer` остаётся planned/disabled. Следующий возможный
+slice этапа 8 — documentary, только после подтверждения реального рабочего
+шаблона.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

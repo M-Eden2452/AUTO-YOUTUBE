@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 7d0ce1e
+last_verified_commit: cfe6ae6
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -20,6 +20,7 @@ source_paths:
   - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
   - src/ai_youtube/apps/content_creator/workflows/story_card
   - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
+  - src/ai_youtube/apps/legacy_pipeline
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
@@ -44,6 +45,7 @@ source_paths:
   - src/subtitles
   - anime_factory
   - apps/anime_factory
+  - apps/youtube_pipeline
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/adr/0006-news-stage-idempotency.md
@@ -51,6 +53,7 @@ source_paths:
   - docs/adr/0009-fullscreen-voiceover-application-boundary.md
   - docs/adr/0010-story-card-application-boundary.md
   - docs/adr/0011-anime-clipper-application-boundary.md
+  - docs/adr/0012-legacy-pipeline-application-boundary.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -62,6 +65,7 @@ source_paths:
   - tests/test_fullscreen_voiceover_application_boundary.py
   - tests/test_story_card_application_boundary.py
   - tests/test_anime_clipper_application_boundary.py
+  - tests/test_legacy_pipeline_application_boundary.py
 ---
 
 # System Map
@@ -84,7 +88,7 @@ source_paths:
 | Providers | `src/assets/provider_contract.py`, `src/providers/` | единый `StockProvider` contract, canonical registry и provider adapters |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
-| Legacy/maintenance | `pipeline.py`, `src/legacy_pipeline/`, `apps/` | root compatibility facade, parser, maintenance handlers и legacy workflow |
+| Legacy/maintenance | `src/ai_youtube/apps/legacy_pipeline/`, `pipeline.py`, `src/legacy_pipeline/`, `apps/youtube_pipeline/` | canonical lazy adapter, root compatibility namespace, parser, maintenance handlers и legacy workflow |
 | Video repurposing | `src/ai_youtube/apps/video_repurposer/workflows/anime_clipper/`, `anime_factory/` | canonical lazy adapter и существующий владелец Anime Factory workflow/project-output layout |
 
 Текущая продуктовая модель:
@@ -127,6 +131,10 @@ video_repurposer
 - root `pipeline.py` остаётся compatibility facade и сохраняет старые imports
   и patch-points; parser, maintenance handlers и legacy channel/video
   orchestration разделены в `src.legacy_pipeline`.
+- `src.ai_youtube.apps.legacy_pipeline.adapter` лениво переэкспортирует root
+  command/workflow surface; `apps.youtube_pipeline` использует эту canonical
+  boundary, а root `pipeline.py` остаётся владельцем compatibility namespace
+  и engine patch-points.
 - `src.providers.registry` владеет default automatic provider set активного
   workflow. News factory делегирует registry; старые news-only provider names
   и `stock_video_downloader` остаются compatibility surface до этапа 9.
@@ -184,4 +192,8 @@ application-level Story Card use case в соседний canonical boundary, с
 этапа 8 (`7d0ce1e`) создал canonical Anime Clipper adapter, сохранил
 `anime_factory` владельцем workflow и output layout и перевёл
 `apps.anime_factory` на новую boundary без включения `video_repurposer`.
-Следующий slice этапа 8 — legacy pipeline.
+Четвёртый slice этапа 8 (`cfe6ae6`) создал canonical legacy pipeline adapter,
+перевёл `apps.youtube_pipeline` на новую boundary и сохранил root `pipeline.py`
+владельцем compatibility namespace, а `src.legacy_pipeline` — владельцем
+parser/maintenance/workflow behavior. Следующий возможный slice этапа 8 —
+documentary, только после подтверждения реального рабочего шаблона.
