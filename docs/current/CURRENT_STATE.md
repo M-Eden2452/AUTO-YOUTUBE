@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: dcd6a3c
+last_verified_commit: 75a2715
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -79,7 +79,7 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 от HEAD `dcd6a3c` с bounded D03 diff. Код и Git имеют
+Проверено 2026-07-29 от clean HEAD `75a2715`. Код и Git имеют
 приоритет.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
@@ -90,7 +90,7 @@ source_paths:
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
-- Этап 9 завершён тремя bounded deletion slices. D01 после повторного repo-wide
+- Этап 9A завершён тремя bounded deletion slices. D01 после повторного repo-wide
   zero-caller audit удалил news-only `PexelsAssetProvider`,
   `PixabayAssetProvider`, `UnsplashAssetProvider` и их re-exports.
   `AssetProvider`, news factory patch-point и canonical `StockProvider`
@@ -98,7 +98,9 @@ source_paths:
   удалён после отдельного AST callers/entrypoint gate; active asset stage не
   менялся. D03 удалил только `packages/README.md` и подтверждённо пустую
   planning directory после package/docs gate; package discovery не менялся.
-  Следующий rescue stage — 10.
+  После owner review общий этап 9 расширен подэтапами 9B–9E: inventory,
+  caller migration, ownership transfer и wrapper/package retirement.
+  Следующий checkpoint — read-only 9B; production code не менялся.
 - Этап 4.6 создал проверенные
   [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
@@ -244,12 +246,14 @@ source_paths:
   engine/patch-point contracts — у `pipeline.py`, а documentary и
   fixed-production-plan HTTP paths остаются внутри будущего bounded slice;
 - D01 news-only provider names, D02 standalone downloader и D03 planning
-  directory удалены отдельными проверенными commits; stage 10 cleanup candidates
-  A01/A02/D04 ещё не начаты;
-- оставшиеся compatibility wrappers, duplicate implementations и
-  generated/runtime cleanup candidates классифицированы; следующий этап 10
-  начинается только с read-only cleanup inventory, без удаления runtime/user
-  data.
+  directory удалены отдельными проверенными commits; stage 10 cleanup
+  candidates A01/A02/D04 ещё не начаты;
+- этап 8 установил application boundaries, но не завершил ownership transfer:
+  `src.news`, `src.templates.story_card`, `anime_factory`, `pipeline.py` и
+  `src.legacy_pipeline` всё ещё владеют частью реализации;
+- 9B должен дополнить cleanup registry точными production/test/docs callers,
+  product owner decisions и exit conditions для package roots/wrappers. До
+  завершения 9B перенос и удаление этих paths запрещены.
 
 Создание, продолжение, TTS, render и визуальная проверка reference video больше
 не являются этапами rescue plan. Архитектурные изменения выполняются малыми

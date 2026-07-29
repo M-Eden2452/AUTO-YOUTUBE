@@ -40,8 +40,8 @@
 
 ## Архитектурные границы
 
-- `src.content_creation.cli` — текущий CLI создания контента; `pipeline.py` обслуживает
-  legacy и maintenance-команды. Единый новый dispatcher относится к этапу 4 rescue plan.
+- `python -m ai_youtube` — канонический CLI; `src.content_creation.cli`,
+  `pipeline.py` и `apps/*` — переходные compatibility entrypoints этапа 9.
 - Активное приложение — `content_creator`. Не представляй disabled/planned приложения
   как готовые.
 - Активные шаблоны: `fullscreen_voiceover_v1` и `story_card_text_only_v1`.
@@ -52,7 +52,9 @@
 - `strict` остаётся режимом completion по умолчанию. `draft_complete` — явный opt-in,
   всегда `publish_ready=false` и не ослабляет права, `must_avoid`, conflict и
   misleading-content gates.
-- Сохраняй tolerant readers, compatibility wrappers, resume/force-stage и approval gates.
+- Сохраняй tolerant readers, resume/force-stage и approval gates. Compatibility
+  wrappers сохраняй только до их отдельного callers/replacement/retirement gate;
+  бессрочный wrapper не является финальным состоянием.
 
 ## Versioned agent skills
 

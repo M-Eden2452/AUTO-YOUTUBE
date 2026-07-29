@@ -1,11 +1,11 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
 Статус: **выполняется; этапы 0–8, включая подэтапы 6A–6G, завершены; этап 4.5
-сохранён как историческая диагностика и снят с critical path; этап 8 перенёс
-vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy
-pipeline, а documentary gate 8E закрыт без migration из-за отсутствия реального
-рабочего шаблона; этап 9 завершён bounded slices D01–D03; следующий этап —
-10**
+сохранён как историческая диагностика и снят с critical path; этап 8 создал
+canonical application boundaries, но не завершил передачу владения всей
+реализацией; этап 9A завершён bounded slices D01–D03; после owner review цель
+усилена до фактической консолидации, поэтому первый незавершённый этап —
+9B compatibility и canonical-ownership inventory**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -65,6 +65,51 @@ HEAD на момент аудита: `8d61a06`
 
 Итоговая инженерная оценка на момент аудита: **5/10**.
 Потенциал безопасного восстановления: **8/10**.
+
+### 2.1. Жёсткая конечная цель
+
+План должен завершиться не только безопасной миграцией, но и контролируемой
+архитектурной консолидацией:
+
+> Для каждой поддерживаемой возможности существует одна каноническая
+> production-реализация и один владелец бизнес-логики; переходные пути либо
+> удалены, либо обоснованы как постоянный публичный adapter без собственной
+> реализации.
+
+Проект считается минимальным и переносимым, когда:
+
+1. Нет одновременно старой и новой реализации одной capability.
+2. Один capability может иметь несколько infrastructure adapters, но только
+   одного владельца business logic.
+3. Compatibility wrapper имеет запись в cleanup registry, реальных callers,
+   каноническую замену и проверяемое условие удаления; бессрочный статус
+   `wrapper` запрещён.
+4. Test-only caller не является достаточной причиной сохранять старый public
+   path после одобренного breaking change.
+5. Один физический package root предоставляет установленный import
+   `ai_youtube`; launcher не дублирует package implementation.
+6. Planned/disabled capability не остаётся бесконечным placeholder в
+   installable production tree: она получает owner decision `keep`,
+   `archive` или `delete`.
+7. Runtime, проекты, exports, MP4/WAV, provider cache, temp и скачанные
+   материалы находятся вне Git и вне code root по умолчанию.
+8. В корне остаётся только утверждённый allowlist кода, конфигурации, тестов,
+   схем, tools, skills и актуальной документации.
+9. Каждый production-файл имеет подтверждённого caller, является явным
+   entrypoint/contract либо записан как обоснованный permanent adapter.
+10. Пустые каталоги, planning placeholders, orphan modules, exact duplicates и
+    generated outputs отсутствуют либо внесены в узкий документированный
+    allowlist.
+11. Репозиторий самодостаточен для нового AI-агента: `AGENTS.md`,
+    `docs/current/` и versioned `skills/` не зависят от конкретной модели,
+    внешнего диска или приватной knowledge-системы.
+12. Чистый checkout работает из произвольного пути на поддерживаемой среде;
+    production-код не содержит username, drive letter или обязательного
+    `Path.cwd()`.
+
+Минимализм здесь означает минимальное число владельцев, entrypoints и
+источников истины, а не искусственное объединение разных domain-модулей в один
+большой файл.
 
 ---
 
@@ -219,6 +264,22 @@ Application
 Story Card рассматривается как workflow/template внутри `content_creator`, а не как
 отдельная инфраструктурная платформа.
 
+До этапа 9B подтверждённый обязательный product surface ограничен активным
+`content_creator` и двумя шаблонами. Остальные ветви требуют явного решения
+владельца:
+
+| Capability | Текущее состояние | Финальное правило |
+|---|---|---|
+| `content_creator/fullscreen_voiceover` | active | сохранить и передать одному canonical owner |
+| `content_creator/story_card` | active | сохранить как workflow/template, без второй платформы |
+| `video_repurposer/anime_clipper` | adapter есть, capability disabled | либо завершить ownership transfer и включать только после evidence, либо архивировать implementation вне active tree |
+| `legacy_pipeline` | compatibility + maintenance | сохранить только доказанно нужные maintenance/migration команды на ограниченный период; остальное retire |
+| documentary/Solar/longform/horizontal | planned, experimental или legacy-only | не держать как активные placeholders; archive/backlog до отдельного product stage |
+
+Отсутствие активного caller означает необходимость owner decision, а не
+разрешение автоматически удалить пользовательские данные или исторически
+ценный код.
+
 Базовая модель:
 
 ```text
@@ -249,6 +310,8 @@ AI-YouTube/
   AGENTS.md
   CLAUDE.md                 # короткий adapter к AGENTS.md
   pyproject.toml
+  requirements.txt
+  requirements.lock
   .env.example
 
   src/
@@ -282,12 +345,6 @@ AI-YouTube/
           workflows/
             anime_clipper/
 
-        documentary/
-          README.md
-
-        legacy_pipeline/
-          adapter.py
-
       services/
         assets/
         audio/
@@ -309,6 +366,9 @@ AI-YouTube/
     providers/
 
   channels/
+  schemas/
+  skills/
+  scripts/
 
   tests/
     unit/
@@ -330,23 +390,22 @@ AI-YouTube/
     qa/
     migrations/
     diagnostics/
-
-  legacy/
-
-  pipeline.py               # временный compatibility wrapper
-  apps/                     # временные compatibility wrappers
 ```
 
-Это целевая структура, а не разрешение на массовое перемещение.
+`pipeline.py`, top-level `apps/`, `anime_factory/`, root `ai_youtube/` shim и
+старые owner packages являются переходными кандидатами, а не частью финального
+allowlist. Каждый удаляется только собственным bounded slice после
+callers/replacement gate. Это целевая структура, а не разрешение на массовое
+перемещение.
 
 ---
 
-## 8. Три независимых слоя
+## 8. Три логические зоны
 
 ### 8.1. Репозиторий с кодом
 
 ```text
-G:\Projects\AI-YouTube
+<REPOSITORY_ROOT>
 ```
 
 Содержит:
@@ -357,18 +416,21 @@ G:\Projects\AI-YouTube
 - конфигурации по умолчанию;
 - ADR;
 - versioned техническую документацию;
-- compatibility wrappers.
+- только временно одобренные compatibility wrappers.
+
+Фактический путь владельца `G:\Projects\AI-YouTube` является локальным
+размещением, а не production contract.
 
 ### 8.2. Runtime workspace
 
 ```text
-G:\AI-YouTube-Workspace
+<AI_YOUTUBE_WORKSPACE>
 ```
 
 Целевая структура:
 
 ```text
-G:\AI-YouTube-Workspace\
+<AI_YOUTUBE_WORKSPACE>\
   projects\
     content_creator\
     video_repurposer\
@@ -384,53 +446,36 @@ G:\AI-YouTube-Workspace\
   user_config\
 ```
 
-### 8.3. Система знаний и skills
+Workspace выбирается через CLI, environment или path config. Ни один drive
+letter не является обязательным; `G:\AI-YouTube-Workspace` допустим только как
+локальный пример.
+
+### 8.3. Versioned знания и skills для AI-агентов
+
+Канонический agent context хранится внутри репозитория:
 
 ```text
-G:\AI-YouTube-System
-```
-
-Целевая структура:
-
-```text
-G:\AI-YouTube-System\
-  README.md
-  START_HERE.md
-  SYSTEM_MAP.md
-  CURRENT_STATE.md
-
-  knowledge\
-    architecture\
-    applications\
-    workflows\
-    contracts\
-    operations\
-    decisions\
-    known_issues\
-
-  policies\
-    safety.md
-    git.md
-    paid_actions.md
-    user_data.md
-
-  skills\
-    create_short_video_first\
-    evaluate_render_quality\
-    resume_project\
-    replace_visual_slot\
-    architecture_change\
-    create_handoff\
-
-  handoffs\
-    CURRENT.md
+<REPOSITORY_ROOT>\
+  AGENTS.md
+  docs\
+    current\
+      START_HERE.md
+      SYSTEM_MAP.md
+      CURRENT_STATE.md
+      ARCHITECTURE_BOUNDARY_MAP.md
+      CLEANUP_REGISTRY.md
+    adr\
     archive\
-
-  templates\
-  scripts\
+  skills\
+    ...\
 ```
 
-Каждая knowledge-страница должна содержать:
+Внешний `AI-YouTube-System` может быть личным mirror или дополнительной
+knowledge-базой, но не содержит уникальных обязательных инструкций и не
+является source of truth. Клонирование репозитория должно быть достаточным для
+работы Codex, Claude и другого агента, способного читать `AGENTS.md` и Markdown.
+
+Каждая current knowledge-страница должна содержать:
 
 - `status`;
 - `last_verified_commit`;
@@ -444,6 +489,7 @@ G:\AI-YouTube-System\
 
 | Текущий путь | Целевой путь | Условие переноса |
 |---|---|---|
+| root `ai_youtube/` + `src/ai_youtube/` | один physical `src/ai_youtube/`, устанавливаемый как `ai_youtube` | После package/import/console-script characterization; implementation не копировать |
 | `src/content_creation/` | `src/ai_youtube/apps/content_creator/` | После выделения public service API |
 | `src/news/` | `.../workflows/fullscreen_voiceover/` | После characterization tests |
 | `src/templates/story_card/` | `.../workflows/story_card/` | После workflow contract tests |
@@ -452,12 +498,32 @@ G:\AI-YouTube-System\
 | `src/providers/` | `infrastructure/providers/` | После удаления старых provider adapters |
 | `src/audio/` | `services/audio/` | С сохранением approval/manifests |
 | `src/subtitles/` | `services/subtitles/` | После сохранения старых imports |
-| `anime_factory/` | `apps/video_repurposer/workflows/anime_clipper/` | Только через adapter |
-| `pipeline.py` | compatibility wrapper | Удалять последним |
-| старые `src/*.py` | `legacy/` или соответствующий service | После import map и tests |
+| `anime_factory/` | `apps/video_repurposer/workflows/anime_clipper/` либо archive | После product-scope decision; переносить ownership, не создавать второй workflow |
+| top-level `apps/*` | canonical CLI/app packages либо delete | После перевода production/docs/tests callers и завершения compatibility gate |
+| `pipeline.py` + `src/legacy_pipeline/` | только подтверждённые maintenance services; затем delete/archive | Root entrypoint удалять последним |
+| старые `src/*.py` | соответствующий canonical owner либо archive/delete | После import map и tests; постоянный свалочный `legacy/` не создавать |
 | `docs/handoff/*` | `docs/current` или `docs/archive` | После создания короткого current state |
 | runtime-папки | внешний Workspace | Copy → verify → switch |
 | `venv`, `MOSS_TTS_Nano` | внешняя toolchain/vendor зона | После воспроизводимой установки |
+
+### 9.1. Правило единственного владельца
+
+Для каждого capability cleanup registry обязан показывать текущего и целевого
+владельца:
+
+| Capability | Целевой canonical owner |
+|---|---|
+| installed package и CLI | `src/ai_youtube/cli` как import `ai_youtube.cli` |
+| applications/workflows | `src/ai_youtube/apps/<application>/workflows/<workflow>` |
+| project read/storage primitives | один API в `src/ai_youtube/core/projects`, перенесённый из существующих owners без третьей системы |
+| provider contract/registry | один contract и adapters под `src/ai_youtube/infrastructure/providers` |
+| assets/audio/subtitles/render/export | соответствующий shared service; workflow хранит только app-specific orchestration |
+| configuration и paths | единственный resolver, без локальных параллельных loaders |
+
+Точный physical move выполняется только после проверки фактических imports,
+persisted contracts и public entrypoints. Таблица фиксирует направление
+консолидации, но не разрешает копировать реализацию или создавать новую
+абстракцию до удаления старой.
 
 ---
 
@@ -1037,6 +1103,13 @@ tooling.
 8E закрыт без migration; последние implementation/gate commits `06e6a25`,
 `01cfc6f`, `7d0ce1e`, `cfe6ae6`, `a3536a9`
 
+Точное значение статуса: этап 8 создал canonical application boundaries и
+перевёл на них непосредственных application callers. Он не утверждает, что
+`src.news`, `src.templates.story_card`, `anime_factory`, `pipeline.py` и
+`src.legacy_pipeline` уже перестали владеть реализацией. Передача оставшегося
+ownership, превращение старых путей в wrappers и их удаление относятся к
+этапам 9B–9E.
+
 Порядок:
 
 1. [x] `fullscreen_voiceover`;
@@ -1165,11 +1238,16 @@ tooling.
 
 ---
 
-### Этап 9. Retire compatibility и удалить доказанное лишнее
+### Этап 9. Canonical ownership, retirement и доказанное удаление
 
-Статус: [x] завершён 2026-07-29; D01–D03 выполнены отдельными commits
+Статус: [ ] выполняется; 9A завершён 2026-07-29 отдельными D01–D03 commits;
+9B–9E добавлены после owner review и не начаты
 
-Задачи:
+#### 9A. Удаление доказанного dead code
+
+Статус: [x] завершён 2026-07-29
+
+Задачи 9A:
 
 1. Брать кандидатов только из cleanup registry этапа 4.6.
 2. Удалять по одному bounded slice после проверки imports, callers и
@@ -1243,8 +1321,130 @@ tooling.
 - production code/config, schemas, runtime projects и user data не менялись;
   сеть/provider/TTS/Vision/render не запускались.
 
-Этап 9 закрыт: каждый delete path D01–D03 имеет актуальное zero-caller/
-replacement evidence, отдельный commit и ограниченный rollback.
+Подэтап 9A закрыт: каждый delete path D01–D03 имеет актуальное zero-caller/
+replacement evidence, отдельный commit и ограниченный rollback. Закрытие 9A не
+означает завершение ownership transfer или retirement всех wrappers.
+
+#### 9B. Product surface, compatibility и ownership inventory
+
+Статус: [ ] не начат
+
+Это первый незавершённый этап. Он read-only относительно production code,
+runtime и пользовательских данных.
+
+Задачи:
+
+1. Подтвердить обязательный product surface:
+   - `content_creator` и два активных workflow сохраняются;
+   - для `anime_clipper` получить решение `finish migration` или `archive`;
+   - для каждой legacy/maintenance команды определить `keep temporarily`,
+     `replace`, `archive` или `delete`;
+   - documentary/Solar/longform/horizontal не считать активными tools.
+2. Расширить существующий `docs/current/CLEANUP_REGISTRY.md`, не создавать
+   второй compatibility registry.
+3. Для каждого старого path и wrapper записать:
+   - current owner и target canonical owner;
+   - production, tests, docs и external/console callers;
+   - persisted/runtime dependency;
+   - public compatibility promise;
+   - replacement;
+   - итоговый class;
+   - точное exit condition.
+4. Обязательно проверить семейства:
+   - root `ai_youtube/` и `src/ai_youtube/`;
+   - `src.content_creation.cli` и use-case wrappers;
+   - `apps/*`;
+   - `src.news` и Fullscreen canonical boundary;
+   - `src.templates.story_card` и Story Card boundary;
+   - `anime_factory` и Anime Clipper adapter;
+   - `pipeline.py`, `src.legacy_pipeline` и legacy adapter;
+   - semantic evaluation facade, project layers и другие re-export paths.
+5. Построить exact-duplicate hash report для tracked production files,
+   запретить вывод о duplicate business logic только по совпадению basename.
+6. Выбрать первый bounded 9C slice; ничего не переносить и не удалять.
+
+Критерий готовности:
+
+- каждый compatibility path и old owner имеет строку registry;
+- у каждой поддерживаемой capability указан один target owner;
+- test-only caller явно отделён от внешнего/public caller;
+- зафиксирован owner decision для disabled/planned tools;
+- выбран один переход с минимальным dependency radius и targeted tests.
+
+#### 9C. Перевод callers на canonical imports и entrypoints
+
+Статус: [ ] не начат
+
+Задачи:
+
+1. Переводить одно семейство callers за bounded slice: production, затем
+   current docs/examples, затем tests.
+2. Не сохранять старый path только потому, что characterization test импортирует
+   его; после одобренного retirement тест переносится или удаляется вместе с
+   contract.
+3. Сохранять wrapper до zero-production-caller gate и завершения явно
+   записанного compatibility period.
+4. Не менять persisted schemas, project formats, paid gates или runtime layout
+   в import-migration slice.
+5. Каждый public breaking decision фиксировать ADR и migration note.
+
+Критерий готовности:
+
+- normal production flow использует только canonical imports;
+- старые paths не владеют orchestration и не используются внутренним кодом;
+- оставшиеся callers и exit condition актуальны в cleanup registry.
+
+#### 9D. Передача владения реализацией canonical packages
+
+Статус: [ ] не начат
+
+Задачи:
+
+1. Переносить реализацию, а не копировать её: после каждого slice business logic
+   существует только у одного owner.
+2. Старый path после переноса может быть только тонким re-export/delegation
+   wrapper без собственной policy, storage, HTTP, render или orchestration.
+3. Выполнять по одному workflow/subsystem boundary:
+   Fullscreen, Story Card, Anime Clipper, legacy maintenance, project,
+   assets/providers, audio, subtitles и rendering не объединять в один diff.
+4. Сохранять tolerant readers, manifests, resume/force-stage, approval gates и
+   пользовательские paths.
+5. Не создавать временный второй engine, repository, resolver или contract.
+
+Критерий готовности:
+
+- canonical package содержит настоящую реализацию;
+- старый package либо тонкий wrapper, либо уже удалён;
+- source comparison/callers audit не показывает две production-реализации;
+- targeted contract и ближайший integration smoke проходят.
+
+#### 9E. Удаление старых implementations, wrappers и duplicate package roots
+
+Статус: [ ] не начат
+
+Задачи:
+
+1. Удалять один wrapper/package family за commit после 9C/9D, zero-caller gate
+   и проверки console/import entrypoints.
+2. Свести root `ai_youtube/` и `src/ai_youtube/` к одному physical package root,
+   установленному как `ai_youtube`.
+3. Удалить ненужные `apps/*`, old use-case paths и exact duplicate entry stubs
+   вместе с их parent compatibility surface, а не создавать helper ради
+   нескольких строк boilerplate.
+4. `pipeline.py` удалять последним, после переноса подтверждённых maintenance
+   команд и отдельного решения по legacy profiles.
+5. Исторически ценный код архивировать вне active/installable package tree;
+   runtime и user data не удалять.
+
+Критерий готовности этапа 9:
+
+- одна production-реализация и один owner на capability;
+- один installed/public package root и один canonical CLI;
+- registry не содержит бессрочного `wrapper` или `keep always` без public
+  evidence и owner decision;
+- старые internal imports и test-only compatibility удалены;
+- disabled/planned code имеет финальный `keep`, `archive` или `delete`;
+- каждый retirement имеет отдельный commit, targeted tests и rollback.
 
 ---
 
@@ -1252,27 +1452,79 @@ replacement evidence, отдельный commit и ограниченный roll
 
 Статус: [ ] не начат
 
-Задачи:
+Каждый подэтап выполняется отдельным audit/diff/commit. Compatibility inventory,
+caller migration и duplicate package ownership относятся к этапу 9 и не
+смешиваются с этапом 10.
 
-1. Удалить только воспроизводимые кэши и временные файлы.
-2. Заархивировать устаревшие audits, handoffs и generated reports.
-3. Перестать отслеживать подтверждённые generated outputs и обновить
-   `.gitignore`.
-4. Провести dry-run inventory runtime-каталогов, тяжёлых artifacts и toolchain.
-5. Для внешнего workspace использовать только `copy → verify → switch`;
-   массовое перемещение и удаление источника запрещены.
-6. Проверить counts, manifests и checksums до и после копирования.
-7. Сохранить dual-read старых roots и направлять новые записи во внешний
-   workspace только отдельным bounded изменением.
-8. Старые runtime-данные оставить до отдельного подтверждения владельца.
-9. Не смешивать filesystem cleanup с архитектурным refactor или contract change.
+#### 10A. Historical docs inventory и archive
+
+- перечислить historical audits/plans вне `docs/current`;
+- проверить current links и archive destination;
+- перемещать только отдельным commit после read-only inventory;
+- не переписывать historical snapshots ради актуальности.
+
+#### 10B. Generated outputs и Git tracking
+
+- классифицировать tracked outputs/reports как source, evidence или generated;
+- сохранять невоспроизводимые evidence и user artifacts;
+- untrack только подтверждённо generated content после backup/reference gate;
+- обновить `.gitignore` тем же bounded slice.
+
+#### 10C. Cache, temp, empty directories и placeholders
+
+- удалять только воспроизводимые `__pycache__`, `*.pyc`, temp и пустые runtime
+  directories после проверки абсолютного target;
+- отдельно классифицировать пустые source/evidence directories и нулевые
+  package markers;
+- пустой `__init__.py` не считать мусором автоматически.
+
+#### 10D. Runtime/toolchain dry-run inventory
+
+- посчитать проекты, artifacts, media, manifests, checksums и toolchain roots;
+- ничего не копировать, не перемещать и не удалять;
+- определить target workspace из config, а не hardcoded drive.
+
+#### 10E. Runtime workspace copy, verify и switch
+
+- использовать только `copy → verify counts/manifests/checksums → switch`;
+- сохранить dual-read legacy roots;
+- направить новые записи во внешний workspace отдельным contract slice;
+- старые данные оставить до отдельного подтверждения владельца.
+
+#### 10F. Root directory minimization
+
+- утвердить root allowlist из раздела 7;
+- versioned source/config, user data и generated/runtime классифицировать
+  раздельно;
+- не удалять `projects`, media, evidence, license proof или source content;
+- каждый top-level retirement выполнять отдельным commit.
+
+#### 10G. Report-only repository minimalism QA
+
+Добавить `tools/qa/check_repository_minimalism.py`, который ничего не удаляет и
+формирует проверяемый отчёт о:
+
+- tracked cache/temp/generated outputs;
+- runtime roots внутри Git;
+- пустых каталогах и planning placeholders;
+- top-level paths вне allowlist;
+- exact duplicate production files с узким allowlist;
+- wrappers без строки cleanup registry;
+- запрещённых old imports после их retirement;
+- hardcoded machine paths и broken current-doc links.
+
+Orphan-module и caller результаты являются кандидатами для ручного review, а не
+автоматическим доказательством безопасного удаления.
 
 Критерий готовности:
 
-- корень содержит только код, конфигурацию и versioned документы;
+- корень соответствует утверждённому allowlist;
 - generated/runtime данные не загрязняют Git;
 - старые проекты продолжают читаться;
 - внешний workspace проверен без удаления исходных данных;
+- default runtime не зависит от repo root или фиксированного drive;
+- minimalism QA выполняется в report-only режиме и имеет документированный
+  allowlist;
 - каждый cleanup diff воспроизводим и не затрагивает пользовательские media.
 
 ---
@@ -1283,22 +1535,35 @@ replacement evidence, отдельный commit и ограниченный roll
 
 Проект считается восстановленным, когда:
 
-- существует один канонический CLI;
-- старые команды работают через wrappers;
+- существует один установленный package/import root `ai_youtube`, физически
+  принадлежащий `src/ai_youtube`;
+- существует один канонический CLI; noncanonical entrypoints удалены либо имеют
+  ADR, реального внешнего caller и статус permanent adapter без business logic;
+- каждая поддерживаемая capability имеет одного canonical owner;
 - существует один ProjectRepository;
-- существует один storage layer;
+- существует один storage primitive и явно разделённые tolerant manifest owners,
+  а не параллельные storage systems;
 - существует один path/config resolver;
 - существует один provider contract;
-- runtime по умолчанию находится вне Git;
+- существует по одному asset, voice/TTS, subtitle и rendering engine contract;
+- runtime по умолчанию находится вне Git и code root;
 - нет production hardcode конкретного компьютера;
 - CI выполняет offline suite;
 - нет import-cycle;
 - крупные orchestration-модули разделены по подтверждённым границам;
-- cleanup registry закрыт либо содержит явно отложенные `do_not_touch` записи;
-- отсутствуют доказанные dead imports, duplicate implementations и
-  неподтверждённые compatibility wrappers;
+- cleanup registry закрыт: остаются только реализованные решения,
+  обоснованные permanent owners и `do_not_touch` user-data записи;
+- отсутствуют доказанные dead imports, duplicate implementations, test-only
+  compatibility и wrappers без exit condition;
+- нет active package placeholders для planned/disabled tools;
+- root соответствует allowlist, нет бесхозных empty directories и generated
+  artifacts;
+- report-only minimalism QA и полный offline suite проходят;
 - платные вызовы требуют явного approval;
-- новый агент получает актуальный контекст из нескольких коротких файлов;
+- новый агент любой модели получает актуальный self-contained контекст из
+  `AGENTS.md` и нескольких коротких current docs;
+- clone не зависит от `G:\...`, конкретного username или внешней обязательной
+  knowledge-базы;
 - persisted projects, manifests и пользовательские media сохранены;
 - финальная проверка архитектуры не требует создания, рендера или визуальной
   оценки нового видео.
@@ -1309,10 +1574,11 @@ replacement evidence, отдельный commit и ограниченный roll
 
 Первое действие при возобновлении плана:
 
-> Начать этап 10 только с read-only inventory A01: перечислить historical
-> audits/plans вне `docs/current`, проверить current links и существующие
-> `docs/archive` destinations. Ничего не перемещать и не удалять в initial
-> audit; A02 outputs, D04 cache и runtime workspace не включать в тот же slice.
+> Начать 9B только с read-only compatibility/product-surface inventory:
+> перечислить public entrypoints, package roots, wrappers, current
+> implementation owners и production/test/docs callers; обновить только
+> существующий `CLEANUP_REGISTRY.md`. Ничего не переносить и не удалять в этом
+> checkpoint.
 
 Не начинать с:
 
@@ -1322,6 +1588,8 @@ replacement evidence, отдельный commit и ограниченный roll
 - создания нового репозитория с переписанным кодом;
 - массового форматирования;
 - добавления новых providers;
+- архивирования или удаления disabled tool без owner decision;
+- создания второго compatibility registry;
 - физической миграции runtime или удаления user data;
 - создания или рендера reference video;
 - UI;
@@ -1337,48 +1605,48 @@ replacement evidence, отдельный commit и ограниченный roll
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый bounded slice: 9 D03 packages placeholder; этап 9 закрыт
-Текущий этап: этапы 0–9 завершены
-Следующий этап: 10, первый read-only checkpoint — A01 historical docs inventory
-Исходный HEAD D03: dcd6a3c
+Завершённый bounded slice: 9A D03 packages placeholder
+Текущий этап: 9A завершён; общий этап 9 расширен после owner review и выполняется
+Следующий этап: 9B, первый read-only checkpoint — compatibility/product-surface/ownership inventory
+Исходный HEAD пересмотра плана: 75a2715
 Commit D01: 1683b24
 Commit D02: dcd6a3c
-Commit D03: текущий commit
+Commit D03/закрытие 9A: 75a2715
+Commit пересмотра плана: текущий commit
 Ветка: master
-Git до работы: clean, HEAD dcd6a3c
+Git до работы: clean, HEAD 75a2715
 Выполнено:
-- read-only inventory подтвердил один tracked packages/README.md, отсутствие hidden/untracked files, runtime/current callers и package-discovery dependency
-- historical plans/audits с packages references сохранены без переписывания
-- pre-change characterization зафиксировал exact setuptools discovery roots и отсутствие packages*
-- удалены packages/README.md и подтверждённо пустая physical directory
-- START_HERE source metadata сокращён до directory-level authorities и снова укладывается в 100 lines
-- Stage 2 test date обновлена до текущей, а stale единый 100-line cap заменён отдельными ограниченными caps: START_HERE 100, SYSTEM_MAP 240, CURRENT_STATE 280
+- owner-provided review сопоставлен с фактическим Git, package discovery, wrappers, current docs и cleanup registry
+- жёсткая цель дополнена одним owner/implementation на capability, одним package root, root allowlist и model-neutral self-contained agent context
+- этап 8 уточнён как canonical boundary migration, а не завершённый ownership transfer
+- этап 9 расширен подэтапами 9B inventory, 9C caller migration, 9D ownership transfer и 9E retirement
+- этап 10 разделён на docs, generated outputs, cache/empty dirs, runtime inventory/switch, root minimization и report-only minimalism QA
+- отдельный compatibility registry не создан; единственным реестром остаётся docs/current/CLEANUP_REGISTRY.md
 Изменения production code: отсутствуют
-Characterization tests: tests/test_reproducibility_contract.py
-Targeted test maintenance: tests/test_stage2_agent_onboarding.py
-ADR: не требовался; public/runtime boundary не менялась
+Characterization tests: не добавлялись; изменение только план/metadata
+Targeted test maintenance: не требовалась
+ADR: не требовался; runtime/public contract не изменён, будущие breaking slices требуют собственные ADR
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change D03 package-discovery characterization: OK, 1 test
-- reproducibility и Stage 2 onboarding: OK, 8 tests
-- setuptools package-discovery smoke и packages absence: OK
-- git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался; D03 docs/package placeholder не меняет runtime contract, targeted radius достаточен
-Найденные root causes D03:
-- packages directory был только нереализованным planning placeholder из baseline commit
-- Stage 2 onboarding test не обновлялся вместе с ростом reference docs и фиксировал старую дату 2026-07-28
+- .\venv\Scripts\python.exe -m unittest tests.test_stage2_agent_onboarding: OK, 3 tests
+Full offline suite: не требуется; production/runtime contracts не менялись
+Найденные root causes:
+- прежний план гарантировал безопасную compatibility migration, но позволял бессрочные wrappers и old implementation owners
+- stage 8 boundary adapters ошибочно могли восприниматься как полная физическая migration
+- fixed G:\ paths для внешнего knowledge/workspace выглядели как target contract и ослабляли переносимость
 Новый known issue:
-- historical audits/plans продолжают упоминать удалённые D01/D02/D03 paths как snapshots и не являются current contract
-- stage 10 A01/A02/D04 и runtime inventory ещё не начаты
+- точные callers/owner decisions для 9B ещё не собраны; текущие registry rows требуют расширения
+- stage 10 A01/A02/D04 и runtime inventory ещё не начаты и теперь следуют после этапа 9
 Что нельзя повторять:
-- не переписывать historical docs только ради удаления snapshot references
-- не смешивать A01 с A02/D04 или runtime migration
-- не удалять outputs/projects/media/toolchain
+- не считать thin wrapper доказательством завершённого ownership transfer
+- не сохранять wrapper бессрочно только из-за test-only caller
+- не смешивать 9B inventory с caller migration, move или delete
+- не создавать второй registry, repository, resolver, provider или engine contract
 Следующая точная read-only команда: git status --short --branch
-После проверки Git выполнить: git ls-files docs/audits docs/implementation docs/superpowers
+После проверки Git выполнить: inventory package roots, entrypoints, wrappers и production/test/docs callers для первой 9B registry matrix
 ```
 
 ---
