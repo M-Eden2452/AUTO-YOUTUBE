@@ -1,11 +1,12 @@
 ---
 status: current
-last_verified_commit: 8c89a67
+last_verified_commit: 0d2cd67
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
   - src/ai_youtube/cli
   - pipeline.py
+  - src/legacy_pipeline
   - src/config_resolver/paths.py
   - src/content_creation
   - src/content_creation/wizard.py
@@ -41,6 +42,7 @@ source_paths:
   - tests/test_wizard_internals_contract.py
   - tests/test_content_creation_service_internals_contract.py
   - tests/test_semantic_visual_evaluation_internals_contract.py
+  - tests/test_legacy_pipeline_internals_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -62,7 +64,7 @@ source_paths:
 | Providers | `src/providers/` | provider adapters и общий contract |
 | Голос | `src/audio/`, `src/localization/` | approval, manifests, timeline и voice resolution |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
-| Legacy/maintenance | `pipeline.py`, `apps/` | compatibility entrypoints |
+| Legacy/maintenance | `pipeline.py`, `src/legacy_pipeline/`, `apps/` | root compatibility facade, parser, maintenance handlers и legacy workflow |
 | Video repurposing | `anime_factory/` | отдельный существующий Anime Factory workflow |
 
 Текущая продуктовая модель:
@@ -99,6 +101,9 @@ video_repurposer
   `pipeline.py`; offline dataset/metrics/reporting находятся в
   `semantic_visual_evaluation_tooling`, а gated execution —
   в `semantic_visual_evaluation_runtime`.
+- root `pipeline.py` остаётся compatibility facade и сохраняет старые imports
+  и patch-points; parser, maintenance handlers и legacy channel/video
+  orchestration разделены в `src.legacy_pipeline`.
 
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
@@ -129,4 +134,7 @@ builder или lazy CLI → Wizard boundary. Подэтап 6D оставил
 Card и Fullscreen Voiceover; paid gate, tolerant resume и progress callback
 сохранены. Подэтап 6E оставил semantic evaluation 53-строчным facade и отделил
 offline tooling от controlled live runtime без нового engine или изменения
-root-pipeline import. Следующий отдельный подэтап — 6F.
+root-pipeline import. Подэтап 6F оставил root `pipeline.py` 122-строчным
+compatibility facade и отделил parser, maintenance handlers и legacy
+channel/video workflow без изменения public command contract или patch-points.
+Следующий отдельный подэтап — 6G.

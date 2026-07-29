@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–5 и подэтапы 6A–6E завершены; этап 4.5 сохранён как
+Статус: **выполняется; этапы 0–5 и подэтапы 6A–6F завершены; этап 4.5 сохранён как
 историческая диагностика и снят с critical path; этап 6 продолжается,
-следующий отдельный подэтап — 6F Legacy pipeline**
+следующий отдельный подэтап — 6G Import cycles**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -807,7 +807,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 6. Разделение крупных модулей
 
-Статус: [~] выполняется; 6A–6E завершены 2026-07-29, следующий подэтап — 6F
+Статус: [~] выполняется; 6A–6F завершены 2026-07-29, следующий подэтап — 6G
 
 Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
 Не объединять их в одну сессию без записанного исключения из бюджета области.
@@ -928,6 +928,25 @@ tooling.
 
 Оставить `pipeline.py` тонким фасадом dispatch и compatibility без дублирования
 бизнес-логики.
+
+Статус: [x] завершён 2026-07-29; implementation commit `0d2cd67`.
+
+Результат:
+
+- root `pipeline.py` уменьшен с 703 до 122 строк и оставлен compatibility
+  facade для `apps.youtube_pipeline`, старых imports и module patch-points;
+- public parser вынесен без изменения аргументов/defaults в
+  `src/legacy_pipeline/cli.py`, maintenance/diagnostic handlers — в
+  `maintenance.py`, legacy channel/video workflow — в `workflow.py`;
+- `main` уменьшен с 512 до 27 строк и выполняет только workspace/path
+  initialization и делегацию; самая длинная orchestration-функция
+  split-модулей — 77 строк;
+- compatibility namespace передаёт root patch-points фактическим handlers без
+  дублирования business logic; command/output contract, safe paid-call gates и
+  synthetic `--skip-render` workflow сохранены;
+- targeted verification: 54 tests OK, compile/import и diff checks OK; full
+  offline suite, сеть, provider calls/download, Vision, TTS и render не
+  запускались.
 
 #### 6G. Оставшиеся import cycles
 
@@ -1090,12 +1109,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только 6F Legacy pipeline:
-> characterization-first картировать parser/dispatch, handler families,
-> compatibility callers и test patch-points в `pipeline.py`. Выносить только
-> одну подтверждённую handler family за bounded slice, оставляя `pipeline.py`
-> тонким facade без дублирования бизнес-логики. Не переоткрывать 6A–6E и не
-> объединять 6F с 6G, provider consolidation или cleanup.
+> В следующей отдельной сессии начать только 6G Import cycles:
+> characterization-first подтвердить оба static edges
+> `frame_sampling` ↔ `perceptual_similarity`, public imports и visual-preview
+> tests. Вынести только минимальный shared data/hash primitive и доказать
+> отсутствие cycle. Не переоткрывать 6A–6F и не объединять 6G с provider
+> consolidation, vertical moves или cleanup.
 
 Не начинать с:
 
@@ -1119,52 +1138,54 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 6E Semantic evaluation
-Текущий этап: 6 выполняется; 6A–6E завершены
-Следующий этап: 6F Legacy pipeline — не начат
-Исходный HEAD 6E: 1845555
-Implementation HEAD 6E: 8c89a67
+Завершённый этап: 6F Legacy pipeline
+Текущий этап: 6 выполняется; 6A–6F завершены
+Следующий этап: 6G Import cycles — не начат
+Исходный HEAD 6F: 10c6827
+Implementation HEAD 6F: 0d2cd67
 Ветка: master
-Git до работы: dirty, HEAD 1845555; существовала незакоммиченная заготовка 6E в четырёх целевых файлах
+Git до работы: clean, HEAD 10c6827
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены public surface, root pipeline caller, offline metrics/reporting, controlled live runtime и test patch-points
-- существующая characterization зафиксировала public signatures, dataclass shapes, root-pipeline import и фактическую делегацию facade
-- src/assets/semantic_visual_evaluation.py уменьшен с 1719 до 53 строк и оставлен public compatibility facade
-- offline dataset loading, synthetic frames, metrics и report/comparison artifacts вынесены в semantic_visual_evaluation_tooling.py
-- controlled OpenAI execution, runtime authorization, budget/attempt caps и execution checkpoints вынесены в semantic_visual_evaluation_runtime.py
-- 59 из 63 прежних top-level definitions перенесены AST-идентично; три orchestration-функции разделены на helpers, private checkpoint writer переименован без внешних callers
-- longest function split-модулей — 68 строк; второго semantic engine/provider contract не создавалось
-- public dry-run/mock/fake-client behavior, root pipeline import и paid-call gates сохранены
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены parser/dispatch, handler families, apps caller, root imports и test patch-points
+- characterization зафиксировал root facade signatures/delegation, старые module-level patch-points и synthetic --skip-render legacy workflow
+- root pipeline.py уменьшен с 703 до 122 строк; main — с 512 до 27 строк
+- public parser вынесен в src/legacy_pipeline/cli.py без изменения аргументов/defaults
+- maintenance/diagnostic handlers вынесены в src/legacy_pipeline/maintenance.py
+- legacy channel/video planning, render и evaluation orchestration вынесены в src/legacy_pipeline/workflow.py
+- facade передаёт свой namespace split handlers, поэтому старые monkeypatch-points управляют фактическим execution path без дублирования business logic
+- longest orchestration function split-модулей — 77 строк; нового dispatcher, workflow contract, path resolver или project system не создавалось
 Изменения production code:
-- src/assets/semantic_visual_evaluation.py
-- src/assets/semantic_visual_evaluation_runtime.py
-- src/assets/semantic_visual_evaluation_tooling.py
-Characterization tests: tests/test_semantic_visual_evaluation_internals_contract.py и существующие tests/test_semantic_visual_evaluation.py, tests/test_asset_cli_wiring.py
+- pipeline.py
+- src/legacy_pipeline/__init__.py
+- src/legacy_pipeline/cli.py
+- src/legacy_pipeline/maintenance.py
+- src/legacy_pipeline/workflow.py
+Characterization tests: tests/test_legacy_pipeline_internals_contract.py и существующие tests/test_stage1_characterization.py, tests/test_stage3_workspace_paths.py, tests/test_production_catalog_foundation.py, tests/test_asset_cli_wiring.py, tests/test_semantic_visual_evaluation_internals_contract.py, tests/test_apps_structure.py
 ADR: не нужен; публичный contract и system boundary не изменялись
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
-Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
+Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- semantic evaluation characterization + regression: OK, 23 tests
-- root semantic-backend/semantic-visual CLI wiring: OK, 7 tests
-- compileall split semantic evaluation modules/test: OK
-- AST comparison: 59 definitions identical, longest new function 68 lines
+- root facade, parser/workspace, catalog и semantic command wiring: OK, 53 tests
+- apps compatibility wrapper structure: OK, 1 test
+- compileall root facade/split legacy modules/characterization: OK
+- static size check: root main 27 lines, longest split orchestration function 77 lines
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 6E:
-- semantic_visual_evaluation.py смешивал offline dataset/fixtures/metrics/reporting с gated paid runtime, budget enforcement и execution checkpoints в одном 1719-строчном module
-- root pipeline зависит только от public run_semantic_visual_evaluation, а tests импортируют ещё четыре public tooling functions и две dataclass shapes
-- controlled runtime использует существующий OpenAISemanticVisualBackend; split не требует второго engine или provider contract
+Найденные root causes 6F:
+- pipeline.py смешивал 131-строчный parser, maintenance/diagnostic commands и legacy channel/video orchestration в одном 512-строчном main
+- apps.youtube_pipeline зависит только от root main, но tests и external compatibility используют root imports как monkeypatch-points
+- безопасный split требует dependency adapter к root namespace, иначе patching facade перестаёт влиять на перенесённые handlers
 Новый known issue:
 - новых нет; существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не возвращать offline metrics/reporting или controlled runtime orchestration в semantic_visual_evaluation.py facade
-- не создавать второй semantic engine, provider contract, budget gate или evaluation dataset contract
-- не ослаблять allowlisted dataset/model/detail, budget, call/image caps или explicit confirmation
-- не смешивать 6F legacy pipeline с 6G или provider consolidation
+- не возвращать parser, maintenance handlers или legacy workflow orchestration в root pipeline.py facade
+- не удалять root compatibility imports/patch-points до отдельного caller и compatibility evidence
+- не создавать второй dispatcher, path resolver, legacy workflow contract или project system
+- не смешивать 6G import-cycle slice с provider consolidation, vertical moves или cleanup
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только characterization 6F по parser/dispatch, handler families, compatibility callers и test patch-points в pipeline.py без сети, provider calls, Vision, TTS или render.
+После проверки Git начать только characterization 6G для frame_sampling ↔ perceptual_similarity: подтвердить оба edges, public imports и visual-preview tests; не запускать сеть, provider calls, Vision, TTS или render.
 ```
 
 ---

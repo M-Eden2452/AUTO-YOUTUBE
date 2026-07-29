@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 8c89a67
+last_verified_commit: 0d2cd67
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,18 +16,18 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `8c89a67`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `0d2cd67`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure и подэтапов 6A–6E; это не разрешение на массовое перемещение файлов.
+stage 5 closure и подэтапов 6A–6F; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 274 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 266 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 232;
-- 105 модулей `tests/test_*.py`;
+- 278 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 270 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 236;
+- 106 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
@@ -36,10 +36,11 @@ stage 5 closure и подэтапов 6A–6E; это не разрешение 
   `src/content_creation/wizard_steps.py` — 939 строк без функций длиннее
   111 строк,
   `src/content_creation/fullscreen_voiceover_use_case.py` — 904 строки без
-  методов длиннее 93 строк, `pipeline.py` — 703.
+  методов длиннее 93 строк.
   Compatibility facade `src/news/asset_manager.py` — 266 строк;
   `src/content_creation/wizard.py` — 175 строк;
   `src/content_creation/service.py` — 123 строки;
+  root `pipeline.py` — 122 строки;
   `src/assets/semantic_visual_evaluation.py` — 53 строки;
   canonical diagnostics facade — 78 строк, `src/content_creation/cli.py` —
   81 строка после восстановления compatibility patch-point.
@@ -59,6 +60,7 @@ stage 5 closure и подэтапов 6A–6E; это не разрешение 
 | `config_resolver` | 7 | versioned resources и runtime workspace |
 | `production_catalog` | 5 | applications/formats/templates/export targets |
 | `projects` | 3 | общий read-only project API и rights report |
+| `legacy_pipeline` | 4 | parser, maintenance handlers и legacy channel/video orchestration за root facade |
 
 ## Entrypoints и compatibility
 
@@ -95,6 +97,7 @@ ai_youtube CLI
 compatibility
   -> src.content_creation.cli
   -> pipeline.py
+     -> src.legacy_pipeline.cli / maintenance / workflow
   -> apps/*
 
 planned adapter
@@ -127,7 +130,7 @@ planned adapter
 | `src.assets.provider_contract` + `src.providers` | asset manager, preview/download/diagnostics и provider adapters | provider foundation/hardening, provider integration, documentary providers | сохранить единым asset provider contract |
 | `src.audio` | service, news voice/render, localization и subtitles timing | voice/narration/timeline/policy/manifest/end-tail families | сохранить approval, manifest и timing contracts |
 | `src.subtitles` | adapter `src.news.subtitles`, CLI и catalog | subtitle engine + pipeline integration | сохранить единственным subtitle engine |
-| `pipeline.py` | `apps.youtube_pipeline`; импортирует legacy engines, news workflow и diagnostics | Stage 1 characterization, apps structure, workspace paths, catalog | оставить facade; handlers выносить малыми slices в 6F |
+| `pipeline.py` + `src.legacy_pipeline` | `apps.youtube_pipeline`; facade сохраняет legacy engine/news/diagnostic imports и передаёт module patch-points split handlers | `test_legacy_pipeline_internals_contract`, Stage 1 characterization, apps structure, workspace paths, catalog, asset CLI wiring | 6F завершён: 122-строчный facade, 27-строчный `main`, parser/maintenance/workflow разделены; public command contract и patch-points сохранены |
 | `frame_sampling` ↔ `perceptual_similarity` | top-level edge similarity → sampling и local edge sampling → similarity | visual preview foundation/integration, temporal analysis | разорвать static cycle отдельным slice 6G |
 
 Локальный import в `frame_sampling.py:159` на
