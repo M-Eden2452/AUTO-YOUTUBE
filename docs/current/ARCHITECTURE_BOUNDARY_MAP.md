@@ -1,34 +1,37 @@
 ---
 status: current
-last_verified_commit: 01cfc6f
+last_verified_commit: 7d0ce1e
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
   - ai_youtube
   - apps
   - anime_factory
+  - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
   - pipeline.py
   - src
   - schemas
   - tests
+  - tests/test_anime_clipper_application_boundary.py
+  - docs/adr/0011-anime-clipper-application-boundary.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `01cfc6f`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `7d0ce1e`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G, этапа 7 и первых двух vertical slices этапа 8;
+stage 5 closure, подэтапов 6A–6G, этапа 7 и первых трёх vertical slices этапа 8;
 это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 287 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 279 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 245;
-- 109 модулей `tests/test_*.py`;
+- 290 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 282 production Python-файла: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 248;
+- 110 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
@@ -59,7 +62,7 @@ stage 5 closure, подэтапов 6A–6G, этапа 7 и первых дву
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
 | `content_creation` | 22 | compatibility CLI/Wizard, shared application service и два use-case wrappers |
-| `ai_youtube/apps` | 7 | canonical app boundaries для Fullscreen Voiceover и Story Card |
+| `ai_youtube/apps` | 10 | canonical boundaries для Fullscreen Voiceover, Story Card и Anime Clipper adapter |
 | `providers` | 11 | canonical registry и adapters общего asset provider contract |
 | `subtitles` | 9 | единый subtitle engine |
 | `project_foundation` | 9 | `project.json`, evidence и atomic storage |
@@ -77,7 +80,7 @@ stage 5 closure, подэтапов 6A–6G, этапа 7 и первых дву
 | `pipeline.py` | legacy/maintenance compatibility | старые documentary/media/diagnostic команды и `news_to_short` |
 | `python -m apps.news_to_short` | compatibility | adapter через canonical Fullscreen Voiceover boundary к `src.news.pipeline` |
 | `python -m apps.youtube_pipeline` | compatibility | тонкий вызов root `pipeline.py` |
-| `python -m apps.anime_factory` | compatibility | adapter к `anime_factory.pipeline` |
+| `python -m apps.anime_factory` | compatibility | canonical Anime Clipper adapter → `anime_factory.pipeline` |
 | `python -m src.project_foundation.cli` | maintenance | project/channel foundation CLI |
 
 `pyproject.toml` публикует только `ai-youtube`. Остальные entrypoints сохраняются
@@ -111,15 +114,18 @@ compatibility
      -> src.legacy_pipeline.cli / maintenance / workflow
   -> remaining apps/*
 
-planned adapter
-  -> video_repurposer -> anime_factory
+planned/disabled application
+  -> video_repurposer
+     -> canonical anime_clipper adapter
+        -> anime_factory
 ```
 
 - `content_creator` — единственное active application.
 - `fullscreen_voiceover_v1` и `story_card_text_only_v1` — единственные active,
   live-tested templates.
-- `video_repurposer` остаётся disabled/planned; `anime_factory` ещё не перенесён
-  под эту границу.
+- `video_repurposer` остаётся disabled/planned; canonical Anime Clipper adapter
+  существует, но не включает product capability и сохраняет `anime_factory`
+  владельцем workflow/output contracts.
 - `longform` и `horizontal_clip` не имеют active template.
 - legacy documentary/size-comparison модули остаются за `pipeline.py` и не
   становятся active application только из-за наличия кода.
@@ -133,6 +139,7 @@ planned adapter
 | `src.content_creation.service` + `service_support` | единый facade вызывается CLI и Wizard; facade валидирует request/template и маршрутизирует оба canonical workflow boundaries | `test_content_creation_service_internals_contract`, `test_content_creation_service`, CLI, Wizard paid confirmation, resume и Stage 4 tests | `create_content`, private compatibility imports, paid gate, tolerant resume и progress callback сохранены |
 | `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover` | application service и `apps.news_to_short`; canonical use case делегирует существующим `src.news` project/workflow contracts | `test_fullscreen_voiceover_application_boundary`, service internals/service, apps structure, news pipeline, project repository | slice 8A (`f8ac67e`, `06e6a25`): canonical boundary установлен; старый use-case path — wrapper, contracts не дублируются, service import остаётся lazy |
 | `src.ai_youtube.apps.content_creator.workflows.story_card` | application service; canonical use case делегирует существующим project/evidence/template contracts | `test_story_card_application_boundary`, service internals/Story Card paths, project factory/repository, artifact schemas и provenance | slice 8B (`01cfc6f`): canonical boundary установлен; старый use-case path — wrapper, contracts не дублируются |
+| `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper` | `apps.anime_factory`; boundary лениво делегирует `anime_factory.pipeline` и переэкспортирует существующий `EpisodePaths` layout | `test_anime_clipper_application_boundary`, Stage 1 Anime Factory characterization, apps structure, Anime Factory path/cleanup/candidate/crop/transcribe tests | slice 8C (`7d0ce1e`): canonical adapter установлен; legacy package остаётся owner, catalog planned/disabled |
 | `src.news.pipeline` | canonical fullscreen boundary, root pipeline и direct compatibility callers; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить владельцем working workflow до отдельного bounded move |
 | `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |
 | `src.assets.semantic_visual_evaluation` + `semantic_visual_evaluation_tooling`/`runtime` | 53-строчный facade импортирует root pipeline; tooling владеет offline dataset/metrics/reporting, runtime — gated execution/checkpoints | `test_semantic_visual_evaluation_internals_contract`, `test_semantic_visual_evaluation`, `test_asset_cli_wiring` | 6E завершён: public signatures/dataclass shapes/root caller сохранены; runtime и tooling разделены без второго engine |
@@ -174,6 +181,13 @@ wrapper, а `apps.news_to_short` теперь разрешает existing create
 `src.project_foundation` продолжает владеть `ProjectFactory`,
 `ProjectManifest` и evidence contracts, а `src.templates.story_card` —
 workflow/renderer integration; schemas и runtime data не менялись.
+
+Третий slice этапа 8 создал
+`src.ai_youtube.apps.video_repurposer.workflows.anime_clipper` как ленивый
+adapter к существующим `anime_factory.pipeline` и
+`anime_factory.modules.paths` contracts. `apps.anime_factory` использует новую
+boundary; прямой legacy CLI, `EpisodePaths`, runtime episodes и output layout
+не менялись. `video_repurposer` остаётся planned/disabled.
 
 ## Persisted contracts
 
@@ -218,9 +232,9 @@ Read-only snapshot файлов на 2026-07-28:
 1. Сохранять нынешние import paths до отдельного vertical slice; желаемое дерево
    `core/services/infrastructure` не является самоцелью.
 2. `content_creator` владеет двумя active workflows, но не их shared
-   infrastructure contracts. Оба workflow имеют canonical app boundaries;
-   следующий отдельный vertical slice — `anime_clipper` через
-   `video_repurposer` adapter.
+   infrastructure contracts. `video_repurposer` имеет canonical Anime Clipper
+   adapter, но остаётся planned/disabled; следующий отдельный vertical slice —
+   legacy pipeline.
 3. `ProjectRepository` остаётся общим read API поверх двух persisted форм;
    write convergence использует общий atomic primitive и project-lock primitive,
    а не третью schema или writer.
@@ -231,8 +245,9 @@ Read-only snapshot файлов на 2026-07-28:
    которые переиспользуются, а не дублируются при переносе приложений.
 6. `pipeline.py` и `apps/*` остаются compatibility zone до проверенного периода
    совместимости.
-7. `anime_factory` переносится только целым workflow через
-   `video_repurposer` adapter.
+7. `anime_factory` доступен через canonical `video_repurposer` adapter и
+   остаётся владельцем физического workflow/output layout до отдельного
+   migration evidence.
 
 Следующая очередь и доказательства удаления находятся в
 [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

@@ -2,8 +2,8 @@
 
 Статус: **выполняется; этапы 0–7, включая подэтапы 6A–6G, завершены; этап 4.5
 сохранён как историческая диагностика и снят с critical path; этап 8 начат,
-vertical slices `fullscreen_voiceover` и `story_card` завершены, следующий —
-`anime_clipper` через `video_repurposer` adapter**
+vertical slices `fullscreen_voiceover`, `story_card` и `anime_clipper`
+завершены, следующий — legacy pipeline**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1030,14 +1030,15 @@ tooling.
 
 ### Этап 8. Миграция приложений вертикальными срезами
 
-Статус: [ ] выполняется; vertical slices `fullscreen_voiceover` и `story_card`
-завершены 2026-07-29, последние implementation commits `06e6a25`, `01cfc6f`
+Статус: [ ] выполняется; vertical slices `fullscreen_voiceover`, `story_card`
+и `anime_clipper` завершены 2026-07-29, последние implementation commits
+`06e6a25`, `01cfc6f`, `7d0ce1e`
 
 Порядок:
 
 1. [x] `fullscreen_voiceover`;
 2. [x] `story_card`;
-3. [ ] `anime_clipper` через `video_repurposer` adapter;
+3. [x] `anime_clipper` через `video_repurposer` adapter;
 4. [ ] legacy pipeline;
 5. [ ] documentary — только после реального рабочего шаблона.
 
@@ -1095,6 +1096,25 @@ tooling.
   radius 75 tests OK; compile/import/content-comparison/diff/docs QA OK;
 - full offline suite, сеть, provider search/download, TTS, Vision, render и
   платные действия не запускались.
+
+Результат третьего vertical slice:
+
+- canonical lazy adapter boundary создан в
+  `src.ai_youtube.apps.video_repurposer.workflows.anime_clipper`;
+- существующие `parse_args`, `run_pipeline`, `main`, `EpisodePaths`,
+  `PROJECT_ROOT` и `get_episode_paths` переэкспортируются из `anime_factory`,
+  который остаётся единственным владельцем workflow и project/output layout;
+- `apps.anime_factory` использует canonical boundary, а прямой
+  `anime_factory.pipeline` CLI и прежние imports остаются совместимыми;
+- catalog `video_repurposer` намеренно остаётся planned/disabled и не
+  представляется готовым приложением;
+- migration note зафиксирован ADR 0011; runtime episodes, schemas, manifests и
+  user media не менялись;
+- targeted verification: pre-change characterization 4 tests OK;
+  boundary/CLI/catalog/apps 9 tests OK; Anime Factory path/cleanup/candidate/
+  crop/transcript/selection radius 13 tests OK; compile/import/diff/docs QA OK;
+- full offline suite, FFmpeg, render, transcription model, сеть и платные
+  действия не запускались.
 
 ---
 
@@ -1191,12 +1211,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только третий vertical slice этапа 8:
-> read-only перепроверить `apps.anime_factory` → `anime_factory.pipeline`,
-> его project/output contracts, catalog status, compatibility callers и
-> targeted tests. Перед переносом добавить characterization и определить один
-> bounded `video_repurposer/workflows/anime_clipper` adapter boundary. Не
-> включать planned application, не выполнять render и не мигрировать runtime.
+> В следующей отдельной сессии начать только четвёртый vertical slice этапа 8:
+> read-only перепроверить `apps.youtube_pipeline` → root `pipeline.py` →
+> `src.legacy_pipeline`, его public command/patch-point contracts, root engine
+> callers и targeted tests. Перед изменением добавить или подтвердить
+> characterization и определить один bounded legacy application adapter.
+> Не удалять root facade, не включать documentary и не мигрировать runtime.
 
 Не начинать с:
 
@@ -1221,57 +1241,57 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 8B Story Card application boundary
-Текущий этап: этапы 0–7 завершены; этап 8 выполняется, первые два vertical slices завершены
-Следующий этап: 8C Anime Clipper через video_repurposer adapter
-Исходный HEAD 8B: b443222
-Implementation HEAD 8B: 01cfc6f
+Завершённый этап: 8C Anime Clipper application adapter boundary
+Текущий этап: этапы 0–7 завершены; этап 8 выполняется, первые три vertical slices завершены
+Следующий этап: 8D legacy pipeline application adapter
+Исходный HEAD 8C: 13490b4
+Implementation HEAD 8C: 7d0ce1e
 Ветка: master
-Git до работы: clean, HEAD b443222
+Git до работы: clean, HEAD 13490b4
 Выполнено:
 - полностью прочитаны master plan, current docs, architecture/boundary map, cleanup registry и skill architecture-change
-- read-only перепроверен Story Card путь service -> story_card_use_case -> ProjectFactory/src.templates.story_card.integration, project.json/evidence contracts, compatibility callers и targeted test radius
-- characterization до production change зафиксировал legacy use-case signatures, ProjectFactory/ProjectManifest dataclass/signature surface, integration result/signature и evidence manifest/record shape
-- application-level Story Card use case перенесён без поведенческих изменений в src.ai_youtube.apps.content_creator.workflows.story_card
-- src.content_creation.service переведён на canonical use case
-- src.content_creation.story_card_use_case сохранён 12-строчным compatibility wrapper с прежними function objects/signatures
-- canonical boundary лениво переэкспортирует существующие ProjectFactory/ProjectCreationResult/ProjectManifest/EvidenceBundle/EvidenceRecord/Story Card integration contracts без нового owner
+- read-only перепроверен apps.anime_factory -> anime_factory.pipeline, EpisodePaths project/output layout, catalog status, compatibility callers и targeted test radius
+- characterization до production change зафиксировал legacy parse_args/run_pipeline/main signatures, EpisodePaths dataclass/path layout, wrapper delegation и planned/disabled catalog status
+- создан canonical lazy adapter src.ai_youtube.apps.video_repurposer.workflows.anime_clipper
+- apps.anime_factory переведён на canonical adapter с сохранением прежнего main signature, delegation и return behavior
+- canonical boundary переэкспортирует существующие pipeline functions и EpisodePaths/PROJECT_ROOT/get_episode_paths contracts без нового owner
+- video_repurposer не включён: catalog остаётся planned/disabled, новый canonical CLI/template/service entrypoint не добавлялся
 Изменения production code:
-- src/ai_youtube/apps/content_creator/workflows/story_card/__init__.py
-- src/ai_youtube/apps/content_creator/workflows/story_card/use_case.py
-- src/content_creation/story_card_use_case.py
-- src/content_creation/service.py
-Characterization tests: tests/test_story_card_application_boundary.py
-ADR: docs/adr/0010-story-card-application-boundary.md
+- src/ai_youtube/apps/video_repurposer/__init__.py
+- src/ai_youtube/apps/video_repurposer/workflows/__init__.py
+- src/ai_youtube/apps/video_repurposer/workflows/anime_clipper/__init__.py
+- apps/anime_factory/main.py
+Characterization tests: tests/test_anime_clipper_application_boundary.py
+ADR: docs/adr/0011-anime-clipper-application-boundary.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change Story Card boundary characterization: OK, 3 tests
-- Story Card boundary и service internals: OK, 9 tests
-- Story Card service/project/evidence/schema radius: OK, 75 tests
-- compileall canonical Story Card package/compatibility files/characterization: OK
-- import identity smoke canonical boundary/legacy wrapper/existing contracts: OK
-- moved-use-case content comparison с pre-change implementation: OK
-- boundary search: service использует canonical boundary; старый use-case path остался только compatibility wrapper/tests
+- pre-change Anime Clipper boundary characterization: OK, 4 tests
+- Anime Clipper boundary, legacy CLI, apps structure и catalog status: OK, 9 tests
+- Anime Factory paths/cleanup/candidates/crop/transcript/selection radius: OK, 13 tests
+- compileall canonical Anime Clipper package/compatibility files/legacy workflow/characterization: OK
+- import identity: canonical boundary использует прежние function/class/path objects
+- boundary search: apps.anime_factory использует canonical adapter; direct legacy paths остались owner/compatibility/tests
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 8B:
-- application use case уже был изолирован после 6D, но физически оставался внутри compatibility-oriented src.content_creation
-- рабочие project/evidence/workflow contracts уже имеют владельцев в src.project_foundation и src.templates.story_card; их копирование создало бы вторую систему вместо migration boundary
-- единственный production caller — shared application service; CLI и Wizard уже используют его и не требуют нового entrypoint
+Найденные root causes 8C:
+- рабочий Anime Factory является отдельным legacy CLI/workflow без catalog template/service contract; включение planned app создало бы ложную product capability
+- project/output contract фактически задан EpisodePaths и существующим anime_factory/episodes layout; копирование или новый manifest создали бы вторую систему
+- единственный production app-caller — apps.anime_factory; прямые imports anime_factory сохраняют внешний compatibility surface
 Новый known issue:
-- Anime Factory остаётся вне video_repurposer boundary до отдельного vertical slice 8C
-- src.project_foundation и src.templates.story_card остаются владельцами физических project/evidence/workflow implementations
-- D01/D02 и legacy documentary/fixed-production-plan paths остаются за пределами 8B
+- anime_factory остаётся владельцем физического workflow и фиксированного anime_factory/episodes runtime layout до отдельного migration evidence
+- video_repurposer остаётся planned/disabled без canonical product service/template
+- D01/D02 и legacy documentary/fixed-production-plan paths остаются за пределами 8C
 - существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не создавать второй ProjectFactory, project/evidence schema, Story Card integration или renderer внутри app boundary
-- не удалять старый Story Card use-case path до отдельного retirement evidence
-- не смешивать Anime Clipper slice с legacy pipeline, documentary или provider retirement
+- не создавать второй episode/project contract, output writer или renderer внутри app boundary
+- не включать video_repurposer и не регистрировать Anime Clipper template без отдельного product contract
+- не перемещать anime_factory/episodes и не удалять прямой legacy CLI/import paths
+- не смешивать legacy pipeline slice с documentary, provider retirement или runtime migration
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать read-only caller/application-contract audit Anime Clipper slice 8C; не включать planned application, не запускать render и не мигрировать runtime.
+После проверки Git начать read-only caller/application-contract audit legacy pipeline slice 8D; не удалять root facade, не включать documentary и не мигрировать runtime.
 ```
 
 ---

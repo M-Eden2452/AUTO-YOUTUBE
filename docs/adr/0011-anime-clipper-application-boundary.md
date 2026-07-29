@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-07-29 as the third vertical slice of rescue stage 8.
+Accepted on 2026-07-29 as the third vertical slice of rescue stage 8;
+implemented by `7d0ce1e`.
 
 ## Context
 
