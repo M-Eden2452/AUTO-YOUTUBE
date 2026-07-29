@@ -1,9 +1,10 @@
-# ADR 0006: Stage idempotency policy for news research and script stages
+# ADR 0006: Stage idempotency policy for news research, script, and visual-plan stages
 
 ## Status
 
 Accepted on 2026-07-28; extended to the `script` stage family on 2026-07-29
-by a second bounded slice 5D.
+and to the `visual_plan` stage family on 2026-07-29 by separate bounded slices
+5D.
 
 ## Context
 
@@ -16,9 +17,9 @@ deleted (missing) or corrupted (invalid format), the pipeline skipped re-executi
 the stage, causing downstream stages to fail or operate on invalid data.
 
 The first slice implemented stage output validation and idempotency for the
-`research` stage family. The second bounded slice applies the same policy to
-`script` without creating a new storage layer, universal dependency graph, or
-stage orchestration framework.
+`research` stage family. The next bounded slices apply the same policy to
+`script` and `visual_plan` without creating a new storage layer, universal
+dependency graph, or stage orchestration framework.
 
 ## Decision
 
@@ -39,6 +40,15 @@ stage orchestration framework.
   - `narration.txt` is not part of the completeness check. `script.json` is the
     canonical result consumed by downstream stages, while later workflow steps
     may legally adapt or annotate it.
+- For the `visual_plan` stage:
+  - Mandatory output:
+    `<project_root>/localizations/<job.language>/visual/visual_plan.json`.
+  - Validation: file exists, is valid JSON, and contains a dictionary with a
+    non-empty list of scene dictionaries.
+  - `master/master_visual_plan.json` is not part of the completeness check. The
+    localized plan is the result path recorded by the stage and the artifact
+    consumed by `asset_search`; the master copy currently has no production
+    reader.
 - Re-execution policy:
   - `status == "completed"` + mandatory output valid + no `force_stage` -> skip stage.
   - `status == "completed"` + mandatory output missing or invalid -> re-execute stage.
@@ -56,6 +66,11 @@ usable content causes the same automatic recovery for the localized `script`
 stage. Completed legacy scripts remain readable because no new schema field is
 required.
 
+Deleting `visual_plan.json`, replacing it with malformed JSON, or removing its
+usable scene list causes automatic recovery for the localized `visual_plan`
+stage. Completed legacy plans remain readable because no planner metadata or new
+schema field is required.
+
 No manifest shape, schema version, project lock, runtime projects, or user media
 are altered by this decision.
 
@@ -65,6 +80,6 @@ Run:
 
 ```powershell
 $env:PYTHONIOENCODING='utf-8'
-.\venv\Scripts\python.exe -m unittest tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory tests.test_project_naming_and_resume
+.\venv\Scripts\python.exe -m unittest tests.test_news_to_short_pipeline tests.test_news_to_short_models tests.test_project_repository tests.test_project_factory tests.test_project_naming_and_resume tests.test_visual_planning_pipeline
 .\venv\Scripts\python.exe -m tools.qa.check_agent_docs
 ```

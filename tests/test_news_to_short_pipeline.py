@@ -297,6 +297,119 @@ class NewsToShortPipelineTests(unittest.TestCase):
             self.assertTrue(data["narration_text"].strip())
             self.assertTrue(data["scenes"])
 
+    def test_visual_plan_stage_idempotency_normal_resume_and_force(self) -> None:
+        from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job = create_news_to_short_job(
+                projects_root=root,
+                channel_id="nature_science_news_ru",
+                topic="Как морские течения влияют на миграцию китов",
+                language="ru",
+                now="2026-07-29T12:00:00+03:00",
+            )
+
+            first = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            self.assertIn("visual_plan", first.completed_stages)
+
+            repeated = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            self.assertNotIn("visual_plan", repeated.completed_stages)
+
+            resumed = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                resume=True,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            self.assertNotIn("visual_plan", resumed.completed_stages)
+
+            forced = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                stage="visual_plan",
+                force_stage=True,
+                dry_run=True,
+            )
+            self.assertIn("visual_plan", forced.completed_stages)
+
+    def test_visual_plan_stage_idempotency_missing_and_corrupt_output(self) -> None:
+        from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job = create_news_to_short_job(
+                projects_root=root,
+                channel_id="nature_science_news_ru",
+                topic="Наблюдения за коралловыми экосистемами",
+                language="ru",
+                now="2026-07-29T12:00:00+03:00",
+            )
+
+            run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            visual_plan_path = (
+                root
+                / job.job_id
+                / "localizations"
+                / "ru"
+                / "visual"
+                / "visual_plan.json"
+            )
+            self.assertTrue(visual_plan_path.is_file())
+
+            store = NewsProjectStore(root)
+            loaded_job = store.load_job(job.job_id)
+            self.assertEqual(loaded_job.stages["visual_plan"].status, "completed")
+
+            visual_plan_path.unlink()
+            missing = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            self.assertIn("visual_plan", missing.completed_stages)
+            self.assertTrue(visual_plan_path.is_file())
+
+            store.write_json(visual_plan_path, {})
+            invalid = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            self.assertIn("visual_plan", invalid.completed_stages)
+
+            visual_plan_path.write_text("{not valid json", encoding="utf-8")
+            corrupt = run_news_to_short_job(
+                projects_root=root,
+                job_id=job.job_id,
+                resume=True,
+                until_stage="visual_plan",
+                dry_run=True,
+            )
+            self.assertIn("visual_plan", corrupt.completed_stages)
+            data = store.read_json(visual_plan_path)
+            self.assertTrue(data["scenes"])
+            self.assertTrue(all(isinstance(scene, dict) for scene in data["scenes"]))
+
 
 
 def _write_tiny_video(path: Path) -> bool:

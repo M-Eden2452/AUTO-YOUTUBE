@@ -126,6 +126,27 @@ class NewsProjectStore:
                 )
             except Exception:
                 return False
+        if stage == "visual_plan":
+            visual_plan_path = (
+                root
+                / "localizations"
+                / job.language
+                / "visual"
+                / "visual_plan.json"
+            )
+            if not visual_plan_path.is_file():
+                return False
+            try:
+                data = self.read_json(visual_plan_path)
+                scenes = data.get("scenes")
+                return (
+                    isinstance(data, dict)
+                    and isinstance(scenes, list)
+                    and bool(scenes)
+                    and all(isinstance(scene, dict) for scene in scenes)
+                )
+            except Exception:
+                return False
         return True
 
     def completed_stage_names(self, job: NewsJob) -> set[str]:
