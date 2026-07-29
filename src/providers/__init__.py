@@ -12,6 +12,7 @@ from .pixabay_provider import PixabayStockProvider
 from .pixabay_provider import search_images as search_pixabay_images
 from .pixabay_provider import search_music as search_pixabay_music
 from .pixabay_provider import search_videos as search_pixabay_videos
+from .registry import create_default_stock_providers, environment_enabled
 from .unsplash_provider import search_images as search_unsplash_images
 from .wikimedia_commons_provider import WikimediaCommonsStockProvider
 
@@ -24,6 +25,8 @@ __all__ = [
     "PexelsStockProvider",
     "PixabayStockProvider",
     "WikimediaCommonsStockProvider",
+    "create_default_stock_providers",
+    "environment_enabled",
     "search_pexels_images",
     "search_pexels_videos",
     "search_pixabay_images",

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -12,15 +11,13 @@ from src.assets.provider_contract import (
     DownloadContext,
     LicenseReviewRequired,
     ProviderError,
+    StockProvider,
 )
 from src.assets.semantic_selection.decision import carry_decision
 from src.media_library import register_asset
 from src.providers import (
-    InternetArchiveStockProvider,
-    NasaImageLibraryStockProvider,
-    PexelsStockProvider,
-    PixabayStockProvider,
-    WikimediaCommonsStockProvider,
+    create_default_stock_providers,
+    environment_enabled as provider_environment_enabled,
     pexels_provider,
     pixabay_provider,
     unsplash_provider,
@@ -30,6 +27,13 @@ from .models import ALLOWED_RENDER_RIGHTS, RIGHTS_REFERENCE_ONLY
 
 
 class AssetProvider(Protocol):
+    """Deprecated news-only compatibility surface.
+
+    Active provider creation returns the canonical ``StockProvider`` contract.
+    This protocol remains only until D01 and old injected test/provider callers
+    complete their compatibility period.
+    """
+
     name: str
 
     def search(
@@ -44,35 +48,16 @@ class AssetProvider(Protocol):
 def create_default_asset_providers(
     *,
     load_environment: Callable[[], Any],
-) -> list[AssetProvider]:
-    """Build the existing provider set after loading its existing environment."""
+) -> list[StockProvider]:
+    """Compatibility wrapper over the canonical provider registry."""
 
-    load_environment()
-    providers: list[AssetProvider] = []
-    if environment_enabled("WIKIMEDIA_ENABLED", default=True):
-        providers.append(WikimediaCommonsStockProvider())
-    if environment_enabled("NASA_IMAGES_ENABLED", default=True):
-        providers.append(NasaImageLibraryStockProvider())
-    if environment_enabled("INTERNET_ARCHIVE_ENABLED", default=True):
-        providers.append(InternetArchiveStockProvider())
-    if os.getenv("PEXELS_API_KEY"):
-        providers.append(PexelsStockProvider(os.getenv("PEXELS_API_KEY", "")))
-    if os.getenv("PIXABAY_API_KEY"):
-        providers.append(PixabayStockProvider(os.getenv("PIXABAY_API_KEY", "")))
-    return providers
+    return create_default_stock_providers(load_environment=load_environment)
 
 
 def environment_enabled(name: str, *, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return str(value).strip().lower() not in {
-        "0",
-        "false",
-        "no",
-        "off",
-        "disabled",
-    }
+    """Compatibility wrapper for the former news-owned environment helper."""
+
+    return provider_environment_enabled(name, default=default)
 
 
 class PexelsAssetProvider:

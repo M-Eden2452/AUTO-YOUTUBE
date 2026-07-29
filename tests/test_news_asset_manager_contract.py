@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import inspect
+import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -13,6 +17,81 @@ class _OfflineProvider:
 
 
 class NewsAssetManagerContractTests(unittest.TestCase):
+    def test_provider_consolidation_keeps_legacy_names_off_active_path(self) -> None:
+        from src.news import asset_provider_adapters, stock_video_downloader
+        from src.providers import create_default_stock_providers
+
+        factory_source = inspect.getsource(
+            asset_provider_adapters.create_default_asset_providers
+        )
+        self.assertIn("create_default_stock_providers", factory_source)
+        self.assertTrue(callable(create_default_stock_providers))
+
+        downloader_source = inspect.getsource(stock_video_downloader)
+        for forbidden in (
+            "requests",
+            "pexels_provider",
+            "pixabay_provider",
+            "_legacy_download_stock_videos_for_project",
+            "_search_real_video_candidates",
+        ):
+            self.assertNotIn(forbidden, downloader_source)
+
+        for compatibility_name in (
+            "PexelsAssetProvider",
+            "PixabayAssetProvider",
+            "UnsplashAssetProvider",
+        ):
+            self.assertTrue(
+                hasattr(asset_provider_adapters, compatibility_name),
+                compatibility_name,
+            )
+
+    def test_default_factory_returns_only_canonical_stock_providers(self) -> None:
+        from src.news.asset_provider_adapters import create_default_asset_providers
+
+        with patch.dict(
+            os.environ,
+            {
+                "WIKIMEDIA_ENABLED": "true",
+                "NASA_IMAGES_ENABLED": "true",
+                "INTERNET_ARCHIVE_ENABLED": "true",
+                "PEXELS_API_KEY": "pexels-test",
+                "PIXABAY_API_KEY": "pixabay-test",
+                "UNSPLASH_ACCESS_KEY": "unsplash-is-not-an-active-provider",
+            },
+            clear=True,
+        ):
+            providers = create_default_asset_providers(load_environment=lambda: None)
+
+        self.assertEqual(
+            [provider.name for provider in providers],
+            [
+                "wikimedia",
+                "nasa_images",
+                "internet_archive",
+                "pexels",
+                "pixabay",
+            ],
+        )
+        for provider in providers:
+            self.assertTrue(
+                type(provider).__module__.startswith("src.providers."),
+                type(provider).__module__,
+            )
+            for method_name in (
+                "capabilities",
+                "search",
+                "get_preview",
+                "resolve_license",
+                "download",
+                "health_check",
+            ):
+                self.assertTrue(
+                    callable(getattr(provider, method_name, None)),
+                    f"{provider.name}.{method_name}",
+                )
+
     def test_compatibility_import_surface_and_signatures(self) -> None:
         from src.news import asset_manager
 
@@ -135,6 +214,73 @@ class NewsAssetManagerContractTests(unittest.TestCase):
         self.assertEqual(manifest["media_coverage"]["status"], "not_applicable")
         self.assertFalse(manifest["completion"]["draft_complete"])
         self.assertFalse(manifest["completion"]["publish_ready"])
+
+    def test_stock_video_downloader_keeps_public_delegating_entrypoint(self) -> None:
+        from src.news.stock_video_downloader import (
+            download_stock_videos_for_project,
+        )
+
+        manifest = {
+            "schema_version": 1,
+            "assets": [],
+            "scenes": [],
+            "missing_scenes": [{"scene_id": "scene_001"}],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan_path = (
+                root
+                / "localizations"
+                / "ru"
+                / "visual"
+                / "visual_plan.json"
+            )
+            plan_path.parent.mkdir(parents=True)
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "scenes": [
+                            {"scene_id": "scene_001"},
+                            {"scene_id": "scene_002"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch(
+                "src.news.stock_video_downloader.load_dotenv"
+            ) as load_environment, patch(
+                "src.news.stock_video_downloader.build_news_asset_manifest",
+                return_value=manifest,
+            ) as build_manifest:
+                result = download_stock_videos_for_project(root, max_scenes=1)
+
+            load_environment.assert_called_once_with()
+            build_manifest.assert_called_once_with(
+                visual_plan={"scenes": [{"scene_id": "scene_001"}]},
+                user_assets=[],
+                dry_run=False,
+                project_root=root,
+                project_id=root.name,
+            )
+            self.assertIs(result, manifest)
+            self.assertEqual(
+                json.loads(
+                    (root / "assets" / "assets_manifest.json").read_text(
+                        encoding="utf-8"
+                    )
+                ),
+                manifest,
+            )
+            self.assertEqual(
+                json.loads(
+                    (root / "assets" / "missing_assets.json").read_text(
+                        encoding="utf-8"
+                    )
+                ),
+                {"missing_scenes": manifest["missing_scenes"]},
+            )
 
 
 if __name__ == "__main__":
