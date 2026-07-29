@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-07-29 as the first vertical slice of rescue stage 8.
+Accepted on 2026-07-29 as the first vertical slice of rescue stage 8;
+implemented by `f8ac67e` with lazy import preservation in `06e6a25`.
 
 ## Context
 

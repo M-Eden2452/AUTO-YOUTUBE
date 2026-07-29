@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fb93a05
+last_verified_commit: 06e6a25
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,19 +16,19 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `fb93a05`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `06e6a25`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G и этапа 7; это не разрешение на массовое
-перемещение файлов.
+stage 5 closure, подэтапов 6A–6G, этапа 7 и первого vertical slice этапа 8;
+это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 280 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 272 production Python-файла: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 238;
-- 107 модулей `tests/test_*.py`;
+- 285 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 277 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 243;
+- 108 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
@@ -36,11 +36,13 @@ stage 5 closure, подэтапов 6A–6G и этапа 7; это не раз�
   длиннее 68 строк,
   `src/content_creation/wizard_steps.py` — 939 строк без функций длиннее
   111 строк,
-  `src/content_creation/fullscreen_voiceover_use_case.py` — 904 строки без
-  методов длиннее 93 строк.
+  canonical
+  `src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover/use_case.py`
+  — 906 строк без методов длиннее 93 строк.
   Compatibility facade `src/news/asset_manager.py` — 266 строк;
   `src/content_creation/wizard.py` — 175 строк;
   `src/content_creation/service.py` — 123 строки;
+  `src/content_creation/fullscreen_voiceover_use_case.py` — 29 строк;
   root `pipeline.py` — 122 строки;
   `src/assets/semantic_visual_evaluation.py` — 53 строки;
   canonical diagnostics facade — 78 строк, `src/content_creation/cli.py` —
@@ -54,7 +56,8 @@ stage 5 closure, подэтапов 6A–6G и этапа 7; это не раз�
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
-| `content_creation` | 22 | CLI/Wizard/application service и два active use cases |
+| `content_creation` | 22 | compatibility CLI/Wizard, shared application service, Story Card use case и fullscreen wrapper |
+| `ai_youtube/apps` | 5 | первый canonical app boundary для Fullscreen Voiceover |
 | `providers` | 11 | canonical registry и adapters общего asset provider contract |
 | `subtitles` | 9 | единый subtitle engine |
 | `project_foundation` | 9 | `project.json`, evidence и atomic storage |
@@ -70,7 +73,7 @@ stage 5 closure, подэтапов 6A–6G и этапа 7; это не раз�
 | `ai-youtube`, `python -m ai_youtube` | канонический | `src.ai_youtube.cli.main` → domain command handlers |
 | `python -m src.content_creation.cli` | compatibility | тот же parser/handlers active app с legacy patch-points |
 | `pipeline.py` | legacy/maintenance compatibility | старые documentary/media/diagnostic команды и `news_to_short` |
-| `python -m apps.news_to_short` | compatibility | прямой adapter к `src.news.pipeline` |
+| `python -m apps.news_to_short` | compatibility | adapter через canonical Fullscreen Voiceover boundary к `src.news.pipeline` |
 | `python -m apps.youtube_pipeline` | compatibility | тонкий вызов root `pipeline.py` |
 | `python -m apps.anime_factory` | compatibility | adapter к `anime_factory.pipeline` |
 | `python -m src.project_foundation.cli` | maintenance | project/channel foundation CLI |
@@ -87,7 +90,8 @@ ai_youtube CLI
         -> catalog / localization / authoring handlers
         -> terminal presentation
      -> src.content_creation.service facade
-        -> fullscreen_voiceover_use_case
+        -> src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover
+           -> use_case
            -> src.news.pipeline
               -> NewsProjectStore -> job.json
               -> assets / audio / subtitles / renderer / export
@@ -97,9 +101,11 @@ ai_youtube CLI
 
 compatibility
   -> src.content_creation.cli
+  -> src.content_creation.fullscreen_voiceover_use_case
+  -> apps.news_to_short
   -> pipeline.py
      -> src.legacy_pipeline.cli / maintenance / workflow
-  -> apps/*
+  -> remaining apps/*
 
 planned adapter
   -> video_repurposer -> anime_factory
@@ -120,8 +126,9 @@ planned adapter
 |---|---|---|---|
 | `src.ai_youtube.cli` + `src.content_creation.cli` | canonical dispatcher/domain handlers и legacy facade; вызывают service, lazy Wizard, projects и shared presentation | `test_cli_internals_contract`, `test_content_creation_cli`, `test_stage1_characterization`, `test_stage3_workspace_paths`, `test_stage4_canonical_cli`, script/visual/assets/subtitle wiring | 6B завершён: command/output contract и patch-points сохранены, handlers/presentation разделены |
 | `src.content_creation.wizard` + `wizard_state`/`wizard_steps`/`wizard_presentation` | facade вызывается CLI; steps используют service, capabilities и `ProjectRepository`, state делегирует общему request builder | `test_wizard_internals_contract`, `test_content_creation_wizard`, `test_project_naming_and_resume`, localization integration | 6C завершён: `run_wizard`, compatibility imports, request-builder patch-point и lazy CLI boundary сохранены |
-| `src.content_creation.service` + `service_support`/workflow use cases | единый facade вызывается CLI и Wizard; facade валидирует request/template и маршрутизирует оба active workflow | `test_content_creation_service_internals_contract`, `test_content_creation_service`, CLI, Wizard paid confirmation, resume и Stage 4 tests | 6D завершён: `create_content`, private compatibility imports, paid gate, tolerant resume и progress callback сохранены; use cases и orchestration phases разделены |
-| `src.news.pipeline` | service, `apps.news_to_short`, root pipeline; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить fullscreen workflow boundary |
+| `src.content_creation.service` + `service_support`/Story Card use case | единый facade вызывается CLI и Wizard; facade валидирует request/template, маршрутизирует Story Card и canonical Fullscreen boundary | `test_content_creation_service_internals_contract`, `test_content_creation_service`, CLI, Wizard paid confirmation, resume и Stage 4 tests | `create_content`, private compatibility imports, paid gate, tolerant resume и progress callback сохранены |
+| `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover` | application service и `apps.news_to_short`; canonical use case делегирует существующим `src.news` project/workflow contracts | `test_fullscreen_voiceover_application_boundary`, service internals/service, apps structure, news pipeline, project repository | slice 8A (`f8ac67e`, `06e6a25`): canonical boundary установлен; старый use-case path — wrapper, contracts не дублируются, service import остаётся lazy |
+| `src.news.pipeline` | canonical fullscreen boundary, root pipeline и direct compatibility callers; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить владельцем working workflow до отдельного bounded move |
 | `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |
 | `src.assets.semantic_visual_evaluation` + `semantic_visual_evaluation_tooling`/`runtime` | 53-строчный facade импортирует root pipeline; tooling владеет offline dataset/metrics/reporting, runtime — gated execution/checkpoints | `test_semantic_visual_evaluation_internals_contract`, `test_semantic_visual_evaluation`, `test_asset_cli_wiring` | 6E завершён: public signatures/dataclass shapes/root caller сохранены; runtime и tooling разделены без второго engine |
 | `src.projects.ProjectRepository` | CLI, service, Wizard, replacement и rights report | `test_project_repository`, rights report, config parity, resume | сохранить единственным read API; writer не добавлять |
@@ -148,6 +155,13 @@ download validation и license policy остаются единственным�
 raw HTTP. D01 provider names и D02 module не являются active path и сохраняются
 до отдельного retirement evidence этапа 9. Legacy documentary/fixed-plan HTTP
 callers остаются в границе вертикальных переносов этапа 8.
+
+Первый slice этапа 8 перенёс application-level Fullscreen Voiceover use case в
+`src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`.
+`src.content_creation.fullscreen_voiceover_use_case` остался compatibility
+wrapper, а `apps.news_to_short` теперь разрешает existing create/run contracts
+через canonical boundary. `src.news` продолжает владеть `NewsJob`,
+`NewsProjectStore` и working pipeline; schemas и runtime data не менялись.
 
 ## Persisted contracts
 
@@ -192,7 +206,8 @@ Read-only snapshot файлов на 2026-07-28:
 1. Сохранять нынешние import paths до отдельного vertical slice; желаемое дерево
    `core/services/infrastructure` не является самоцелью.
 2. `content_creator` владеет двумя active workflows, но не их shared
-   infrastructure contracts.
+   infrastructure contracts. Fullscreen Voiceover уже имеет canonical app
+   boundary; Story Card остаётся следующим отдельным vertical slice.
 3. `ProjectRepository` остаётся общим read API поверх двух persisted форм;
    write convergence использует общий atomic primitive и project-lock primitive,
    а не третью schema или writer.

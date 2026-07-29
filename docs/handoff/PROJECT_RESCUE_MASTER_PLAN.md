@@ -1,8 +1,9 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
 Статус: **выполняется; этапы 0–7, включая подэтапы 6A–6G, завершены; этап 4.5
-сохранён как историческая диагностика и снят с critical path; следующий этап —
-8 Миграция приложений вертикальными срезами**
+сохранён как историческая диагностика и снят с critical path; этап 8 начат,
+первый vertical slice `fullscreen_voiceover` завершён, следующий —
+`story_card`**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1029,15 +1030,16 @@ tooling.
 
 ### Этап 8. Миграция приложений вертикальными срезами
 
-Статус: [ ] не начат
+Статус: [ ] выполняется; первый vertical slice `fullscreen_voiceover`
+завершён 2026-07-29, implementation commits `f8ac67e`, `06e6a25`
 
 Порядок:
 
-1. `fullscreen_voiceover`;
-2. `story_card`;
-3. `anime_clipper` через `video_repurposer` adapter;
-4. legacy pipeline;
-5. documentary — только после реального рабочего шаблона.
+1. [x] `fullscreen_voiceover`;
+2. [ ] `story_card`;
+3. [ ] `anime_clipper` через `video_repurposer` adapter;
+4. [ ] legacy pipeline;
+5. [ ] documentary — только после реального рабочего шаблона.
 
 Каждый перенос включает:
 
@@ -1052,6 +1054,27 @@ tooling.
 
 - рабочий workflow переносится целиком;
 - старый entrypoint остаётся совместимым.
+
+Результат первого vertical slice:
+
+- canonical application boundary создан в
+  `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`;
+- application-level use case физически перенесён в новый boundary без
+  изменения orchestration behavior;
+- существующие `NewsJob`, `NewsProject`, `NewsProjectStore`,
+  `NewsPipelineResult` и create/run workflow functions переэкспортируются из
+  `src.news`, который остаётся их единственным владельцем; второй project
+  contract, writer или pipeline не создавался;
+- `src.content_creation.service` использует canonical use case;
+  `src.content_creation.fullscreen_voiceover_use_case` и
+  `apps.news_to_short` остаются совместимыми wrappers;
+- migration note зафиксирован ADR 0009; schemas, manifests, runtime projects и
+  user media не менялись;
+- targeted verification: pre-change characterization 3 tests OK; boundary,
+  service internals и apps 11 tests OK; service/news pipeline/project
+  repository 49 tests OK; compile/import/diff/docs QA OK;
+- full offline suite, сеть, provider search/download, TTS, Vision, render и
+  платные действия не запускались.
 
 ---
 
@@ -1148,14 +1171,13 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только первый vertical slice этапа 8:
-> read-only перепроверить активный `fullscreen_voiceover` путь от
-> `src.content_creation.service` через use case к `src.news.pipeline`, его
-> project contract, compatibility entrypoints и targeted tests. Перед первым
-> переносом добавить characterization и определить один bounded application
-> boundary; не перемещать каталог целиком без caller/import evidence. Не
-> выполнять provider search/download, TTS, render или физическую миграцию
-> runtime.
+> В следующей отдельной сессии начать только второй vertical slice этапа 8:
+> read-only перепроверить `story_card` путь от
+> `src.content_creation.service` через `story_card_use_case` к
+> `ProjectFactory` и `src.templates.story_card.integration`, его
+> `project.json`/evidence contracts, compatibility callers и targeted tests.
+> Перед переносом добавить characterization и определить один bounded
+> application boundary. Не выполнять render или физическую миграцию runtime.
 
 Не начинать с:
 
@@ -1180,55 +1202,62 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 7 Provider consolidation
-Текущий этап: этапы 0–7 завершены
-Следующий этап: 8 Миграция приложений вертикальными срезами — не начат; первый slice fullscreen_voiceover
-Исходный HEAD 7: c767816
-Implementation HEAD 7: fb93a05
+Завершённый этап: 8A Fullscreen Voiceover application boundary
+Текущий этап: этапы 0–7 завершены; этап 8 выполняется, первый vertical slice завершён
+Следующий этап: 8B Story Card vertical slice
+Исходный HEAD 8A: 8b3f37d
+Implementation HEAD 8A: 06e6a25 (boundary commit f8ac67e)
 Ветка: master
-Git до работы: clean, HEAD c767816
+Git до работы: clean, HEAD 8b3f37d
 Выполнено:
 - полностью прочитаны master plan, current docs, architecture/boundary map, cleanup registry и skill architecture-change
-- read-only перепроверены src.assets.provider_contract, src.providers, default/news callers, shared HTTP/download/diagnostics/license components и D01/D02 evidence
-- characterization до production change зафиксировал default provider order, полный canonical StockProvider surface и public stock downloader delegation/manifest outputs
-- default automatic factory и environment-enabled policy перенесены в src.providers.registry
-- src.news.asset_provider_adapters.create_default_asset_providers сохранён как compatibility wrapper; active default path использует только StockProvider implementations
-- недостижимая private raw-HTTP реализация stock_video_downloader удалена; public function и outputs сохранены
-- D01 legacy provider names и D02 public wrapper сохранены для отдельного retirement этапа 9
+- read-only перепроверен active fullscreen путь service -> use case -> src.news.pipeline, NewsJob/NewsProjectStore contracts, apps.news_to_short и targeted test radius
+- characterization до production change зафиксировал legacy use-case signatures, create/run pipeline signatures, project contract dataclasses/read-write surface и apps wrapper delegation
+- application-level Fullscreen Voiceover use case перенесён в src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover
+- src.content_creation.service переведён на canonical use case
+- src.content_creation.fullscreen_voiceover_use_case сохранён 29-строчным compatibility wrapper с прежними function objects/signatures
+- canonical boundary переэкспортирует существующие NewsJob/NewsProject/NewsProjectStore/NewsPipelineResult/create/run contracts без нового owner
+- apps.news_to_short сохранён compatibility entrypoint и разрешает create/run через canonical boundary
 Изменения production code:
-- src/providers/registry.py
-- src/providers/__init__.py
-- src/news/asset_provider_adapters.py
-- src/news/stock_video_downloader.py
-Characterization tests: tests/test_news_asset_manager_contract.py
-ADR: docs/adr/0008-canonical-provider-registry.md
+- src/ai_youtube/apps/__init__.py
+- src/ai_youtube/apps/content_creator/__init__.py
+- src/ai_youtube/apps/content_creator/workflows/__init__.py
+- src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover/__init__.py
+- src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover/use_case.py
+- src/content_creation/fullscreen_voiceover_use_case.py
+- src/content_creation/service.py
+- apps/news_to_short/main.py
+Characterization tests: tests/test_fullscreen_voiceover_application_boundary.py
+ADR: docs/adr/0009-fullscreen-voiceover-application-boundary.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change characterization compatibility contract: OK, 5 tests
-- provider contract/foundation/HTTP/download/diagnostics/routing/news integration/assets: OK, 55 tests
-- news pipeline, Stage 1 characterization и asset CLI wiring: OK, 23 tests
-- compileall registry/package/news adapters/downloader/characterization: OK
-- import smoke provider contract/registry/news manager/downloader: OK
-- boundary search: downloader не содержит requests/raw provider imports/private legacy implementation; private legacy callers отсутствуют
+- pre-change fullscreen boundary characterization: OK, 3 tests
+- fullscreen boundary, service internals и apps structure: OK, 11 tests
+- content creation service, news pipeline и project repository: OK, 49 tests
+- compileall canonical app package/compatibility files/characterization: OK
+- import identity smoke canonical boundary/legacy wrapper/apps wrapper: OK
+- moved-use-case content comparison с pre-change implementation: OK
+- boundary search: service и apps wrapper используют canonical boundary; старый use-case path остался только compatibility wrapper
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 7:
-- canonical StockProvider foundation уже существовала, но active default factory оставалась внутри news boundary
-- news module сохранял второй legacy AssetProvider Protocol и D01 classes как compatibility surface
-- standalone downloader уже делегировал canonical asset stage, но содержал недостижимый private raw-HTTP дубль
+Найденные root causes 8A:
+- application use case уже был изолирован после 6D, но физически оставался внутри compatibility-oriented src.content_creation
+- рабочие project/workflow contracts уже имеют владельцев в src.news; их копирование создало бы вторую систему вместо migration boundary
+- apps.news_to_short напрямую импортировал src.news.pipeline и обходил application boundary
 Новый known issue:
-- D01 legacy provider names и D02 wrapper требуют повторного zero-caller/external compatibility checkpoint этапа 9
-- legacy documentary/fixed-production-plan HTTP paths остаются для vertical slices этапа 8
+- Story Card остаётся в src.content_creation.story_card_use_case до отдельного vertical slice 8B
+- src.news остаётся владельцем физической workflow/project implementation; дальнейшее перемещение допустимо только отдельным bounded slice с caller evidence
+- D01/D02 и legacy documentary/fixed-production-plan paths остаются за пределами 8A
 - существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не возвращать active default provider factory или raw HTTP в workflow/news downloader
-- не создавать второй provider contract/registry и не добавлять provider в ходе migration
-- не удалять D01/D02 вместе с vertical slice этапа 8
+- не создавать второй ProjectRepository, NewsJob schema, workflow pipeline, provider, audio или subtitle contract внутри app boundary
+- не удалять старый fullscreen use-case path или apps.news_to_short до отдельного retirement evidence
+- не смешивать Story Card slice с Anime Factory, legacy pipeline или documentary
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать read-only caller/application-contract audit первого slice этапа 8 для fullscreen_voiceover; не перемещать каталоги и не запускать provider search/download, TTS или render.
+После проверки Git начать read-only caller/application-contract audit Story Card slice 8B; не запускать render и не мигрировать runtime.
 ```
 
 ---

@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fb93a05
+last_verified_commit: 06e6a25
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -17,6 +17,7 @@ source_paths:
   - src/content_creation/service_support.py
   - src/content_creation/story_card_use_case.py
   - src/content_creation/fullscreen_voiceover_use_case.py
+  - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
@@ -44,6 +45,7 @@ source_paths:
   - docs/current/CLEANUP_REGISTRY.md
   - docs/adr/0006-news-stage-idempotency.md
   - docs/adr/0008-canonical-provider-registry.md
+  - docs/adr/0009-fullscreen-voiceover-application-boundary.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -52,6 +54,7 @@ source_paths:
   - tests/test_legacy_pipeline_internals_contract.py
   - tests/test_asset_import_boundaries.py
   - tests/test_news_stage_idempotency.py
+  - tests/test_fullscreen_voiceover_application_boundary.py
 ---
 
 # System Map
@@ -63,7 +66,8 @@ source_paths:
 |---|---|---|
 | Пути и workspace | `src/config_resolver/paths.py` | единый resolver versioned resources, runtime roots и legacy fallback |
 | Канонический CLI | `ai_youtube/`, `src/ai_youtube/cli/`, `src/content_creation/commands/` | dispatcher, domain handlers, parser modules и terminal presentation |
-| Создание контента | `src/content_creation/` | compatibility CLI, wizard и application service |
+| Создание контента | `src/content_creation/` | compatibility CLI, wizard, shared application service и Story Card use case |
+| Fullscreen application | `src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover/` | canonical application use case и переэкспорт существующих news project/workflow contracts |
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
 | Проекты | `src/projects/`, `src/project_foundation/`, `src/news/project_store.py` | общий read API, atomic storage/lock primitives и output-validated news stage state |
@@ -102,9 +106,12 @@ video_repurposer
   `run_wizard`; working state/request translation, terminal presentation и
   интерактивные steps разделены по отдельным модулям.
 - `src.content_creation.service` остаётся единой точкой входа
-  `create_content`; request/template validation выполняет facade, а два active
-  workflow делегируются `story_card_use_case` и
-  `fullscreen_voiceover_use_case` с общими progress/path helpers.
+  `create_content`; request/template validation выполняет facade, Story Card
+  пока делегируется `story_card_use_case`, а Fullscreen Voiceover —
+  canonical boundary
+  `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`.
+  Старый `src.content_creation.fullscreen_voiceover_use_case` остаётся
+  compatibility wrapper.
 - `src.assets.semantic_visual_evaluation` остаётся public facade для root
   `pipeline.py`; offline dataset/metrics/reporting находятся в
   `semantic_visual_evaluation_tooling`, а gated execution —
@@ -154,4 +161,8 @@ channel/video workflow без изменения public command contract или 
 между sampling и similarity устранены. Этап 7 перенёс default provider factory
 в `src.providers.registry`, закрепил `StockProvider` единственным canonical
 contract и удалил недостижимый raw-HTTP дубль из standalone downloader,
-сохранив его публичный wrapper. Следующий этап — 8.
+сохранив его публичный wrapper. Первый slice этапа 8 (`f8ac67e`, `06e6a25`) перенёс
+application-level Fullscreen Voiceover use case в canonical app boundary,
+оставил прежний import path wrapper и переиспользовал без дублирования
+`NewsJob`, `NewsProjectStore` и `src.news.pipeline`; service import сохраняет
+прежнюю lazy pipeline boundary. Следующий slice этапа 8 — `story_card`.

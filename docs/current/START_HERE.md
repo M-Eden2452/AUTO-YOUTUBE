@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fb93a05
+last_verified_commit: 06e6a25
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
@@ -19,6 +19,7 @@ source_paths:
   - src/content_creation/service_support.py
   - src/content_creation/story_card_use_case.py
   - src/content_creation/fullscreen_voiceover_use_case.py
+  - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
@@ -37,6 +38,7 @@ source_paths:
   - src/news/project_store.py
   - src/providers/registry.py
   - docs/adr/0008-canonical-provider-registry.md
+  - docs/adr/0009-fullscreen-voiceover-application-boundary.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -45,6 +47,7 @@ source_paths:
   - tests/test_legacy_pipeline_internals_contract.py
   - tests/test_asset_import_boundaries.py
   - tests/test_news_stage_idempotency.py
+  - tests/test_fullscreen_voiceover_application_boundary.py
 ---
 
 # Start Here
@@ -60,9 +63,11 @@ AI-YouTube — локальная offline-first система производ�
    [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
 
 Текущий rescue plan: [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md).
-Этап 5 Project и storage foundation, подэтапы 6A–6G и этап 7 Provider
-consolidation завершены; следующий этап — 8, миграция приложений вертикальными
-срезами, начиная с `fullscreen_voiceover`.
+Этапы 0–7 завершены. В этапе 8 первый vertical slice
+`fullscreen_voiceover` завершён commits `f8ac67e`, `06e6a25`: canonical
+application boundary находится в
+`src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`, а прежний
+use-case path сохранён wrapper. Следующий slice этапа 8 — `story_card`.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).
