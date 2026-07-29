@@ -4,50 +4,24 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from PIL import Image
 
-from src.assets.completion import (
-    MODE_DRAFT_COMPLETE,
-    ReuseLedger,
-    SceneVisualAssembly,
-    assembly_from_selected_asset,
-    attach_assembly,
-    blocking_reasons,
-    normalize_mode,
+from src.assets.completion import ReuseLedger, SceneVisualAssembly
+from src.assets.semantic_selection import select_best_candidate
+from src.media_library import load_media_index
+
+from .asset_manifest_builder import (
+    build_assets_manifest as _build_assets_manifest,
+    ensure_decision as _ensure_decision,
+    generated_fallback_asset as _generated_fallback_asset,
+    inspect_user_asset as _inspect_user_asset,
+    media_type as _media_type,
+    merge_selection_config as _merge_selection_config,
+    missing_reason as _missing_reason,
+    query_not_allowed_for_scene as _query_not_allowed_for_scene,
+    rank_local_assets as _rank_local_assets,
+    rank_user_assets as _rank_user_assets,
+    warnings as _warnings,
 )
-from src.assets.generated_infographic import backdrop_spec_for_scene, build_generated_asset, spec_from_scene
-from src.assets.provider_routing import route_providers
-from src.assets.query_adapter import STATUS_TRANSLATION_REQUIRED, build_scene_queries
-from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
-from src.assets.semantic_selection import analyze_scene, check_continuity, ordered_queries, rank_candidates, select_best_candidate
-from src.assets.semantic_selection.decision import (
-    DECISION_KEY,
-    NEEDS_MANUAL_CONFIRMATION,
-    NEEDS_RIGHTS_CLEARANCE,
-    RESOLVED,
-    SUPPORT_FULL,
-    SUPPORT_MANUAL,
-    VERDICT_COMPLETE,
-    VERDICT_UNVERIFIED,
-    SelectionDecision,
-    framing_decision,
-    read_decision,
-    scene_resolution_status,
-)
-from src.assets.download import sha256_file, validate_local_asset
-from src.assets.license_policy import apply_policy_to_candidate
-from src.assets.models import ASSET_SCHEMA_VERSION, AssetCandidate, AssetLicense, AssetProvenance
-from src.assets.provider_contract import ProviderError
-from src.assets.review_bundle import (
-    attach_selected_asset,
-    create_scene_review_bundle,
-    select_candidate_after_review,
-    write_review_bundle,
-)
-from src.assets.semantic_visual_service import analyse_semantic_visual_for_project, load_semantic_visual_config
-from src.assets.visual_preview import VisualPreviewRequest, load_visual_preview_config, prepare_candidate_preview_analyses
-from src.media_library import load_media_index, search_local_assets
-from src.providers.envato_manual_provider import EnvatoManualProvider
 from .asset_manifest_summaries import (
     DEFAULT_MIN_VIDEO_CLIPS,
     DEFAULT_MIN_VIDEO_DURATION_RATIO,
@@ -60,12 +34,6 @@ from .asset_manifest_summaries import (
     summarize_media_coverage,
     video_first_policy as _video_first_policy,
     visual_support_summary as _visual_support_summary,
-)
-from .asset_scene_completion import (
-    complete_scene_assembly,
-    emergency_backdrop,
-    has_local_file as _has_local_file,
-    targeted_slot_search,
 )
 from .asset_provider_adapters import (
     AssetProvider,
@@ -88,7 +56,12 @@ from .asset_provider_adapters import (
     vertical_score as _vertical_score,
     with_policy_decision as _with_policy_decision,
 )
-from .models import ALLOWED_RENDER_RIGHTS, RIGHTS_REFERENCE_ONLY, RIGHTS_USER_OWNED
+from .asset_scene_completion import (
+    complete_scene_assembly,
+    emergency_backdrop,
+    has_local_file as _has_local_file,
+    targeted_slot_search,
+)
 
 
 def build_assets_manifest(
@@ -112,538 +85,28 @@ def build_assets_manifest(
     minimum_video_clips: int = DEFAULT_MIN_VIDEO_CLIPS,
     minimum_video_duration_ratio: float = DEFAULT_MIN_VIDEO_DURATION_RATIO,
 ) -> dict[str, Any]:
-    completion_mode = normalize_mode(completion_mode)
-    reuse = reuse_ledger if reuse_ledger is not None else ReuseLedger()
-    visual_preview_config = load_visual_preview_config()
-    semantic_visual_config = load_semantic_visual_config()
-    selection_config = {
-        "mode": "semantic",
-        "legacy_fallback_enabled": False,
-        "vision_validation_enabled": False,
-        "visual_preview": {
-            "enabled": bool(visual_preview_config.get("enabled", True)),
-            "mode": str(visual_preview_config.get("mode") or "analyse_and_report"),
-            "shortlist_size": int(visual_preview_config.get("shortlist_size") or 5),
-            "technical_rerank_enabled": bool(visual_preview_config.get("technical_rerank_enabled", False)),
-            "target_aspect_ratio": "9:16",
-            "offline": False,
-            "no_html": False,
-        },
-        "semantic_visual": {
-            "enabled": bool(semantic_visual_config.get("enabled", False)),
-            "mode": str(semantic_visual_config.get("mode") or "analyse_and_report"),
-            "backend": str(semantic_visual_config.get("backend") or "mock"),
-            "maximum_candidates": int(semantic_visual_config.get("maximum_candidates") or 5),
-            "maximum_frames_per_candidate": int(semantic_visual_config.get("maximum_frames_per_candidate") or 5),
-            "semantic_rerank_enabled": bool(semantic_visual_config.get("semantic_rerank_enabled", False)),
-            "allow_paid_vision": bool(semantic_visual_config.get("allow_paid_vision", False)),
-            "offline": False,
-            "no_html": False,
-        },
-    }
-    if asset_selection:
-        selection_config = _merge_selection_config(selection_config, asset_selection)
-    user_candidates = [_inspect_user_asset(path, index) for index, path in enumerate(user_assets, start=1)]
-    provider_errors: list[dict[str, Any]] = []
-    provider_attempts: list[dict[str, Any]] = []
-    routing_decisions: list[dict[str, Any]] = []
-    scene_entries: list[dict[str, Any]] = []
-    missing_scenes: list[dict[str, Any]] = []
-    used_asset_ids: set[str] = set()
-    # Material already placed in this video. Only ever offered to a later scene as a
-    # reuse candidate, re-judged against that scene like any other candidate.
-    project_pool: list[dict[str, Any]] = []
-    providers_by_name = {provider.name: provider for provider in providers or []}
-    project_root_path = Path(project_root) if project_root else None
-    review_bundles = []
-    review_output: dict[str, str] = {}
+    """Compatibility facade over the split asset-manifest builder."""
 
-    for scene in visual_plan.get("scenes", []):
-        semantic_scene = analyze_scene(scene)
-        candidates: list[dict[str, Any]] = []
-        scene_provider_attempts: list[dict[str, Any]] = []
-        manual_request: dict[str, Any] | None = None
-        provider_capabilities = _provider_capabilities(providers_by_name)
-        routing_decision = route_providers(
-            scene,
-            provider_names=list(providers_by_name.keys()),
-            provider_enabled={name: True for name in providers_by_name},
-            capabilities=provider_capabilities,
-        )
-        routing_decisions.append(routing_decision)
-        # One query plan per scene, built per provider: a provider that cannot be
-        # searched in the plan's language gets an English query or no request at all.
-        query_plan = build_scene_queries(
-            scene,
-            providers=list(routing_decision["ordered_providers"]),
-            intent_language=str(visual_plan.get("intent_language") or visual_plan.get("language") or "ru"),
-            capabilities=provider_capabilities,
-        )
-        source_class = str(routing_decision.get("source_class") or "")
-        required_duration = float(scene.get("target_duration_sec") or 0)
-        preferred = set(scene.get("preferred_asset_ids") or [])
-        user_ranked = _rank_user_assets(user_candidates, scene, preferred, used_asset_ids)
-        candidates.extend(user_ranked)
-        candidates.extend(_rank_local_assets(media_index, scene, channel, used_asset_ids))
-        if not dry_run:
-            ordered_provider_names = routing_decision["ordered_providers"] or list(providers_by_name)
-            ordered_providers = [providers_by_name[name] for name in ordered_provider_names if name in providers_by_name]
-            for provider in ordered_providers:
-                planned = query_plan.for_provider(provider.name)
-                if not planned:
-                    # Either nothing could be written in a language this provider
-                    # indexes, or the scene needs no search at all. Either way a
-                    # request is not sent: a query in the wrong language returns
-                    # noise that then has to be rejected downstream.
-                    blocked = [
-                        item for item in query_plan.queries
-                        if item.provider == provider.name and item.status == STATUS_TRANSLATION_REQUIRED
-                    ]
-                    for item in blocked:
-                        skipped_attempt = {
-                            "scene_id": scene.get("scene_id", ""),
-                            "provider": provider.name,
-                            "query": "",
-                            "status": "skipped",
-                            "reason": STATUS_TRANSLATION_REQUIRED,
-                            "message": item.notes,
-                        }
-                        scene_provider_attempts.append(skipped_attempt)
-                        provider_attempts.append(skipped_attempt)
-                    continue
-                allowed_queries = [
-                    {"kind": item.kind, "fallback_level": item.fallback_level, "query": item.query, "language": item.language, "query_source": item.source}
-                    for item in planned
-                ]
-                allowed_queries = [
-                    query for query in allowed_queries if not _query_not_allowed_for_scene(semantic_scene, query)
-                ]
-                for query in allowed_queries:
-                    attempt = {
-                        "scene_id": scene.get("scene_id", ""),
-                        "provider": provider.name,
-                        "query": str(query["query"]),
-                        "query_language": str(query.get("language") or ""),
-                        "query_source": str(query.get("query_source") or ""),
-                        "status": "started",
-                    }
-                    try:
-                        provider_results = _search_provider(
-                            provider,
-                            str(query["query"]),
-                            scene,
-                            semantic_scene.to_dict(),
-                            project_id=project_id,
-                            limit=5,
-                        )
-                        candidates.extend(_rank_provider_results(provider_results, scene, str(query["query"]), int(query["fallback_level"])))
-                        attempt.update({"status": "completed", "result_count": len(provider_results)})
-                    except ProviderError as exc:
-                        error = exc.to_dict()
-                        error.update({"scene_id": scene.get("scene_id", ""), "query": str(query["query"])})
-                        provider_errors.append(error)
-                        attempt.update({"status": "failed", "error": error})
-                    except Exception as exc:
-                        error = {
-                            "code": "provider_unexpected_error",
-                            "provider": provider.name,
-                            "scene_id": scene.get("scene_id", ""),
-                            "query": str(query["query"]),
-                            "message": str(exc),
-                        }
-                        provider_errors.append(error)
-                        attempt.update({"status": "failed", "error": error})
-                    scene_provider_attempts.append(attempt)
-                    provider_attempts.append(attempt)
-        generated_asset: dict[str, Any] | None = None
-        if (
-            allow_infographic_fallback
-            and source_class == CLASS_DATA_INFOGRAPHIC
-            and project_root_path
-            and not dry_run
-        ):
-            # There is no footage of a statistic. Draw it from the scene's own numbers
-            # instead of accepting whatever a stock search returns for the words.
-            spec = spec_from_scene(scene)
-            if spec is not None:
-                generated_asset = build_generated_asset(
-                    spec,
-                    project_root=project_root_path,
-                    project_id=project_id or project_root_path.name,
-                    scene_id=str(scene.get("scene_id") or ""),
-                )
-                # Stated in its own terms straight away rather than only when selected:
-                # the completion ladder reads decisions off candidates, and a drawn
-                # figure with no decision would look like unverified stock footage.
-                _ensure_decision(
-                    generated_asset, scene_id=str(scene.get("scene_id") or ""), source_class=source_class
-                )
-                candidates.insert(0, generated_asset)
-        if user_ranked:
-            # User material keeps first refusal/right of use, but never skips the
-            # canonical semantic decision. In particular, a filename/tag matching a
-            # scene's must_avoid list must remain disqualifying in draft_complete.
-            evaluated_user = rank_candidates(
-                semantic_scene,
-                user_ranked,
-                used_asset_ids=used_asset_ids,
-                required_duration_sec=required_duration,
-                require_provider_metadata=False,
-                source_class=source_class,
-            )
-            safe_user = next(
-                (
-                    item
-                    for item in evaluated_user
-                    if not blocking_reasons(item, require_local_file=False)
-                ),
-                None,
-            )
-            selected = dict(safe_user) if safe_user is not None else None
-            if selected is not None:
-                # Missing contextual terms remain visible as partial/manual support,
-                # but an explicit author-supplied file keeps its historical priority.
-                # Only mode-independent safety objections above can remove it.
-                selected["rejected"] = False
-                selected["selected_by"] = "user_asset_priority_manual"
-            user_ids = {str(item.get("asset_id") or "") for item in user_ranked}
-            candidates = [
-                *evaluated_user,
-                *[
-                    item
-                    for item in candidates
-                    if str(item.get("asset_id") or "") not in user_ids
-                ],
-            ]
-            if selected is None and generated_asset is not None:
-                selected = generated_asset
-            elif selected is None and selection_config["mode"] == "semantic":
-                selected, candidates = _select_best_candidate(
-                    semantic_scene,
-                    candidates,
-                    prefer_video=prefer_video,
-                    used_asset_ids=used_asset_ids,
-                    required_duration_sec=required_duration,
-                    require_provider_metadata=bool(
-                        routing_decision.get("requires_provider_metadata")
-                    ),
-                    source_class=source_class,
-                )
-        elif generated_asset is not None:
-            selected = generated_asset
-        elif selection_config["mode"] == "semantic":
-            selected, ranked_candidates = _select_best_candidate(
-                semantic_scene,
-                candidates,
-                prefer_video=prefer_video,
-                used_asset_ids=used_asset_ids,
-                required_duration_sec=required_duration,
-                require_provider_metadata=bool(routing_decision.get("requires_provider_metadata")),
-                source_class=source_class,
-            )
-            candidates = ranked_candidates
-        else:
-            candidates.sort(key=lambda item: item.get("total_score", 0), reverse=True)
-            selected = candidates[0] if candidates else None
-        # A user asset and a drawn figure never pass through the ranker, so they would
-        # otherwise reach the manifest with no record of why they are there. They get
-        # one stated in their own terms rather than an empty one.
-        selected = _ensure_decision(selected, scene_id=str(scene.get("scene_id") or ""), source_class=source_class)
-        visual_review_entry: dict[str, Any] = {}
-        scene_review_bundle = None
-        preview_settings = selection_config.get("visual_preview", {}) if isinstance(selection_config.get("visual_preview"), dict) else {}
-        if project_root_path and candidates and bool(preview_settings.get("enabled", True)):
-            top_k = int(preview_settings.get("shortlist_size") or visual_preview_config.get("shortlist_size") or 5)
-            request = VisualPreviewRequest(
-                project_id=project_id,
-                scene_id=str(scene.get("scene_id") or ""),
-                top_k=top_k,
-                target_aspect_ratio=str(preview_settings.get("target_aspect_ratio") or "9:16"),
-                project_root=str(project_root_path),
-                refresh=bool(preview_settings.get("refresh", False)),
-                offline=bool(preview_settings.get("offline", False)),
-                technical_rerank=bool(preview_settings.get("technical_rerank_enabled", False)),
-                no_html=bool(preview_settings.get("no_html", False)),
-                sample_count=int(visual_preview_config.get("frame_sample_count") or 5),
-                sample_positions=[float(item) for item in visual_preview_config.get("frame_sample_positions", [0.1, 0.3, 0.5, 0.7, 0.9])],
-                target_aspect_ratios=[str(item) for item in visual_preview_config.get("target_aspect_ratios", ["9:16", "16:9", "1:1"])],
-            )
-            analyses = prepare_candidate_preview_analyses(
-                candidates,
-                providers_by_name=providers_by_name,
-                request=request,
-                config=visual_preview_config,
-            )
-            metadata_selected_id = str((selected or {}).get("asset_id") or (candidates[0].get("asset_id") if candidates else ""))
-            if bool(preview_settings.get("technical_rerank_enabled", False)):
-                selected = select_candidate_after_review(
-                    candidates[:top_k],
-                    analyses,
-                    metadata_selected_id=metadata_selected_id,
-                    technical_rerank=True,
-                    target_aspect_ratio=request.target_aspect_ratio,
-                )
-            selected_id = str((selected or {}).get("asset_id") or metadata_selected_id)
-            bundle = create_scene_review_bundle(
-                project_id=project_id,
-                scene=scene,
-                semantic_scene=semantic_scene.to_dict(),
-                metadata_queries=ordered_queries(semantic_scene),
-                provider_routing=routing_decision,
-                candidates=candidates[:top_k],
-                analyses=analyses,
-                selected_candidate_id=selected_id,
-                target_aspect_ratio=request.target_aspect_ratio,
-                manual_request=manual_request,
-                technical_rerank_enabled=bool(preview_settings.get("technical_rerank_enabled", False)),
-            )
-            review_bundles.append(bundle)
-            scene_review_bundle = bundle
-            visual_review_entry = {
-                "status": "prepared",
-                "analysis_mode": "technical_rerank" if bool(preview_settings.get("technical_rerank_enabled", False)) else "analyse_and_report",
-                "analysed_candidates": len(analyses),
-                "selected_candidate_before_rerank": metadata_selected_id,
-                "selected_candidate_after_rerank": selected_id,
-                "manifest_path": str(project_root_path / "assets" / "review" / "visual_review_manifest.json"),
-                "html_path": "" if bool(preview_settings.get("no_html", False)) else str(project_root_path / "assets" / "review" / "visual_review_board.html"),
-            }
-        download_attempts: list[dict[str, Any]] = []
-        if generated_asset is not None and selected is generated_asset:
-            # Already a real local file with its own checksum and provenance; there is
-            # nothing to fetch, and sending it through the download path only fails
-            # because no provider owns it.
-            download_attempts = []
-        elif selected:
-            selected, download_attempts = _ensure_selected_asset_downloaded(
-                selected=selected,
-                ranked_candidates=candidates,
-                providers_by_name=providers_by_name,
-                project_root=project_root_path,
-                project_id=project_id,
-                scene_id=str(scene.get("scene_id") or ""),
-                media_index=media_index,
-                max_attempts=max_download_attempts,
-            )
-        # There used to be a branch here that downloaded ``candidates[0]`` when nothing
-        # passed selection. It made every rejection meaningless: a candidate refused for
-        # missing the scene's subject was fetched and rendered anyway. A scene with no
-        # acceptable candidate is now left unresolved, which is the whole point of
-        # having a gate. The rights verdict is still reported - it is known from the
-        # licence policy before any request, so it never needed a download to discover.
-        elif candidates:
-            download_attempts = _rights_block_attempts(candidates, str(scene.get("scene_id") or ""))
-        # Autonomous completion (Q2.2B). The strict path above has already had its
-        # answer; this only runs when the caller asked for a complete draft, and it can
-        # only ever *add* material, never remove a fully supported choice.
-        assembly: SceneVisualAssembly | None = None
-        if completion_mode == MODE_DRAFT_COMPLETE:
-            selected, assembly, ladder_attempts = _complete_scene_assembly(
-                scene=scene,
-                semantic_scene=semantic_scene,
-                candidates=candidates,
-                strict_selection=selected,
-                scene_index=len(scene_entries),
-                duration=required_duration,
-                reuse=reuse,
-                providers_by_name=providers_by_name,
-                project_root=project_root_path,
-                project_id=project_id,
-                media_index=media_index,
-                dry_run=dry_run,
-                project_pool=list(project_pool),
-                source_class=source_class,
-                routing_decision=routing_decision,
-                provider_capabilities=provider_capabilities,
-                scene_provider_attempts=scene_provider_attempts,
-                allow_emergency_backdrop=allow_emergency_backdrop,
-                prefer_video=prefer_video,
-            )
-            download_attempts.extend(ladder_attempts)
-        if scene_review_bundle is not None:
-            attach_selected_asset(scene_review_bundle, selected)
-        if download_attempts:
-            provider_attempts.extend(download_attempts)
-        if (
-            not selected
-            and allow_generated_fallback
-            and not dry_run
-            and (allow_generated_fallback or bool(selection_config.get("legacy_fallback_enabled", False)))
-        ):
-            selected = _generated_fallback_asset(scene)
-        if (
-            not selected
-            and not dry_run
-            and project_root_path
-            and bool(selection_config.get("envato_manual_fallback_enabled", False))
-        ):
-            manual_request = EnvatoManualProvider(projects_root=project_root_path.parent).prepare_request(
-                project_id=project_id or project_root_path.name,
-                scene_id=str(scene.get("scene_id") or ""),
-                scene=scene,
-                queries=[str(item["query"]) for item in ordered_queries(semantic_scene)[:3] if item.get("query")],
-                limit=int(selection_config.get("envato_manual_query_limit") or 6),
-                open_browser=False,
-            )
-        if assembly is None:
-            # Strict mode, and every project written before Q2.2B: one asset, one slot.
-            assembly = assembly_from_selected_asset(
-                {"scene_id": str(scene.get("scene_id") or ""), "selected_asset": selected or {}},
-                scene_duration_sec=required_duration,
-                completion_mode=completion_mode,
-            )
-        for slot in assembly.slots:
-            if slot.asset_id:
-                used_asset_ids.add(slot.asset_id)
-            if slot.selected_asset and not any(
-                str(item.get("asset_id") or "") == slot.asset_id for item in project_pool
-            ):
-                project_pool.append(dict(slot.selected_asset))
-        if selected:
-            used_asset_ids.add(selected["asset_id"])
-        scene_unresolved = (
-            not assembly.usable_in_draft
-            if completion_mode == MODE_DRAFT_COMPLETE
-            else not selected
-        )
-        if scene_unresolved:
-            missing_scenes.append(
-                {
-                    "scene_id": scene.get("scene_id"),
-                    "primary_query": scene.get("primary_query", ""),
-                    "semantic_queries": ordered_queries(semantic_scene),
-                    "semantic_scene": semantic_scene.to_dict(),
-                    "provider_attempts": scene_provider_attempts,
-                    "download_attempts": download_attempts,
-                    "manual_request": manual_request or {},
-                    "source_class": source_class,
-                    "asset_strategy": routing_decision.get("strategy", {}),
-                    "query_plan": query_plan.to_dict(),
-                    "untranslatable_providers": list(query_plan.untranslatable_providers),
-                    "rejected_reasons": sorted(
-                        {str(item.get("reject_reason") or "") for item in candidates if item.get("rejected")} - {""}
-                    ),
-                    # ``reason`` predates this stage and several callers read it, so it
-                    # keeps its vocabulary; ``resolution_status`` is the machine-readable
-                    # answer and the one new code should read.
-                    "resolution_status": scene_resolution_status(
-                        selected=selected,
-                        candidates=candidates,
-                        source_class=source_class,
-                        manual_request=bool(manual_request),
-                    ),
-                    "reason": (
-                        "manual_action_required"
-                        if manual_request
-                        else "selected_asset_not_publish_ready"
-                        if selected
-                        else "unresolved_generator_failed"
-                        if source_class == CLASS_DATA_INFOGRAPHIC
-                        else _missing_reason(dry_run, candidates, download_attempts)
-                    ),
-                }
-            )
-        scene_entry = {
-                "scene_id": scene.get("scene_id"),
-                "primary_query": scene.get("primary_query", ""),
-                "queries": ordered_queries(semantic_scene),
-                "visual_type": scene.get("visual_type", ""),
-                "semantic_scene": semantic_scene.to_dict(),
-                "provider_routing": routing_decision,
-                "asset_strategy": routing_decision.get("strategy", {}),
-                "source_class": source_class,
-                "query_plan": query_plan.to_dict(),
-                "required_duration_sec": required_duration,
-                "selected_asset": selected,
-                # The scene-level headline, read straight off the selected asset's own
-                # decision rather than recomputed from the candidate list.
-                "resolution_status": scene_resolution_status(
-                    selected=selected,
-                    candidates=candidates,
-                    source_class=source_class,
-                    manual_request=bool(manual_request),
-                ),
-                "support_status": read_decision(selected).support_status if selected else "",
-                "support_requirements": read_decision(selected).support_requirements if selected else [],
-                "manual_request": manual_request or {},
-                "visual_review": visual_review_entry,
-                "provider_attempts": scene_provider_attempts,
-                "download_attempts": download_attempts,
-                "ranked_candidates": [_public_candidate(candidate) for candidate in candidates[:10]],
-                "candidates": [_public_candidate(candidate) for candidate in candidates[:5]],
-                "rejected_candidates": [_public_candidate(candidate) for candidate in candidates if candidate.get("rejected")][:5],
-                "visual_brief": scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {},
-            }
-        # Slots travel beside ``selected_asset``, which keeps its old meaning (the
-        # scene's headline material) so every existing reader is untouched.
-        attach_assembly(scene_entry, assembly)
-        scene_entries.append(scene_entry)
-    continuity = check_continuity(scene_entries)
-    if continuity["status"] == "failed":
-        for issue in continuity["issues"]:
-            missing_scenes.append({"scene_id": issue["scene_id"], "reason": issue["reason"]})
-    if project_root_path and review_bundles:
-        preview_settings = selection_config.get("visual_preview", {}) if isinstance(selection_config.get("visual_preview"), dict) else {}
-        review_output = write_review_bundle(project_root_path, review_bundles, write_html=not bool(preview_settings.get("no_html", False)))
-        semantic_settings = selection_config.get("semantic_visual", {}) if isinstance(selection_config.get("semantic_visual"), dict) else {}
-        if bool(semantic_settings.get("enabled", False)):
-            analyse_semantic_visual_for_project(
-                project_root=project_root_path,
-                project_id=project_id,
-                all_scenes=True,
-                backend_name=str(semantic_settings.get("backend") or "mock"),
-                offline=bool(semantic_settings.get("offline", False)),
-                maximum_candidates=int(semantic_settings.get("maximum_candidates") or semantic_visual_config.get("maximum_candidates") or 5),
-                maximum_frames=int(semantic_settings.get("maximum_frames_per_candidate") or semantic_visual_config.get("maximum_frames_per_candidate") or 5),
-                no_html=bool(semantic_settings.get("no_html", False)),
-                config=semantic_visual_config,
-            )
-
-    video_first_policy = _video_first_policy(
-        enabled=prefer_video,
+    return _build_assets_manifest(
+        visual_plan=visual_plan,
+        user_assets=user_assets,
+        media_index=media_index,
+        providers=providers,
+        dry_run=dry_run,
+        channel=channel,
+        allow_generated_fallback=allow_generated_fallback,
+        asset_selection=asset_selection,
+        project_root=project_root,
+        project_id=project_id,
+        max_download_attempts=max_download_attempts,
+        completion_mode=completion_mode,
+        reuse_ledger=reuse_ledger,
+        allow_infographic_fallback=allow_infographic_fallback,
+        allow_emergency_backdrop=allow_emergency_backdrop,
+        prefer_video=prefer_video,
         minimum_video_clips=minimum_video_clips,
         minimum_video_duration_ratio=minimum_video_duration_ratio,
     )
-    media_coverage = summarize_media_coverage(scene_entries, policy=video_first_policy)
-    completion = _completion_summary(scene_entries, mode=completion_mode, reuse=reuse)
-    _apply_video_first_readiness(completion, media_coverage)
-    warnings = _warnings(dry_run, provider_errors, missing_scenes)
-    if media_coverage["review_required"]:
-        warnings.append(
-            "Video-first coverage is below the publish-ready threshold; "
-            "the image fallback is draft/review only."
-        )
-    return {
-        "schema_version": ASSET_SCHEMA_VERSION,
-        "dry_run": dry_run,
-        "visual_mode": "video_first" if prefer_video else "mixed",
-        "video_first_policy": video_first_policy,
-        "media_coverage": media_coverage,
-        "infographic_fallback": bool(allow_infographic_fallback),
-        "asset_selection": selection_config,
-        "provider_order": ["user_assets", "local_library", *[provider.name for provider in providers or []]],
-        "routing_decisions": routing_decisions,
-        "assets": user_candidates,
-        "scenes": scene_entries,
-        "missing_scenes": missing_scenes,
-        "visual_support": _visual_support_summary(scene_entries, missing_scenes),
-        "completion": completion,
-        "continuity": continuity,
-        "provider_attempts": provider_attempts,
-        "provider_errors": provider_errors,
-        "visual_review": {
-            "enabled": bool((selection_config.get("visual_preview") or {}).get("enabled", False)) if isinstance(selection_config.get("visual_preview"), dict) else False,
-            "mode": str((selection_config.get("visual_preview") or {}).get("mode", "analyse_and_report")) if isinstance(selection_config.get("visual_preview"), dict) else "analyse_and_report",
-            "manifest_path": review_output.get("json_path", ""),
-            "html_path": review_output.get("html_path", ""),
-        },
-        "semantic_visual": {
-            "enabled": bool((selection_config.get("semantic_visual") or {}).get("enabled", False)) if isinstance(selection_config.get("semantic_visual"), dict) else False,
-            "mode": str((selection_config.get("semantic_visual") or {}).get("mode", "analyse_and_report")) if isinstance(selection_config.get("semantic_visual"), dict) else "analyse_and_report",
-            "semantic_rerank_enabled": False,
-        },
-        "warnings": warnings,
-    }
 
 
 def build_news_asset_manifest(
@@ -660,7 +123,13 @@ def build_news_asset_manifest(
     completion_mode: str = "",
     reuse_ledger: ReuseLedger | None = None,
 ) -> dict[str, Any]:
-    media_index = {"version": 1, "items": []} if dry_run else load_media_index(media_index_path or "assets/library/metadata/media_index.json")
+    media_index = (
+        {"version": 1, "items": []}
+        if dry_run
+        else load_media_index(
+            media_index_path or "assets/library/metadata/media_index.json"
+        )
+    )
     providers = [] if dry_run else create_default_asset_providers()
     return build_assets_manifest(
         visual_plan=visual_plan,
@@ -675,9 +144,6 @@ def build_news_asset_manifest(
         project_id=project_id,
         completion_mode=completion_mode,
         reuse_ledger=reuse_ledger,
-        # fullscreen_voiceover_v1 is the ordinary video-first template. Generated
-        # figures remain available to explicit/direct infographic callers of
-        # build_assets_manifest, but are never its silent fallback.
         allow_infographic_fallback=False,
         allow_emergency_backdrop=False,
         prefer_video=True,
@@ -715,7 +181,10 @@ def create_default_asset_providers() -> list[AssetProvider]:
 
 
 def _emergency_backdrop(
-    scene: dict[str, Any], *, project_root: Path, project_id: str
+    scene: dict[str, Any],
+    *,
+    project_root: Path,
+    project_id: str,
 ) -> dict[str, Any] | None:
     return emergency_backdrop(
         scene,
@@ -795,296 +264,3 @@ def _targeted_slot_search(
         rank_provider_results=_rank_provider_results,
         search_provider=_search_provider,
     )
-
-
-def _ensure_decision(asset: dict[str, Any] | None, *, scene_id: str, source_class: str) -> dict[str, Any] | None:
-    """Give an asset that skipped ranking a decision record of its own.
-
-    Two assets never reach the ranker: a figure the project drew from the scene's own
-    specification, and a file the author supplied by hand. Both are legitimate, and
-    both used to arrive at the manifest with no statement of what they support at all.
-    Neither is treated as verified footage: the drawn figure *is* the specification, and
-    the author's own file is only ever "confirm this yourself".
-    """
-    if not isinstance(asset, dict) or asset.get(DECISION_KEY):
-        return asset
-    framing = framing_decision(asset)
-    provider = str(asset.get("provider") or "")
-    allowed = bool(asset.get("allowed_for_render", False))
-    review_required = bool(asset.get("review_required", False))
-    if provider == "generated" and source_class == CLASS_DATA_INFOGRAPHIC:
-        support, requirements, verdict = SUPPORT_FULL, [], VERDICT_COMPLETE
-        reasons = ["generated_from_scene_specification"]
-    else:
-        support, requirements = SUPPORT_MANUAL, [NEEDS_MANUAL_CONFIRMATION]
-        verdict = VERDICT_UNVERIFIED
-        reasons = [f"selected_by:{asset.get('selected_by') or 'unranked'}"]
-        if review_required or not allowed:
-            requirements.append(NEEDS_RIGHTS_CLEARANCE)
-    decision = SelectionDecision(
-        scene_id=scene_id,
-        asset_id=str(asset.get("asset_id") or ""),
-        provider=provider,
-        source_class=source_class,
-        technical_status=str(framing["status"]),
-        framing=framing,
-        rights_status=str(asset.get("rights_status") or ""),
-        rights_allowed_for_render=allowed,
-        rights_review_required=review_required,
-        slot_verdict=verdict,
-        support_status=support,
-        support_requirements=requirements,
-        selection_reasons=reasons,
-    )
-    asset[DECISION_KEY] = decision.to_dict()
-    asset["support_status"] = support
-    asset["slot_verdict"] = verdict
-    return asset
-
-
-def _merge_selection_config(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    merged = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            nested = dict(merged[key])
-            nested.update(value)
-            merged[key] = nested
-        else:
-            merged[key] = value
-    return merged
-
-
-def _inspect_user_asset(path: Any, index: int) -> dict[str, Any]:
-    raw = path if isinstance(path, dict) else {"path": str(path)}
-    source = Path(str(raw.get("path") or raw.get("local_path") or ""))
-    media_type = _media_type(source)
-    asset_id = str(raw.get("asset_id") or f"user_asset_{index:03d}")
-    rights_declaration = dict(raw.get("rights_declaration") or {})
-    if not rights_declaration:
-        rights_declaration = {
-            "confirmation_status": "missing",
-            "rights_status": "unconfirmed",
-            "notes": "Manual asset rights were not confirmed by the owner.",
-        }
-    provider_asset_id = str(raw.get("provider_asset_id") or asset_id)
-    source_url = str(raw.get("source_page_url") or raw.get("source_url") or f"manual://{provider_asset_id}")
-    width = int(raw.get("width") or 0)
-    height = int(raw.get("height") or 0)
-    technical_validation: dict[str, Any] = {}
-    checksum = ""
-    if source.exists():
-        try:
-            technical_validation = validate_local_asset(source, media_type)
-            width = int(technical_validation.get("width") or width)
-            height = int(technical_validation.get("height") or height)
-            checksum = sha256_file(source)
-        except Exception:
-            if media_type == "image":
-                try:
-                    with Image.open(source) as image:
-                        width, height = image.size
-                except Exception:
-                    width = height = 0
-    candidate = AssetCandidate(
-        asset_id=asset_id,
-        provider="user",
-        provider_asset_id=provider_asset_id,
-        media_type=media_type,
-        title=str(raw.get("title") or source.stem),
-        description=str(raw.get("description") or ""),
-        tags=[source.stem],
-        source_page_url=source_url,
-        preview_url=str(raw.get("preview_url") or ""),
-        download_url=str(raw.get("download_url") or source_url),
-        author_name=str(raw.get("author") or raw.get("author_name") or "user"),
-        width=width,
-        height=height,
-        duration_sec=float(raw.get("duration") or raw.get("duration_sec") or 0),
-        local_path=str(source),
-        original_filename=source.name,
-        checksum_sha256=checksum,
-        license=AssetLicense(
-            license_name=str(rights_declaration.get("license_name") or raw.get("license") or "user_owned"),
-            rights_status=str(rights_declaration.get("rights_status") or RIGHTS_USER_OWNED),
-            allowed_for_render=False,
-            review_required=True,
-            notes=str(rights_declaration.get("notes") or ""),
-        ),
-        provenance=AssetProvenance(
-            provider="user",
-            provider_asset_id=provider_asset_id,
-            source_page_url=source_url,
-            download_url=str(raw.get("download_url") or source_url),
-            original_filename=source.name,
-            checksum_sha256=checksum,
-            metadata_snapshot={"rights_declaration": rights_declaration},
-        ),
-        technical_validation=technical_validation,
-        rights_declaration=rights_declaration,
-    )
-    apply_policy_to_candidate(candidate)
-    data = candidate.to_manifest_dict()
-    data.update(
-        {
-            "author": candidate.author_name,
-            "vertical_score": _vertical_score(width, height),
-            "quality_score": 0.7 if source.exists() else 0.2,
-            "rights_score": 1.0 if candidate.license.allowed_for_render and not candidate.license.review_required else 0.0,
-        }
-    )
-    return data
-
-
-def _rank_user_assets(
-    assets: list[dict[str, Any]],
-    scene: dict[str, Any],
-    preferred: set[str],
-    used_asset_ids: set[str],
-) -> list[dict[str, Any]]:
-    ranked = []
-    for asset in assets:
-        score = 100.0
-        if asset["asset_id"] in preferred:
-            score += 20
-        if asset["asset_id"] in used_asset_ids:
-            score -= 30
-        ranked.append({**asset, "total_score": score, "selected_by": "user_asset_priority"})
-    return ranked
-
-
-def _rank_local_assets(
-    media_index: dict[str, Any],
-    scene: dict[str, Any],
-    channel: str,
-    used_asset_ids: set[str],
-) -> list[dict[str, Any]]:
-    media_type = "image" if scene.get("visual_type") in {"image", "animated_image"} else "video"
-    matches = search_local_assets(
-        media_index,
-        {
-            "visual_keywords": scene.get("primary_query", "").split(),
-            "scene_type": scene.get("visual_type", ""),
-            "duration": scene.get("target_duration_sec", 0),
-        },
-        media_type=media_type,
-        channel=channel,
-        min_score=1,
-        limit=10,
-    )
-    ranked = []
-    for match in matches:
-        asset = match["asset"]
-        rights_status = asset.get("rights_status") or RIGHTS_REFERENCE_ONLY
-        allowed = rights_status in ALLOWED_RENDER_RIGHTS
-        asset_id = asset.get("id") or _stable_asset_id(asset)
-        if asset_id in used_asset_ids:
-            continue
-        duplicate_penalty = 25 if asset_id in used_asset_ids else 0
-        width = int(asset.get("width") or 0)
-        height = int(asset.get("height") or 0)
-        ranked_item = {
-            "schema_version": int(asset.get("schema_version") or 0),
-            "asset_id": asset_id,
-            "provider_asset_id": asset.get("provider_asset_id") or asset_id,
-            "path": asset.get("local_path", ""),
-            "local_path": asset.get("local_path", ""),
-            "provider": "local_library",
-            "type": asset.get("type", media_type),
-            "media_type": asset.get("type", media_type),
-            "title": asset.get("title", ""),
-            "description": asset.get("description", asset.get("caption", "")),
-            "keywords": asset.get("keywords", []),
-            "tags": asset.get("tags", []),
-            "vision_tags": asset.get("vision_tags", []),
-            "source_url": asset.get("source_url", ""),
-            "source_page": asset.get("source_page", asset.get("source_url", "")),
-            "source_page_url": asset.get("source_page_url") or asset.get("source_page") or asset.get("source_url", ""),
-            "author": asset.get("author", ""),
-            "license": asset.get("license", asset.get("license_note", "")),
-            "provenance": asset.get("provenance", {}),
-            "checksum_sha256": asset.get("checksum_sha256", ""),
-            "technical_validation": asset.get("technical_validation", {}),
-            "rights_status": rights_status,
-            "allowed_for_render": allowed,
-            "width": width,
-            "height": height,
-            "duration": float(asset.get("duration") or 0),
-            "duration_sec": float(asset.get("duration_sec") or asset.get("duration") or 0),
-            "relevance_score": float(match.get("score", 0)),
-            "quality_score": _quality_score(width, height),
-            "vertical_score": _vertical_score(width, height),
-            "rights_score": 1.0 if allowed else 0.0,
-            "duplicate_penalty": duplicate_penalty,
-            "watermark_penalty": 0,
-            "total_score": float(match.get("score", 0)) + _quality_score(width, height) + _vertical_score(width, height) - duplicate_penalty,
-            "selected_by": "local_library",
-        }
-        ranked_item = _with_policy_decision(ranked_item)
-        ranked.append(ranked_item)
-    return ranked
-
-
-def _query_not_allowed_for_scene(semantic_scene: Any, query: dict[str, str | int]) -> bool:
-    level = int(query.get("fallback_level") or 1)
-    if semantic_scene.visual_priority in {"transition", "environment"}:
-        return False
-    return level >= 4
-
-
-def _missing_reason(dry_run: bool, candidates: list[dict[str, Any]], download_attempts: list[dict[str, Any]] | None = None) -> str:
-    if dry_run:
-        return "dry_run_does_not_download_assets"
-    for attempt in download_attempts or []:
-        if attempt.get("download_status") == "blocked" and attempt.get("reason"):
-            return str(attempt["reason"])
-    if download_attempts:
-        return "download_or_validation_failed"
-    if not candidates:
-        return "no_allowed_asset_found"
-    return "no_semantic_asset_above_threshold"
-
-
-def _media_type(path: Path) -> str:
-    suffix = path.suffix.lower()
-    if suffix in IMAGE_EXTENSIONS:
-        return "image"
-    if suffix in VIDEO_EXTENSIONS:
-        return "video"
-    return "unknown"
-
-
-def _warnings(dry_run: bool, provider_errors: list[dict[str, str]], missing_scenes: list[dict[str, Any]]) -> list[str]:
-    warnings: list[str] = []
-    if dry_run:
-        warnings.append("Dry run skipped downloads and paid providers.")
-    if provider_errors:
-        warnings.append(f"{len(provider_errors)} provider error(s) were recorded.")
-    if missing_scenes:
-        warnings.append(f"{len(missing_scenes)} scene(s) still need allowed assets.")
-    return warnings
-
-
-def _generated_fallback_asset(scene: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "asset_id": f"generated_{scene.get('scene_id', 'scene')}",
-        "path": "",
-        "provider": "generated_layout",
-        "type": scene.get("fallback_type") or "text_card",
-        "source_url": "",
-        "source_page": "",
-        "author": "AI-YouTube",
-        "license": "project_generated",
-        "rights_status": "licensed",
-        "allowed_for_render": True,
-        "width": 1080,
-        "height": 1920,
-        "duration": float(scene.get("target_duration_sec") or 0),
-        "relevance_score": 2.0,
-        "quality_score": 5.0,
-        "vertical_score": 10.0,
-        "rights_score": 1.0,
-        "duplicate_penalty": 0,
-        "watermark_penalty": 0,
-        "total_score": 8.0,
-        "selected_by": "generated_fallback",
-    }
