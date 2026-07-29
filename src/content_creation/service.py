@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.content_creation import input_validation
-from src.content_creation.fullscreen_voiceover_use_case import (
+from src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover.use_case import (
     _RETRYABLE_ARTICLE_REASONS,
     build_paid_preflight_summary as _build_paid_preflight_summary,
     completed_narration as _completed_narration,

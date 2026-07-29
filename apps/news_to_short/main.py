@@ -3,7 +3,10 @@ from __future__ import annotations
 import argparse
 import sys
 
-from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
+from src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover import (
+    create_news_to_short_job,
+    run_news_to_short_job,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
