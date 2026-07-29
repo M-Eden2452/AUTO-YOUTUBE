@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1683b24
+last_verified_commit: dcd6a3c
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -207,5 +207,6 @@ parser/maintenance/workflow behavior. Gate 8E (`a3536a9`) подтвердил �
 шаблона, legacy documentary channels не поддерживаются `content_creator`, а
 Solar fixed plan использует отдельный `project_config.json`/`scenes.json`
 contract и прямые live provider/TTS paths без application approval boundary.
-Documentary migration не выполнялась, этап 8 закрыт. Этап 9 выполняется:
-D01 и D02 retirement завершены, следующий bounded кандидат — D03.
+Documentary migration не выполнялась, этап 8 закрыт. Этап 9 завершён:
+D01/D02 compatibility retirement и D03 placeholder deletion выполнены
+отдельными bounded commits. Следующий этап — 10.

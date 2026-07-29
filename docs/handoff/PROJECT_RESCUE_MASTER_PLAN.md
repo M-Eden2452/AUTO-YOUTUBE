@@ -4,8 +4,8 @@
 сохранён как историческая диагностика и снят с critical path; этап 8 перенёс
 vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy
 pipeline, а documentary gate 8E закрыт без migration из-за отсутствия реального
-рабочего шаблона; этап 9 выполняется, D01–D02 завершены, следующий bounded
-slice — D03**
+рабочего шаблона; этап 9 завершён bounded slices D01–D03; следующий этап —
+10**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1167,8 +1167,7 @@ tooling.
 
 ### Этап 9. Retire compatibility и удалить доказанное лишнее
 
-Статус: [ ] выполняется; D01–D02 завершены 2026-07-29, следующий bounded
-slice — D03
+Статус: [x] завершён 2026-07-29; D01–D03 выполнены отдельными commits
 
 Задачи:
 
@@ -1227,6 +1226,25 @@ slice — D03
   import/compile smoke и docs QA OK; сеть/provider search/download/TTS/Vision/
   render не запускались;
 - решение public compatibility boundary зафиксировано ADR 0015.
+
+Результат D03:
+
+- read-only inventory подтвердил, что `packages/` содержал только один tracked
+  planning README; hidden/untracked files, runtime/current callers и package
+  discovery dependency отсутствовали;
+- pre-delete characterization зафиксировал package discovery только из
+  `ai_youtube*`, `src*`, `anime_factory*`, `apps*`;
+- `packages/README.md` и пустая physical directory удалены; historical
+  plans/audits сохранены как snapshots;
+- устаревшие Stage 2 date/length assertions актуализированы без снятия
+  onboarding size gate: `START_HERE` остаётся не длиннее 100 строк;
+- targeted verification: 8 onboarding/reproducibility tests, package-discovery
+  smoke и docs QA OK;
+- production code/config, schemas, runtime projects и user data не менялись;
+  сеть/provider/TTS/Vision/render не запускались.
+
+Этап 9 закрыт: каждый delete path D01–D03 имеет актуальное zero-caller/
+replacement evidence, отдельный commit и ограниченный rollback.
 
 ---
 
@@ -1291,12 +1309,10 @@ slice — D03
 
 Первое действие при возобновлении плана:
 
-> Продолжить этап 9 отдельным read-only checkpoint D03: проверить
-> `packages/README.md`, фактическое содержимое directory, repo-wide runtime/docs
-> references и package discovery из `pyproject.toml`. Удаление допускается
-> только если directory остаётся planning placeholder без runtime/package
-> caller; не включать runtime cleanup или documentary product work в тот же
-> bounded slice.
+> Начать этап 10 только с read-only inventory A01: перечислить historical
+> audits/plans вне `docs/current`, проверить current links и существующие
+> `docs/archive` destinations. Ничего не перемещать и не удалять в initial
+> audit; A02 outputs, D04 cache и runtime workspace не включать в тот же slice.
 
 Не начинать с:
 
@@ -1306,7 +1322,7 @@ slice — D03
 - создания нового репозитория с переписанным кодом;
 - массового форматирования;
 - добавления новых providers;
-- удаления runtime/generated directories вместе с D03;
+- физической миграции runtime или удаления user data;
 - создания или рендера reference video;
 - UI;
 - RAG или vector database;
@@ -1321,45 +1337,48 @@ slice — D03
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый bounded slice: 9 D02 standalone stock downloader retirement
-Текущий этап: 9 выполняется; D01–D02 завершены
-Следующий bounded slice: D03 packages planning placeholder audit
-Исходный HEAD D02: 1683b24
+Завершённый bounded slice: 9 D03 packages placeholder; этап 9 закрыт
+Текущий этап: этапы 0–9 завершены
+Следующий этап: 10, первый read-only checkpoint — A01 historical docs inventory
+Исходный HEAD D03: dcd6a3c
 Commit D01: 1683b24
-Commit D02: текущий commit
+Commit D02: dcd6a3c
+Commit D03: текущий commit
 Ветка: master
-Git до работы: clean, HEAD 1683b24
+Git до работы: clean, HEAD dcd6a3c
 Выполнено:
-- repo-wide/AST audit подтвердил отсутствие production imports/calls, src.news export, CLI/console script и current command для D02
-- единственным executable caller был temporary characterization test; historical audits являются snapshots
-- pre-change characterization зафиксировал zero internal imports/callers
-- удалён src/news/stock_video_downloader.py; два production docstring очищены от устаревшего consumer claim
-- сохранены build_news_asset_manifest, normal asset_search stage и canonical provider/download contracts
-Изменения production code: удалён src/news/stock_video_downloader.py; docstring-only изменения src/content/visual_planning/legacy_format.py и src/news/visual_plan.py
-Characterization tests: tests/test_news_asset_manager_contract.py
-ADR: docs/adr/0015-retire-news-stock-downloader.md
+- read-only inventory подтвердил один tracked packages/README.md, отсутствие hidden/untracked files, runtime/current callers и package-discovery dependency
+- historical plans/audits с packages references сохранены без переписывания
+- pre-change characterization зафиксировал exact setuptools discovery roots и отсутствие packages*
+- удалены packages/README.md и подтверждённо пустая physical directory
+- START_HERE source metadata сокращён до directory-level authorities и снова укладывается в 100 lines
+- Stage 2 test date обновлена до текущей, а stale единый 100-line cap заменён отдельными ограниченными caps: START_HERE 100, SYSTEM_MAP 240, CURRENT_STATE 280
+Изменения production code: отсутствуют
+Characterization tests: tests/test_reproducibility_contract.py
+Targeted test maintenance: tests/test_stage2_agent_onboarding.py
+ADR: не требовался; public/runtime boundary не менялась
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change D02 zero-import/caller characterization: OK, 1 test
-- asset-manager contract, news assets/pipeline и Stage 1 compatibility: OK, 46 tests
-- compile/import smoke: OK
+- pre-change D03 package-discovery characterization: OK, 1 test
+- reproducibility и Stage 2 onboarding: OK, 8 tests
+- setuptools package-discovery smoke и packages absence: OK
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
-Full offline suite: не запускался; D02 не меняет active workflow/provider/storage/schema contract, targeted radius достаточен
-Найденные root causes D02:
-- standalone module не был зарегистрированным entrypoint и не имел runtime caller после stage 7 delegation
-- сохранённый wrapper поддерживался только characterization test, а не фактической compatibility usage
+Full offline suite: не запускался; D03 docs/package placeholder не меняет runtime contract, targeted radius достаточен
+Найденные root causes D03:
+- packages directory был только нереализованным planning placeholder из baseline commit
+- Stage 2 onboarding test не обновлялся вместе с ростом reference docs и фиксировал старую дату 2026-07-28
 Новый known issue:
-- D03 packages planning directory остаётся до отдельного package/docs audit
-- historical audits продолжают упоминать retired D01/D02 paths как snapshot и не являются current contract
+- historical audits/plans продолжают упоминать удалённые D01/D02/D03 paths как snapshots и не являются current contract
+- stage 10 A01/A02/D04 и runtime inventory ещё не начаты
 Что нельзя повторять:
-- не удалять generated/runtime directories вместе с D03
-- не создавать replacement downloader/CLI
-- не изменять manifests или удалять downloaded media
+- не переписывать historical docs только ради удаления snapshot references
+- не смешивать A01 с A02/D04 или runtime migration
+- не удалять outputs/projects/media/toolchain
 Следующая точная read-only команда: git status --short --branch
-После проверки Git выполнить: rg -n "(^|[/\\\\])packages([/\\\\]|$)|packages/README" . --glob "!docs/archive/**"
+После проверки Git выполнить: git ls-files docs/audits docs/implementation docs/superpowers
 ```
 
 ---

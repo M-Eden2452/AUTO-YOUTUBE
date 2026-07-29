@@ -1,68 +1,26 @@
 ---
 status: current
-last_verified_commit: 1683b24
+last_verified_commit: dcd6a3c
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
-  - ai_youtube/cli/main.py
+  - ai_youtube
   - src/ai_youtube/cli
-  - src/config_resolver/paths.py
-  - src/content_creation/cli.py
-  - src/content_creation/wizard.py
-  - src/content_creation/wizard_state.py
-  - src/content_creation/wizard_steps.py
-  - src/content_creation/wizard_presentation.py
-  - src/content_creation/service.py
-  - src/content_creation/service_support.py
-  - src/content_creation/story_card_use_case.py
-  - src/content_creation/fullscreen_voiceover_use_case.py
-  - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
-  - src/ai_youtube/apps/content_creator/workflows/story_card
-  - src/ai_youtube/apps/video_repurposer/workflows/anime_clipper
-  - src/ai_youtube/apps/legacy_pipeline
-  - src/assets/semantic_visual_evaluation.py
-  - src/assets/semantic_visual_evaluation_runtime.py
-  - src/assets/semantic_visual_evaluation_tooling.py
-  - src/assets/frame_primitives.py
-  - src/assets/frame_sampling.py
-  - src/assets/perceptual_similarity.py
-  - src/assets/provider_contract.py
+  - src/ai_youtube/apps
+  - src/config_resolver
+  - src/content_creation
+  - src/assets
   - pipeline.py
   - src/legacy_pipeline
-  - src/news/asset_manager.py
-  - src/news/asset_manifest_builder.py
-  - src/news/asset_manifest_summaries.py
-  - src/news/asset_scene_completion.py
-  - src/news/asset_provider_adapters.py
-  - src/news/project_store.py
-  - src/providers/registry.py
-  - src/production_catalog/catalog.py
-  - src/production_plan/youtube_shorts.py
-  - src/production_plan/solar_vs_nuclear_render.py
-  - docs/adr/0008-canonical-provider-registry.md
-  - docs/adr/0009-fullscreen-voiceover-application-boundary.md
-  - docs/adr/0010-story-card-application-boundary.md
-  - docs/adr/0011-anime-clipper-application-boundary.md
-  - docs/adr/0012-legacy-pipeline-application-boundary.md
-  - docs/adr/0013-documentary-migration-gate.md
-  - docs/adr/0014-retire-news-provider-class-compatibility.md
-  - docs/adr/0015-retire-news-stock-downloader.md
-  - tests/test_news_asset_manager_contract.py
-  - tests/test_cli_internals_contract.py
-  - tests/test_wizard_internals_contract.py
-  - tests/test_content_creation_service_internals_contract.py
-  - tests/test_semantic_visual_evaluation_internals_contract.py
-  - tests/test_legacy_pipeline_internals_contract.py
-  - tests/test_asset_import_boundaries.py
-  - tests/test_news_stage_idempotency.py
-  - tests/test_fullscreen_voiceover_application_boundary.py
-  - tests/test_story_card_application_boundary.py
-  - tests/test_anime_clipper_application_boundary.py
-  - tests/test_legacy_pipeline_application_boundary.py
-  - tests/test_documentary_migration_gate.py
+  - src/news
+  - src/providers
+  - src/production_catalog
+  - src/production_plan
+  - docs/adr
+  - tests
 ---
 
 # Start Here
@@ -85,11 +43,13 @@ AI-YouTube — локальная offline-first система производ�
 wrappers, а `video_repurposer` остаётся planned/disabled. Documentary candidate
 был проверен gate 8E (`a3536a9`) и не мигрирован: реального
 catalog template, canonical project contract и безопасного application-level
-paid/provider gate нет. Этап 9 выполняется: bounded slice D01 удалил три
+paid/provider gate нет. Этап 9 завершён: bounded slice D01 удалил три
 news-only provider class names после zero-caller audit, сохранив canonical
 registry и news factory patch-point. D02 затем удалил standalone
 `src.news.stock_video_downloader` после отдельного zero-caller/entrypoint
-audit. Следующий bounded кандидат — D03, пустая planning directory `packages/`.
+audit, а D03 — пустую planning directory `packages/` после package/docs gate.
+Следующий rescue stage — 10; начинать его следует с отдельного read-only
+inventory, без runtime/user-data deletion.
 Подробная проверенная карта зависимостей находится в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
 кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).

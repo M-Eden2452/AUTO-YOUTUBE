@@ -14,6 +14,20 @@ def _requirement_name(value: str) -> str:
 
 
 class ReproducibilityContractTests(unittest.TestCase):
+    def test_d03_package_discovery_uses_only_runtime_package_roots(self) -> None:
+        pyproject = tomllib.loads(
+            (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )
+        discovery = pyproject["tool"]["setuptools"]["packages"]["find"]
+
+        self.assertEqual(discovery["where"], ["."])
+        self.assertEqual(
+            discovery["include"],
+            ["ai_youtube*", "src*", "anime_factory*", "apps*"],
+        )
+        self.assertNotIn("packages*", discovery["include"])
+        self.assertFalse((REPO_ROOT / "packages").exists())
+
     def test_pyproject_and_direct_requirements_match(self) -> None:
         pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         declared = set(pyproject["project"]["dependencies"])

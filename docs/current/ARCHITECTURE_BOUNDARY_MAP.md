@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1683b24
+last_verified_commit: dcd6a3c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -28,10 +28,10 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 от HEAD `1683b24` с bounded D02 diff. Код и Git имеют
+Проверено 2026-07-29 от HEAD `dcd6a3c` с bounded D03 diff. Код и Git имеют
 приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G, этапа 7, завершения этапа 8 и D01–D02 этапа 9;
+stage 5 closure, подэтапов 6A–6G, этапа 7, завершения этапа 8 и этапа 9;
 это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
@@ -185,6 +185,11 @@ raw HTTP. D01 provider names удалены после отдельного zero
 checkpoint этапа 9; D02 standalone module также удалён после подтверждения
 отсутствия imports, package export и CLI entrypoint. Legacy
 documentary/fixed-plan HTTP callers остаются за root compatibility boundary.
+
+D03 подтвердил, что `packages/` содержал только planning README и не участвовал
+в package discovery, runtime imports или current commands. Placeholder удалён;
+`pyproject.toml` по-прежнему discovers только `ai_youtube*`, `src*`,
+`anime_factory*` и `apps*`.
 
 Первый slice этапа 8 перенёс application-level Fullscreen Voiceover use case в
 `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`.

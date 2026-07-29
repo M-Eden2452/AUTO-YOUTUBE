@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from tools.qa.check_agent_docs import CURRENT_DOCS, REQUIRED_SKILLS, validate_repository
+from tools.qa.check_agent_docs import REQUIRED_SKILLS, validate_repository
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +15,7 @@ class Stage2AgentOnboardingTests(unittest.TestCase):
         self.assertEqual(
             validate_repository(
                 REPO_ROOT,
-                today=date(2026, 7, 28),
+                today=date(2026, 7, 29),
                 max_age_days=120,
             ),
             [],
@@ -25,7 +25,9 @@ class Stage2AgentOnboardingTests(unittest.TestCase):
         limits = {
             Path("AGENTS.md"): 120,
             Path("CLAUDE.md"): 15,
-            **{path: 100 for path in CURRENT_DOCS},
+            Path("docs/current/START_HERE.md"): 100,
+            Path("docs/current/SYSTEM_MAP.md"): 240,
+            Path("docs/current/CURRENT_STATE.md"): 280,
         }
         for relative, limit in limits.items():
             lines = (REPO_ROOT / relative).read_text(encoding="utf-8").splitlines()

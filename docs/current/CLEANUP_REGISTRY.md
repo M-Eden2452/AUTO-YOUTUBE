@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 1683b24
+last_verified_commit: dcd6a3c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -23,20 +23,20 @@ source_paths:
   - docs/adr/0014-retire-news-provider-class-compatibility.md
   - docs/adr/0015-retire-news-stock-downloader.md
   - content
-  - packages
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
 ---
 
 # Cleanup Registry
 
-Проверено 2026-07-29 от HEAD `1683b24` с bounded D02 diff. Код и Git имеют
+Проверено 2026-07-29 от HEAD `dcd6a3c` с bounded D03 diff. Код и Git имеют
 приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
 изменениями; Fullscreen Voiceover, Story Card, Anime Clipper и legacy pipeline
 slices этапа 8 завершены, documentary gate 8E закрыт без migration. Runtime и
-user data не перемещались и не удалялись.
+user data не перемещались и не удалялись. Этап 9 завершил D01–D03 отдельными
+bounded commits.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
 `do_not_touch`.
@@ -52,7 +52,7 @@ user data не перемещались и не удалялись.
 | K05 | `src/assets/provider_contract.py` + `src/providers/` | `keep` | этап 7 (`fb93a05`) закрепил `StockProvider` canonical contract и перенёс default factory в `src.providers.registry`; adapters/download/preview/diagnostics используют общую foundation | единственный provider contract и registry | 7 complete |
 | K06 | `src/audio/` | `keep` | approval, voice manifests, timeline и TTS manager защищены отдельными tests | не создавать второй voice/TTS contract | всегда |
 | K07 | `src/subtitles/` | `keep` | единственный engine, news использует adapter | не создавать второй subtitle engine | всегда |
-| K08 | `apps/*` wrappers | `keep` | `test_apps_structure`; внешние `python -m apps.*` entrypoints | compatibility до отдельного retirement evidence | 8–9 |
+| K08 | `apps/*` wrappers | `keep` | `test_apps_structure`; внешние `python -m apps.*` entrypoints | compatibility сохраняется; retirement только по новому отдельному evidence | всегда |
 | S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
 | S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
 | S03 | `src/content_creation/wizard.py` + `wizard_state`/`wizard_steps`/`wizard_presentation` | `split` | 6C (`b9f8212`) уменьшил facade с 1229 до 175 строк и разделил state/request translation, steps/execution и terminal presentation | выполнено; `run_wizard`, private compatibility imports, module request-builder patch-point и lazy CLI boundary защищены characterization | 6C complete |
@@ -71,7 +71,7 @@ user data не перемещались и не удалялись.
 | A02 | 9 tracked legacy файлов в `outputs/` | `archive` | пути всё ещё заданы config/root pipeline; сами outputs воспроизводимы не все | backup + manifest/reference check, затем untrack/archive | 10 |
 | D01 | compatibility `PexelsAssetProvider`, `PixabayAssetProvider`, `UnsplashAssetProvider` в `src/news/asset_provider_adapters.py` | `delete` | stage 9 zero-caller audit подтвердил только definitions/re-export/test references; active factory использует canonical `StockProvider` implementations | завершено: classes, raw provider imports и `asset_manager` re-exports удалены; `AssetProvider`/factory patch-point сохранены | 9 D01 complete |
 | D02 | `src/news/stock_video_downloader.py` | `delete` | stage 9 AST/repo audit подтвердил отсутствие production imports/calls, package export, CLI и current command; test был единственным executable caller | завершено: wrapper удалён, два исторических production docstring исправлены; canonical asset stage сохранён | 9 D02 complete |
-| D03 | `packages/README.md` и пустая planning directory | `delete` | нет runtime imports; только historical docs references; packaging идёт из `src*` по `pyproject.toml` | удалить directory и исправить исторически-необязательные current links, если появятся | 9 |
+| D03 | `packages/README.md` и пустая planning directory | `delete` | повторный audit подтвердил один tracked planning README, отсутствие runtime/current callers и package discovery только из `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | завершено: README и пустая physical directory удалены; historical snapshots не переписаны | 9 D03 complete |
 | D04 | untracked `__pycache__/`, `*.pyc` | `delete` | 0 tracked matches; bytecode воспроизводим | удалять только filesystem-cleanup slice, не вместе с refactor | 10 |
 | N01 | `.env`, `.env.*`, credentials/private keys | `do_not_touch` | конфигурация может содержать secrets; содержимое не проверялось | никогда не читать/коммитить/удалять автоматически | всегда |
 | N02 | `projects/`, manifests, MP4/WAV, evidence/license proof | `do_not_touch` | 1618 файлов, 0 tracked; оба project readers используют root | только copy → verify → switch по отдельному разрешению | всегда |
@@ -88,7 +88,7 @@ user data не перемещались и не удалялись.
 |---|---|---|---|---|---|
 | D01 | повторный tracked/repo-wide audit: production callers и package exports отсутствуют; stages 7–8 прошли без нового caller | `src.providers.registry` создаёт `PexelsStockProvider`/`PixabayStockProvider`; Unsplash не active | выполнен отдельный stage 9 checkpoint после полного stage 8 compatibility period | 41 test: `test_news_asset_manager_contract`, `test_asset_foundation_providers`, `test_news_to_short_provider_integration`, `test_news_to_short_assets`; import/compile smoke | schemas, provider ids, provenance, runtime projects и media не изменены |
 | D02 | повторный AST/tracked audit: production imports/calls, `src.news` export, CLI/console script и current command отсутствуют | `src.news.asset_manager.build_news_asset_manifest` через normal `asset_search` stage | выполнен отдельный stage 9 checkpoint после stage 7–8 compatibility period | 46 test: `test_news_asset_manager_contract`, `test_news_to_short_assets`, `test_news_to_short_pipeline`, `test_stage1_characterization`; import/compile smoke | download не запускался; существующие `assets_manifest.json`, missing-assets summaries и media не изменены |
-| D03 | runtime/import callers нет; только исторические docs | `pyproject.toml` уже package-discovery из `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | не требуется для runtime; отдельный docs-only cleanup commit | `tools.qa.check_agent_docs`, `test_stage2_agent_onboarding`, package discovery smoke | отсутствует |
+| D03 | runtime/import/current callers нет; repo references находятся только в historical plans/audits и current cleanup handoff | `pyproject.toml` package discovery использует `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | runtime compatibility period не требуется; выполнен отдельный docs/package checkpoint | pre-delete characterization; 8 onboarding/reproducibility tests; docs QA и package-discovery smoke | production/runtime/persisted/media risk отсутствует |
 | D04 | 0 tracked files; interpreter cache only | Python воспроизводит cache | не требуется; только после проверки абсолютного target path | `git status --short`, ближайший targeted test изменённой области | не затрагивать source, venv, projects или media |
 
 Если новый caller, external compatibility promise или persisted dependency
@@ -461,11 +461,28 @@ handoff. Порядок не разрешает перепрыгивать че�
   downloaded media, runtime projects и user data не менялись; сеть/provider
   search/download, TTS, Vision и render не запускались.
 
+### Завершённый deletion slice: 9 D03 packages placeholder
+
+- Read-only inventory подтвердил, что `packages/` содержал только один tracked
+  planning `README.md`; hidden/untracked файлов и runtime/package callers не
+  было.
+- Pre-delete characterization зафиксировал точный `pyproject.toml` discovery
+  set: `ai_youtube*`, `src*`, `anime_factory*`, `apps*`; `packages*` в него не
+  входил.
+- `packages/README.md` и оставшаяся пустая physical directory удалены.
+  Исторические plans/audits сохранены как snapshots и не переписывались.
+- Targeted verification: 8 onboarding/reproducibility tests, package-discovery
+  smoke и docs QA OK. Устаревшие Stage 2 date/length assertions актуализированы:
+  `START_HERE` остаётся не длиннее 100 строк, reference docs имеют отдельные
+  ограниченные caps.
+- Production code, package configuration, schemas, runtime projects и user
+  data не менялись; сеть/provider/TTS/Vision/render не запускались.
+
 ### Последующая очередь
 
-1. **9:** D01 и D02 завершены; далее отдельно проверить D03 с актуальным
-   package/docs evidence.
-2. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
+1. **9:** D01–D03 завершены отдельными проверенными commits; этап закрыт.
+2. **10:** начать с read-only A01/A02/D04 и runtime inventory; никаких
+   user-data deletions.
 
 ## Closure rule
 
