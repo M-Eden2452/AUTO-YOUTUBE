@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fe5ba44
+last_verified_commit: 1f9495c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -25,6 +25,7 @@ source_paths:
   - docs/adr/0006-news-stage-idempotency.md
   - docs/adr/0007-canonical-cli-package.md
   - tests/test_news_asset_manager_contract.py
+  - tests/test_cli_internals_contract.py
   - tests/test_news_stage_idempotency.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
@@ -33,9 +34,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `fe5ba44`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `1f9495c`. Код и Git имеют приоритет.
 
-- Rescue stages 0–5 и подэтап 6A завершены; этап 6 продолжается с 6B.
+- Rescue stages 0–5 и подэтапы 6A–6B завершены; этап 6 продолжается с 6C.
   Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
@@ -63,6 +64,13 @@ source_paths:
   и patch-points; manifest builder отделён от чистых summary/coverage-расчётов,
   scene completion и provider search/download adapters. Provider contract,
   manifest schema и persisted projects не менялись.
+- Подэтап 6B оставил `src/content_creation/cli.py` тонким compatibility facade
+  и разделил бывший 727-строчный canonical diagnostics handler: catalog,
+  localization/subtitles и authoring выполняются отдельными domain-модулями,
+  а терминальное форматирование вынесено в `src/ai_youtube/cli/presentation.py`.
+  Public command set, JSON/text output и старые module-level patch-points
+  сохранены; потерянный migration-ом `create_content` patch-point восстановлен
+  через явную dependency injection.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -85,8 +93,8 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- оставшиеся CLI/Wizard/service/legacy command handlers, semantic evaluation и
-  cycle frame sampling ↔ perceptual similarity — подэтапы 6B–6G;
+- оставшиеся Wizard/service/legacy command handlers, semantic evaluation и
+  cycle frame sampling ↔ perceptual similarity — подэтапы 6C–6G;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не

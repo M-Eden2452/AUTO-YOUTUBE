@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–5 и подэтап 6A завершены; этап 4.5 сохранён как
+Статус: **выполняется; этапы 0–5 и подэтапы 6A–6B завершены; этап 4.5 сохранён как
 историческая диагностика и снят с critical path; этап 6 продолжается,
-следующий отдельный подэтап — 6B Внутренности CLI**
+следующий отдельный подэтап — 6C Wizard**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -807,7 +807,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 6. Разделение крупных модулей
 
-Статус: [~] выполняется; 6A завершён 2026-07-29, следующий подэтап — 6B
+Статус: [~] выполняется; 6A–6B завершены 2026-07-29, следующий подэтап — 6C
 
 Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
 Не объединять их в одну сессию без записанного исключения из бюджета области.
@@ -838,6 +838,24 @@ selection, download и completion.
 Разделить внутренности `src/content_creation/cli.py` и presentation-слой.
 Внешний dispatcher и compatibility не менять без необходимости: это граница
 этапа 4.
+
+Статус: [x] завершён 2026-07-29; implementation commit `1f9495c`.
+
+Результат:
+
+- `src/content_creation/cli.py` подтверждён как тонкий compatibility facade,
+  поэтому split выполнен в фактическом 727-строчном
+  `src/ai_youtube/cli/commands/diagnostics.py`;
+- catalog, localization/subtitles и authoring handlers вынесены в отдельные
+  domain-модули, а diagnostics оставлен 78-строчным facade;
+- terminal formatting вынесен в `src/ai_youtube/cli/presentation.py`;
+- public command set, JSON/text output, workspace resolution и старые
+  module-level patch-points сохранены; потерянный migration-ом
+  `src.content_creation.cli.create_content` patch-point восстановлен через
+  dependency injection;
+- targeted verification: 79 tests OK, compile/import и safe capabilities smoke
+  OK; full offline suite, сеть, provider download, TTS, Vision и render не
+  запускались.
 
 #### 6C. Wizard
 
@@ -1019,12 +1037,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только 6B Внутренности CLI:
-> characterization-first повторно картировать фактические handlers и
-> presentation после canonical CLI migration. `src/content_creation/cli.py`
-> уже является 75-строчным compatibility wrapper, поэтому не делить его
-> механически и не переоткрывать 6A. Не объединять 6B с 6C–6G, provider
-> consolidation или cleanup.
+> В следующей отдельной сессии начать только 6C Wizard:
+> characterization-first картировать `run_wizard`, state, шаги, presentation,
+> callers и test patch-points в `src/content_creation/wizard.py`. Сохранить
+> `run_wizard`, общий request builder и lazy CLI → Wizard boundary. Не
+> переоткрывать 6A/6B и не объединять 6C с 6D–6G, provider consolidation или
+> cleanup.
 
 Не начинать с:
 
@@ -1048,53 +1066,57 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 6A Asset manager
-Текущий этап: 6 выполняется; 6A завершён
-Следующий этап: 6B Внутренности CLI — не начат
-Исходный HEAD 6A: 161d6f5
-Implementation HEAD 6A: fe5ba44
+Завершённый этап: 6B Внутренности CLI
+Текущий этап: 6 выполняется; 6A–6B завершены
+Следующий этап: 6C Wizard — не начат
+Исходный HEAD 6B: 35183b9
+Implementation HEAD 6B: 1f9495c
 Ветка: master
-Git до работы: clean, HEAD 161d6f5
+Git до работы: clean, HEAD 35183b9
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены public functions, callers, test patch-points и provider contract
-- characterization commit 0515e02 фиксирует пять публичных сигнатур, compatibility imports, empty manifest shape и module-level factory patch-point
-- cba1cf7 вынес чистые manifest summaries и video coverage
-- 20750ab вынес scene completion/assembly и bounded targeted slot search
-- 59b39d3 вынес provider search/download adapters без нового provider contract
-- fe5ba44 оставил asset_manager.py 266-строчным compatibility facade и разделил manifest builder на короткие сценовые методы
-- сохранены старые imports/re-exports, build_news_asset_manifest factory patch, load_dotenv patch и select_best_candidate patch
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены canonical/legacy entrypoints, handlers, callers, CLI tests и patch-points
+- фактической зоной split подтверждён 727-строчный src/ai_youtube/cli/commands/diagnostics.py; src/content_creation/cli.py уже был thin facade
+- tests/test_cli_internals_contract.py фиксирует signatures diagnostics facade, authoring dispatch patch-points и text validation output
+- catalog, localization/subtitles и authoring handlers вынесены в отдельные domain-модули; terminal formatting вынесен в src/ai_youtube/cli/presentation.py
+- diagnostics.py оставлен 78-строчным compatibility facade со старыми private patch-points
+- восстановлен потерянный migration-ом src.content_creation.cli.create_content patch-point через dependency injection
+- public command set, canonical dispatcher, workspace resolution, JSON/text output и lazy CLI → Wizard boundary сохранены
 Изменения production code:
-- src/news/asset_manager.py
-- src/news/asset_manifest_builder.py
-- src/news/asset_manifest_summaries.py
-- src/news/asset_scene_completion.py
-- src/news/asset_provider_adapters.py
-Characterization tests: tests/test_news_asset_manager_contract.py
+- src/ai_youtube/cli/main.py
+- src/ai_youtube/cli/presentation.py
+- src/ai_youtube/cli/commands/create.py
+- src/ai_youtube/cli/commands/diagnostics.py
+- src/ai_youtube/cli/commands/catalog.py
+- src/ai_youtube/cli/commands/localization.py
+- src/ai_youtube/cli/commands/authoring.py
+- src/content_creation/cli.py
+Characterization tests: tests/test_cli_internals_contract.py и существующие Stage 1/4 CLI contracts
 ADR: не нужен; публичный contract и system boundary не изменялись
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
 Targeted checks:
-- pre-change public characterization + asset behavior: OK, 25 tests
-- summaries slice: OK, 25 tests
-- scene completion/assembly radius: OK, 82 tests
-- provider/search/download radius: OK, 125 tests
-- final combined unique dependency radius: OK, 181 tests
-- compileall split modules: OK
-- import smoke facade/builder/provider contract: OK
+- pre-change CLI baseline: 39 OK, 2 errors выявили потерянный legacy create_content patch-point
+- pre-change 6B characterization: OK, 3 tests
+- post-change CLI/parser/dispatcher/config baseline: OK, 44 tests
+- script/visual-plan/localization/subtitles/workspace radius: OK, 35 tests
+- final unique targeted radius: OK, 79 tests
+- compileall/AST parse split CLI modules: OK
+- import smoke canonical/legacy facades и safe capabilities command: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Известные test-fixture несоответствия вне 6A:
+Известные test-fixture несоответствия вне 6B:
 - 3 CompletionModeWiringTests создают completed research/script/visual_plan без обязательных outputs этапа 5 и поэтому ожидают устаревший skip
 - delivery paid-denial fixture при общем прогоне зависает после того же invalid completed-state setup; три соседних delivery tests проходят отдельно
-Найденный root cause 6A:
-- один module одновременно владел manifest orchestration, summaries/coverage, scene completion, provider search/download и compatibility imports; прямой перенос ломал бы module-level patch-points
+Найденные root causes 6B:
+- canonical migration уже сделала src/content_creation/cli.py facade, но оставила catalog, localization/subtitles, authoring orchestration и presentation в одном 727-строчном diagnostics module
+- migration перестала прокидывать legacy module-level create_content patch-point, из-за чего два Stage 1 characterization tests падали
 Что нельзя повторять:
-- не переносить/переименовывать asset_manager facade без отдельного compatibility checkpoint
-- не удалять legacy provider classes/re-exports до этапа 7/9
-- не трогать NewsProjectStore.validate_stage_output в рамках 6B
+- не добавлять новые handlers в diagnostics facade; использовать соответствующий domain module
+- не удалять legacy CLI/private patch-points без отдельного compatibility checkpoint
+- не смешивать 6C Wizard с 6D service или другими подэтапами
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только characterization 6B по фактическим CLI handlers; src/content_creation/cli.py уже 75-строчный wrapper.
+После проверки Git начать только characterization 6C по run_wizard/state/steps/presentation и сохранить общий request builder.
 ```
 
 ---

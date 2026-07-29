@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fe5ba44
+last_verified_commit: 1f9495c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,9 +18,9 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `fe5ba44`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `1f9495c`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. Подэтап 6A выполнил только bounded split production code; runtime и
+этапа 4.6. Подэтапы 6A–6B выполнили только bounded split production code; runtime и
 user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
@@ -39,7 +39,7 @@ user data не перемещались и не удалялись.
 | K07 | `src/subtitles/` | `keep` | единственный engine, news использует adapter | не создавать второй subtitle engine | всегда |
 | K08 | `apps/*` wrappers | `keep` | `test_apps_structure`; внешние `python -m apps.*` entrypoints | compatibility до отдельного retirement evidence | 8–9 |
 | S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
-| S02 | CLI internals после canonical migration | `split` | `src/content_creation/cli.py` теперь 75-строчный compatibility wrapper; remaining handlers/presentation нужно повторно картировать в `src/ai_youtube/cli` и `src/content_creation/commands` | не делить wrapper вслепую; сначала characterization фактических handlers и public command contract | 6B |
+| S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
 | S03 | `src/content_creation/wizard.py` | `split` | 1229 строк; adapters, state, steps и presentation | сохранить `run_wizard` и request builder | 6C |
 | S04 | `src/content_creation/service.py` | `split` | 878 строк; два workflow и paid preflight в одном module | use cases внутри одного application service | 6D |
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
@@ -182,11 +182,27 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Manifest schema, persisted projects, runtime/user media и
   `NewsProjectStore.validate_stage_output()` не менялись.
 
+### Завершённый structural slice: 6B Внутренности CLI
+
+- `tests/test_cli_internals_contract.py` зафиксировал signatures diagnostics
+  facade, authoring patch-points и text validation output.
+- `src/ai_youtube/cli/commands/diagnostics.py` уменьшен с 727 до 78 строк и
+  оставлен compatibility facade.
+- Catalog, localization/subtitles и script/visual-plan/run-stage handlers
+  вынесены в отдельные domain-модули; terminal formatting вынесен в
+  `src/ai_youtube/cli/presentation.py` (`1f9495c`).
+- Public command set, JSON/text output, workspace resolution и legacy
+  `create_content` patch-point сохранены.
+- Targeted verification: 79 tests OK, compile/import smoke и safe capabilities
+  smoke OK. Full offline suite, сеть, provider download, TTS, Vision и render
+  не запускались.
+- Schemas, persisted projects, runtime/user media и application service не
+  менялись.
+
 ### Последующая очередь
 
-1. **6B–6G:** выполнять registry entries S02–S07 по одному подэтапу в порядке
-   master plan; перед 6B повторно картировать фактические CLI handlers, потому
-   что `src/content_creation/cli.py` уже стал compatibility wrapper.
+1. **6C–6G:** выполнять registry entries S03–S07 по одному подэтапу в порядке
+   master plan; следующий отдельный подэтап — 6C Wizard.
 2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
 3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
 4. **9:** удалять только entries со статусом `delete` и актуальным evidence.

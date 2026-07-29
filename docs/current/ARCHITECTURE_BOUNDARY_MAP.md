@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: fe5ba44
+last_verified_commit: 1f9495c
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,25 +16,26 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `fe5ba44`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `1f9495c`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure и подэтапа 6A; это не разрешение на массовое перемещение файлов.
+stage 5 closure и подэтапов 6A–6B; это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 262 production-файла в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 254 production Python-файла: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 220;
-- 101 модуль `tests/test_*.py`;
+- 266 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 258 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 224;
+- 102 модуля `tests/test_*.py`;
 - крупнейшие модули: `src/assets/semantic_visual_evaluation.py` — 1719 строк,
   `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/content_creation/wizard.py` — 1229,
   `src/content_creation/service.py` — 878, `pipeline.py` — 703.
   Compatibility facade `src/news/asset_manager.py` — 266 строк;
-  `src/content_creation/cli.py` — 75 строк после structural migration.
+  canonical diagnostics facade — 78 строк, `src/content_creation/cli.py` —
+  81 строка после восстановления compatibility patch-point.
 
 Основные области внутри `src/`:
 
@@ -56,8 +57,8 @@ stage 5 closure и подэтапа 6A; это не разрешение на м
 
 | Entrypoint | Статус | Dispatch |
 |---|---|---|
-| `ai-youtube`, `python -m ai_youtube` | канонический | `ai_youtube.cli.main` → `src.content_creation.cli` |
-| `python -m src.content_creation.cli` | compatibility | тот же parser/service active app |
+| `ai-youtube`, `python -m ai_youtube` | канонический | `src.ai_youtube.cli.main` → domain command handlers |
+| `python -m src.content_creation.cli` | compatibility | тот же parser/handlers active app с legacy patch-points |
 | `pipeline.py` | legacy/maintenance compatibility | старые documentary/media/diagnostic команды и `news_to_short` |
 | `python -m apps.news_to_short` | compatibility | прямой adapter к `src.news.pipeline` |
 | `python -m apps.youtube_pipeline` | compatibility | тонкий вызов root `pipeline.py` |
@@ -71,7 +72,10 @@ stage 5 closure и подэтапа 6A; это не разрешение на м
 
 ```text
 ai_youtube CLI
-  -> src.content_creation.cli
+  -> src.ai_youtube.cli.main
+     -> create / project / assets / diagnostics facade
+        -> catalog / localization / authoring handlers
+        -> terminal presentation
      -> src.content_creation.service
         -> fullscreen_voiceover_v1
            -> src.news.pipeline
@@ -82,6 +86,7 @@ ai_youtube CLI
               -> project.json + evidence + story-card renderer
 
 compatibility
+  -> src.content_creation.cli
   -> pipeline.py
   -> apps/*
 
@@ -102,7 +107,7 @@ planned adapter
 
 | Boundary | Production callers / dependencies | Защитные тесты | Решение |
 |---|---|---|---|
-| `src.content_creation.cli` | canonical wrapper; вызывает service, lazy Wizard, projects и domain command modules | `test_content_creation_cli`, `test_stage1_characterization`, `test_stage3_workspace_paths`, `test_stage4_canonical_cli`, script/visual/assets/subtitle wiring | сохранить внешний contract, внутренности разделять в 6B |
+| `src.ai_youtube.cli` + `src.content_creation.cli` | canonical dispatcher/domain handlers и legacy facade; вызывают service, lazy Wizard, projects и shared presentation | `test_cli_internals_contract`, `test_content_creation_cli`, `test_stage1_characterization`, `test_stage3_workspace_paths`, `test_stage4_canonical_cli`, script/visual/assets/subtitle wiring | 6B завершён: command/output contract и patch-points сохранены, handlers/presentation разделены |
 | `src.content_creation.wizard` | вызывается CLI; использует service, capabilities и `ProjectRepository` | `test_content_creation_wizard`, `test_project_naming_and_resume`, localization integration | разделять state/steps/presentation в 6C |
 | `src.content_creation.service` | вызывается CLI и Wizard; маршрутизирует оба active workflow | `test_content_creation_service`, Wizard/resume и Stage 4 tests | разделять use cases в 6D, не создавать второй service |
 | `src.news.pipeline` | service, `apps.news_to_short`, root pipeline; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить fullscreen workflow boundary |

@@ -1,9 +1,10 @@
 ---
 status: current
-last_verified_commit: fe5ba44
+last_verified_commit: 1f9495c
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
+  - src/ai_youtube/cli
   - pipeline.py
   - src/config_resolver/paths.py
   - src/content_creation
@@ -25,6 +26,7 @@ source_paths:
   - docs/current/CLEANUP_REGISTRY.md
   - docs/adr/0006-news-stage-idempotency.md
   - tests/test_news_asset_manager_contract.py
+  - tests/test_cli_internals_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -36,7 +38,7 @@ source_paths:
 | Область | Текущий авторитет | Роль |
 |---|---|---|
 | Пути и workspace | `src/config_resolver/paths.py` | единый resolver versioned resources, runtime roots и legacy fallback |
-| Канонический CLI | `ai_youtube/`, `src/content_creation/commands/` | dispatcher активного приложения и domain parser modules |
+| Канонический CLI | `ai_youtube/`, `src/ai_youtube/cli/`, `src/content_creation/commands/` | dispatcher, domain handlers, parser modules и terminal presentation |
 | Создание контента | `src/content_creation/` | compatibility CLI, wizard и application service |
 | Fullscreen workflow | `src/news/` | staged `news_to_short`, resume и render |
 | Story Card | `src/templates/story_card/`, `src/production_plan/` | workflow adapter и renderer |
@@ -69,8 +71,8 @@ video_repurposer
 - default workspace остаётся корнем репозитория до отдельной физической миграции;
 - произвольный workspace выбирается через CLI/env/path config, а versioned resources
   остаются привязаны к репозиторию;
-- definitions CLI-команд разделены по domain-модулям; глубокое разделение крупных
-  command handlers остаётся этапом 6 rescue plan.
+- definitions и handlers CLI-команд разделены по domain-модулям; text/terminal
+  rendering вынесен в общий presentation module, а старый CLI остаётся facade.
 
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
@@ -90,4 +92,7 @@ subtitles. `input` и потенциально сетевой `article_ingestion
 `src/news/asset_manager.py` на compatibility facade, manifest builder, чистые
 summary/coverage-расчёты, scene completion и provider search/download adapters.
 Существующий `src.assets.provider_contract` и старые import/patch points сохранены.
-Следующий отдельный подэтап — 6B.
+Подэтап 6B разделил canonical CLI internals на catalog,
+localization/subtitles и authoring handlers, оставил 78-строчный diagnostics
+facade и вынес terminal formatting в `src/ai_youtube/cli/presentation.py`.
+Следующий отдельный подэтап — 6C.
