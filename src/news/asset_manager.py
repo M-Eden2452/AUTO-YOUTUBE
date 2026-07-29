@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import hashlib
-import os
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from dotenv import load_dotenv
 from PIL import Image
@@ -32,7 +30,6 @@ from src.assets.semantic_selection.decision import (
     VERDICT_COMPLETE,
     VERDICT_UNVERIFIED,
     SelectionDecision,
-    carry_decision,
     framing_decision,
     read_decision,
     scene_resolution_status,
@@ -40,7 +37,7 @@ from src.assets.semantic_selection.decision import (
 from src.assets.download import sha256_file, validate_local_asset
 from src.assets.license_policy import apply_policy_to_candidate
 from src.assets.models import ASSET_SCHEMA_VERSION, AssetCandidate, AssetLicense, AssetProvenance
-from src.assets.provider_contract import AssetSearchRequest, DownloadContext, LicenseReviewRequired, ProviderError
+from src.assets.provider_contract import ProviderError
 from src.assets.review_bundle import (
     attach_selected_asset,
     create_scene_review_bundle,
@@ -49,10 +46,8 @@ from src.assets.review_bundle import (
 )
 from src.assets.semantic_visual_service import analyse_semantic_visual_for_project, load_semantic_visual_config
 from src.assets.visual_preview import VisualPreviewRequest, load_visual_preview_config, prepare_candidate_preview_analyses
-from src.media_library import load_media_index, register_asset, search_local_assets
-from src.providers import InternetArchiveStockProvider, NasaImageLibraryStockProvider, PexelsStockProvider, PixabayStockProvider, WikimediaCommonsStockProvider
+from src.media_library import load_media_index, search_local_assets
 from src.providers.envato_manual_provider import EnvatoManualProvider
-from src.providers import pexels_provider, pixabay_provider, unsplash_provider
 from .asset_manifest_summaries import (
     DEFAULT_MIN_VIDEO_CLIPS,
     DEFAULT_MIN_VIDEO_DURATION_RATIO,
@@ -72,14 +67,28 @@ from .asset_scene_completion import (
     has_local_file as _has_local_file,
     targeted_slot_search,
 )
+from .asset_provider_adapters import (
+    AssetProvider,
+    PexelsAssetProvider,
+    PixabayAssetProvider,
+    UnsplashAssetProvider,
+    candidate_to_rankable as _candidate_to_rankable,
+    create_default_asset_providers as _create_default_asset_providers,
+    ensure_selected_asset_downloaded as _ensure_selected_asset_downloaded,
+    environment_enabled as _env_enabled,
+    provider_capabilities as _provider_capabilities,
+    public_candidate as _public_candidate,
+    quality_score as _quality_score,
+    rank_provider_results as _rank_provider_results,
+    rights_block_attempts as _rights_block_attempts,
+    scene_media_type as _scene_media_type,
+    search_provider as _search_provider,
+    stable_asset_id as _stable_asset_id,
+    supports_stock_contract as _supports_stock_contract,
+    vertical_score as _vertical_score,
+    with_policy_decision as _with_policy_decision,
+)
 from .models import ALLOWED_RENDER_RIGHTS, RIGHTS_REFERENCE_ONLY, RIGHTS_USER_OWNED
-
-
-class AssetProvider(Protocol):
-    name: str
-
-    def search(self, query: str, scene: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
-        ...
 
 
 def build_assets_manifest(
@@ -702,23 +711,7 @@ def _select_best_candidate(
 
 
 def create_default_asset_providers() -> list[AssetProvider]:
-    # The legacy stock-video entry point already loads the project .env, but the
-    # news-to-short resume path reaches this factory directly. Load the same existing
-    # configuration here so a forced asset_search does not silently omit Pexels and
-    # Pixabay while leaving their configured keys untouched.
-    load_dotenv()
-    providers: list[AssetProvider] = []
-    if _env_enabled("WIKIMEDIA_ENABLED", default=True):
-        providers.append(WikimediaCommonsStockProvider())
-    if _env_enabled("NASA_IMAGES_ENABLED", default=True):
-        providers.append(NasaImageLibraryStockProvider())
-    if _env_enabled("INTERNET_ARCHIVE_ENABLED", default=True):
-        providers.append(InternetArchiveStockProvider())
-    if os.getenv("PEXELS_API_KEY"):
-        providers.append(PexelsStockProvider(os.getenv("PEXELS_API_KEY", "")))
-    if os.getenv("PIXABAY_API_KEY"):
-        providers.append(PixabayStockProvider(os.getenv("PIXABAY_API_KEY", "")))
-    return providers
+    return _create_default_asset_providers(load_environment=load_dotenv)
 
 
 def _emergency_backdrop(
@@ -859,134 +852,6 @@ def _merge_selection_config(base: dict[str, Any], override: dict[str, Any]) -> d
         else:
             merged[key] = value
     return merged
-
-
-def _env_enabled(name: str, *, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return str(value).strip().lower() not in {"0", "false", "no", "off", "disabled"}
-
-
-class PexelsAssetProvider:
-    name = "pexels"
-
-    def __init__(self, api_key: str) -> None:
-        self.api_key = api_key
-
-    def search(self, query: str, scene: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
-        if scene.get("visual_type") in {"image", "animated_image"}:
-            photos = pexels_provider.search_images(self.api_key, query, per_page=limit)
-            return [
-                {
-                    "asset_id": f"pexels_photo_{photo.get('id')}",
-                    "provider": self.name,
-                    "type": "image",
-                    "source_url": photo.get("url", ""),
-                    "source_page": photo.get("url", ""),
-                    "author": photo.get("photographer", ""),
-                    "license": "pexels",
-                    "rights_status": "licensed",
-                    "width": photo.get("width", 0),
-                    "height": photo.get("height", 0),
-                    "duration": 0,
-                    "relevance_score": 6,
-                }
-                for photo in photos
-            ]
-        videos = pexels_provider.search_videos(self.api_key, query, per_page=limit)
-        return [
-            {
-                "asset_id": f"pexels_video_{video.get('id')}",
-                "provider": self.name,
-                "type": "video",
-                "source_url": video.get("url", ""),
-                "source_page": video.get("url", ""),
-                "author": video.get("user", {}).get("name", ""),
-                "license": "pexels",
-                "rights_status": "licensed",
-                "width": video.get("width", 0),
-                "height": video.get("height", 0),
-                "duration": video.get("duration", 0),
-                "relevance_score": 6,
-            }
-            for video in videos
-        ]
-
-
-class PixabayAssetProvider:
-    name = "pixabay"
-
-    def __init__(self, api_key: str) -> None:
-        self.api_key = api_key
-
-    def search(self, query: str, scene: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
-        if scene.get("visual_type") in {"image", "animated_image"}:
-            hits = pixabay_provider.search_images(self.api_key, query, per_page=limit)
-            return [
-                {
-                    "asset_id": f"pixabay_image_{hit.get('id')}",
-                    "provider": self.name,
-                    "type": "image",
-                    "source_url": hit.get("pageURL", ""),
-                    "source_page": hit.get("pageURL", ""),
-                    "author": hit.get("user", ""),
-                    "license": "pixabay",
-                    "rights_status": "licensed",
-                    "width": hit.get("imageWidth", 0),
-                    "height": hit.get("imageHeight", 0),
-                    "duration": 0,
-                    "relevance_score": 5,
-                }
-                for hit in hits
-            ]
-        hits = pixabay_provider.search_videos(self.api_key, query, per_page=limit)
-        return [
-            {
-                "asset_id": f"pixabay_video_{hit.get('id')}",
-                "provider": self.name,
-                "type": "video",
-                "source_url": hit.get("pageURL", ""),
-                "source_page": hit.get("pageURL", ""),
-                "author": hit.get("user", ""),
-                "license": "pixabay",
-                "rights_status": "licensed",
-                "width": hit.get("videos", {}).get("large", {}).get("width", 0),
-                "height": hit.get("videos", {}).get("large", {}).get("height", 0),
-                "duration": hit.get("duration", 0),
-                "relevance_score": 5,
-            }
-            for hit in hits
-        ]
-
-
-class UnsplashAssetProvider:
-    name = "unsplash"
-
-    def __init__(self, access_key: str) -> None:
-        self.access_key = access_key
-
-    def search(self, query: str, scene: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
-        if scene.get("visual_type") not in {"image", "animated_image"}:
-            return []
-        hits = unsplash_provider.search_images(self.access_key, query, per_page=limit)
-        return [
-            {
-                "asset_id": f"unsplash_image_{hit.get('id')}",
-                "provider": self.name,
-                "type": "image",
-                "source_url": hit.get("links", {}).get("html", ""),
-                "source_page": hit.get("links", {}).get("html", ""),
-                "author": hit.get("user", {}).get("name", ""),
-                "license": "unsplash",
-                "rights_status": "licensed",
-                "width": hit.get("width", 0),
-                "height": hit.get("height", 0),
-                "duration": 0,
-                "relevance_score": 5,
-            }
-            for hit in hits
-        ]
 
 
 def _inspect_user_asset(path: Any, index: int) -> dict[str, Any]:
@@ -1159,325 +1024,11 @@ def _rank_local_assets(
     return ranked
 
 
-def _provider_capabilities(providers_by_name: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Capabilities as the router and the query adapter need them.
-
-    A provider that does not implement ``capabilities()`` (the older, simpler search
-    protocol) contributes nothing rather than a guess, so routing falls back to the
-    table in ``src.assets.query_adapter``.
-    """
-    result: dict[str, dict[str, Any]] = {}
-    for name, provider in providers_by_name.items():
-        getter = getattr(provider, "capabilities", None)
-        if not callable(getter):
-            continue
-        try:
-            result[name] = getter().to_dict()
-        except Exception:
-            continue
-    return result
-
-
-def _search_provider(
-    provider: AssetProvider,
-    query: str,
-    scene: dict[str, Any],
-    semantic_scene: dict[str, Any],
-    *,
-    project_id: str,
-    limit: int,
-) -> list[dict[str, Any]]:
-    if _supports_stock_contract(provider):
-        preferred = _scene_media_type(scene)
-        media_types = [preferred]
-        allowed = {str(item) for item in (scene.get("allowed_media_kinds") or [])}
-        try:
-            supported = {str(item) for item in provider.capabilities().media_types}  # type: ignore[attr-defined]
-        except Exception:
-            supported = {preferred}
-        # The ordinary template is video-first, not video-only. A provider such as
-        # Wikimedia often has no clip for a rare animal but does have a properly
-        # licensed high-resolution photograph. Keep it in the same candidate pool so
-        # the existing ladder can choose it after suitable video.
-        if preferred == "video" and "image" in allowed and "image" in supported:
-            media_types.append("image")
-
-        results: list[dict[str, Any]] = []
-        for media_type in media_types:
-            request = AssetSearchRequest(
-                query=query,
-                media_type=media_type,
-                target_aspect_ratio="9:16",
-                orientation_preference="vertical",
-                min_width=720,
-                # A 1920x1080 landscape clip is a valid high-definition source for a
-                # 9:16 crop. Requiring 1280 pixels specifically on the height axis
-                # discarded exact footage before crop suitability was evaluated.
-                min_height=1080 if media_type == "video" else 1280 if media_type == "image" else 0,
-                max_results=limit,
-                scene_id=str(scene.get("scene_id") or ""),
-                project_id=project_id,
-                semantic_scene=semantic_scene,
-                negative_terms=list(semantic_scene.get("must_not_include") or scene.get("negative_keywords") or []),
-            )
-            results.extend(
-                _candidate_to_rankable(candidate)
-                for candidate in provider.search(request)  # type: ignore[arg-type]
-            )
-        return results
-    try:
-        return provider.search(query, scene, limit=limit)
-    except TypeError:
-        return provider.search(query, scene)
-
-
-def _candidate_to_rankable(candidate: AssetCandidate) -> dict[str, Any]:
-    apply_policy_to_candidate(candidate)
-    data = candidate.to_manifest_dict()
-    data["canonical_asset"] = candidate.to_dict()
-    data["keywords"] = data.get("tags", [])
-    data["quality_score"] = _quality_score(candidate.width, candidate.height)
-    data["vertical_score"] = _vertical_score(candidate.width, candidate.height)
-    data["rights_score"] = 1.0 if candidate.license.allowed_for_render and not candidate.license.review_required else 0.0
-    data["allowed_for_render"] = candidate.license.allowed_for_render and not candidate.license.review_required
-    data["review_required"] = candidate.license.review_required
-    return data
-
-
-def _with_policy_decision(candidate: dict[str, Any]) -> dict[str, Any]:
-    stored_canonical = candidate.get("canonical_asset")
-    canonical_data = stored_canonical if isinstance(stored_canonical, dict) and stored_canonical else candidate
-    canonical = AssetCandidate.from_dict(canonical_data)
-    if not canonical.provider_asset_id:
-        canonical.provider_asset_id = str(candidate.get("provider_asset_id") or candidate.get("asset_id") or canonical.asset_id)
-    if not canonical.source_page_url:
-        canonical.source_page_url = str(candidate.get("source_page_url") or candidate.get("source_page") or candidate.get("source_url") or "")
-    if not canonical.local_path:
-        canonical.local_path = str(candidate.get("local_path") or candidate.get("path") or candidate.get("downloaded_path") or "")
-    if isinstance(candidate.get("rights_declaration"), dict):
-        canonical.rights_declaration = dict(candidate["rights_declaration"])
-    decision = apply_policy_to_candidate(canonical)
-    updated = {**candidate, **canonical.to_manifest_dict()}
-    updated["canonical_asset"] = canonical.to_dict()
-    updated["policy_decision"] = decision.to_dict()
-    updated["allowed_for_render"] = decision.allowed_for_render
-    updated["review_required"] = decision.review_required
-    updated["rights_score"] = 1.0 if decision.allowed_for_render and not decision.review_required else 0.0
-    return updated
-
-
-def _ensure_selected_asset_downloaded(
-    *,
-    selected: dict[str, Any],
-    ranked_candidates: list[dict[str, Any]],
-    providers_by_name: dict[str, AssetProvider],
-    project_root: Path | None,
-    project_id: str,
-    scene_id: str,
-    media_index: dict[str, Any],
-    max_attempts: int,
-) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
-    ordered: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for candidate in [selected, *ranked_candidates]:
-        asset_id = str(candidate.get("asset_id") or "")
-        rights_rejection = "rights_not_allowed" in str(candidate.get("reject_reason") or "")
-        if not asset_id or asset_id in seen or (candidate.get("rejected") and not rights_rejection):
-            continue
-        seen.add(asset_id)
-        ordered.append(candidate)
-    attempts: list[dict[str, Any]] = []
-    for raw_candidate in ordered[: max(1, max_attempts)]:
-        candidate = _with_policy_decision(raw_candidate)
-        if candidate.get("review_required") or not candidate.get("allowed_for_render", True):
-            policy_decision = candidate.get("policy_decision") if isinstance(candidate.get("policy_decision"), dict) else {}
-            attempts.append(
-                {
-                    "asset_id": candidate.get("asset_id", ""),
-                    "provider": candidate.get("provider", ""),
-                    "scene_id": scene_id,
-                    "search_query": candidate.get("search_query", ""),
-                    "download_status": "blocked",
-                    "reason": "license_review_required",
-                    "policy_decision": policy_decision,
-                    "error": f"Asset rights are not allowed for render: {policy_decision.get('reason', 'policy_blocked')}.",
-                }
-            )
-            continue
-        existing_path = candidate.get("path") or candidate.get("local_path") or candidate.get("downloaded_path")
-        if existing_path:
-            candidate["path"] = str(existing_path)
-            candidate["local_path"] = str(existing_path)
-            candidate["downloaded_path"] = str(existing_path)
-            candidate.setdefault("download_status", "local")
-            return _public_candidate(candidate), attempts
-        if not project_root:
-            return _public_candidate(candidate), attempts
-        canonical_data = candidate.get("canonical_asset") if isinstance(candidate.get("canonical_asset"), dict) else candidate
-        canonical = AssetCandidate.from_dict(canonical_data)
-        canonical.project_id = canonical.project_id or project_id
-        canonical.scene_id = canonical.scene_id or scene_id
-        canonical.provenance.project_id = canonical.project_id
-        canonical.provenance.scene_id = canonical.scene_id
-        canonical.provenance.search_query = canonical.provenance.search_query or canonical.search_query
-        provider = providers_by_name.get(canonical.provider)
-        attempt = {
-            "asset_id": canonical.asset_id,
-            "provider": canonical.provider,
-            "scene_id": scene_id,
-            "search_query": canonical.search_query,
-            "download_status": "started",
-        }
-        if not provider or not _supports_stock_contract(provider):
-            attempt.update({"download_status": "skipped", "reason": "provider_has_no_download_contract"})
-            attempts.append(attempt)
-            continue
-        try:
-            license_data = provider.resolve_license(canonical)  # type: ignore[attr-defined]
-            canonical.license = license_data
-            if license_data.review_required or not license_data.allowed_for_render:
-                raise LicenseReviewRequired("license review required", provider=canonical.provider, query=canonical.search_query)
-            downloaded = provider.download(  # type: ignore[attr-defined]
-                canonical,
-                project_root / "assets" / "downloaded",
-                DownloadContext(project_id=project_id, scene_id=scene_id, search_query=canonical.search_query),
-            )
-            manifest = downloaded.to_manifest_dict()
-            manifest.update(
-                {
-                    "selected_by": candidate.get("selected_by", "provider"),
-                    "scene_match_score": candidate.get("scene_match_score", candidate.get("final_score", 0)),
-                    "final_score": candidate.get("final_score", candidate.get("total_score", 0)),
-                    "download_status": "downloaded",
-                }
-            )
-            # ``to_manifest_dict`` describes the file, not the choice. Without this the
-            # whole reasoning - slots, support status, crop verdict - was dropped here,
-            # and the review board had to look it back up in ``ranked_candidates``.
-            carry_decision(candidate, manifest)
-            register_asset(media_index, manifest)
-            attempt.update(
-                {
-                    "download_status": "downloaded",
-                    "local_path": manifest.get("path", ""),
-                    "checksum_sha256": manifest.get("checksum_sha256", ""),
-                    "technical_validation": manifest.get("technical_validation", {}),
-                }
-            )
-            attempts.append(attempt)
-            return _public_candidate(manifest), attempts
-        except LicenseReviewRequired as exc:
-            attempt.update({"download_status": "blocked", "reason": exc.code, "error": str(exc)})
-            attempts.append(attempt)
-            continue
-        except ProviderError as exc:
-            attempt.update({"download_status": "failed", "reason": exc.code, "error": str(exc), "retryable": exc.retryable})
-            attempts.append(attempt)
-            continue
-    return None, attempts
-
-
-def _supports_stock_contract(provider: Any) -> bool:
-    return all(hasattr(provider, name) for name in ("capabilities", "resolve_license", "download", "health_check"))
-
-
-def _scene_media_type(scene: dict[str, Any]) -> str:
-    return "image" if scene.get("visual_type") in {"image", "animated_image"} else "video"
-
-
-def _public_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
-    public = {key: value for key, value in candidate.items() if not key.startswith("_")}
-    return public
-
-
-def _rank_provider_results(results: list[dict[str, Any]], scene: dict[str, Any], query: str = "", fallback_level: int = 1) -> list[dict[str, Any]]:
-    ranked = []
-    for raw in results:
-        rights_status = raw.get("rights_status") or RIGHTS_REFERENCE_ONLY
-        allowed = rights_status in ALLOWED_RENDER_RIGHTS
-        width = int(raw.get("width") or 0)
-        height = int(raw.get("height") or 0)
-        ranked_item = {
-            "schema_version": int(raw.get("schema_version") or ASSET_SCHEMA_VERSION),
-            "asset_id": raw.get("asset_id") or raw.get("id") or _stable_asset_id(raw),
-            "provider": raw.get("provider", ""),
-            "provider_asset_id": raw.get("provider_asset_id", ""),
-            "type": raw.get("type") or raw.get("media_type") or scene.get("visual_type", ""),
-            "media_type": raw.get("media_type") or raw.get("type") or scene.get("visual_type", ""),
-            "title": raw.get("title", ""),
-            "description": raw.get("description", ""),
-            "keywords": raw.get("keywords", []),
-            "tags": raw.get("tags", []),
-            "vision_tags": raw.get("vision_tags", []),
-            "source_url": raw.get("source_url") or raw.get("source_page_url", ""),
-            "source_page": raw.get("source_page") or raw.get("source_page_url", ""),
-            "source_page_url": raw.get("source_page_url") or raw.get("source_page") or raw.get("source_url", ""),
-            "preview_url": raw.get("preview_url", ""),
-            "download_url": raw.get("download_url", ""),
-            "author": raw.get("author") or raw.get("author_name", ""),
-            "author_name": raw.get("author_name") or raw.get("author", ""),
-            "license": raw.get("license", "unknown"),
-            "license_name": raw.get("license_name", ""),
-            "provenance": raw.get("provenance", {}),
-            "canonical_asset": raw.get("canonical_asset", {}),
-            "technical_validation": raw.get("technical_validation", {}),
-            "checksum_sha256": raw.get("checksum_sha256", ""),
-            "policy_decision": raw.get("policy_decision", {}),
-            "rights_status": rights_status,
-            "allowed_for_render": allowed,
-            "review_required": raw.get("review_required", False),
-            "width": width,
-            "height": height,
-            "duration": float(raw.get("duration") or raw.get("duration_sec") or 0),
-            "duration_sec": float(raw.get("duration_sec") or raw.get("duration") or 0),
-            "relevance_score": float(raw.get("relevance_score", 0.5)),
-            "quality_score": _quality_score(width, height),
-            "vertical_score": _vertical_score(width, height),
-            "rights_score": 1.0 if allowed else 0.0,
-            "duplicate_penalty": 0,
-            "watermark_penalty": float(raw.get("watermark_penalty", 0)),
-            "total_score": float(raw.get("relevance_score", 0.5)) + _quality_score(width, height) + _vertical_score(width, height),
-            "selected_by": "provider",
-            "search_query": query or raw.get("search_query", scene.get("primary_query", "")),
-            "fallback_level": fallback_level,
-            "crop_suitability_score": raw.get("crop_suitability_score", raw.get("vertical_score", 0)),
-        }
-        ranked.append(_with_policy_decision(ranked_item))
-    return ranked
-
-
 def _query_not_allowed_for_scene(semantic_scene: Any, query: dict[str, str | int]) -> bool:
     level = int(query.get("fallback_level") or 1)
     if semantic_scene.visual_priority in {"transition", "environment"}:
         return False
     return level >= 4
-
-
-def _rights_block_attempts(candidates: list[dict[str, Any]], scene_id: str) -> list[dict[str, Any]]:
-    """Record, without downloading, that a candidate's rights blocked it.
-
-    Same shape ``_ensure_selected_asset_downloaded`` writes, so the manifest reads the
-    same whether the block was found while selecting or while fetching.
-    """
-    attempts: list[dict[str, Any]] = []
-    for raw_candidate in candidates[:3]:
-        candidate = _with_policy_decision(raw_candidate)
-        if not (candidate.get("review_required") or not candidate.get("allowed_for_render", True)):
-            continue
-        policy_decision = candidate.get("policy_decision") if isinstance(candidate.get("policy_decision"), dict) else {}
-        attempts.append(
-            {
-                "asset_id": candidate.get("asset_id", ""),
-                "provider": candidate.get("provider", ""),
-                "scene_id": scene_id,
-                "search_query": candidate.get("search_query", ""),
-                "download_status": "blocked",
-                "reason": "license_review_required",
-                "policy_decision": policy_decision,
-                "error": f"Asset rights are not allowed for render: {policy_decision.get('reason', 'policy_blocked')}.",
-            }
-        )
-    return attempts
 
 
 def _missing_reason(dry_run: bool, candidates: list[dict[str, Any]], download_attempts: list[dict[str, Any]] | None = None) -> str:
@@ -1500,29 +1051,6 @@ def _media_type(path: Path) -> str:
     if suffix in VIDEO_EXTENSIONS:
         return "video"
     return "unknown"
-
-
-def _quality_score(width: int, height: int) -> float:
-    pixels = width * height
-    if pixels >= 1920 * 1080:
-        return 10.0
-    if pixels >= 1280 * 720:
-        return 7.0
-    if pixels:
-        return 3.0
-    return 1.0
-
-
-def _vertical_score(width: int, height: int) -> float:
-    if not width or not height:
-        return 0.0
-    ratio = width / height
-    return max(0.0, 10.0 - abs(ratio - (9 / 16)) * 10)
-
-
-def _stable_asset_id(asset: dict[str, Any]) -> str:
-    raw = "|".join(str(asset.get(key, "")) for key in ("provider", "source_url", "local_path", "path", "id"))
-    return "asset_" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 
 def _warnings(dry_run: bool, provider_errors: list[dict[str, str]], missing_scenes: list[dict[str, Any]]) -> list[str]:
