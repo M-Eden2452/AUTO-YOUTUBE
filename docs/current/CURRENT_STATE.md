@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b9f8212
+last_verified_commit: 8e087c7
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -13,6 +13,10 @@ source_paths:
   - src/content_creation/wizard_state.py
   - src/content_creation/wizard_steps.py
   - src/content_creation/wizard_presentation.py
+  - src/content_creation/service.py
+  - src/content_creation/service_support.py
+  - src/content_creation/story_card_use_case.py
+  - src/content_creation/fullscreen_voiceover_use_case.py
   - src/news/models.py
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -31,6 +35,7 @@ source_paths:
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
+  - tests/test_content_creation_service_internals_contract.py
   - tests/test_news_stage_idempotency.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
@@ -39,9 +44,9 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `b9f8212`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `8e087c7`. Код и Git имеют приоритет.
 
-- Rescue stages 0–5 и подэтапы 6A–6C завершены; этап 6 продолжается с 6D.
+- Rescue stages 0–5 и подэтапы 6A–6D завершены; этап 6 продолжается с 6E.
   Физическая перестройка канонической структуры начата.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
@@ -83,6 +88,13 @@ source_paths:
   в `wizard_presentation.py`, интерактивные шаги и execution orchestration —
   в `wizard_steps.py`. Lazy CLI → Wizard boundary и application service не
   менялись.
+- Подэтап 6D уменьшил `src/content_creation/service.py` с 878 до 123 строк и
+  сохранил его единой точкой входа `create_content` для CLI и Wizard. Общие
+  progress/path helpers вынесены в `service_support.py`, Story Card и Fullscreen
+  Voiceover — в отдельные use case-модули. Fullscreen orchestration разделён на
+  явные project, safe-pipeline, voice/approval, draft и render/export фазы;
+  longest method — 93 строки. Paid approval/preflight, resume/force-stage,
+  tolerant existing narration и progress callback сохранены.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -105,8 +117,8 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- оставшиеся service/legacy command handlers, semantic evaluation и cycle
-  frame sampling ↔ perceptual similarity — подэтапы 6D–6G;
+- semantic evaluation, legacy command handlers и cycle frame sampling ↔
+  perceptual similarity — оставшиеся подэтапы 6E–6G;
 - provider consolidation и вертикальные переносы приложений ещё не начаты;
 - compatibility wrappers, duplicate implementations, generated/runtime clutter
   и deletion candidates классифицированы, но implementation/cleanup ещё не

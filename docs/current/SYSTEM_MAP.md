@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b9f8212
+last_verified_commit: 8e087c7
 last_verified_date: 2026-07-29
 source_paths:
   - ai_youtube
@@ -12,6 +12,10 @@ source_paths:
   - src/content_creation/wizard_state.py
   - src/content_creation/wizard_steps.py
   - src/content_creation/wizard_presentation.py
+  - src/content_creation/service.py
+  - src/content_creation/service_support.py
+  - src/content_creation/story_card_use_case.py
+  - src/content_creation/fullscreen_voiceover_use_case.py
   - src/news
   - src/news/asset_manager.py
   - src/news/asset_manifest_builder.py
@@ -32,6 +36,7 @@ source_paths:
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
+  - tests/test_content_creation_service_internals_contract.py
   - tests/test_news_stage_idempotency.py
 ---
 
@@ -81,6 +86,10 @@ video_repurposer
 - `src.content_creation.wizard` остаётся compatibility facade с прежним
   `run_wizard`; working state/request translation, terminal presentation и
   интерактивные steps разделены по отдельным модулям.
+- `src.content_creation.service` остаётся единой точкой входа
+  `create_content`; request/template validation выполняет facade, а два active
+  workflow делегируются `story_card_use_case` и
+  `fullscreen_voiceover_use_case` с общими progress/path helpers.
 
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
@@ -106,4 +115,7 @@ facade и вынес terminal formatting в `src/ai_youtube/cli/presentation.py`
 Подэтап 6C оставил `src/content_creation/wizard.py` 175-строчным compatibility
 facade и вынес state/request translation, terminal presentation/adapters и
 steps/execution orchestration в отдельные модули без изменения общего request
-builder или lazy CLI → Wizard boundary. Следующий отдельный подэтап — 6D.
+builder или lazy CLI → Wizard boundary. Подэтап 6D оставил
+`src/content_creation/service.py` 123-строчным facade и отделил use cases Story
+Card и Fullscreen Voiceover; paid gate, tolerant resume и progress callback
+сохранены. Следующий отдельный подэтап — 6E.

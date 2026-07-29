@@ -1,8 +1,8 @@
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
 
-Статус: **выполняется; этапы 0–5 и подэтапы 6A–6C завершены; этап 4.5 сохранён как
+Статус: **выполняется; этапы 0–5 и подэтапы 6A–6D завершены; этап 4.5 сохранён как
 историческая диагностика и снят с critical path; этап 6 продолжается,
-следующий отдельный подэтап — 6D Application service**
+следующий отдельный подэтап — 6E Semantic evaluation**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -807,7 +807,7 @@ Wizard и service, уменьшение крупных функций и пер�
 
 ### Этап 6. Разделение крупных модулей
 
-Статус: [~] выполняется; 6A–6C завершены 2026-07-29, следующий подэтап — 6D
+Статус: [~] выполняется; 6A–6D завершены 2026-07-29, следующий подэтап — 6E
 
 Каждый подэтап ниже независим: отдельные targeted tests, commit и handoff.
 Не объединять их в одну сессию без записанного исключения из бюджета области.
@@ -883,6 +883,24 @@ selection, download и completion.
 
 Выделить в `src/content_creation/service.py` отдельные use cases и сделать
 оркестрацию явной.
+
+Статус: [x] завершён 2026-07-29; implementation commit `8e087c7`.
+
+Результат:
+
+- `src/content_creation/service.py` уменьшен с 878 до 123 строк и сохранён как
+  единый application service facade с прежним `create_content`;
+- два active workflow вынесены в `story_card_use_case.py` и
+  `fullscreen_voiceover_use_case.py`, общие progress/path helpers — в
+  `service_support.py`;
+- бывшая 344-строчная fullscreen orchestration разделена на явные project,
+  safe-pipeline, voice/paid-gate, draft и render/export фазы; longest method —
+  93 строки;
+- сохранены private compatibility imports, module dispatch patch-points, paid
+  preflight/approval, existing-narration protection, resume/force-stage,
+  tolerant project behavior и progress callback;
+- targeted verification: 97 tests OK, compile/import checks OK; full offline
+  suite, сеть, provider download, TTS, Vision и render не запускались.
 
 #### 6E. Semantic evaluation
 
@@ -1055,12 +1073,13 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только 6D Application service:
-> characterization-first картировать use cases двух active workflows, paid
-> preflight, callers и patch-points в `src/content_creation/service.py`.
-> Сохранить единый `create_content` application service, approval gates,
-> tolerant project behavior и progress callback. Не переоткрывать 6A–6C и не
-> объединять 6D с 6E–6G, provider consolidation или cleanup.
+> В следующей отдельной сессии начать только 6E Semantic evaluation:
+> characterization-first картировать offline metrics/reporting, controlled live
+> runtime, root-pipeline caller и test patch-points в
+> `src/assets/semantic_visual_evaluation.py`. Отделить evaluation tooling от
+> runtime backend без второго engine и без сетевых/Vision/provider вызовов. Не
+> переоткрывать 6A–6D и не объединять 6E с 6F–6G, provider consolidation или
+> cleanup.
 
 Не начинать с:
 
@@ -1084,50 +1103,53 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 6C Wizard
-Текущий этап: 6 выполняется; 6A–6C завершены
-Следующий этап: 6D Application service — не начат
-Исходный HEAD 6C: 72430d1
-Implementation HEAD 6C: b9f8212
+Завершённый этап: 6D Application service
+Текущий этап: 6 выполняется; 6A–6D завершены
+Следующий этап: 6E Semantic evaluation — не начат
+Исходный HEAD 6D: cf613ff
+Implementation HEAD 6D: 8e087c7
 Ветка: master
-Git до работы: clean, HEAD 72430d1
+Git до работы: clean, HEAD cf613ff
 Выполнено:
-- полностью прочитаны master plan, current docs и skill architecture-change; проверены run_wizard, callers, request builder, state, steps, presentation и test patch-points
-- pre-change characterization подтвердил существующие Wizard signatures/import surface и module-level _build_request patch-point
-- src/content_creation/wizard.py уменьшен с 1229 до 175 строк и оставлен compatibility facade
-- state и перевод через существующий общий request builder вынесены в wizard_state.py
-- terminal prompt adapters, summaries, preflight и result rendering вынесены в wizard_presentation.py
-- questionnaire/resume/edit steps и execution orchestration вынесены в wizard_steps.py; максимальный method — 111 строк
-- run_wizard, prompt adapters/private imports, module request-builder patch-point и lazy CLI → Wizard boundary сохранены
+- полностью прочитаны master plan, current docs и skill architecture-change; проверены create_content, callers CLI/Wizard, два active workflow, paid preflight/approval, progress callback и private compatibility imports
+- pre-change characterization подтвердил service signatures/import surface, dispatch patch-points, progress callback и безопасный no-script paid preflight
+- src/content_creation/service.py уменьшен с 878 до 123 строк и оставлен единой точкой входа create_content
+- общие progress/path helpers вынесены в service_support.py
+- Story Card use case вынесен в story_card_use_case.py
+- Fullscreen Voiceover use case вынесен в fullscreen_voiceover_use_case.py; project setup, safe pipeline, voice/paid gate, draft completion, subtitles/music и render/export разделены на методы
+- бывшая 344-строчная fullscreen orchestration устранена; longest fullscreen method — 93 строки, longest service-slice function — 115 строк
+- create_content, private imports/rerun commands, paid approval/preflight, existing-narration protection, resume/force-stage, tolerant project roots и progress callback сохранены
 Изменения production code:
-- src/content_creation/wizard.py
-- src/content_creation/wizard_state.py
-- src/content_creation/wizard_steps.py
-- src/content_creation/wizard_presentation.py
-Characterization tests: tests/test_wizard_internals_contract.py и существующие Wizard/resume/localization/Stage 1/3/4 contracts
+- src/content_creation/service.py
+- src/content_creation/service_support.py
+- src/content_creation/story_card_use_case.py
+- src/content_creation/fullscreen_voiceover_use_case.py
+Characterization tests: tests/test_content_creation_service_internals_contract.py и существующие service/CLI/Wizard paid confirmation/resume/Stage 4 contracts
 ADR: не нужен; публичный contract и system boundary не изменялись
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/платные действия: не выполнялись
 Targeted checks:
-- pre-change Wizard/resume/Stage 4/localization baseline: OK, 85 tests
-- pre-change 6C characterization: OK, 2 tests
-- post-change baseline + characterization: OK, 87 tests
-- final unique Wizard/CLI/workspace/localization radius: OK, 124 tests
-- compileall split Wizard modules: OK
+- pre-change 6D characterization: OK, 4 tests
+- post-change 6D characterization: OK, 4 tests; после delegation assertion — 5 tests
+- tests.test_content_creation_service: OK, 25 tests
+- final unique service/CLI/Wizard paid confirmation/resume/Stage 4 radius: OK, 97 tests
+- compileall split service modules: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 6C:
-- wizard.py смешивал UI-local state, prompt adapters, terminal output, questionnaire/resume/edit steps и execution loop в одном 1229-строчном module
-- внешний контракт был шире одного run_wizard: tests импортируют prompt adapters, icon helpers, START_ACTIONS и _profiles_for_language; module-level _build_request полезен как compatibility patch-point
+Найденные root causes 6D:
+- service.py смешивал template/request validation, Story Card, Fullscreen Voiceover, paid voice policy, resume/project tolerance и render/export в одном 878-строчном module
+- Fullscreen Voiceover выполнял project creation, safe stages, voice approval, draft completion и render/export одной 344-строчной orchestration-функцией
+- внешний compatibility surface шире create_content: Stage 4 импортирует rerun helpers, service tests напрямую используют _create_paid_voice_approval, а module use-case names полезны как dispatch patch-points
 Новый known issue:
-- на Windows targeted Wizard tests нужно запускать с PYTHONUTF8=1; иначе захваченный cp1252 stdout падает на существующих русских строках, production-дефектом это не является
+- новых нет; существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не возвращать state, questionnaire steps или terminal rendering в wizard.py facade
-- не удалять private Wizard compatibility imports/_build_request patch-point без отдельного compatibility checkpoint
-- не смешивать 6D service с 6E–6G или provider consolidation
+- не возвращать workflow orchestration или paid voice policy в service.py facade
+- не создавать второй create service, project contract, progress API или approval gate
+- не удалять private service compatibility imports/rerun helpers без отдельного compatibility checkpoint
+- не смешивать 6E semantic evaluation с 6F–6G или provider consolidation
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать только characterization 6D по create_content/use cases/paid preflight/progress callback и сохранить единый application service.
+После проверки Git начать только characterization 6E по offline evaluation/reporting, controlled live runtime, root-pipeline caller и test patch-points без сетевых/Vision/provider вызовов.
 ```
 
 ---

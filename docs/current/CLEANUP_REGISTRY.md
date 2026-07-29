@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: b9f8212
+last_verified_commit: 8e087c7
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,9 +18,9 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `b9f8212`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `8e087c7`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
-этапа 4.6. Подэтапы 6A–6C выполнили только bounded split production code; runtime и
+этапа 4.6. Подэтапы 6A–6D выполнили только bounded split production code; runtime и
 user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
@@ -41,7 +41,7 @@ user data не перемещались и не удалялись.
 | S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
 | S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
 | S03 | `src/content_creation/wizard.py` + `wizard_state`/`wizard_steps`/`wizard_presentation` | `split` | 6C (`b9f8212`) уменьшил facade с 1229 до 175 строк и разделил state/request translation, steps/execution и terminal presentation | выполнено; `run_wizard`, private compatibility imports, module request-builder patch-point и lazy CLI boundary защищены characterization | 6C complete |
-| S04 | `src/content_creation/service.py` | `split` | 878 строк; два workflow и paid preflight в одном module | use cases внутри одного application service | 6D |
+| S04 | `src/content_creation/service.py` + use case modules | `split` | 6D (`8e087c7`) уменьшил facade с 878 до 123 строк, разделил Story Card/Fullscreen Voiceover use cases и явные fullscreen phases | выполнено; единый `create_content`, private imports, paid gate, tolerant resume и progress callback защищены characterization | 6D complete |
 | S05 | `src/assets/semantic_visual_evaluation.py` | `split` | 1719 строк; offline metrics/report и controlled live execution вместе | отделить evaluation tooling от runtime backend без второго engine | 6E |
 | S06 | `pipeline.py` | `split` | 703 строки и imports множества legacy/diagnostic domains | оставить тонкий dispatch facade; выносить по одному handler family | 6F |
 | S07 | `frame_sampling.py` ↔ `perceptual_similarity.py` | `split` | подтверждены два static edges, один из них lazy | вынести shared data/hash primitive и убрать cycle одним slice | 6G |
@@ -216,10 +216,29 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Targeted verification: 124 tests OK, compile/import checks OK. Full offline
   suite, сеть, provider download, TTS, Vision и render не запускались.
 
+### Завершённый structural slice: 6D Application service
+
+- `tests/test_content_creation_service_internals_contract.py` зафиксировал
+  signatures/import surface service facade, dispatch patch-points, progress
+  callback, безопасный no-script paid preflight и делегацию в use case-модули.
+- `src/content_creation/service.py` уменьшен с 878 до 123 строк и оставлен
+  единой точкой входа `create_content` для canonical CLI, compatibility CLI и
+  Wizard.
+- Story Card вынесен в `story_card_use_case.py`, Fullscreen Voiceover — в
+  `fullscreen_voiceover_use_case.py`, общие progress/path helpers — в
+  `service_support.py` (`8e087c7`).
+- Бывшая 344-строчная fullscreen orchestration разделена на project setup,
+  safe pipeline, voice/paid gate, draft completion, subtitles/music и
+  render/export; longest method — 93 строки.
+- Paid approval/preflight, existing-narration protection, resume/force-stage,
+  two persisted project forms и progress callback сохранены.
+- Targeted verification: 97 tests OK, compile/import checks OK. Full offline
+  suite, сеть, provider download, TTS, Vision и render не запускались.
+
 ### Последующая очередь
 
-1. **6D–6G:** выполнять registry entries S04–S07 по одному подэтапу в порядке
-   master plan; следующий отдельный подэтап — 6D Application service.
+1. **6E–6G:** выполнять registry entries S05–S07 по одному подэтапу в порядке
+   master plan; следующий отдельный подэтап — 6E Semantic evaluation.
 2. **7:** консолидировать callers на K05, затем отдельно переоценить D01/D02.
 3. **8:** переносить V01/V02 только вертикальными slices с compatibility wrappers.
 4. **9:** удалять только entries со статусом `delete` и актуальным evidence.
