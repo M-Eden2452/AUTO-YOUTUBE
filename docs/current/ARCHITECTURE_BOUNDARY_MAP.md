@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 06e6a25
+last_verified_commit: 01cfc6f
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -16,19 +16,19 @@ source_paths:
 
 # Architecture Boundary Map
 
-Проверено 2026-07-29 по implementation HEAD `06e6a25`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `01cfc6f`. Код и Git имеют приоритет.
 Карта создана read-only инвентаризацией этапа 4.6 и актуализирована после bounded
-stage 5 closure, подэтапов 6A–6G, этапа 7 и первого vertical slice этапа 8;
+stage 5 closure, подэтапов 6A–6G, этапа 7 и первых двух vertical slices этапа 8;
 это не разрешение на массовое перемещение файлов.
 
 ## Снимок дерева
 
 Команда `rg --files ai_youtube src apps anime_factory tests` показала:
 
-- 285 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
-- 277 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
-  `anime_factory` — 18, `src` — 243;
-- 108 модулей `tests/test_*.py`;
+- 287 production-файлов в `ai_youtube/`, `src/`, `apps/`, `anime_factory/`;
+- 279 production Python-файлов: `ai_youtube` — 6, `apps` — 10,
+  `anime_factory` — 18, `src` — 245;
+- 109 модулей `tests/test_*.py`;
 - крупнейшие модули: `src/news/asset_manifest_builder.py` — 1413 строк с короткими
   orchestration-методами,
   `src/assets/semantic_visual_evaluation_runtime.py` — 1000 строк и
@@ -43,6 +43,8 @@ stage 5 closure, подэтапов 6A–6G, этапа 7 и первого vert
   `src/content_creation/wizard.py` — 175 строк;
   `src/content_creation/service.py` — 123 строки;
   `src/content_creation/fullscreen_voiceover_use_case.py` — 29 строк;
+  canonical Story Card use case — 155 строк, его compatibility wrapper —
+  12 строк;
   root `pipeline.py` — 122 строки;
   `src/assets/semantic_visual_evaluation.py` — 53 строки;
   canonical diagnostics facade — 78 строк, `src/content_creation/cli.py` —
@@ -56,8 +58,8 @@ stage 5 closure, подэтапов 6A–6G, этапа 7 и первого vert
 | `content` | 27 | script engine и visual planning |
 | `audio` | 21 | TTS contract, voice workflow, manifests и timeline |
 | `news` | 23 | fullscreen voiceover workflow, split asset orchestration и `job.json` writer |
-| `content_creation` | 22 | compatibility CLI/Wizard, shared application service, Story Card use case и fullscreen wrapper |
-| `ai_youtube/apps` | 5 | первый canonical app boundary для Fullscreen Voiceover |
+| `content_creation` | 22 | compatibility CLI/Wizard, shared application service и два use-case wrappers |
+| `ai_youtube/apps` | 7 | canonical app boundaries для Fullscreen Voiceover и Story Card |
 | `providers` | 11 | canonical registry и adapters общего asset provider contract |
 | `subtitles` | 9 | единый subtitle engine |
 | `project_foundation` | 9 | `project.json`, evidence и atomic storage |
@@ -95,13 +97,15 @@ ai_youtube CLI
            -> src.news.pipeline
               -> NewsProjectStore -> job.json
               -> assets / audio / subtitles / renderer / export
-        -> story_card_use_case
+        -> src.ai_youtube.apps.content_creator.workflows.story_card
+           -> use_case
            -> ProjectFactory + src.templates.story_card.integration
               -> project.json + evidence + story-card renderer
 
 compatibility
   -> src.content_creation.cli
   -> src.content_creation.fullscreen_voiceover_use_case
+  -> src.content_creation.story_card_use_case
   -> apps.news_to_short
   -> pipeline.py
      -> src.legacy_pipeline.cli / maintenance / workflow
@@ -126,8 +130,9 @@ planned adapter
 |---|---|---|---|
 | `src.ai_youtube.cli` + `src.content_creation.cli` | canonical dispatcher/domain handlers и legacy facade; вызывают service, lazy Wizard, projects и shared presentation | `test_cli_internals_contract`, `test_content_creation_cli`, `test_stage1_characterization`, `test_stage3_workspace_paths`, `test_stage4_canonical_cli`, script/visual/assets/subtitle wiring | 6B завершён: command/output contract и patch-points сохранены, handlers/presentation разделены |
 | `src.content_creation.wizard` + `wizard_state`/`wizard_steps`/`wizard_presentation` | facade вызывается CLI; steps используют service, capabilities и `ProjectRepository`, state делегирует общему request builder | `test_wizard_internals_contract`, `test_content_creation_wizard`, `test_project_naming_and_resume`, localization integration | 6C завершён: `run_wizard`, compatibility imports, request-builder patch-point и lazy CLI boundary сохранены |
-| `src.content_creation.service` + `service_support`/Story Card use case | единый facade вызывается CLI и Wizard; facade валидирует request/template, маршрутизирует Story Card и canonical Fullscreen boundary | `test_content_creation_service_internals_contract`, `test_content_creation_service`, CLI, Wizard paid confirmation, resume и Stage 4 tests | `create_content`, private compatibility imports, paid gate, tolerant resume и progress callback сохранены |
+| `src.content_creation.service` + `service_support` | единый facade вызывается CLI и Wizard; facade валидирует request/template и маршрутизирует оба canonical workflow boundaries | `test_content_creation_service_internals_contract`, `test_content_creation_service`, CLI, Wizard paid confirmation, resume и Stage 4 tests | `create_content`, private compatibility imports, paid gate, tolerant resume и progress callback сохранены |
 | `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover` | application service и `apps.news_to_short`; canonical use case делегирует существующим `src.news` project/workflow contracts | `test_fullscreen_voiceover_application_boundary`, service internals/service, apps structure, news pipeline, project repository | slice 8A (`f8ac67e`, `06e6a25`): canonical boundary установлен; старый use-case path — wrapper, contracts не дублируются, service import остаётся lazy |
+| `src.ai_youtube.apps.content_creator.workflows.story_card` | application service; canonical use case делегирует существующим project/evidence/template contracts | `test_story_card_application_boundary`, service internals/Story Card paths, project factory/repository, artifact schemas и provenance | slice 8B (`01cfc6f`): canonical boundary установлен; старый use-case path — wrapper, contracts не дублируются |
 | `src.news.pipeline` | canonical fullscreen boundary, root pipeline и direct compatibility callers; управляет stage/resume/force | `test_news_to_short_pipeline`, autonomous completion, delivery, renderer, voice | сохранить владельцем working workflow до отдельного bounded move |
 | `src.news.asset_manager` + `src.news.asset_*` | facade вызывают news pipeline, quality/draft completion и replacement summary; builder использует shared `src.assets`/`src.providers` contracts | public-contract characterization, assets, provider integration, slot-aware retrieval, semantic decisions, schema/service/pipeline tests | 6A завершён: facade, builder, summaries, completion и provider adapters разделены; imports/patch-points сохранены |
 | `src.assets.semantic_visual_evaluation` + `semantic_visual_evaluation_tooling`/`runtime` | 53-строчный facade импортирует root pipeline; tooling владеет offline dataset/metrics/reporting, runtime — gated execution/checkpoints | `test_semantic_visual_evaluation_internals_contract`, `test_semantic_visual_evaluation`, `test_asset_cli_wiring` | 6E завершён: public signatures/dataclass shapes/root caller сохранены; runtime и tooling разделены без второго engine |
@@ -162,6 +167,13 @@ callers остаются в границе вертикальных перено
 wrapper, а `apps.news_to_short` теперь разрешает existing create/run contracts
 через canonical boundary. `src.news` продолжает владеть `NewsJob`,
 `NewsProjectStore` и working pipeline; schemas и runtime data не менялись.
+
+Второй slice этапа 8 перенёс application-level Story Card use case в
+`src.ai_youtube.apps.content_creator.workflows.story_card`.
+`src.content_creation.story_card_use_case` остался compatibility wrapper.
+`src.project_foundation` продолжает владеть `ProjectFactory`,
+`ProjectManifest` и evidence contracts, а `src.templates.story_card` —
+workflow/renderer integration; schemas и runtime data не менялись.
 
 ## Persisted contracts
 
@@ -206,8 +218,9 @@ Read-only snapshot файлов на 2026-07-28:
 1. Сохранять нынешние import paths до отдельного vertical slice; желаемое дерево
    `core/services/infrastructure` не является самоцелью.
 2. `content_creator` владеет двумя active workflows, но не их shared
-   infrastructure contracts. Fullscreen Voiceover уже имеет canonical app
-   boundary; Story Card остаётся следующим отдельным vertical slice.
+   infrastructure contracts. Оба workflow имеют canonical app boundaries;
+   следующий отдельный vertical slice — `anime_clipper` через
+   `video_repurposer` adapter.
 3. `ProjectRepository` остаётся общим read API поверх двух persisted форм;
    write convergence использует общий atomic primitive и project-lock primitive,
    а не третью schema или writer.

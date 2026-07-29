@@ -2,8 +2,8 @@
 
 Статус: **выполняется; этапы 0–7, включая подэтапы 6A–6G, завершены; этап 4.5
 сохранён как историческая диагностика и снят с critical path; этап 8 начат,
-первый vertical slice `fullscreen_voiceover` завершён, следующий —
-`story_card`**
+vertical slices `fullscreen_voiceover` и `story_card` завершены, следующий —
+`anime_clipper` через `video_repurposer` adapter**
 Дата аудита и создания плана: **2026-07-28**
 Репозиторий: `G:\Projects\AI-YouTube`
 HEAD на момент аудита: `8d61a06`
@@ -1030,13 +1030,13 @@ tooling.
 
 ### Этап 8. Миграция приложений вертикальными срезами
 
-Статус: [ ] выполняется; первый vertical slice `fullscreen_voiceover`
-завершён 2026-07-29, implementation commits `f8ac67e`, `06e6a25`
+Статус: [ ] выполняется; vertical slices `fullscreen_voiceover` и `story_card`
+завершены 2026-07-29, последние implementation commits `06e6a25`, `01cfc6f`
 
 Порядок:
 
 1. [x] `fullscreen_voiceover`;
-2. [ ] `story_card`;
+2. [x] `story_card`;
 3. [ ] `anime_clipper` через `video_repurposer` adapter;
 4. [ ] legacy pipeline;
 5. [ ] documentary — только после реального рабочего шаблона.
@@ -1073,6 +1073,26 @@ tooling.
 - targeted verification: pre-change characterization 3 tests OK; boundary,
   service internals и apps 11 tests OK; service/news pipeline/project
   repository 49 tests OK; compile/import/diff/docs QA OK;
+- full offline suite, сеть, provider search/download, TTS, Vision, render и
+  платные действия не запускались.
+
+Результат второго vertical slice:
+
+- canonical application boundary создан в
+  `src.ai_youtube.apps.content_creator.workflows.story_card`;
+- application-level use case физически перенесён в новый boundary без
+  изменения orchestration behavior;
+- существующие `ProjectFactory`, `ProjectCreationResult`, `ProjectManifest`,
+  `EvidenceBundle`, `EvidenceRecord` и Story Card integration contracts
+  переэкспортируются из их прежних owner modules; второй project writer,
+  schema, evidence bundle или renderer не создавался;
+- `src.content_creation.service` использует canonical use case;
+  `src.content_creation.story_card_use_case` остаётся compatibility wrapper;
+- migration note зафиксирован ADR 0010; schemas, manifests, runtime projects и
+  user media не менялись;
+- targeted verification: pre-change characterization 3 tests OK; boundary и
+  service internals 9 tests OK; Story Card service/project/evidence/schema
+  radius 75 tests OK; compile/import/content-comparison/diff/docs QA OK;
 - full offline suite, сеть, provider search/download, TTS, Vision, render и
   платные действия не запускались.
 
@@ -1171,13 +1191,12 @@ tooling.
 
 Первое действие при возобновлении плана:
 
-> В следующей отдельной сессии начать только второй vertical slice этапа 8:
-> read-only перепроверить `story_card` путь от
-> `src.content_creation.service` через `story_card_use_case` к
-> `ProjectFactory` и `src.templates.story_card.integration`, его
-> `project.json`/evidence contracts, compatibility callers и targeted tests.
-> Перед переносом добавить characterization и определить один bounded
-> application boundary. Не выполнять render или физическую миграцию runtime.
+> В следующей отдельной сессии начать только третий vertical slice этапа 8:
+> read-only перепроверить `apps.anime_factory` → `anime_factory.pipeline`,
+> его project/output contracts, catalog status, compatibility callers и
+> targeted tests. Перед переносом добавить characterization и определить один
+> bounded `video_repurposer/workflows/anime_clipper` adapter boundary. Не
+> включать planned application, не выполнять render и не мигрировать runtime.
 
 Не начинать с:
 
@@ -1202,62 +1221,57 @@ tooling.
 
 ```text
 Последнее обновление: 2026-07-29
-Завершённый этап: 8A Fullscreen Voiceover application boundary
-Текущий этап: этапы 0–7 завершены; этап 8 выполняется, первый vertical slice завершён
-Следующий этап: 8B Story Card vertical slice
-Исходный HEAD 8A: 8b3f37d
-Implementation HEAD 8A: 06e6a25 (boundary commit f8ac67e)
+Завершённый этап: 8B Story Card application boundary
+Текущий этап: этапы 0–7 завершены; этап 8 выполняется, первые два vertical slices завершены
+Следующий этап: 8C Anime Clipper через video_repurposer adapter
+Исходный HEAD 8B: b443222
+Implementation HEAD 8B: 01cfc6f
 Ветка: master
-Git до работы: clean, HEAD 8b3f37d
+Git до работы: clean, HEAD b443222
 Выполнено:
 - полностью прочитаны master plan, current docs, architecture/boundary map, cleanup registry и skill architecture-change
-- read-only перепроверен active fullscreen путь service -> use case -> src.news.pipeline, NewsJob/NewsProjectStore contracts, apps.news_to_short и targeted test radius
-- characterization до production change зафиксировал legacy use-case signatures, create/run pipeline signatures, project contract dataclasses/read-write surface и apps wrapper delegation
-- application-level Fullscreen Voiceover use case перенесён в src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover
+- read-only перепроверен Story Card путь service -> story_card_use_case -> ProjectFactory/src.templates.story_card.integration, project.json/evidence contracts, compatibility callers и targeted test radius
+- characterization до production change зафиксировал legacy use-case signatures, ProjectFactory/ProjectManifest dataclass/signature surface, integration result/signature и evidence manifest/record shape
+- application-level Story Card use case перенесён без поведенческих изменений в src.ai_youtube.apps.content_creator.workflows.story_card
 - src.content_creation.service переведён на canonical use case
-- src.content_creation.fullscreen_voiceover_use_case сохранён 29-строчным compatibility wrapper с прежними function objects/signatures
-- canonical boundary переэкспортирует существующие NewsJob/NewsProject/NewsProjectStore/NewsPipelineResult/create/run contracts без нового owner
-- apps.news_to_short сохранён compatibility entrypoint и разрешает create/run через canonical boundary
+- src.content_creation.story_card_use_case сохранён 12-строчным compatibility wrapper с прежними function objects/signatures
+- canonical boundary лениво переэкспортирует существующие ProjectFactory/ProjectCreationResult/ProjectManifest/EvidenceBundle/EvidenceRecord/Story Card integration contracts без нового owner
 Изменения production code:
-- src/ai_youtube/apps/__init__.py
-- src/ai_youtube/apps/content_creator/__init__.py
-- src/ai_youtube/apps/content_creator/workflows/__init__.py
-- src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover/__init__.py
-- src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover/use_case.py
-- src/content_creation/fullscreen_voiceover_use_case.py
+- src/ai_youtube/apps/content_creator/workflows/story_card/__init__.py
+- src/ai_youtube/apps/content_creator/workflows/story_card/use_case.py
+- src/content_creation/story_card_use_case.py
 - src/content_creation/service.py
-- apps/news_to_short/main.py
-Characterization tests: tests/test_fullscreen_voiceover_application_boundary.py
-ADR: docs/adr/0009-fullscreen-voiceover-application-boundary.md
+Characterization tests: tests/test_story_card_application_boundary.py
+ADR: docs/adr/0010-story-card-application-boundary.md
 Schemas/Manifests: не изменялись
 Runtime projects/user media: не затрагивались
 Сеть/API/TTS/Vision/provider search/download/платные действия: не выполнялись
 Targeted checks:
-- pre-change fullscreen boundary characterization: OK, 3 tests
-- fullscreen boundary, service internals и apps structure: OK, 11 tests
-- content creation service, news pipeline и project repository: OK, 49 tests
-- compileall canonical app package/compatibility files/characterization: OK
-- import identity smoke canonical boundary/legacy wrapper/apps wrapper: OK
+- pre-change Story Card boundary characterization: OK, 3 tests
+- Story Card boundary и service internals: OK, 9 tests
+- Story Card service/project/evidence/schema radius: OK, 75 tests
+- compileall canonical Story Card package/compatibility files/characterization: OK
+- import identity smoke canonical boundary/legacy wrapper/existing contracts: OK
 - moved-use-case content comparison с pre-change implementation: OK
-- boundary search: service и apps wrapper используют canonical boundary; старый use-case path остался только compatibility wrapper
+- boundary search: service использует canonical boundary; старый use-case path остался только compatibility wrapper/tests
 - git diff --cached --check: OK
 - .\venv\Scripts\python.exe -m tools.qa.check_agent_docs: OK
 Full offline suite: не запускался по запросу пользователя и test budget
-Найденные root causes 8A:
+Найденные root causes 8B:
 - application use case уже был изолирован после 6D, но физически оставался внутри compatibility-oriented src.content_creation
-- рабочие project/workflow contracts уже имеют владельцев в src.news; их копирование создало бы вторую систему вместо migration boundary
-- apps.news_to_short напрямую импортировал src.news.pipeline и обходил application boundary
+- рабочие project/evidence/workflow contracts уже имеют владельцев в src.project_foundation и src.templates.story_card; их копирование создало бы вторую систему вместо migration boundary
+- единственный production caller — shared application service; CLI и Wizard уже используют его и не требуют нового entrypoint
 Новый known issue:
-- Story Card остаётся в src.content_creation.story_card_use_case до отдельного vertical slice 8B
-- src.news остаётся владельцем физической workflow/project implementation; дальнейшее перемещение допустимо только отдельным bounded slice с caller evidence
-- D01/D02 и legacy documentary/fixed-production-plan paths остаются за пределами 8A
+- Anime Factory остаётся вне video_repurposer boundary до отдельного vertical slice 8C
+- src.project_foundation и src.templates.story_card остаются владельцами физических project/evidence/workflow implementations
+- D01/D02 и legacy documentary/fixed-production-plan paths остаются за пределами 8B
 - существующая Windows-рекомендация PYTHONUTF8=1 для тестов с русским stdout сохраняется
 Что нельзя повторять:
-- не создавать второй ProjectRepository, NewsJob schema, workflow pipeline, provider, audio или subtitle contract внутри app boundary
-- не удалять старый fullscreen use-case path или apps.news_to_short до отдельного retirement evidence
-- не смешивать Story Card slice с Anime Factory, legacy pipeline или documentary
+- не создавать второй ProjectFactory, project/evidence schema, Story Card integration или renderer внутри app boundary
+- не удалять старый Story Card use-case path до отдельного retirement evidence
+- не смешивать Anime Clipper slice с legacy pipeline, documentary или provider retirement
 Следующая точная read-only команда: git status --short --branch
-После проверки Git начать read-only caller/application-contract audit Story Card slice 8B; не запускать render и не мигрировать runtime.
+После проверки Git начать read-only caller/application-contract audit Anime Clipper slice 8C; не включать planned application, не запускать render и не мигрировать runtime.
 ```
 
 ---

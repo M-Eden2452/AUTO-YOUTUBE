@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 06e6a25
+last_verified_commit: 01cfc6f
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,6 +18,7 @@ source_paths:
   - src/content_creation/story_card_use_case.py
   - src/content_creation/fullscreen_voiceover_use_case.py
   - src/ai_youtube/apps/content_creator/workflows/fullscreen_voiceover
+  - src/ai_youtube/apps/content_creator/workflows/story_card
   - src/assets/semantic_visual_evaluation.py
   - src/assets/semantic_visual_evaluation_runtime.py
   - src/assets/semantic_visual_evaluation_tooling.py
@@ -46,6 +47,7 @@ source_paths:
   - docs/adr/0007-canonical-cli-package.md
   - docs/adr/0008-canonical-provider-registry.md
   - docs/adr/0009-fullscreen-voiceover-application-boundary.md
+  - docs/adr/0010-story-card-application-boundary.md
   - tests/test_news_asset_manager_contract.py
   - tests/test_cli_internals_contract.py
   - tests/test_wizard_internals_contract.py
@@ -55,6 +57,7 @@ source_paths:
   - tests/test_asset_import_boundaries.py
   - tests/test_news_stage_idempotency.py
   - tests/test_fullscreen_voiceover_application_boundary.py
+  - tests/test_story_card_application_boundary.py
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
@@ -62,11 +65,11 @@ source_paths:
 
 # Current State
 
-Проверено 2026-07-29 по implementation HEAD `06e6a25`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `01cfc6f`. Код и Git имеют приоритет.
 
 - Rescue stages 0–7, включая подэтапы 6A–6G, завершены. Этап 8 выполняется:
-  первый vertical slice `fullscreen_voiceover` завершён, следующий —
-  `story_card`.
+  vertical slices `fullscreen_voiceover` и `story_card` завершены, следующий —
+  `anime_clipper` через `video_repurposer` adapter.
   Product Evidence Gate 4.5 сохранён только как
   историческая диагностика и решением владельца снят с critical path;
   Product Repair 4.5-R закрыт без продолжения.
@@ -152,6 +155,15 @@ source_paths:
   `NewsJob`, `NewsProjectStore` и `src.news.pipeline` переиспользуются без
   новой schema/storage/workflow system; lazy service import сохранён, runtime
   projects не мигрировались.
+- Второй slice этапа 8 (`01cfc6f`) установил canonical Story Card application
+  boundary в
+  `src.ai_youtube.apps.content_creator.workflows.story_card`.
+  Application service импортирует новый use case; прежний
+  `src.content_creation.story_card_use_case` остаётся compatibility wrapper.
+  Существующие `ProjectFactory`, `ProjectManifest`, `EvidenceBundle`,
+  `EvidenceRecord` и `src.templates.story_card` переиспользуются без новой
+  schema/storage/evidence/render system; persisted projects и user media не
+  мигрировались.
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
@@ -174,8 +186,8 @@ source_paths:
   отдельные news JSON writes; output validation покрывает повторяемые стадии от
   `research` до `export`. `input` и потенциально сетевой `article_ingestion`
   намеренно не включены в автоматическую retry-policy ADR 0006;
-- после первого vertical slice этапа 8 Story Card, Anime Factory, legacy
-  pipeline и documentary ещё не перенесены; legacy documentary и
+- после первых двух vertical slices этапа 8 Anime Factory, legacy pipeline и
+  documentary ещё не перенесены; legacy documentary и
   fixed-production-plan HTTP paths остаются внутри будущих bounded slices;
 - D01 news-only provider names и D02 downloader wrapper сохраняются как
   compatibility до отдельного zero-caller/retirement evidence этапа 9;

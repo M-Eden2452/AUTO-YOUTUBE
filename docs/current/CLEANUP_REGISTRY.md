@@ -1,6 +1,6 @@
 ---
 status: current
-last_verified_commit: 06e6a25
+last_verified_commit: 01cfc6f
 last_verified_date: 2026-07-29
 source_paths:
   - pyproject.toml
@@ -18,11 +18,11 @@ source_paths:
 
 # Cleanup Registry
 
-Проверено 2026-07-29 по implementation HEAD `06e6a25`. Код и Git имеют приоритет.
+Проверено 2026-07-29 по implementation HEAD `01cfc6f`. Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
 этапа 4.6. Подэтапы 6A–6G и provider consolidation этапа 7 выполнены bounded
-изменениями; первый Fullscreen Voiceover slice этапа 8 также завершён. Runtime
-и user data не перемещались и не удалялись.
+изменениями; Fullscreen Voiceover и Story Card slices этапа 8 также завершены.
+Runtime и user data не перемещались и не удалялись.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `archive`, `delete`,
 `do_not_touch`.
@@ -49,6 +49,7 @@ source_paths:
 | M01 | `NewsProjectStore.write_json` + `project_foundation.atomic_write_json` | `merge` | 5A (`87e272a`) подключил общий atomic primitive; 5B (`42d5b99`) добавил schema v1; 5C (`f7b3a3c`) добавил общий fail-fast project lock; 5D (`e3c90c3`) завершил output-validated idempotency | общий storage primitive и lock используются manifest owner; repeatable stages `research`–`export` проверяют обязательные outputs | 5 complete |
 | M02 | public project API в `src/projects` и `src/project_foundation` | `merge` | read API уже общий, writer/models ещё разделены по persisted form | единый public API поверх двух tolerant forms; без третьей system | 5 |
 | V00 | `src/content_creation/fullscreen_voiceover_use_case.py` | `move` | slice 8A (`f8ac67e`, `06e6a25`) перенёс implementation в `src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover`; service и `apps.news_to_short` используют canonical boundary | выполнено; старый import path — 29-строчный wrapper, `src.news` contracts не дублированы, service import остаётся lazy | 8A complete |
+| V03 | `src/content_creation/story_card_use_case.py` | `move` | slice 8B (`01cfc6f`) перенёс implementation в `src.ai_youtube.apps.content_creator.workflows.story_card`; service использует canonical boundary | выполнено; старый import path — 12-строчный wrapper, project/evidence/template contracts не дублированы | 8B complete |
 | V01 | `anime_factory/` | `move` | отдельный рабочий CLI/workflow; catalog app `video_repurposer` disabled | переносить целиком через adapter с old entrypoint | 8 |
 | V02 | root legacy engines (`asset_finder`, `music_*`, `thumbnail_*`, `layout_renderer`, `video_renderer`) | `move` | вызываются `pipeline.py` и защищены documentary/channel tests | переносить только как legacy vertical slice с wrappers | 8 |
 | A01 | historical audits/plans вне `docs/current` | `archive` | runtime imports отсутствуют; часть уже в `docs/archive` | сохранять историю, обновлять ссылки, не удалять без review | 10 |
@@ -327,10 +328,34 @@ handoff. Порядок не разрешает перепрыгивать че�
 - Migration decision: ADR 0009. Persisted schemas, runtime projects и user media
   не менялись.
 
+### Завершённый vertical slice: 8B Story Card boundary
+
+- Characterization-first зафиксировал старый use-case import surface,
+  `ProjectFactory`/`ProjectManifest`, Story Card integration result/signature и
+  evidence manifest/record contracts.
+- Canonical application boundary создан в
+  `src.ai_youtube.apps.content_creator.workflows.story_card` (`01cfc6f`);
+  реализация use case перенесена без поведенческих изменений.
+- `src.content_creation.service` использует canonical use case, а прежний
+  `src.content_creation.story_card_use_case` оставлен 12-строчным compatibility
+  wrapper с теми же function objects и signatures.
+- Boundary переиспользует существующие `ProjectFactory`,
+  `ProjectCreationResult`, `ProjectManifest`, `EvidenceBundle`,
+  `EvidenceRecord` и `src.templates.story_card` contracts; второй writer,
+  schema, evidence bundle или renderer не создавался.
+- Targeted verification: pre-change characterization 3 tests OK; boundary и
+  service internals 9 tests OK; Story Card service/project/evidence/schema
+  radius 75 tests OK; compile/import/content-comparison/diff checks OK. Full
+  offline suite, сеть, provider search/download, TTS, Vision и render не
+  запускались.
+- Migration decision: ADR 0010. Persisted schemas, runtime projects и user media
+  не менялись.
+
 ### Последующая очередь
 
-1. **8:** следующим отдельным vertical slice переносить `story_card`; затем
-   V01/V02 только с compatibility wrappers и отдельным caller evidence.
+1. **8:** следующим отдельным vertical slice переносить V01 `anime_factory`
+   через `video_repurposer` adapter; затем V02 только с compatibility wrappers
+   и отдельным caller evidence.
 2. **9:** повторно проверить и удалять только D01/D02/D03 с актуальным
    zero-caller и compatibility evidence.
 3. **10:** A01/A02/D04 и runtime dry-run; никаких user-data deletions.
