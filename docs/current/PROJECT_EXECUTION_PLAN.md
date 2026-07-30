@@ -59,7 +59,8 @@ source_paths:
   - создавать третий плановый документ;
   - архивировать `PROJECT_RESCUE_MASTER_PLAN.md` или
     `ARCHITECTURE_BOUNDARY_MAP.md` до завершения PLAN-1;
-  - снимать с Git `docs/implementation` целым семейством.
+  - снимать с Git `docs/implementation` целым семейством;
+  - заявлять о защите, которая существует только в документах.
 
 ## Шаблон задания для нового чата
 
@@ -230,6 +231,14 @@ budget cap, timeout, количество обязательных artifacts, л
 10. Docs-only и report-only slices не требуют `full`, если не меняют test
     discovery, runner или production contract. Для них обязательны собственные
     QA/tests и `git diff --check`.
+11. **Detail policy.** Подробно описывается только `active` шаг и ближайшие
+    один-два следующих. `completed` сворачивается до статуса, commit,
+    измеримого результата и фактических проверок. `blocked` держится в виде ID,
+    зависимостей, allowed/prohibited zones, gates, verification и rollback.
+    Развёрнутые описания PLAN-9…PLAN-15 сворачиваются в момент PLAN-8, когда
+    у продуктовых подробностей появится собственный владелец
+    `PRODUCT_PLAN.md`, а не раньше: до этого свёртка потеряла бы
+    owner-approved решения. Этот файл не превращается во второй Master Plan.
 
 ## Execution table
 
@@ -238,9 +247,13 @@ budget cap, timeout, количество обязательных artifacts, л
 
 Критический путь:
 
-`PLAN-1 → PLAN-2/3 → PLAN-4 → PLAN-5 → PLAN-6A/6B/6C →
-PLAN-7/8 → PLAN-9A → (PLAN-9B/9C и PLAN-10A/10B/10C) →
+`PLAN-1 → PLAN-2/3 → PLAN-4 → PLAN-5 → PLAN-6A → PLAN-6B → PLAN-6C →
+PLAN-6D → PLAN-6E → PLAN-7/8 → PLAN-9A → (PLAN-9B/9C и PLAN-10A/10B/10C) →
 PLAN-9D/9E → PLAN-11 → PLAN-12 → PLAN-13 → PLAN-14 → PLAN-15`.
+
+PLAN-9A — первый слайс, меняющий production-код. Всё, что до него
+(PLAN-2/3 — tests, PLAN-5 — `tools/qa` и CI, PLAN-6\* — governance,
+PLAN-7/8 — docs), production-поведение не меняет.
 
 Независимые под-slices могут меняться местами только когда их зависимости,
 allowed zones и owner approvals не пересекаются; изменение порядка
@@ -286,7 +299,17 @@ allowed zones и owner approvals не пересекаются; изменени
   - **PLAN-1D — closure:** exact-duplicate hash report, orphan/empty-directory
     candidates как review-only evidence, итоговые owners/exit conditions,
     выбор первых bounded migration/product slices и короткая маршрутизация
-    агентов на этот активный plan.
+    агентов на этот активный plan. Дополнительно обязательны три уже
+    проверенных governance-findings:
+    - снять routing-конфликт: шаг 4 `AGENTS.md` и «Текущий rescue plan»
+      в `START_HERE.md` перестают направлять задачу в master plan как в
+      current plan;
+    - записать `docs/current/PRODUCT_EVIDENCE_GATE.md` со
+      `status: historical_reference` как кандидат PLAN-12A. В 1D — только
+      запись в registry; перемещение выполняет 12A;
+    - записать, что `skills/` не загружаются Claude Code автоматически
+      (каталог не является `.claude/skills/`), поэтому Claude-адаптер
+      отсутствует, а Codex-адаптер существует как `skills/*/agents/openai.yaml`.
 - **обязательные части:**
   - **C01-SEM** — ownership для `semantic_selection`, `semantic_visual`, visual
     planner и asset completion: кто принимает решение о пригодности кандидата,
@@ -420,6 +443,16 @@ allowed zones и owner approvals не пересекаются; изменени
     - возраст документа и превышение рекомендуемого размера — warning;
     - onboarding-лимит `START_HERE.md` может остаться жёстким;
     - `README.md` и `COMMANDS.md` обязаны упоминать канонический CLI;
+    - `CURRENT_DOCS` перестаёт быть вшитым кортежем из трёх путей: проверяются
+      все файлы `docs/current/` со `status: current` плюс активный execution
+      plan. Сейчас QA покрывает три файла из семи, и активный план не
+      проверяется вовсе;
+    - файл в `docs/current/` со `status`, отличным от `current` или `active`,
+      становится error: это делает findings PLAN-1D самопроверяемыми;
+    - `max_age_days` перестаёт быть вшитой в код нормой — приходит аргументом,
+      дефолт остаётся warning, а не error;
+    - снимается требование «`docs/handoff` содержит ровно один файл»: оно
+      конфликтует с PLAN-12C, который этот каталог архивирует;
   - **PLAN-6B — ранний report-only minimalism baseline:**
     - зависимость: PLAN-6A;
     - разрешённые зоны: `tools/qa/check_repository_minimalism.py`, его
@@ -437,12 +470,148 @@ allowed zones и owner approvals не пересекаются; изменени
     - фиксируются direct/resolved/optional/toolchain owners, callers,
       воспроизводимость, replacement и exit conditions до package
       consolidation.
+  - **PLAN-6D — scope control foundation:** см. отдельный раздел ниже;
+  - **PLAN-6E — independent reviewer foundation:** см. отдельный раздел ниже.
 - **измеримый результат:** docs QA зелёный при новых правилах; `AGENTS.md`
   в районе ста строк; первый minimalism report сохранён как baseline;
-  dependency/toolchain решения известны до PLAN-13C и PLAN-14B.
+  dependency/toolchain решения известны до PLAN-13C и PLAN-14B; scope-контроль
+  и независимый reviewer существуют технически, а не только в тексте правил.
 - **required verification:** PLAN-6A — docs QA + `full`; PLAN-6B — targeted
-  tests detector + docs QA; PLAN-6C — docs QA; `git diff --check` всегда.
+  tests detector + docs QA; PLAN-6C — docs QA; PLAN-6D — targeted tests
+  `check_task_scope` + docs QA; PLAN-6E — docs QA; `git diff --check` всегда.
 - **rollback:** один commit на под-slice.
+
+### PLAN-6D — scope control foundation
+
+- **status:** pending · **completed:** — · **commit:** —
+- **цель:** перевести защиту от выхода за scope и от порчи пользовательских
+  данных с уровня «агент помнит правило» на уровень технического ограничения.
+- **зависимости:** PLAN-6C.
+- **разрешённые зоны:** `.claude/settings.json`, `CLAUDE.md`,
+  `tools/qa/check_task_scope.py` и его targeted tests.
+- **запрещено:** production-код, создание hooks, создание `.claude/skills/`,
+  дублирование содержимого `skills/` в adapter-файлах, блокировка versioned
+  resources, fixtures, `.gitkeep` и документации.
+- **evidence, на котором построен slice** (проверено 2026-07-30 от clean HEAD
+  `2379444`): механизма сравнения allowlist задачи с фактическим Git diff в
+  репозитории нет; единственный QA-модуль — `tools/qa/check_agent_docs.py`;
+  hooks, `.claude/agents/`, `.claude/skills/` и git-hooks отсутствуют.
+- **bounded под-slices:**
+  - **6D-1 — permissions: три раздельных класса действий.** Классы не
+    смешиваются.
+    - *Hard deny:* secrets — существующие `.env`/credentials/pem/key плюс
+      `Write` и `Edit` по `.env` (сейчас закрыт только `Read`); подтверждённые
+      runtime paths `projects/**`, `music/**`, `assets/library/**`,
+      `assets/cache/**`, `anime_factory/episodes/**`; destructive Git —
+      `reset --hard`, `clean` по непроверенным путям, force operations и
+      удаление пользовательских данных, включая починку голого `git clean`,
+      который текущий шаблон `Bash(git clean *)` не ловит.
+    - *Смешанные каталоги:* `outputs/**` и `manual_assets/**` **не**
+      блокируются целиком — под ними лежат tracked versioned-файлы. Для них
+      используются точные подпути или типы runtime-файлов. `channels/**` и
+      `content/**` не блокируются вовсе.
+    - *Ask / explicit owner approval:* `git push`, создание remote,
+      `git stash`, `git commit --amend`, сеть, provider search/download и
+      paid API. Бессрочный hard deny для них не применяется, если permission
+      system поддерживает ask-policy. Поддержка ключа `ask` проверяется внутри
+      этого под-slice до записи правил; если ключ недоступен, эти действия
+      остаются instruction-level требованием и в hard deny **не** переводятся.
+    - *Записанная граница:* Claude permissions не защищают от произвольного
+      Python-кода, запущенного через Bash. Выдавать deny-list за полную защиту
+      запрещено.
+    - *Почему не hook:* `.claude/settings.json` уже является владельцем этого
+      ограничения и покрывает требуемое декларативно. Hook стал бы вторым
+      владельцем одного правила.
+  - **6D-2 — `tools/qa/check_task_scope.py`.** Allowlist передаётся конкретной
+    задачей; сравнивается с фактическим `git diff --name-only` с учётом add,
+    rename и delete; неожиданный файл даёт понятный `STOP_REQUIRED`; модуль
+    ничего не исправляет автоматически; постоянного глобального списка файлов
+    всех задач он не хранит; активный execution plan считается разрешённым
+    только когда его изменение входит в протокол шага. Tests обязаны покрывать
+    случаи allowed, unexpected, rename, delete и empty diff.
+    *Owner:* пакет `tools/qa` уже является владельцем QA. Модуль
+    `check_agent_docs.py` расширить нельзя: у него другой вход (статические
+    инварианты репозитория против allowlist конкретной задачи) и другой
+    lifecycle. Прецедент sibling-модуля уже утверждён в PLAN-6B
+    (`check_repository_minimalism.py`), поэтому второго source of truth не
+    возникает. *Exit condition:* модуль удаляется, если scope-контроль станет
+    частью harness.
+  - **6D-3 — `CLAUDE.md`.** Одно предложение о том, что `skills/` не
+    загружаются автоматически и релевантный `SKILL.md` нужно открыть перед
+    задачей. Содержимое skills не дублируется. `.claude/skills/` не создаётся:
+    это был бы второй набор skills и нарушение ADR 0001.
+- **измеримый результат:** deny/ask отражают проверенные пути и не блокируют ни
+  один tracked versioned-файл; `check_task_scope` возвращает `STOP_REQUIRED` на
+  неожиданный файл и молчит на разрешённый; `CLAUDE.md` объясняет загрузку
+  skills; ни одного нового hook, agent или документа не создано.
+- **required verification:** targeted tests `check_task_scope`, docs QA,
+  `git diff --check`.
+- **rollback:** один commit на под-slice.
+
+### PLAN-6E — independent reviewer foundation
+
+- **status:** pending · **completed:** — · **commit:** —
+- **цель:** один независимый read-only reviewer до первого production-slice.
+- **зависимости:** PLAN-6D. Обязателен до PLAN-9A.
+- **разрешённые зоны:** `skills/review-change/`, `.claude/agents/`,
+  `tools/qa/check_agent_docs.py` в части регистрации нового skill.
+- **запрещено:** production-код, раздельные review policies для Claude и
+  Codex, orchestrator, постоянная команда агентов, reviewer, исправляющий
+  собственный finding.
+- **обязательный порядок:** сначала доказать overlap с существующими skills.
+  Новый owner создаётся только если ни один существующий skill не может быть
+  безопасно доработан. `skills/architecture-change` для этого не подходит: он
+  принадлежит implementer, и расширение сделало бы implementer собственным
+  reviewer.
+- **canonical policy — одна, model-independent:**
+  - `skills/review-change/SKILL.md` — единственный источник review rules;
+  - `skills/review-change/agents/openai.yaml` — тонкий adapter для Codex по уже
+    существующему в репозитории шаблону;
+  - `.claude/agents/review-change.md` — тонкий adapter для Claude, который
+    ссылается на canonical skill и не дублирует правила.
+- **поведение reviewer:** работает read-only; проверяет конкретный immutable
+  commit или явно заданный diff; не редактирует файлы; не исправляет findings;
+  не создаёт commit; не обновляет этот план; не меняет checkpoint; выдаёт
+  findings по severity с `file:line`, evidence, impact и smallest safe
+  correction; отдельно перечисляет executed checks, skipped checks и residual
+  risks; проверяет task scope, duplicate owner, compatibility, persisted state,
+  paid/network behavior и фактическую эффективность тестов; после repair
+  выполняет повторный review.
+- **разделение ролей:** implementer и reviewer не являются одним контекстом.
+  Repair выполняет implementer после подтверждения findings владельцем.
+- **техническое подтверждение read-only, определяется до реализации:**
+  отсутствие Write/Edit в наборе инструментов adapter; безопасный набор
+  read-only Git/search команд; сравнение `git status` и `git diff` до и после
+  review. Review считается неуспешным, если working tree изменён reviewer-ом.
+- **когда reviewer обязателен:** persisted state, manifests, resume, providers,
+  asset selection, semantic/Vision, rights/provenance, paid/TTS, rendering,
+  package boundaries, shared contracts, compatibility retirement, runtime
+  migration. Для простой Markdown-правки не требуется.
+- **измеримый результат:** существует ровно одна canonical review policy и не
+  более двух тонких adapters; read-only подтверждается технически, а не
+  обещанием; reviewer не может закрыть собственный finding.
+- **controlled read-only acceptance (обязательна).** `docs QA` и
+  `git diff --check` доказывают только целостность документов: `--check` ищет
+  whitespace-ошибки и конфликтные маркеры и не сравнивает состояние дерева.
+  Поэтому поведение reviewer проверяется отдельной контролируемой процедурой,
+  результат которой записывается как evidence слайса:
+  1. зафиксировать `git status --short --branch` и `git diff --stat` до review;
+  2. запустить reviewer на конкретном immutable commit;
+  3. повторно снять `git status` и `git diff` и доказать отсутствие изменений;
+  4. прогнать один заведомо безопасный diff — ожидается отсутствие findings
+     или только информационные;
+  5. прогнать один synthetic diff с известным нарушением — ожидается, что
+     нарушение найдено с `file:line`, evidence, impact и smallest safe
+     correction;
+  6. подтвердить, что reviewer нарушение **не исправил**, файлов не изменил и
+     commit не создал.
+  Review считается неуспешным, если working tree изменён reviewer-ом.
+  Synthetic diff создаётся во временном каталоге вне репозитория и в Git не
+  попадает. Отдельная автоматизация и новый QA-модуль для этого не создаются:
+  процедура выполняется один раз при закрытии слайса.
+- **required verification:** controlled read-only acceptance (шаги 1–6),
+  docs QA, `git diff --check`.
+- **rollback:** один commit.
 
 ### PLAN-7 — канонический пользовательский CLI в документации
 
@@ -506,10 +675,19 @@ allowed zones и owner approvals не пересекаются; изменени
   набора; убрать topic-specific hardcodes.
 - **разрешённые зоны:** `src/assets/semantic_selection/query_generator.py`
   и его тесты. Characterization-first.
-- **лестница:** точный субъект → субъект и действие → субъект, действие и
-  локация → синонимы → альтернативные названия сущности → более широкий
-  контекст → другой допустимый план той же идеи → локальная медиатека →
-  другой provider → разрешённый fallback.
+- **лестница запросов:** точный субъект → субъект и действие → субъект,
+  действие и локация → синонимы → альтернативные названия сущности → более
+  широкий, но не меняющий смысл контекст → другой допустимый визуальный план
+  той же идеи.
+- **граница слайса:** лестница заканчивается на генерации запросов. Переход к
+  локальной медиатеке, к другому provider и к разрешённому fallback — это
+  routing/completion policy, а не генерация запросов; их владельцы —
+  PLAN-10C (порядок эскалации), PLAN-10B (provider contract) и PLAN-10D
+  (`LocalLibraryStockProvider`). Причина: `query_generator.py` возвращает
+  только строки запросов, а медиатека, routing и fallback живут в
+  `src/providers/registry.py`, `src/providers/local_library_provider.py` и
+  `src/news/asset_scene_completion.py`, которые не входят в разрешённые зоны
+  этого слайса.
 - **измеримый результат:** topic-specific hardcodes отсутствуют; расширение не
   меняет смысл сцены; `must_avoid` и misleading-gates действуют на каждом уровне.
 - **required verification:** targeted query-generator tests; `full` здесь не
@@ -591,6 +769,12 @@ allowed zones и owner approvals не пересекаются; изменени
   лимита. Бюджет учитывает важность и длительность сцены, сложность субъекта,
   число новых уникальных кандидатов, улучшение best-so-far, число providers,
   стоимость вызовов, strict или draft mode.
+- **владеет порядком эскалации** за пределами query variants: исчерпаны
+  разрешённые запросы → локальная медиатека → другой provider → разрешённый
+  fallback. Эти ступени сняты с PLAN-9B, потому что относятся к
+  routing/completion policy, а не к генерации запросов. Включение локальной
+  медиатеки остаётся за PLAN-10D и его аудитом, provider contract — за
+  PLAN-10B; PLAN-10C определяет только момент перехода и его причину.
 - **измеримый результат:** поиск продолжается, пока улучшает best-so-far;
   plateau останавливает; одна сложная сцена не останавливает остальные, не
   удаляет найденные assets, не сбрасывает проект и не блокирует reviewable draft.
@@ -771,7 +955,7 @@ gates и проверки остаются в соответствующих р�
 | PLAN-3 | Исправленные completion/resume fixtures, соответствующие output-validated idempotency. |
 | PLAN-4 | Зелёный и воспроизводимый полный offline baseline на зафиксированном source HEAD. |
 | PLAN-5 | Один test runner с режимами `smoke`, `fast`, `targeted`, `full`; локальные проверки и offline CI используют одну командную модель. |
-| PLAN-6 | Короткие единые правила для любых AI-агентов, ранний отчёт о мусоре/дублях и проверенная карта dependency/toolchain ownership. |
+| PLAN-6 | Короткие единые правила для любых AI-агентов, ранний отчёт о мусоре/дублях, проверенная карта dependency/toolchain ownership, технический scope-контроль и один независимый read-only reviewer. |
 | PLAN-7 | README, COMMANDS и рабочие skills обучают только каноническому `python -m ai_youtube`; старые entrypoints пока лишь совместимы. |
 | PLAN-8 | Отдельный `PRODUCT_PLAN.md` с приоритетами, evidence gates и roadmap двух engines; execution plan становится короче. |
 | PLAN-9 | Сохранение best-so-far, переносимое через resume; универсальные queries; semantic decision path доказан и включается только opt-in. |
@@ -836,6 +1020,43 @@ gates и проверки остаются в соответствующих р�
 - **2026-07-30** verification budget уточнён: targeted tests после каждого
   code slice; `full` — на shared boundaries и при закрытии крупных families,
   а не после каждого локального product leaf.
+- **2026-07-30** governance-аудит от clean HEAD `2379444`: независимого
+  reviewer в репозитории нет ни в какой форме — отсутствуют `.claude/agents/`,
+  `.claude/skills/`, `.claude/commands/`, hooks, Codex-конфиг, git-hooks
+  (в `.git/hooks` только samples), `.vscode`, `.idea`, `*.bat`, `*.cmd`, `*.ps1`.
+- **2026-07-30** механизма scope-контроля нет: ничто не сравнивает allowlist
+  задачи с фактическим `git diff --name-only`. Технически enforced сейчас ровно
+  три вещи: `tools/qa/check_agent_docs.py`, deny-list `.claude/settings.json`
+  и `tests/network_guard.py`. Остальные правила зависят от памяти модели.
+- **2026-07-30** `skills/` не является `.claude/skills/`, поэтому Claude Code
+  не загружает эти skills автоматически; они доступны только при ручном чтении
+  файла. Codex-адаптер существует как `skills/*/agents/openai.yaml`.
+- **2026-07-30** `docs/current/PRODUCT_EVIDENCE_GATE.md` имеет
+  `status: historical_reference` внутри `docs/current/` — единственный такой
+  файл. `tools.qa.check_agent_docs` проверяет три файла из семи в
+  `docs/current/` и не проверяет активный execution plan.
+- **2026-07-30** лестница PLAN-9B противоречила собственным разрешённым зонам:
+  `src/assets/semantic_selection/query_generator.py` — 55 строк, возвращает
+  только строки запросов, а ступени «локальная медиатека», «другой provider» и
+  «разрешённый fallback» живут в `src/providers/registry.py`,
+  `src/providers/local_library_provider.py` и
+  `src/news/asset_scene_completion.py`. Реализовать их внутри слайса было
+  невозможно без выхода за scope, и они пересекались с PLAN-10D. Три ступени
+  перенесены к PLAN-10C как порядок эскалации; PLAN-9B оставлен только за
+  генерацией запросов.
+- **2026-07-30** `git diff --check` проверяет whitespace-ошибки и конфликтные
+  маркеры и не сравнивает состояние дерева, поэтому не может доказать
+  read-only поведение reviewer. PLAN-6E получил отдельную controlled read-only
+  acceptance вместо недоказуемого требования.
+- **2026-07-30** карта tracked-файлов под кандидатами protected paths:
+  `projects/` — 0; `music/` — 1 `.gitkeep`; `assets/library`+`assets/cache` — 1
+  example; `anime_factory/episodes/` — 1 `.gitkeep`; `outputs/` — 9 плановых
+  JSON и отчёт; `manual_assets/` — 7, включая 3 versioned SVG; `channels/` — 19
+  versioned; `content/` — 13 versioned. Поэтому `outputs/**` и
+  `manual_assets/**` нельзя блокировать целиком, а `channels/**` и `content/**`
+  нельзя блокировать вовсе. 79 из 112 тестовых модулей используют
+  `TemporaryDirectory`/`mkdtemp` вне репозитория, поэтому repo-relative
+  deny-list synthetic tempfile не задевает.
 
 ## Completion and archive policy
 
