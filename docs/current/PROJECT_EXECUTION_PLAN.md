@@ -48,8 +48,8 @@ source_paths:
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`.
 - **Заблокировано:** PLAN-9* и далее до завершения PLAN-1A–1D
-  (включая C01-SEM) и
-  отдельного owner approval. PLAN-11 M2 до подтверждения бюджета.
+  (включая C01-SEM), PLAN-8 и отдельного owner approval.
+  PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
 - **После проверки Git выполнить:** PLAN-1A inventory.
 - **Что нельзя повторять:**
@@ -60,6 +60,35 @@ source_paths:
   - архивировать `PROJECT_RESCUE_MASTER_PLAN.md` или
     `ARCHITECTURE_BOUNDARY_MAP.md` до завершения PLAN-1;
   - снимать с Git `docs/implementation` целым семейством.
+
+## Шаблон задания для нового чата
+
+Историю предыдущих чатов пересказывать не нужно. Достаточно отправить:
+
+```text
+Работай в G:\Projects\AI-YouTube.
+Сначала выполни git status --short --branch, git log -5 --oneline и
+git diff --stat. Прочитай AGENTS.md и полностью
+docs/current/PROJECT_EXECUTION_PLAN.md. Исторический
+docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md читай как context согласно AGENTS.md,
+но не обновляй как current plan.
+
+Продолжи только current_checkpoint активного execution plan и выполни один
+bounded sub-slice. Перед изменением проверь фактические callers, tests,
+contracts и существующих owners; не создавай дублирующую реализацию.
+Запусти только required/targeted проверки этого slice; full offline suite —
+только когда его требует план или меняется shared boundary.
+
+Не выполняй сеть, provider download/search, Vision, TTS, платные вызовы,
+реальный render, удаление/перенос runtime или user data без моего отдельного
+разрешения. После зелёных проверок обнови checkpoint/evidence в активном плане,
+покажи diff summary и закоммить slice отдельным commit с
+Plan-Step: <ID>. В конце сообщи результат, проверки, commit и следующий
+точный checkpoint.
+```
+
+Если задача только на review, в последнем абзаце следует заменить
+«выполни/закоммить slice» на «ничего не меняй и дай вывод».
 
 ## Source-of-truth precedence
 
@@ -190,6 +219,17 @@ budget cap, timeout, количество обязательных artifacts, л
 6. После каждого commit повторяются `git status --short --branch`,
    `git diff --check` и проверки, указанные для slice. Сеть и платные действия
    не считаются проверкой без отдельного owner approval.
+7. Targeted tests выполняются после каждого behavior/code slice. Full offline
+   suite не запускается автоматически после локального leaf-изменения.
+8. Full offline suite обязателен на границе shared contract, persisted schema,
+   paths/package root, provider registry, compatibility retirement и при
+   закрытии крупного этапа, который объединяет несколько product slices.
+9. Если этап состоит из contract-foundation и нескольких adapters, `full`
+   выполняется после contract slice и один раз при закрытии семейства; каждый
+   adapter между ними проверяется targeted tests.
+10. Docs-only и report-only slices не требуют `full`, если не меняют test
+    discovery, runner или production contract. Для них обязательны собственные
+    QA/tests и `git diff --check`.
 
 ## Execution table
 
@@ -198,8 +238,9 @@ budget cap, timeout, количество обязательных artifacts, л
 
 Критический путь:
 
-`PLAN-1 → PLAN-2/3/4 → PLAN-5/6/7/8 → PLAN-9/10/11 →
-PLAN-12/13 → PLAN-14 → PLAN-15`.
+`PLAN-1 → PLAN-2/3 → PLAN-4 → PLAN-5 → PLAN-6A/6B/6C →
+PLAN-7/8 → PLAN-9A → (PLAN-9B/9C и PLAN-10A/10B/10C) →
+PLAN-9D/9E → PLAN-11 → PLAN-12 → PLAN-13 → PLAN-14 → PLAN-15`.
 
 Независимые под-slices могут меняться местами только когда их зависимости,
 allowed zones и owner approvals не пересекаются; изменение порядка
@@ -359,28 +400,49 @@ allowed zones и owner approvals не пересекаются; изменени
 - **required verification:** `smoke` + `fast` + `full`.
 - **rollback:** один commit.
 
-### PLAN-6 — governance R1–R12 и QA
+### PLAN-6 — governance, ранний minimalism baseline и toolchain audit
 
 - **status:** pending · **completed:** — · **commit:** —
-- **цель:** заменить накопленный набор правил на R1–R12 и привести QA в
-  соответствие.
+- **цель:** до product/refactor работ закрепить единые правила, измерить
+  фактическое загрязнение репозитория и определить владельцев зависимостей.
 - **зависимости:** PLAN-5.
-- **разрешённые зоны:** `AGENTS.md`, `tools/qa/check_agent_docs.py`, связанные
-  onboarding и reproducibility тесты.
-- **запрещено:** production-код, создание ADR про governance.
-- **требования:**
-  - R1–R12 в согласованной редакции с категориями A/B/C/D;
-  - QA не требует вечного существования конкретных архивных handoff;
-  - exact-count проверка skills заменяется минимальным обязательным набором
-    критичных skills плюс автоматической проверкой всех найденных;
-  - broken link, missing source path и invalid commit — error;
-  - возраст документа и превышение рекомендуемого размера — warning;
-  - onboarding-лимит `START_HERE.md` может остаться жёстким;
-  - `README.md` и `COMMANDS.md` обязаны упоминать канонический CLI.
+- **запрещено:** production-код, удаление/перенос файлов и runtime data,
+  создание ADR про governance, обновление lock или скачивание зависимостей.
+- **bounded sub-slices:**
+  - **PLAN-6A — governance R1–R12 и docs QA:**
+    - разрешённые зоны: `AGENTS.md`, `tools/qa/check_agent_docs.py`, связанные
+      onboarding и reproducibility tests;
+    - R1–R12 в согласованной редакции с категориями A/B/C/D;
+    - QA не требует вечного существования конкретных архивных handoff;
+    - exact-count проверка skills заменяется минимальным обязательным набором
+      критичных skills плюс автоматической проверкой всех найденных;
+    - broken link, missing source path и invalid commit — error;
+    - возраст документа и превышение рекомендуемого размера — warning;
+    - onboarding-лимит `START_HERE.md` может остаться жёстким;
+    - `README.md` и `COMMANDS.md` обязаны упоминать канонический CLI;
+  - **PLAN-6B — ранний report-only minimalism baseline:**
+    - зависимость: PLAN-6A;
+    - разрешённые зоны: `tools/qa/check_repository_minimalism.py`, его
+      targeted tests, `docs/current/CLEANUP_REGISTRY.md`;
+    - отчёт покрывает tracked cache/generated outputs, top-level paths вне
+      draft allowlist, exact duplicates, wrappers без registry, retired
+      imports, hardcoded machine paths, empty directories и orphan-кандидатов;
+    - detector ничего не удаляет; orphan/duplicate остаются review evidence;
+  - **PLAN-6C — dependency/toolchain ownership audit:**
+    - зависимость: PLAN-6B;
+    - read-only по `pyproject.toml`, `requirements.txt`, `requirements.lock`,
+      CI/task/config files, Anime/ML optional dependencies, `venv/`,
+      MOSS/Whisper/model weights и agent-specific adapters;
+    - обновляется только `docs/current/CLEANUP_REGISTRY.md`;
+    - фиксируются direct/resolved/optional/toolchain owners, callers,
+      воспроизводимость, replacement и exit conditions до package
+      consolidation.
 - **измеримый результат:** docs QA зелёный при новых правилах; `AGENTS.md`
-  в районе ста строк.
-- **required verification:** docs QA + `full`.
-- **rollback:** один commit.
+  в районе ста строк; первый minimalism report сохранён как baseline;
+  dependency/toolchain решения известны до PLAN-13C и PLAN-14B.
+- **required verification:** PLAN-6A — docs QA + `full`; PLAN-6B — targeted
+  tests detector + docs QA; PLAN-6C — docs QA; `git diff --check` всегда.
+- **rollback:** один commit на под-slice.
 
 ### PLAN-7 — канонический пользовательский CLI в документации
 
@@ -412,15 +474,36 @@ allowed zones и owner approvals не пересекаются; изменени
   `video_repurposer` через migration Anime Factory и будущий
   longform/documentary workflow `content_creator`, с entry/enable evidence и
   без создания новых engine stacks. Ориентир до 250 строк.
+- **обязательное завершение:** после commit `PRODUCT_PLAN.md` продуктовые
+  подробности PLAN-9–PLAN-11 (лестницы, M1/M2/M3, reference domains и quality
+  evidence) переносятся туда. В этом execution plan остаются только ID,
+  зависимости, allowed/prohibited zones, gates, verification и rollback.
+  До появления проверенного `PRODUCT_PLAN.md` текущие подробности не удалять.
 - **required verification:** docs QA.
 - **rollback:** один commit.
 
-### PLAN-9A — query expansion и снятие topic-hardcodes
+### PLAN-9A — best-so-far foundation и tolerant persistence/resume
 
-- **status:** blocked (PLAN-1 + owner approval) · **commit:** —
+- **status:** blocked (PLAN-1 включая C01-SEM, PLAN-8 + owner approval) ·
+  **commit:** —
+- **цель:** до расширения поиска гарантировать, что лучший найденный материал
+  не теряется между итерациями и при `resume`.
+- **состав:** top candidates по сцене, best-so-far с обоснованием, semantic
+  score, rights status, Vision/evaluation result, manual approvals, выбранный
+  fallback. Расширяет существующие `rejected_candidates`/`rejected_reasons`;
+  второй manifest или project system не создаётся.
+- **ограничения:** additive schema/tolerant reader; старые manifests и resume
+  читаются без миграции; characterization-first.
+- **измеримый результат:** после остановки, ошибки или resume сохранённый
+  best-so-far не ухудшается и остаётся объяснимым.
+- **required verification:** targeted persisted-contract tests + `full`.
+- **rollback:** один commit.
+
+### PLAN-9B — query expansion и снятие topic-hardcodes
+
+- **status:** blocked (PLAN-9A) · **commit:** —
 - **цель:** контролируемая лестница расширения запросов вместо фиксированного
   набора; убрать topic-specific hardcodes.
-- **зависимости:** PLAN-1. **Не** зависит от PLAN-9B.
 - **разрешённые зоны:** `src/assets/semantic_selection/query_generator.py`
   и его тесты. Characterization-first.
 - **лестница:** точный субъект → субъект и действие → субъект, действие и
@@ -429,14 +512,14 @@ allowed zones и owner approvals не пересекаются; изменени
   другой provider → разрешённый fallback.
 - **измеримый результат:** topic-specific hardcodes отсутствуют; расширение не
   меняет смысл сцены; `must_avoid` и misleading-gates действуют на каждом уровне.
-- **required verification:** targeted + `full`.
+- **required verification:** targeted query-generator tests; `full` здесь не
+  нужен, если shared contract не изменился.
 - **rollback:** один commit.
 
-### PLAN-9B — semantic decision wiring
+### PLAN-9C — semantic decision wiring
 
-- **status:** blocked (PLAN-1 включая C01-SEM + owner approval) · **commit:** —
+- **status:** blocked (PLAN-9A и закрытый C01-SEM) · **commit:** —
 - **цель:** результат semantic-анализа действительно влияет на ranking и отбор.
-- **зависимости:** PLAN-1 и закрытый C01-SEM.
 - **разрешённые зоны:** production asset selection path.
 - **запрещено:** создавать второй visual planner, Vision stack или asset
   pipeline; изменять default-поведение в этом slice; **использовать mock
@@ -444,12 +527,13 @@ allowed zones и owner approvals не пересекаются; изменени
   только в wiring-тестах и не является доказательством визуального качества.
 - **измеримый результат:** wiring доказан тестами; default-конфигурация
   поведения не меняет.
-- **required verification:** targeted + `full`.
+- **required verification:** targeted selection/wiring tests + `full`, так как
+  меняется shared production decision path.
 - **rollback:** один commit.
 
-### PLAN-9C — offline visual-quality evidence
+### PLAN-9D — offline visual-quality evidence
 
-- **status:** blocked (PLAN-9B) · **commit:** —
+- **status:** blocked (PLAN-9B, PLAN-9C) · **commit:** —
 - **цель:** доказать улучшение decision path на уже имеющихся данных.
 - **источники:** существующий live-eval dataset, уже сохранённые кадры,
   сохранённые результаты предыдущего Vision-прогона, вручную размеченные
@@ -457,12 +541,13 @@ allowed zones и owner approvals не пересекаются; изменени
 - **запрещено:** новые платные вызовы.
 - **измеримый результат:** улучшение решения на известных данных
   зафиксировано; mock как доказательство не используется.
-- **required verification:** targeted + `full`.
+- **required verification:** targeted evaluation tests + offline product
+  fixture gate; повторный `full` не нужен без изменения shared contract.
 - **rollback:** один commit.
 
-### PLAN-9D — controlled semantic activation
+### PLAN-9E — controlled semantic activation
 
-- **status:** blocked (PLAN-9C, PLAN-10D + owner approval) · **commit:** —
+- **status:** blocked (PLAN-9D, PLAN-10C + owner approval) · **commit:** —
 - **цель:** включить доказанный semantic decision path только для явно
   выбранного template/project policy.
 - **запрещено:** глобально включать paid backend, менять default всех старых
@@ -470,45 +555,38 @@ allowed zones и owner approvals не пересекаются; изменени
 - **измеримый результат:** opt-in policy имеет безопасный fallback при
   отсутствии результата/бюджета/backend; старые проекты и default config
   сохраняют прежнее поведение; выбор и причина записываются в manifest.
-- **required verification:** targeted + `full`.
+- **required verification:** targeted policy/integration tests + `smoke` +
+  `full` как общий activation gate.
 - **rollback:** один commit.
 
-### PLAN-10A — best-so-far и tolerant persistence/resume
+### PLAN-10A — query/provider attempt ledger и stop reasons
 
-- **status:** blocked (PLAN-9C) · **commit:** —
-- **цель:** лучший найденный материал не теряется между итерациями и при
-  `resume`.
-- **состав:** top candidates по сцене, best-so-far с обоснованием, semantic
-  score, rights status, Vision/evaluation result, manual approvals, выбранный
-  fallback. Расширяет существующие `rejected_candidates`/`rejected_reasons`,
-  второй manifest не создаётся.
-- **required verification:** targeted + `full`. **rollback:** один commit.
-
-### PLAN-10B — query/provider attempt ledger и stop reasons
-
-- **status:** blocked (PLAN-10A) · **commit:** —
-- **цель:** каждая остановка имеет сохранённую причину.
+- **status:** blocked (PLAN-9A) · **commit:** —
+- **цель:** каждая попытка и остановка сохранена; best-so-far можно объяснить
+  и продолжить после `resume`.
 - **допустимые stop reasons:** исчерпаны разрешённые query variants; исчерпаны
   providers и pagination; достигнут budget; несколько итераций не улучшили
   best-so-far; следующий шаг требует отдельного платного разрешения; достигнут
   strict threshold. Бесконечный поиск запрещён.
-- **required verification:** targeted + `full`. **rollback:** один commit.
+- **required verification:** targeted persisted-contract tests + `full`.
+- **rollback:** один commit.
 
-### PLAN-10C — pagination и provider contract
+### PLAN-10B — pagination и provider contract
 
-- **status:** blocked (PLAN-10B) · **commit:** —
+- **status:** blocked (PLAN-10A) · **commit:** —
 - **цель:** поиск не ограничен первой страницей результатов и фиксированным
   лимитом на пару provider × query.
 - **граница:** сначала additive pagination/cursor contract и
   characterization старых adapters; затем каждый active provider переводится
   отдельным под-slice. Провайдер без pagination сохраняет bounded single-page
   adapter и честно сообщает exhaustion.
-- **required verification:** targeted + `full`.
+- **required verification:** contract-foundation — targeted + `full`; каждый
+  provider adapter — targeted; один итоговый `full` при закрытии family.
 - **rollback:** один commit на contract и один на provider-family.
 
-### PLAN-10D — adaptive budget и plateau policy
+### PLAN-10C — adaptive budget и plateau policy
 
-- **status:** blocked (PLAN-10C) · **commit:** —
+- **status:** blocked (PLAN-9B, PLAN-10B) · **commit:** —
 - **цель:** политика `quick` / `standard` / `deep` вместо одного фиксированного
   лимита. Бюджет учитывает важность и длительность сцены, сложность субъекта,
   число новых уникальных кандидатов, улучшение best-so-far, число providers,
@@ -518,25 +596,30 @@ allowed zones и owner approvals не пересекаются; изменени
   удаляет найденные assets, не сбрасывает проект и не блокирует reviewable draft.
 - **запрещено:** случайный нерелевантный asset ради `completed`, misleading
   visual, `must_avoid` conflict, нарушение rights, ложный `publish_ready`.
-- **required verification:** targeted + `full`. **rollback:** один commit.
+- **required verification:** targeted policy tests после каждого slice;
+  `full` один раз при закрытии adaptive-search family.
+- **rollback:** один commit.
 
-### PLAN-10E — регистрация локальной медиатеки
+### PLAN-10D — регистрация локальной медиатеки
 
-- **status:** blocked (PLAN-10D + аудит) · **commit:** —
+- **status:** blocked (PLAN-10C + аудит) · **commit:** —
 - **предусловие:** аудит paths, rights, provenance и dedup для локальных файлов.
-- **цель:** `LocalLibraryStockProvider` участвует в автоматическом поиске.
-- **измеримый результат:** провайдер отдаёт только rights-clean кандидатов без
-  дублей.
-- **required verification:** targeted + `full`. **rollback:** один commit.
+- **цель:** `LocalLibraryStockProvider` участвует в автоматическом поиске
+  только если аудит доказал ценность и безопасность.
+- **измеримый результат:** при включении провайдер отдаёт только rights-clean
+  кандидатов без дублей; при отрицательном решении registry не усложняется.
+- **required verification:** при изменении shared provider registry —
+  targeted + `full`; для решения `defer/reject` — docs QA.
+- **rollback:** один commit.
 
 ### PLAN-11 — multi-topic product evidence
 
-- **status:** blocked (PLAN-9D, PLAN-10D) · **commit:** —
+- **status:** blocked (PLAN-9E, PLAN-10C) · **commit:** —
 - **scope:** текущий automatic asset-search path относится прежде всего к
   `fullscreen_voiceover_v1`. `story_card_text_only_v1` сейчас требует
   явный local `source_asset`; PLAN-11 не выдаёт улучшение одного workflow за
   доказательство качества всех templates.
-- **примечание о зависимости:** PLAN-10E не является обязательным условием
+- **примечание о зависимости:** PLAN-10D не является обязательным условием
   M1, если аудит не доказал ценность/безопасность локальной библиотеки.
   Evidence запускается после каждого product slice на сохранённых fixtures;
   итоговый multi-topic gate не является первой проверкой результата.
@@ -588,7 +671,7 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-13 — ownership migration и retirement
 
-- **status:** blocked (PLAN-1, PLAN-12) · **commit:** —
+- **status:** blocked (PLAN-1, PLAN-6C, PLAN-12) · **commit:** —
 - **цель:** один owner бизнес-логики, один установленный package root и один
   канонический CLI без потери compatibility/persisted contracts.
 - **bounded sub-slices:**
@@ -598,8 +681,9 @@ allowed zones и owner approvals не пересекаются; изменени
     копировать; Fullscreen, Story Card, Anime, projects, assets/providers,
     audio/music, subtitles и rendering — разные commits;
   - **PLAN-13C — wrapper/package retirement:** один wrapper/package family
-    после zero-production-caller gate; root `ai_youtube/` и
-    `src/ai_youtube/` свести к одному installable src-layout package;
+    после zero-production-caller gate и dependency/toolchain audit PLAN-6C;
+    root `ai_youtube/` и `src/ai_youtube/` свести к одному installable
+    src-layout package;
   - **PLAN-13D — legacy pipeline:** сохранить только подтверждённые
     maintenance/migration commands; `pipeline.py` удалить последним.
 - **предусловие удаления любого старого entrypoint:** переведены или удалены
@@ -615,22 +699,22 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-14 — repository/runtime minimalism и переносимость
 
-- **status:** blocked (PLAN-12, PLAN-13) · **commit:** —
+- **status:** blocked (PLAN-6B, PLAN-6C, PLAN-12, PLAN-13) · **commit:** —
 - **цель:** кодовый репозиторий содержит только source/config/tests/versioned
   docs, а runtime/toolchain/user data имеют явных владельцев вне code root.
 - **bounded sub-slices:**
-  - **PLAN-14A — report-only minimalism QA:** создать
-    `tools/qa/check_repository_minimalism.py`; отчёт о tracked cache/generated
-    outputs, top-level paths вне allowlist, exact duplicates, wrappers без
-    registry, retired imports, hardcoded machine paths, пустых каталогах и
-    orphan-кандидатах. Orphan/duplicate — только review evidence, не
-    автоматическое разрешение удалить;
-  - **PLAN-14B — dependency/toolchain ownership:** определить
-    `pyproject.toml` владельцем direct dependencies, `requirements.lock` —
-    проверенным lock; `requirements.txt` оставить, генерировать или удалить
-    только после caller/docs audit. Отдельно классифицировать Anime/ML optional
-    dependencies, `venv/`, MOSS/Whisper/model weights и agent-specific adapters.
-    Обновление lock/download требует отдельного network approval;
+  - **PLAN-14A — финальный minimalism QA:** повторно запустить и при
+    необходимости усилить созданный в PLAN-6B
+    `tools/qa/check_repository_minimalism.py`; сравнить результат с ранним
+    baseline и закрыть только подтверждённые нарушения. Orphan/duplicate —
+    review evidence, не автоматическое разрешение удалить;
+  - **PLAN-14B — dependency/toolchain convergence:** реализовать решения
+    аудита PLAN-6C: `pyproject.toml` — владелец direct dependencies,
+    `requirements.lock` — проверенный lock; `requirements.txt` оставить,
+    генерировать или удалить только по зафиксированному caller/docs gate.
+    Anime/ML optional dependencies, `venv/`, MOSS/Whisper/model weights и
+    agent-specific adapters имеют раздельных owners. Обновление lock/download
+    требует отдельного network approval;
   - **PLAN-14C — generated/cache/empty directories:** удалять только
     воспроизводимые cache/temp и подтверждённо пустые runtime directories по
     проверенному абсолютному пути; пустой `__init__.py` не мусор;
@@ -673,6 +757,30 @@ allowed zones и owner approvals не пересекаются; изменени
 - **required verification:** все перечисленные offline checks.
 - **rollback:** финальный docs/checkpoint commit; проблемный implementation
   откатывается по его собственному bounded commit.
+
+## Результат после каждого этапа
+
+Это краткая карта состояния, а не второй набор критериев готовности. Полные
+gates и проверки остаются в соответствующих разделах выше.
+
+| После этапа | Что фактически получаем |
+|---|---|
+| PLAN-0 | Один активный versioned execution plan на отдельной локальной ветке. |
+| PLAN-1 | Проверенный реестр всех старых путей, callers, owners, замен и условий удаления; production ещё не перемещается. |
+| PLAN-2 | Исправленные voice-profile fixtures без изменения рабочего production resolver. |
+| PLAN-3 | Исправленные completion/resume fixtures, соответствующие output-validated idempotency. |
+| PLAN-4 | Зелёный и воспроизводимый полный offline baseline на зафиксированном source HEAD. |
+| PLAN-5 | Один test runner с режимами `smoke`, `fast`, `targeted`, `full`; локальные проверки и offline CI используют одну командную модель. |
+| PLAN-6 | Короткие единые правила для любых AI-агентов, ранний отчёт о мусоре/дублях и проверенная карта dependency/toolchain ownership. |
+| PLAN-7 | README, COMMANDS и рабочие skills обучают только каноническому `python -m ai_youtube`; старые entrypoints пока лишь совместимы. |
+| PLAN-8 | Отдельный `PRODUCT_PLAN.md` с приоритетами, evidence gates и roadmap двух engines; execution plan становится короче. |
+| PLAN-9 | Сохранение best-so-far, переносимое через resume; универсальные queries; semantic decision path доказан и включается только opt-in. |
+| PLAN-10 | Ограниченный и объяснимый search loop с ledger, stop reasons, pagination и adaptive budget; локальная библиотека включается только после rights-аудита. |
+| PLAN-11 | Проверенное offline M1 evidence на нескольких темах без новых платных Vision-вызовов и без ложных claims по Story Card. |
+| PLAN-12 | Current docs содержат только актуальные знания; fixtures получают правильного владельца; historical материалы находятся в archive. |
+| PLAN-13 | Один владелец бизнес-логики на capability, один physical package root и один канонический CLI; лишние wrappers retired доказанными slices. |
+| PLAN-14 | Минимальный root allowlist, согласованные dependency/toolchain files и переносимый runtime workspace; пользовательские данные сохранены. |
+| PLAN-15 | Финально доказанный чистый, понятный, переносимый offline-проект с честным catalog и закрытым cleanup registry. |
 
 ## Decisions and discoveries
 
@@ -719,6 +827,15 @@ allowed zones и owner approvals не пересекаются; изменени
   `source_asset`; automatic asset search в этот workflow не подключён.
   Визуальные PLAN-9–PLAN-11 не считаются доказательством Story Card без
   отдельного workflow evidence.
+- **2026-07-30** product sequence изменён: tolerant best-so-far persistence
+  предшествует query expansion, pagination и semantic activation, чтобы новые
+  попытки не могли терять уже найденный результат.
+- **2026-07-30** minimalism QA выполняется дважды: ранний report-only baseline
+  после test runner/governance и финальный gate после ownership/docs cleanup.
+  Dependency/toolchain audit также перенесён до package consolidation.
+- **2026-07-30** verification budget уточнён: targeted tests после каждого
+  code slice; `full` — на shared boundaries и при закрытии крупных families,
+  а не после каждого локального product leaf.
 
 ## Completion and archive policy
 
