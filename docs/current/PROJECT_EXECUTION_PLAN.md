@@ -1,11 +1,12 @@
 ---
 status: active
+plan_revision: 2
 created_at: 2026-07-30
-updated_at: 2026-07-30
+updated_at: 2026-07-31
 baseline_head: fe2df5b
 working_branch: governance-reset
-owner_decisions_date: 2026-07-30
-current_checkpoint: PLAN-1A
+owner_decisions_date: 2026-07-31
+current_checkpoint: PLAN-1D-routing
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -44,23 +45,35 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-1A (первая часть checkpoint 9B-C01), не начат.
+- **Текущий шаг:** PLAN-1D-routing, не начат.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
+  STEP 0 — архитектурная ревизия перенесена в этот файл и в
+  `CLEANUP_REGISTRY.md`.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`.
-- **Заблокировано:** PLAN-9* и далее до завершения PLAN-1A–1D
-  (включая C01-SEM), PLAN-8 и отдельного owner approval.
-  PLAN-11 M2 — до подтверждения бюджета.
+- **Почему checkpoint сместился с PLAN-1A.** Это **не** признак выполненной
+  работы. Ревизия 2 разделила монолитный PLAN-1 на три capability gates
+  (1A, 1B, 1C′) и выделила routing-фикс 1D как первый самостоятельный шаг.
+  Ни один под-slice PLAN-1 не выполнен. `baseline_head` остаётся `fe2df5b`:
+  нового baseline run не было.
+- **Заблокировано:** PLAN-9A — до PLAN-2, PLAN-3, PLAN-4, PLAN-5, PLAN-6A,
+  PLAN-6D, PLAN-6E и PLAN-1C′. PLAN-11 M2 — до подтверждения бюджета.
+  **PLAN-6B, PLAN-6C, PLAN-7, PLAN-8, PLAN-12\*, PLAN-13\*, PLAN-14\* и
+  PLAN-L больше не являются глобальными prerequisites PLAN-9A.**
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-1A inventory.
+- **После проверки Git выполнить:** PLAN-1D-routing.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
-  - менять production-код до завершения PLAN-1 и owner approval;
+  - менять production-код без закрытого capability gate изменяемой области;
   - создавать третий плановый документ;
   - архивировать `PROJECT_RESCUE_MASTER_PLAN.md` или
-    `ARCHITECTURE_BOUNDARY_MAP.md` до завершения PLAN-1;
+    `ARCHITECTURE_BOUNDARY_MAP.md` до PLAN-12;
   - снимать с Git `docs/implementation` целым семейством;
-  - заявлять о защите, которая существует только в документах.
+  - заявлять о защите, которая существует только в документах;
+  - выполнять destructive retirement knowledge-bearing family до Knowledge
+    Salvage Gate (PLAN-L0);
+  - требовать KSG для disposable runtime/media: их цепочка — PLAN-14D → 14E;
+  - считать «нет caller» доказательством отсутствия ценности.
 
 ## Шаблон задания для нового чата
 
@@ -106,18 +119,20 @@ Plan-Step: <ID>. В конце сообщи результат, проверки
 остаётся **историческим исходным документом** и источником данных для PLAN-1.
 Его разделы «Что делать первым» и «Текущий handoff» отражают состояние на
 2026-07-29 и **не являются** текущим порядком работ: порядок задаёт этот файл.
-Master plan не обновляется как current plan и не архивируется до завершения
-PLAN-1. Противоречие между двумя документами разрешается в пользу этого файла
+Master plan не обновляется как current plan и не архивируется до PLAN-12C.
+Противоречие между двумя документами разрешается в пользу этого файла
 только по вопросу порядка выполнения; по фактам архитектуры приоритет у кода.
 
 Если код или tests противоречат этому плану, агент обязан остановиться,
 проверить evidence и обновить план после решения владельца.
 
-**Временная маршрутизация агентов.** До закрытия PLAN-1 master plan и этот
-файл указывают один следующий checkpoint — 9B-C01. В заключительном slice
-PLAN-1D в `AGENTS.md` и `START_HERE.md` добавляется короткая ссылка на активный
-execution plan. До этой ссылки checkpoint нельзя переводить на PLAN-2:
-иначе новый агент, буквально выполнив текущий `AGENTS.md`, снова начнёт C01.
+**Временная маршрутизация агентов.** После ревизии 2 документы больше **не**
+указывают один и тот же следующий шаг: этот файл указывает PLAN-1D-routing, а
+`AGENTS.md` и `START_HERE.md` по-прежнему направляют задачу в master plan, то
+есть в 9B-C01. Поэтому PLAN-1D выполняется первым: он добавляет в `AGENTS.md`
+и `START_HERE.md` короткую ссылку на активный execution plan. До этой ссылки
+checkpoint нельзя переводить на PLAN-2: иначе новый агент, буквально выполнив
+текущий `AGENTS.md`, снова начнёт C01.
 
 ## Locked owner decisions
 
@@ -152,8 +167,10 @@ execution plan. До этой ссылки checkpoint нельзя перево�
    переносить рабочие файлы ради соответствия дереву запрещено.
 10. Канонический пользовательский путь — `python -m ai_youtube`. Старые
     entrypoints (`python -m src.content_creation.cli`, `python pipeline.py`,
-    `python -m apps.*`) не являются постоянным пользовательским контрактом, но
-    **сейчас не удаляются**: сначала PLAN-1 и перевод tests/docs.
+    `python -m apps.*`) не являются постоянным пользовательским контрактом.
+    **Изменено ревизией 2:** формулировка «сначала PLAN-1» отменена. Каждый
+    entrypoint удаляется после **своего** capability gate; для legacy-семейства
+    это PLAN-L1, а не глобальный inventory.
 11. Владелец подтвердил отсутствие личных `.bat`/`.cmd`/`.ps1`, ярлыков,
     Windows Tasks и IDE Run Configurations, которые нужно сохранять ради старых
     команд. Поиск по компьютеру вне репозитория запрещён.
@@ -163,20 +180,254 @@ execution plan. До этой ссылки checkpoint нельзя перево�
     действие. Для M1: 0 USD и ноль новых платных Vision-вызовов. Бюджет M2 —
     `TBD`, подтверждается отдельно перед первым реальным платным запуском.
 
+## Owner decisions ревизии 2 (2026-07-31)
+
+Ревизия 2 пересмотрела план под явную позицию владельца: существующая
+зависимость, существующий owner и существующая архитектура **не являются
+доказательством правильности**; тестовое runtime-медиа ценности не имеет;
+правила ограничивают исполнение, но не мышление; программа не должна
+превратиться в бесконечное строительство governance.
+
+| # | Решение |
+|---|---|
+| **OD-1** | `channels/{psychology,quotes,survival,size_comparison}` и `content/` не сохраняются как активные workflows. Ретайр вместе с legacy допускается **только после Knowledge Salvage Gate** |
+| **OD-2** | `apps/news_to_short` как отдельный CLI не сохраняется. Если его флаги полностью покрыты каноническим CLI — удалить; уникальную возможность сначала перенести в `content_creator`, затем удалить |
+| **OD-3** | `assets/voice_samples` — disposable test/runtime media, в source repo не хранится. Если конкретный активный voice profile действительно требует sample — перенести минимально необходимый во внешний Workspace с provenance, иначе удалить |
+| **OD-4** | Бюджет M2 остаётся `TBD` и ничего не блокирует |
+| **OD-5** | Вся поддерживаемая human/agent-проза со временем становится преимущественно русской, **включая body существующих ADR**. Инкрементально, без одного mass-diff; не блокирует product work |
+| **OD-6** | Locked decisions 8 и 9 больше не запрещают пересмотр `config`/`channels`/`assets`/`resources`. Пересмотр — только после классификации, не ради эстетики |
+| **OD-7** | **MOSS-TTS не нужен продукту.** Не реинтегрировать как активный TTS provider. KSG → caller audit → удалить `MOSS_TTS_Nano/` и `src/tts_providers/`. Не сохранять 56k файлов «на всякий случай»; vendor repo в `Workspace/models` не переносить |
+| **OD-8** | Live-eval — evaluation resource. **`docs/` — неправильный target owner.** Fixture/evidence сохраняется, caller позже переводится на утверждённого owner. `resources/evaluation/` — **только candidate path**; физический target `DEFER` до PLAN-13 |
+| **OD-9** | Top-level `resources/` — `DEFER` до PLAN-13, заранее **не создавать**. Сначала классифицировать `channels` · `schemas` · reusable templates · evaluation resources · versioned assets/config, затем решить, уменьшает ли `resources/` число owners |
+| **OD-10** | `size_comparison_engine`: L0 сохраняет reusable algorithm, domain knowledge, visual logic, edge cases и полезные тесты. **Capability внутри L3 не мигрируется.** Если формат понадобится — отдельный будущий product slice на новом canonical core |
+
 ## Safety boundaries
 
 Действуют правила R1–R3 из `AGENTS.md`; здесь они не дублируются.
 Дополнительно на период этой программы:
 
-- пользовательские данные не изменяются: `projects/`, `assets/`,
-  `manual_assets/`, `music/`, `outputs/`, media, manifests, evidence,
-  license proof, voice samples, `.env`;
 - сеть, provider search, download, Vision, TTS, render и платные API не
   выполняются без отдельного разрешения на конкретное действие;
 - synthetic render в tempfile разрешён и обязателен для renderer contract
   tests; реальный render пользовательского проекта — только по необходимости и
   с разрешением;
-- в `master` не сливать и ничего не публиковать без отдельного разрешения.
+- в `master` не сливать и ничего не публиковать без отдельного разрешения;
+- destructive retirement **knowledge-bearing family** (source, workflow, config,
+  prompts, templates, tests, уникальное docs/evidence) выполняется только после
+  Knowledge Salvage Gate (PLAN-L0) и с обратимым retirement-механизмом;
+- удаление **disposable runtime/media/cache** идёт цепочкой PLAN-14D → PLAN-14E
+  и KSG не требует; его gate — классификация, `Preserved runtime corpus`,
+  проверенный абсолютный путь и owner approval на конкретное действие.
+
+**Изменено ревизией 2.** Безусловная неприкосновенность `projects/`, `assets/`,
+`manual_assets/`, `music/`, `outputs/` снята: владелец объявил тестовое
+runtime-медиа disposable. Вместо неё действует точный список сохраняемого.
+
+**Preserved runtime corpus — сохраняется обязательно:**
+
+- отобранный **минимальный representative** набор JSON/SRT/ASS манифестов
+  проектов (состав определяет PLAN-14D, см. registry C32);
+- `assets/library/metadata/media_index.json` — provenance и rights локальной
+  медиатеки;
+- versioned SVG в `manual_assets/**`;
+- versioned config `config/` (кроме умирающего `video_style.json`) и активные
+  `channels/nature_science_news_ru`, `channels/nature_pulse`;
+- live-eval dataset/results/frames как evaluation resource (переезжает по OD-8).
+
+**Disposable — удаляется на runtime reset:** медиа во всех перечисленных
+каталогах (`*.mp4`, `*.mov`, `*.wav`, `*.mp3`, `*.png`, `*.jpg`, `*.jpeg`),
+кэши, `project_solar_vs_nuclear/`, `assets/voice_samples` (OD-3),
+`MOSS_TTS_Nano/` (OD-7).
+
+Ни одно удаление не выполняется вне своего bounded slice и без явного
+подтверждения абсолютного пути.
+
+## Agent Autonomy Model
+
+Действует на период этой программы. Канонический владелец правил после PLAN-6A —
+`AGENTS.md`; здесь модель зафиксирована, чтобы она действовала **до** 6A, и
+после 6A этот раздел сворачивается до ссылки. Отдельный документ не создаётся.
+
+### Классы правил
+
+```
+[HARD]   нарушать нельзя. Если правило можно enforce технически —
+         оно обязано быть enforced, а не только записано.
+[ARCH]   архитектурная граница. Пересматривается через evidence,
+         ADR и independent review. Оспаривать — можно и нужно.
+[HINT]   рекомендуемый способ. Если он не достигает SUCCESS CRITERIA,
+         агент обязан искать другой и назвать причину смены.
+
+Правило без класса читается как [HINT].
+```
+
+**[HARD].** Secrets · платные и сетевые вызовы без разрешения на конкретное
+действие · destructive Git · удаление реальных user data · rights, `must_avoid`,
+misleading и conflict gates · публикация · изменение persisted contract без
+tolerant reader и migration · второй одновременно живущий canonical owner ·
+**доказать canonical owner, callers, persisted contracts, дубли и тесты
+изменяемой capability до её изменения**.
+
+**[ARCH].** Канонический CLI `python -m ai_youtube` · два engine (ADR 0016) ·
+один owner на capability · направление зависимостей · граница workspace
+(ADR 0002) · владение persisted schema · `strict` как default completion mode ·
+tolerant readers · размещение пакетов и структура корня.
+
+**[HINT].** Приоритет провайдеров · число и виды запросов · пороги
+`minimum_confidence`/`hard_reject_confidence` · `analyse_and_report` и
+`semantic_rerank_enabled: false` · предпочтительный тип визуала · порядок
+внутренних действий · «только targeted tests» · рекомендуемый размер модуля ·
+лимит длины `AGENTS.md`.
+
+### Goal > prescribed method
+
+```
+Выполнение инструкции не является выполнением задачи.
+Если CURRENT APPROACH не достигает SUCCESS CRITERIA, задача не закрыта.
+Агент переходит к поиску альтернативы внутри [HARD] и своих decision rights,
+а не сообщает об успехе на основании соблюдённой процедуры.
+```
+
+Плохой quality score сам по себе **не** является причиной остановки. Допустимые
+причины остановки перечислены в PLAN-10A.
+
+### Decision rights — три tripwire
+
+Owner approval требуется, когда изменение затрагивает:
+
+1. **persisted bytes** — schema, поле манифеста, layout файлов, имя каталога
+   проекта (дополнительно обязателен tolerant reader);
+2. **внешне наблюдаемую поверхность** — имя команды CLI, флаг, exit code, ключ
+   JSON-вывода, имя console script;
+3. **деньги, сеть или публикацию** — на каждое конкретное действие.
+
+Всё остальное — решение агента под ответственность reviewer, **включая удаление
+реализации, у которой есть callers**, если callers переведены в том же изменении
+и ни один tripwire не сработал. Существующая зависимость не является
+доказательством, что её нужно сохранять.
+
+**Уже выданные owner approvals.** Tripwire не отменяется и не ослабляется;
+approval — это факт, а не исключение из правила. Утверждение владельцем ревизии
+2 этого плана является explicit owner approval на persisted-change **ровно в том
+объёме, который уже описан в PLAN-9A**: additive schema, tolerant reader,
+чтение старых manifests без миграции, best-so-far/persistence contract в
+перечисленном там составе. Повторно спрашивать владельца о самом PLAN-9A не
+нужно.
+
+Любое расширение за эти границы — non-additive изменение, новый layout файлов,
+переименование каталога проекта, второй manifest, схема вне названного состава
+или persisted-изменение в другом слайсе — снова требует owner approval. Approval
+на PLAN-9A не переносится на PLAN-9B…PLAN-15 и на PLAN-L.
+
+### Challenge / Recovery Protocol
+
+Новые имена состояний завершённости **не вводятся**: словарь уже принадлежит
+`src/assets/completion/modes.py` (`usable_in_draft`, `automatic_render_allowed`,
+`publish_ready`, `manual_replacement_recommended`, `manual_replacement_required`,
+`blocked` + `block_reasons`, tiers `A_exact…F_emergency`). Причины остановки
+принадлежат PLAN-10A. Второй словарь создал бы второго canonical owner.
+
+Когда предписанный подход не даёт результата:
+
+1. назвать **root cause**, а не симптом;
+2. **не ослаблять [HARD]**;
+3. найти **минимум одну жизнеспособную альтернативу**. Сравнение нескольких
+   альтернатив обязательно **только** для неоднозначного, архитектурного,
+   дорогого или высокорискового решения; в обычном случае одной работающей
+   альтернативы достаточно;
+4. внутри decision rights — применить и записать причину;
+5. вне decision rights — остановиться, показать альтернативу и рекомендацию.
+
+### Owner Lookup — semantic trigger
+
+Проверка существующего владельца обязательна, когда создаётся:
+
+- новая **shared / cross-cutting responsibility**;
+- новый **public owner** — то, на что будут ссылаться извне модуля;
+- новый **persisted owner** — то, что пишет или владеет форматом на диске.
+
+Имена классов `Service|Registry|Manager|Provider|Store|Engine` — только
+эвристика для reviewer, не сам триггер. Для private-функций не применяется.
+
+Процедура — один проход: grep по существительному-ответственности в
+`SYSTEM_MAP.md`, `schemas/` и `src/**` → `reuse` / `extend` / `replace`. При
+создании нового owner — одно предложение в commit body о том, почему
+существующий нельзя расширить. Enforce выполняет reviewer, отдельный QA-модуль
+не создаётся: проверка требует суждения.
+
+### Task contract
+
+Формат задания каждого достаточно крупного слайса:
+
+```
+OBJECTIVE          что должно измениться для пользователя
+SUCCESS CRITERIA   какой конечный результат считается хорошим
+HARD CONSTRAINTS   что нельзя нарушать
+ALLOWED ZONES      какие файлы/каталоги разрешено менять
+CURRENT APPROACH   рекомендуемый способ
+ALTERNATIVES       агент вправе искать самостоятельно
+STOP CONDITIONS    когда действительно нужно остановиться
+VERIFICATION       чем доказан результат
+ROLLBACK           как откатить
+EXIT CONDITION     когда пункт можно снять с учёта
+```
+
+`ALLOWED ZONES` держится отдельно от `HARD CONSTRAINTS`: первое — scope одного
+слайса, второе — вечное правило. В прежней редакции оба записывались одинаково
+под заголовком «запрещено», и агент не мог отличить оспариваемое от
+неоспариваемого.
+
+## Reversible retirement mechanism
+
+Постоянный каталог `trash/` не создаётся: он стал бы вторым source tree.
+Механизм обратимого ретайра:
+
+1. **annotated tag** `retired/<family>-<YYYY-MM-DD>` на последний commit, где
+   код ещё существовал;
+2. **commit body** ретайр-коммита содержит `Retired:`, `Reason:`,
+   `Replaced-by:`, `Recovered-from:` (тег), `Salvaged:` (ссылка на решение
+   PLAN-L0), `Exit:`;
+3. **таблица `Retired`** в `CLEANUP_REGISTRY.md`;
+4. **внешняя копия обязательна.** [FACT] `git remote -v` пуст, поэтому локальные
+   теги не защищены от потери диска: перед каждым ретайром выполняется
+   `git bundle create` тега во внешний workspace.
+
+Archive branch не используется: ветки дрейфуют и требуют обслуживания.
+
+## Test classification
+
+Перед любым удалением или переписыванием test-модуль получает класс:
+
+```
+PRODUCT CONTRACT        защищает поведение, обещанное пользователю
+ARCHITECTURE INVARIANT  защищает границу, которую мы намеренно держим
+CHARACTERIZATION        зафиксировал поведение на время конкретного refactor
+LEGACY ANCHOR           замораживает старую реализацию или accidental structure
+```
+
+**LEGACY ANCHOR не препятствует сознательному ретайру старой архитектуры** и
+удаляется либо переписывается вместе с ней. Зелёный или красный тест сам по себе
+контрактом не является: сначала отвечаем, защищает ли он нужное product/public
+behavior или замораживает accidental legacy implementation.
+
+Подтверждённые кандидаты в LEGACY ANCHOR записаны в `CLEANUP_REGISTRY.md`,
+раздел «Accidental invariants».
+
+**Физический restructure каталога `tests/` не является prerequisite product
+work и в критический путь не входит.** [FACT] сейчас 112 плоских модулей,
+30 403 строки, `conftest.py` отсутствует, network guard ставится из
+`tests/__init__.py`. Плоская структура с осмысленными именами работает;
+реструктуризация дала бы большой diff и нулевую product-ценность. Вопрос
+пересматривается **после** PLAN-L, когда модулей останется около 106.
+Именование вида `test_anime_factory_v3/v4` и `test_stage1…stage4` кодирует
+историю rescue, а не ответственность — кандидаты на переименование, но не
+приоритет.
+
+**Известный риск, не закрытый классификацией.** [FACT] 7 test-модулей
+запускают CLI через `subprocess`, где `tests/network_guard.py` **не
+действует** — guard живёт внутри test-пакета. Это касается не только режима
+`smoke` из PLAN-5, но и `full`. Закрывается расширением guard на subprocess
+boundary в PLAN-6B, а не отдельным механизмом.
 
 ## Measurement policy
 
@@ -231,7 +482,13 @@ budget cap, timeout, количество обязательных artifacts, л
 10. Docs-only и report-only slices не требуют `full`, если не меняют test
     discovery, runner или production contract. Для них обязательны собственные
     QA/tests и `git diff --check`.
-11. **Detail policy.** Подробно описывается только `active` шаг и ближайшие
+11. **Capability owner gate — обязателен, глобальный inventory — нет.** Перед
+    изменением конкретной capability доказываются: canonical owner, фактические
+    callers, persisted contracts, duplicate implementations, релевантные tests и
+    границы legacy/replacement. Это правило класса `[HARD]`. Оно **заменяет**
+    прежнее требование закрыть весь PLAN-1 до любого production-изменения:
+    доказывается область, которую меняешь, а не весь репозиторий.
+12. **Detail policy.** Подробно описывается только `active` шаг и ближайшие
     один-два следующих. `completed` сворачивается до статуса, commit,
     измеримого результата и фактических проверок. `blocked` держится в виде ID,
     зависимостей, allowed/prohibited zones, gates, verification и rollback.
@@ -245,15 +502,49 @@ budget cap, timeout, количество обязательных artifacts, л
 Формат каждого шага одинаков. `commit` заполняется только фактическим hash
 после выполнения; заранее hash не придумывается — источником является Git.
 
-Критический путь:
+### Критический путь (ревизия 2)
 
-`PLAN-1 → PLAN-2/3 → PLAN-4 → PLAN-5 → PLAN-6A → PLAN-6B → PLAN-6C →
-PLAN-6D → PLAN-6E → PLAN-7/8 → PLAN-9A → (PLAN-9B/9C и PLAN-10A/10B/10C) →
-PLAN-9D/9E → PLAN-11 → PLAN-12 → PLAN-13 → PLAN-14 → PLAN-15`.
+Принцип владельца: **minimum strong foundation → product slice → feedback →
+следующий foundation только если он реально нужен.** Не governance-first и не
+product-at-any-cost. Product-слайс не ждёт идеального репозитория, но перед
+изменением каждой capability агент обязан доказать её настоящего owner.
 
-PLAN-9A — первый слайс, меняющий production-код. Всё, что до него
-(PLAN-2/3 — tests, PLAN-5 — `tools/qa` и CI, PLAN-6\* — governance,
-PLAN-7/8 — docs), production-поведение не меняет.
+**Блокирует PLAN-9A — ровно восемь шагов плюс routing:**
+
+```
+PLAN-1D-routing
+  → PLAN-2 → PLAN-3 → PLAN-4 → PLAN-5
+  → PLAN-6A → PLAN-6D → PLAN-6E
+  → PLAN-1C′ (capability owner gate: asset/semantic)
+  → ► PLAN-9A ◄
+```
+
+**Параллельно, не блокирует PLAN-9A** (стартует после зелёного PLAN-4):
+
+```
+PLAN-L0 → PLAN-L1 → PLAN-L2 → PLAN-L3 → PLAN-L4     retire legacy content stack
+PLAN-6B · PLAN-6C · PLAN-7 · PLAN-8 · инкрементальный перевод прозы
+```
+
+**После PLAN-9A:**
+
+```
+PLAN-9B → PLAN-9C → PLAN-9D → PLAN-9E
+PLAN-10A → PLAN-10B → PLAN-10C → (PLAN-10D) → PLAN-11
+PLAN-1A/1B (capability gates для PLAN-13) → PLAN-12* → PLAN-13* → PLAN-14* → PLAN-15
+```
+
+**Что изменилось относительно ревизии 1.** Монолитный PLAN-1 перестал быть
+глобальным блокером: он разделён на capability gates, из которых PLAN-9A требует
+только 1C′. `PLAN-6B`, `PLAN-6C`, `PLAN-7`, `PLAN-8`, `PLAN-12*`, `PLAN-13*`,
+`PLAN-14*` и новый `PLAN-L` **не являются глобальными prerequisites PLAN-9A** —
+они выполняются параллельно или позже по фактическим зависимостям. Прежняя
+цепочка требовала до первого product-слайса закрыть весь PLAN-1, PLAN-6B,
+PLAN-6C, PLAN-7 и PLAN-8; теперь обязательны восемь шагов плюс routing.
+
+PLAN-9A остаётся первым слайсом, меняющим production-код в продуктовой ветке;
+PLAN-L2/L3/L4 меняют production-код независимо, в ретайр-ветке работ, и на
+поведение активного `content_creator` не влияют.
 
 Независимые под-slices могут меняться местами только когда их зависимости,
 allowed zones и owner approvals не пересекаются; изменение порядка
@@ -274,79 +565,214 @@ allowed zones и owner approvals не пересекаются; изменени
   clean HEAD `4027269`.
 - **rollback:** один commit.
 
-### PLAN-1 — checkpoint 9B-C01: caller/ownership inventory
+### PLAN-1 — capability owner gates (бывший монолитный 9B-C01)
 
-- **status:** in_progress; следующий slice PLAN-1A.
-- **цель:** зафиксировать точных callers, owners, replacement и exit condition
-  для всех переходных путей. Read-only относительно production behavior.
+- **status:** split. Ревизия 2 разделила PLAN-1 на четыре независимых слайса.
+  **Глобальный inventory перестал быть предусловием любого
+  production-изменения**; вместо него действует правило 11 Execution protocol:
+  доказывается owner той capability, которую меняешь.
 - **зависимости:** PLAN-0. **Не зависит** от зелёного full suite.
-- **разрешённые зоны:** PLAN-1A–1C — только
-  `docs/current/CLEANUP_REGISTRY.md`; PLAN-1D дополнительно допускает короткую
-  routing-ссылку в `AGENTS.md` и `docs/current/START_HERE.md`.
+- **разрешённые зоны:** 1A, 1B, 1C′ — только `docs/current/CLEANUP_REGISTRY.md`;
+  1D дополнительно допускает короткую routing-правку в `AGENTS.md` и
+  `docs/current/START_HERE.md`.
 - **запрещено:** production-код, tests, схемы, config, любые move/delete/untrack,
   создание новых документов, правка master plan, изменение поведения.
-- **bounded sub-slices:**
-  - **PLAN-1A — entrypoints и package roots:** C01–C04, C08–C11;
-    `pyproject.toml`, console scripts, module entrypoints, `apps/*`, root
-    `ai_youtube/`, `src.content_creation.cli`, `pipeline.py`, `legacy/`,
-    tests/docs/string/dynamic callers и repository-local task/IDE configs;
-  - **PLAN-1B — application/shared ownership:** C05–C08 и C12–C16;
-    Fullscreen, Story Card, Anime project/transcription/subtitles/FFmpeg/render,
-    music, project/workspace и shared-service границы;
-  - **PLAN-1C — C01-SEM и evidence/docs:** semantic selection/visual service,
-    visual planner, asset completion, `vision_validator`,
-    `docs/implementation` пофайлово и production dependencies на docs;
-  - **PLAN-1D — closure:** exact-duplicate hash report, orphan/empty-directory
-    candidates как review-only evidence, итоговые owners/exit conditions,
-    выбор первых bounded migration/product slices и короткая маршрутизация
-    агентов на этот активный plan. Дополнительно обязательны три уже
-    проверенных governance-findings:
-    - снять routing-конфликт: шаг 4 `AGENTS.md` и «Текущий rescue plan»
-      в `START_HERE.md` перестают направлять задачу в master plan как в
-      current plan;
-    - записать `docs/current/PRODUCT_EVIDENCE_GATE.md` со
-      `status: historical_reference` как кандидат PLAN-12A. В 1D — только
-      запись в registry; перемещение выполняет 12A;
-    - записать, что `skills/` не загружаются Claude Code автоматически
-      (каталог не является `.claude/skills/`), поэтому Claude-адаптер
-      отсутствует, а Codex-адаптер существует как `skills/*/agents/openai.yaml`.
-- **обязательные части:**
-  - **C01-SEM** — ownership для `semantic_selection`, `semantic_visual`, visual
-    planner и asset completion: кто принимает решение о пригодности кандидата,
-    где заканчивается shared service и начинается workflow policy, какова роль
-    заглушки `vision_validator` и подключённого, но не влияющего на отбор
-    `semantic_visual_service`. **Жёсткий gate для PLAN-9\* и PLAN-10\*.**
-  - пофайловая классификация `docs/implementation`: current source of truth,
-    active fixture, production/evaluation dependency, невоспроизводимое paid
-    evidence, historical report, generated output, runtime artifact, exact
-    duplicate, obsolete plan, safe delete candidate;
-  - внешние callers внутри репозитория: module entrypoints через `python -m`,
-    console scripts в `pyproject.toml`, `*.bat`, `*.cmd`, `*.ps1`, `.vscode`,
-    `.idea`, task/config files, tests, docs, относительные, динамические и
-    строковые вызовы. Статический import-граф **не** является доказательством
-    отсутствия внешнего caller. Поиск вне репозитория запрещён;
-  - семейства: root `ai_youtube/` против `src/ai_youtube/`,
-    `src.content_creation.cli`, `apps/*`, `pipeline.py` и `src.legacy_pipeline`,
-    `anime_factory` с `EpisodePaths`/transcription/subtitles/FFmpeg,
-    `src.audio.music_manifest` против `src.music_*`, `legacy/`, semantic
-    evaluation facade и прочие re-export пути;
-  - exact-duplicate hash report по tracked production-файлам; вывод о
-    дублировании бизнес-логики только по совпадению basename запрещён.
-- **измеримый результат:** C01–C16 имеют точных callers, current и target owner,
-  persisted/runtime зависимость, public promise, replacement, класс и точное
-  exit condition; C01-SEM закрыт; классификация `docs/implementation` полная;
-  назван первый bounded slice для перехода, но не выполнен; следующий агент
-  однозначно попадает в PLAN-2, а не в historical master plan.
-- **required verification:** после каждого под-slice
-  `tools.qa.check_agent_docs`, `git diff --check`.
-- **rollback:** один commit на под-slice.
+- **общие требования к любому caller gate.** Проверяются module entrypoints через
+  `python -m`, console scripts в `pyproject.toml`, `*.bat`, `*.cmd`, `*.ps1`,
+  `.vscode`, `.idea`, task/config files, tests, docs, относительные, динамические
+  и строковые вызовы. Статический import-граф **не** является доказательством
+  отсутствия внешнего caller. Поиск вне репозитория запрещён. Вывод о
+  дублировании бизнес-логики только по совпадению basename запрещён.
+
+#### PLAN-1D-routing — маршрутизация агентов
+
+- **status:** pending. **Текущий шаг.**
+- **зависимости:** STEP 0 (перенос ревизии 2 в этот файл и в registry) выполнен.
+  **Порядок обязателен:** 1D направляет будущих агентов в этот документ, поэтому
+  документ должен сначала содержать утверждённую архитектуру.
+- **цель:** шаг 4 `AGENTS.md` и «Текущий rescue plan» в `START_HERE.md`
+  перестают направлять задачу в `PROJECT_RESCUE_MASTER_PLAN.md` как в current
+  plan; добавляется ссылка на активный execution plan.
+- **evidence:** [FACT] у активного плана **одна** входящая ссылка во всём
+  репозитории — из `CURRENT_STATE.md`; `AGENTS.md`, `START_HERE.md`, `CLAUDE.md`
+  и `README.md` его не упоминают.
+- **дополнительно записываются в registry** два уже проверенных findings:
+  `docs/current/PRODUCT_EVIDENCE_GATE.md` со `status: historical_reference` как
+  кандидат PLAN-12A (перемещение выполняет 12A, не 1D); и факт, что `skills/` не
+  загружаются Claude Code автоматически, поскольку каталог не является
+  `.claude/skills/`.
+- **измеримый результат:** новый агент, буквально исполнив `AGENTS.md`,
+  попадает в этот план, а не в historical master plan.
+- **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
+- **rollback:** один commit.
+
+#### PLAN-1C′ — capability owner gate: asset/semantic
+
+- **status:** pending. **BLOCKS PLAN-9A.**
+- **зависимости:** PLAN-6E.
+- **scope:** C01-SEM плюс владельцы persisted asset-manifest, релевантные tests и
+  проверка дублей в радиусе PLAN-9A: `src/assets/semantic_selection/*`,
+  `src/assets/semantic_visual*`, `src/assets/completion/*`,
+  `src/news/asset_manifest_builder.py`, `src/news/asset_scene_completion.py`,
+  `src/news/project_store.py`, `schemas/`.
+- **C01-SEM.** Ownership для `semantic_selection`, `semantic_visual`, visual
+  planner и asset completion: кто принимает решение о пригодности кандидата, где
+  заканчивается shared service и начинается workflow policy, какова роль
+  заглушки `vision_validator` и подключённого, но не влияющего на отбор
+  `semantic_visual_service`.
+- **дополнительно:** зафиксировать как дефект production-зависимость на
+  `docs/implementation/openai_live_evaluation` (registry C31). **Файлы не
+  переносить** — target owner решает PLAN-13 по OD-8/OD-9.
+- **вынесено из scope ревизией 2:** пофайловая классификация
+  `docs/implementation` (96 файлов) переходит в **PLAN-12B** — она не нужна
+  PLAN-9A.
+- **измеримый результат:** C01-SEM закрыт; для каждого затронутого модуля
+  известны canonical owner, callers, persisted contract, дубли и тесты.
+- **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
+- **rollback:** один commit.
+
+#### PLAN-1A — capability gate: entrypoints и package roots
+
+- **status:** pending. **Не блокирует PLAN-9A.** Обслуживает PLAN-L и PLAN-13.
+- **scope:** C01–C04, C08–C11; `pyproject.toml`, console scripts, module
+  entrypoints, `apps/*`, root `ai_youtube/`, `src.content_creation.cli`.
+- **примечание:** caller gate для `pipeline.py`, `legacy/` и legacy-семейства
+  выполняет **PLAN-L1**, а не 1A. Foundation audit установил [FACT], что
+  `legacy/` (8 файлов) не имеет ни одного Python-caller и упоминается только в
+  `README.md` и historical docs (registry C17); это **не** закрывает C17.
+- **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
+
+#### PLAN-1B — capability gate: application/shared ownership
+
+- **status:** pending. **Не блокирует PLAN-9A.** Обслуживает PLAN-13.
+- **scope:** C05–C08 и C12–C16; Fullscreen, Story Card, Anime
+  project/transcription/subtitles/FFmpeg/render, music, project/workspace и
+  границы shared-сервисов.
+- **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
+
+### PLAN-L — retirement legacy content stack
+
+- **status:** pending · **зависимости:** зелёный PLAN-4 ·
+  **параллелен PLAN-6A/6D/6E и PLAN-9A; prerequisite для PLAN-9A не является.**
+- **цель:** убрать крупнейший disposable блок репозитория до того, как он
+  продолжит удерживать docs, packaging, tests и minimalism.
+- **evidence [FACT], 2026-07-31:** legacy content-стек — `pipeline.py` →
+  `src/legacy_pipeline/workflow.py` → 20 модулей корня `src/` (~4903 строки) —
+  имеет **ровно одного** production-caller (`pipeline.py`) и **6** test-модулей
+  из 112. `legacy/` (8 файлов, 424 строки) не имеет ни одного Python-caller.
+  Исключения, которые остаются: `src/media_library.py` (используется активным
+  news-путём) и `src/utils.py` (используется `src/audio/tts/env.py` и
+  `src/tts_providers/moss_tts_provider.py`).
+- **evidence [FACT]:** `src/legacy_pipeline/maintenance.py` (~500 строк) — **не**
+  legacy-генерация контента, а единственный CLI-доступ к visual-preview,
+  semantic-backend, semantic-evaluation, semantic-visual, media-library и
+  envato-manual. Канонический CLI этих команд не имеет. [INFERENCE] PLAN-9D без
+  них не запускается — поэтому L2 обязателен до L3.
+- **impact:** −~5700 строк, −6 тестов, −6 top-level путей; закрываются C17, C18,
+  C19, C24, C25, C29; PLAN-7, PLAN-13D, PLAN-14B и часть PLAN-14F становятся
+  тривиальными.
+- **rollback:** один commit на под-slice плюс annotated tag по механизму
+  reversible retirement.
+
+#### PLAN-L0 — Knowledge Salvage Gate
+
+- **status:** pending · **обязателен до L3** · **зоны:** только
+  `docs/current/CLEANUP_REGISTRY.md`.
+- **правило (OD-1):** отсутствие caller — **не** критерий отсутствия ценности.
+  Ретайр legacy допускается только после salvage.
+- **scope gate — что проходит через L0.** KSG применяется к
+  **knowledge-bearing retirement families**: source code, workflow, config,
+  prompts, templates, tests и те docs/evidence, которые содержат уникальное
+  инженерное или продуктовое знание.
+- **что через L0 НЕ проходит.** Disposable runtime/media/cache — старые `.mp4`,
+  `.wav`, `.png`, кэши, generated outputs, runtime-каталоги проектов — идёт
+  другой цепочкой: **PLAN-14D** (классификация, отбор representative corpus,
+  сверка с `Preserved runtime corpus`) → **PLAN-14E** (cleanup). Спрашивать
+  «какое product knowledge содержится в старом mp4» не нужно и запрещено как
+  формальность: это превратило бы runtime reset в бесконечный gate.
+  **Knowledge Salvage и Runtime Reset не смешиваются.**
+- **граница между цепочками.** Решает не каталог, а носитель знания: JSON/SRT/ASS
+  манифесты — это persisted **форма**, их ценность проверяется отбором
+  representative corpus в 14D, а не salvage-классификацией L0. Если внутри
+  runtime-каталога найден source/prompt/template/config — он уходит в L0.
+- **что искать в каждом удаляемом family:** reusable algorithm · domain и
+  product knowledge · prompts, templates, visual rules · rights и licensing
+  knowledge · fallback и recovery logic · edge cases · reusable schema
+  knowledge · полезные characterization и product tests.
+- **классификация каждой находки:**
+
+  ```
+  MIGRATE CAPABILITY        пометить как отдельный будущий product slice.
+                            НЕ выполняется внутри PLAN-L (OD-10).
+  MIGRATE KNOWLEDGE         перенести знание: ADR, docstring, comment, fixture
+  KEEP MINIMAL REGRESSION   оставить минимальный representative fixture
+  ARCHIVE ONLY              только retirement tag, в active tree не возвращать
+  DELETE                    ничего ценного
+  ```
+
+- **граница L0/L3 (OD-10).** L0 сохраняет **знание**, а не переносит capability.
+  **L3 остаётся cleanup/retirement-этапом и не превращается в
+  product-development.** Если salvage признаёт capability ценной — это отдельный
+  будущий product slice на новом canonical core из salvage evidence, а не
+  миграция старой реализации внутрь L3.
+- **семейства в scope:** `channels/{psychology,quotes,survival,size_comparison}`
+  и `content/` (OD-1) · 20 движков корня `src/` · `legacy/` ·
+  `src/legacy_pipeline/workflow.py` · `config/video_style.json` ·
+  `MOSS_TTS_Nano/` и `src/tts_providers/` (OD-7) · 6 legacy test-модулей.
+- **измеримый результат:** для каждого family записан класс каждой находки и,
+  где применимо, что именно потенциально стоит восстановить позже.
+- **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
+
+#### PLAN-L1 — caller gate и retirement manifest
+
+- **status:** pending · **зависимости:** PLAN-L0 · **зоны:** только registry.
+- **цель:** полный caller gate по legacy-семейству по общим требованиям PLAN-1.
+  Закрывает C17.
+- **дополнительно:** зафиксировать retirement-теги, которые будут созданы в
+  L3/L4, и подтвердить наличие внешнего `git bundle` перед первым удалением.
+- **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
+
+#### PLAN-L2 — вынести diagnostics из legacy
+
+- **status:** pending · **зависимости:** PLAN-L1 · **обязателен до L3.**
+- **цель:** команды `src/legacy_pipeline/maintenance.py` (visual-preview,
+  semantic-backend, semantic-evaluation, semantic-visual, media-library,
+  envato-manual) переезжают на канонический CLI `diagnostics` либо в `tools/`.
+- **запрещено:** менять поведение команд в этом слайсе; смешивать перенос
+  diagnostics с удалением движков.
+- **required verification:** targeted + `smoke` + `full` — меняется CLI surface.
+
+#### PLAN-L3 — retire движков
+
+- **status:** pending · **зависимости:** PLAN-L0 и PLAN-L2.
+- **удаляется:** `src/legacy_pipeline/workflow.py`; 20 модулей корня `src/`
+  **кроме** `media_library.py` и `utils.py`; `src/tts_providers/` (OD-7);
+  `channels/{psychology,quotes,survival,size_comparison}` и `content/` (OD-1);
+  `config/video_style.json`; 6 legacy test-модулей.
+- **запрещено:** мигрировать capability внутрь этого слайса (OD-10).
+- **required verification:** `full`.
+
+#### PLAN-L4 — retire entrypoint
+
+- **status:** pending · **зависимости:** PLAN-L3.
+- **удаляется:** `pipeline.py`, `src/legacy_pipeline/cli.py`,
+  `apps/youtube_pipeline/`, `legacy/`, `scripts/`, `MOSS_TTS_Nano/` (OD-7).
+- **исправляется:** `py-modules = ["pipeline"]` снимается вместе с импортом
+  `scripts.test_moss_voices` (C18, C25); `outputs/*.json` и
+  `outputs/asset_library_report.md` снимаются с Git (C19, C29).
+- **измеримый результат:** канонический CLI — единственный пользовательский вход;
+  wheel собирается и импортируется из произвольного temporary checkout.
+- **required verification:** `full` + сборка wheel + `import` в temporary venv
+  вне checkout. Установка требует отдельного разрешения.
 
 ### PLAN-2 — baseline repair: voice-profile fixtures
 
 - **status:** pending · **completed:** — · **commit:** —
 - **цель:** убрать устаревшую изоляцию через `os.chdir` и использовать явный
   `channels_dir` либо существующий path seam.
-- **зависимости:** PLAN-1.
+- **зависимости:** PLAN-1D-routing. **Изменено ревизией 2:** зависимость от
+  полного PLAN-1 снята — слайс трогает один test-модуль и никакого capability
+  ownership не меняет.
 - **разрешённые зоны:** `tests/test_voice_profile_resolution.py`.
 - **запрещено:** production-код, прочие тесты.
 - **диагноз:** изоляция через `os.chdir` перестала действовать после того, как
@@ -365,7 +791,9 @@ allowed zones и owner approvals не пересекаются; изменени
 - **status:** pending · **completed:** — · **commit:** —
 - **цель:** создавать обязательные stage outputs согласно output-validated
   idempotency ADR 0006.
-- **зависимости:** PLAN-1.
+- **зависимости:** PLAN-2. **Изменено ревизией 2:** зависимость от полного
+  PLAN-1 снята. Слайс трогает один test-модуль, но это **тот самый модуль**,
+  который меняет PLAN-9A, поэтому он остаётся прямым prerequisite 9A.
 - **разрешённые зоны:** `tests/test_autonomous_completion_pipeline.py`.
 - **запрещено:** production-код.
 - **диагноз:** три теста помечают стадии `completed`, не создавая обязательных
@@ -431,11 +859,45 @@ allowed zones и owner approvals не пересекаются; изменени
 - **зависимости:** PLAN-5.
 - **запрещено:** production-код, удаление/перенос файлов и runtime data,
   создание ADR про governance, обновление lock или скачивание зависимостей.
+- **разделение ревизией 2.** Только **6A, 6D и 6E** блокируют PLAN-9A.
+  **6B и 6C — параллельные**, глобальными prerequisites product-работ не
+  являются.
 - **bounded sub-slices:**
-  - **PLAN-6A — governance R1–R12 и docs QA:**
+  - **PLAN-6A — governance R1–R12, Agent Autonomy Model и docs QA:**
+    - **блокирует PLAN-9A;**
     - разрешённые зоны: `AGENTS.md`, `tools/qa/check_agent_docs.py`, связанные
       onboarding и reproducibility tests;
     - R1–R12 в согласованной редакции с категориями A/B/C/D;
+    - **переносит в `AGENTS.md` Agent Autonomy Model этого плана:** классы
+      `[HARD]/[ARCH]/[HINT]`, «выполнение инструкции не является выполнением
+      задачи», Decision rights (три tripwire), Challenge/Recovery Protocol,
+      semantic Owner Lookup, Task contract. После переноса соответствующий
+      раздел этого плана сворачивается до ссылки: один canonical owner на
+      правило;
+    - **исправляет три формулировки, ошибочно оформленные как HARD:**
+      (a) «сначала добавляй characterization test» → `[HINT]` с условием
+      «когда меняешь наблюдаемое поведение, у которого есть caller»;
+      (b) «не создавай второй provider contract / voice registry / subtitle
+      engine / config resolver / completion ladder» → `[ARCH]`: запрещён
+      **второй одновременно живущий** canonical owner, **замена** owner через
+      evidence + ADR + review разрешена;
+      (c) «сохраняй tolerant readers, resume/force-stage и approval gates» →
+      разделить: approval gates `[HARD]`, tolerant readers `[ARCH]`;
+    - **cap 120 строк `AGENTS.md`** (`tests/test_stage2_agent_onboarding.py:26`)
+      переклассифицируется в measurement/warning. Число не является
+      архитектурным решением; `AGENTS.md` остаётся коротким по responsibility.
+      Если Engineering Conventions окажутся отдельной responsibility, отдельный
+      owner допускается **после доказательства необходимости** и не
+      запрещается числом строк. `docs/architecture/ENGINEERING_CONVENTIONS.md`
+      заранее не создаётся;
+    - **минимальный gap-набор conventions**, у которого сегодня нет владельца и
+      который закрывается здесь как `[ARCH]`: правило размещения пакета
+      (`src/foo.py` против `src/foo/`); процедура deprecation; политика fixtures
+      (versioned / synthetic / временный каталог); именование и категории тестов;
+      условие появления нового top-level каталога. Уже покрытое (naming, errors,
+      logging, config, persistence, schemas, typing, imports, dependency
+      direction, public/private API) повторно не документируется — владельцы
+      существуют в коде, ADR и `SYSTEM_MAP`;
     - QA не требует вечного существования конкретных архивных handoff;
     - exact-count проверка skills заменяется минимальным обязательным набором
       критичных skills плюс автоматической проверкой всех найденных;
@@ -453,23 +915,90 @@ allowed zones и owner approvals не пересекаются; изменени
       дефолт остаётся warning, а не error;
     - снимается требование «`docs/handoff` содержит ровно один файл»: оно
       конфликтует с PLAN-12C, который этот каталог архивирует;
+    - **добавляется проверка команд внутри `skills/*/SKILL.md`**: команды,
+      которым skill обучает агента, обязаны соответствовать каноническому
+      CLI. Foundation audit [FACT]: три из шести skills
+      (`create-short-video-first`, `resume-project`, `replace-visual-slot`)
+      учат `python -m src.content_creation.cli`, а текущий QA проверяет только
+      frontmatter, локальные ссылки и `TODO`. PLAN-7 чинит эти три файла
+      однократно; без проверки ничто не мешает им разойтись снова;
   - **PLAN-6B — ранний report-only minimalism baseline:**
-    - зависимость: PLAN-6A;
+    - зависимость: PLAN-6A. **Параллельный: PLAN-9A не блокирует;**
+    - **сохранить как candidates для architecture fitness enforcement**
+      (внедрение — здесь и в существующих test-владельцах, второй QA framework
+      не создаётся): unknown top-level directories · runtime writes внутрь
+      source repo · tracked generated media · absolute machine paths ·
+      более одного canonical public CLI · запрещённые application → application
+      зависимости · владение persisted manifests и schema · consistency
+      provider registry · network boundary · paid calls через approval
+      gateway · stale commands и невалидный agent routing.
+      Владельцы: детекторы репозитория — `check_repository_minimalism.py`;
+      инварианты кода — существующие `tests/test_asset_import_boundaries.py`,
+      `tests/test_capability_consistency.py`, `tests/test_artifact_schemas.py`,
+      `tests/network_guard.py`; переписываемый `tests/test_apps_structure.py`
+      становится тестом «нет второго canonical public CLI»;
     - разрешённые зоны: `tools/qa/check_repository_minimalism.py`, его
       targeted tests, `docs/current/CLEANUP_REGISTRY.md`;
     - отчёт покрывает tracked cache/generated outputs, top-level paths вне
       draft allowlist, exact duplicates, wrappers без registry, retired
       imports, hardcoded machine paths, empty directories и orphan-кандидатов;
+    - **три детектора добавляются по проверенным findings Foundation audit:**
+      (a) tracked ∩ ignored — `git ls-files -i -c --exclude-standard`; сейчас
+      9 файлов: 8 × `outputs/*.json` и `assets/broll/.gitkeep`, где директорное
+      правило обесценивает последующее отрицание (registry C19, C21);
+      (b) top-level untracked вне allowlist; сейчас `output/` и `tmp/`, не
+      покрытые ни одним правилом `.gitignore` (registry C20);
+      (c) hardcoded drive-paths **в versioned config**, а не только в коде;
+      сейчас `config/video_style.json` и `channels/psychology/style.json`
+      (registry C24). Детектор tracked generated outputs обязан находить и
+      `outputs/asset_library_report.md`, который под `.gitignore` не подпадает,
+      но порождается `src/media_library.py` (registry C29);
     - detector ничего не удаляет; orphan/duplicate остаются review evidence;
   - **PLAN-6C — dependency/toolchain ownership audit:**
-    - зависимость: PLAN-6B;
+    - зависимость: PLAN-6B. **Параллельный: PLAN-9A не блокирует.**
+      Ревизия 2 сняла с 6C роль предусловия PLAN-6E: skills discovery
+      verification для Codex невыполнима (Codex не установлен) и больше не
+      блокирует reviewer — см. PLAN-6E;
+    - **installed-package defect C25 и `scripts/` (C18) закрывает PLAN-L4**, а
+      не 6C: их носители удаляются вместе с legacy-стеком. За 6C остаётся
+      distribution boundary `tools/` (C26) и dependency ownership;
     - read-only по `pyproject.toml`, `requirements.txt`, `requirements.lock`,
       CI/task/config files, Anime/ML optional dependencies, `venv/`,
       MOSS/Whisper/model weights и agent-specific adapters;
     - обновляется только `docs/current/CLEANUP_REGISTRY.md`;
     - фиксируются direct/resolved/optional/toolchain owners, callers,
       воспроизводимость, replacement и exit conditions до package
-      consolidation.
+      consolidation;
+    - **обязательная проверка installed-package defect (registry C25).**
+      [FACT] `py-modules = ["pipeline"]` включает `pipeline.py` в дистрибутив,
+      `packages.find.include` не содержит `scripts*`, а `pipeline.py:9`
+      импортирует `scripts.test_moss_voices`. [INFERENCE] non-editable
+      установка ломает `import pipeline`; `pip install .` не выполнялся, и CI
+      это не ловит, потому что использует `--editable`. Проверяется сборкой
+      wheel и импортом в temporary venv вне checkout; требует отдельного
+      разрешения на установку. Это прямой блокер критерия PLAN-15
+      «installed package из произвольного temporary checkout»;
+    - **обязательное решение по intended distribution boundary `tools/`
+      (registry C26).** [FACT] `tools*` не входит в `packages.find.include`;
+      все известные callers находятся внутри checkout. Отсутствие в wheel
+      **не является дефектом по умолчанию**. Если решение — «только checkout»,
+      правка идёт в формулировку `AGENTS.md`, а не в `pyproject.toml`.
+      Добавлять `tools*` в wheel только ради того, чтобы repository QA
+      работал из установленного пакета, запрещено;
+    - **обязательная skills discovery verification (совместно с PLAN-6E).**
+      Различать четыре разных состояния: наличие файлов, manual loading,
+      auto-discovery, actual invocation. [FACT] Claude Code не обнаруживает
+      корневой `skills/` автоматически: `.claude/` содержит только
+      `settings.json`, `settings.local.json` и `scheduled_tasks.lock`.
+      **[ПРЕДП]** утверждение «Codex обнаруживает эти skills через
+      `skills/*/agents/openai.yaml`» не проверено: Codex в среде не установлен,
+      discovery-check не выполнялся, tracked codex-конфигов в репозитории нет.
+      Наличие `agents/openai.yaml` не является доказательством discovery.
+      Проверка: получить фактический список project skills установленного
+      Codex; выполнить явный вызов одного repo skill; определить обнаруженный
+      path; проверить фактическую роль `agents/openai.yaml`; сравнить корневой
+      `skills/` со стандартным discovery path. **До получения результата
+      второй набор skills не создаётся.**
   - **PLAN-6D — scope control foundation:** см. отдельный раздел ниже;
   - **PLAN-6E — independent reviewer foundation:** см. отдельный раздел ниже.
 - **измеримый результат:** docs QA зелёный при новых правилах; `AGENTS.md`
@@ -486,7 +1015,11 @@ allowed zones и owner approvals не пересекаются; изменени
 - **status:** pending · **completed:** — · **commit:** —
 - **цель:** перевести защиту от выхода за scope и от порчи пользовательских
   данных с уровня «агент помнит правило» на уровень технического ограничения.
-- **зависимости:** PLAN-6C.
+- **зависимости:** PLAN-6A. **Исправлено ревизией 2:** прежняя зависимость от
+  PLAN-6C возвращала параллельные 6B и 6C в критический путь через 6D и
+  противоречила разделению «блокируют только 6A, 6D и 6E». Содержательной
+  зависимости от dependency/toolchain аудита у 6D нет; единственное касание 6C —
+  Codex-часть skills discovery, которая в `CLAUDE.md` не записывается (6D-3).
 - **разрешённые зоны:** `.claude/settings.json`, `CLAUDE.md`,
   `tools/qa/check_task_scope.py` и его targeted tests.
 - **запрещено:** production-код, создание hooks, создание `.claude/skills/`,
@@ -497,15 +1030,28 @@ allowed zones и owner approvals не пересекаются; изменени
   репозитории нет; единственный QA-модуль — `tools/qa/check_agent_docs.py`;
   hooks, `.claude/agents/`, `.claude/skills/` и git-hooks отсутствуют.
 - **bounded под-slices:**
-  - **6D-1 — permissions: три раздельных класса действий.** Классы не
-    смешиваются.
-    - *Hard deny:* secrets — существующие `.env`/credentials/pem/key плюс
-      `Write` и `Edit` по `.env` (сейчас закрыт только `Read`); подтверждённые
-      runtime paths `projects/**`, `music/**`, `assets/library/**`,
-      `assets/cache/**`, `anime_factory/episodes/**`; destructive Git —
-      `reset --hard`, `clean` по непроверенным путям, force operations и
-      удаление пользовательских данных, включая починку голого `git clean`,
-      который текущий шаблон `Bash(git clean *)` не ловит.
+  - **6D-1 — permissions: четыре раздельных класса действий.** Классы не
+    смешиваются. **Исправлено ревизией 2:** прежняя редакция ставила permanent
+    hard deny на `projects/**`, `music/**`, `assets/library/**`,
+    `assets/cache/**`, `anime_factory/episodes/**`. Владелец объявил это
+    тестовое runtime-медиа disposable, а PLAN-14E обязан его удалить — правило
+    пришлось бы обходить ради собственного утверждённого шага. Permission,
+    которое придётся обходить, защитой не является.
+    - *Hard deny — вечное:* secrets — существующие `.env`/credentials/pem/key
+      плюс `Write` и `Edit` по `.env` (сейчас закрыт только `Read`);
+      destructive Git — `reset --hard`, `clean` по непроверенным путям, force
+      operations, включая починку голого `git clean`, который текущий шаблон
+      `Bash(git clean *)` не ловит; удаление реальных user data, **не**
+      классифицированных владельцем как disposable.
+    - *Scope / explicit cleanup authorization:* legacy и test runtime/media,
+      уже объявленные disposable, — `projects/**`, `music/**`,
+      `assets/library/**`, `assets/cache/**`, `anime_factory/episodes/**`.
+      Вне своего bounded cleanup slice эти пути остаются закрытыми; удаление
+      разрешено **только** внутри PLAN-14C/14D/14E (или PLAN-L для legacy
+      носителей), только по проверенному абсолютному пути и только после
+      сверки с `Preserved runtime corpus` в `CLEANUP_REGISTRY.md`.
+      Классификация «disposable» **не** является разрешением удалить: она лишь
+      снимает вечность запрета.
     - *Смешанные каталоги:* `outputs/**` и `manual_assets/**` **не**
       блокируются целиком — под ними лежат tracked versioned-файлы. Для них
       используются точные подпути или типы runtime-файлов. `channels/**` и
@@ -519,6 +1065,15 @@ allowed zones и owner approvals не пересекаются; изменени
     - *Записанная граница:* Claude permissions не защищают от произвольного
       Python-кода, запущенного через Bash. Выдавать deny-list за полную защиту
       запрещено.
+    - *Limitation и fallback для scope-класса:* `.claude/settings.json` не
+      знает, какой plan-step выполняется, поэтому «deny везде, кроме
+      утверждённого cleanup slice» декларативно не выражается. Проверяется
+      внутри под-slice: если доступен `ask`, disposable-пути получают `ask`, а
+      не `deny`; если `ask` недоступен — они остаются в `deny`, и cleanup slice
+      снимает правило **своим** commit, а не обходит его. Постоянный `deny`,
+      который исполнитель PLAN-14E обязан обойти, не записывается: это ложная
+      защита. Фактическую границу удержания держат `check_task_scope` (6D-2),
+      `Preserved runtime corpus` и требование абсолютного пути.
     - *Почему не hook:* `.claude/settings.json` уже является владельцем этого
       ограничения и покрывает требуемое декларативно. Hook стал бы вторым
       владельцем одного правила.
@@ -540,6 +1095,10 @@ allowed zones и owner approvals не пересекаются; изменени
     загружаются автоматически и релевантный `SKILL.md` нужно открыть перед
     задачей. Содержимое skills не дублируется. `.claude/skills/` не создаётся:
     это был бы второй набор skills и нарушение ADR 0001.
+    **Границы утверждения:** формулировка про отсутствие auto-discovery
+    доказана для Claude Code [FACT]. Утверждение о поведении Codex в
+    `CLAUDE.md` не записывается до skills discovery verification PLAN-6C/6E:
+    оно пока имеет статус **[ПРЕДП]**.
 - **измеримый результат:** deny/ask отражают проверенные пути и не блокируют ни
   один tracked versioned-файл; `check_task_scope` возвращает `STOP_REQUIRED` на
   неожиданный файл и молчит на разрешённый; `CLAUDE.md` объясняет загрузку
@@ -563,6 +1122,17 @@ allowed zones и owner approvals не пересекаются; изменени
   безопасно доработан. `skills/architecture-change` для этого не подходит: он
   принадлежит implementer, и расширение сделало бы implementer собственным
   reviewer.
+- **предусловие — разделено ревизией 2 (снят deadlock).** Прежняя формулировка
+  блокировала 6E на skills discovery verification для Codex внутри PLAN-6C.
+  [FACT] Codex в среде не установлен, discovery-check выполнить невозможно, а
+  6E обязателен до PLAN-9A — план не мог продвинуться. Теперь:
+  - **Claude-часть выполнима и обязательна сейчас.** [FACT] `skills/` не
+    является `.claude/skills/`, auto-discovery нет: создаётся canonical
+    `skills/review-change/SKILL.md` и тонкий adapter
+    `.claude/agents/review-change.md`, поведение подтверждается controlled
+    read-only acceptance ниже;
+  - **Codex-adapter остаётся `[ПРЕДП]`** до фактической проверки discovery и
+    6E не блокирует. Второй набор skills не создаётся ни при каком результате.
 - **canonical policy — одна, model-independent:**
   - `skills/review-change/SKILL.md` — единственный источник review rules;
   - `skills/review-change/agents/openai.yaml` — тонкий adapter для Codex по уже
@@ -577,8 +1147,18 @@ allowed zones и owner approvals не пересекаются; изменени
   risks; проверяет task scope, duplicate owner, compatibility, persisted state,
   paid/network behavior и фактическую эффективность тестов; после repair
   выполняет повторный review.
-- **разделение ролей:** implementer и reviewer не являются одним контекстом.
-  Repair выполняет implementer после подтверждения findings владельцем.
+- **разделение ролей (уточнено ревизией 2).** Implementer **активно ищет лучший
+  способ** решить задачу, свободен внутри allowed scope, вправе оспорить план и
+  предложить альтернативу. Reviewer работает **консервативно**: ищет нарушения,
+  duplicate owner, contract break, architecture drift, unsafe data handling,
+  rights violations, unverified success, regression. Implementer и reviewer не
+  являются одним контекстом; repair выполняет implementer после подтверждения
+  findings владельцем.
+- **обязательный класс findings «unmet objective / premature stop».** Reviewer
+  проверяет не только нарушения, но и обратное: не остановился ли implementer на
+  соблюдении процедуры, не достигнув SUCCESS CRITERIA и не попытавшись найти
+  альтернативу. Без этого класса reviewer не ловит именно тот сбой, ради
+  которого пересмотрена модель автономии.
 - **техническое подтверждение read-only, определяется до реализации:**
   отсутствие Write/Edit в наборе инструментов adapter; безопасный набор
   read-only Git/search команд; сравнение `git status` и `git diff` до и после
@@ -617,15 +1197,40 @@ allowed zones и owner approvals не пересекаются; изменени
 
 - **status:** pending · **completed:** — · **commit:** —
 - **цель:** документация перестаёт обучать устаревшему entrypoint.
-- **зависимости:** PLAN-6.
+- **зависимости:** PLAN-6A. **Параллельный: PLAN-9A не блокирует** (изменено
+  ревизией 2).
+- **взаимодействие с PLAN-L.** L4 удаляет `pipeline.py`, поэтому 24 упоминания
+  `pipeline.py` в `COMMANDS.md` исчезают как факт, а не переписываются. Если L4
+  выполнен раньше PLAN-7 — сверять по фактическому `--help`, а не по этому
+  списку.
+- **язык (OD-5).** `README.md` и `COMMANDS.md` сокращаются с 1086 до ~300 строк;
+  русская редакция получается **побочно при переписывании**, отдельным
+  переводом это не оформляется и mass-diff не создаёт. Правило: не переводить
+  filenames, directory names, identifiers, CLI/API, JSON/YAML keys, точные
+  команды, имена библиотек, литералы, блоки кода, third-party licenses и
+  historical artifacts. Каталоги `docs/archive/`, `docs/audits/` и
+  `docs/implementation/` в scope перевода не входят как historical.
 - **разрешённые зоны:** `README.md`, `COMMANDS.md`,
   `skills/create-short-video-first/SKILL.md`, `skills/resume-project/SKILL.md`,
-  `skills/replace-visual-slot/SKILL.md`.
+  `skills/replace-visual-slot/SKILL.md`,
+  `docs/contracts/STAGE1_PUBLIC_CONTRACTS.md`.
 - **запрещено:** production-код, **удаление старых entrypoints**.
 - **требования:** `COMMANDS.md` — 100–150 строк, основные команды и ссылка на
   `--help`; `README.md` — около 150 строк, фактический продукт,
   active/planned/disabled и быстрый старт. Команды сверять с фактическим
   `--help`, а не по памяти.
+- **измеренный масштаб расхождения** (Foundation audit, [FACT] от `4ca3655`):
+  `README.md` — 405 строк, упоминаний `ai_youtube` **0**, учит bare `python`
+  и `pip` вопреки `AGENTS.md`; `COMMANDS.md` — 681 строка, упоминаний
+  `ai_youtube` **0** против 49 × `src.content_creation.cli` и 24 ×
+  `pipeline.py`; три `SKILL.md` учат `src.content_creation.cli`;
+  `docs/contracts/STAGE1_PUBLIC_CONTRACTS.md` называет
+  `src.content_creation.cli` «current CLI» и канонический CLI не упоминает.
+  Это измерение, а не норма.
+- **`docs/contracts/` — порядок:** файл добавлен в зоны потому, что обучает
+  устаревшему entrypoint и до сих пор не входил ни в один slice (registry
+  C22). Его **target responsibility** решает PLAN-12E по содержимому; PLAN-7
+  правит только утверждения о каноническом CLI и не перемещает файл.
 - **измеримый результат:** ни один из этих файлов не обучает устаревшему пути.
 - **required verification:** docs QA + `smoke`.
 - **rollback:** один commit.
@@ -634,7 +1239,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 - **status:** pending · **completed:** — · **commit:** —
 - **цель:** отделить продуктовую цель и evidence от архитектурного порядка.
-- **зависимости:** PLAN-7.
+- **зависимости:** PLAN-7. **Параллельный: PLAN-9A не блокирует** (изменено
+  ревизией 2 — прежде PLAN-8 стоял в prerequisite-цепочке 9A).
 - **разрешённые зоны:** `docs/current/PRODUCT_PLAN.md`.
 - **запрещено:** создание `ARCHITECTURE_DEBT.md` до того, как PLAN-1 докажет
   фактический пробел относительно `CLEANUP_REGISTRY.md`.
@@ -643,6 +1249,13 @@ allowed zones и owner approvals не пересекаются; изменени
   `video_repurposer` через migration Anime Factory и будущий
   longform/documentary workflow `content_creator`, с entry/enable evidence и
   без создания новых engine stacks. Ориентир до 250 строк.
+- **решение по отдельному `EVALUATION_STRATEGY`:** принимается **после** того,
+  как `PRODUCT_PLAN.md` написан, и **по качественным критериям**, а не по
+  объёму файла: отдельная responsibility; отдельные readers; отдельный
+  lifecycle; смешение контрактов; routing ambiguity; maintenance coupling.
+  Количество строк — measurement и warning signal, оно может подтверждать
+  проблему, но само по себе новый файл не создаёт. Числовой порог объёма как
+  условие extraction не задаётся.
 - **обязательное завершение:** после commit `PRODUCT_PLAN.md` продуктовые
   подробности PLAN-9–PLAN-11 (лестницы, M1/M2/M3, reference domains и quality
   evidence) переносятся туда. В этом execution plan остаются только ID,
@@ -651,10 +1264,58 @@ allowed zones и owner approvals не пересекаются; изменени
 - **required verification:** docs QA.
 - **rollback:** один commit.
 
+### Продуктовая рамка PLAN-9 и PLAN-10: где именно дыра в asset-search
+
+Зафиксировано ревизией 2, чтобы будущий агент не начал строить то, что уже
+построено.
+
+**Не является дырой.** `src/assets/completion/` уже владеет лестницей выбора
+`A_exact → B_composite → C_good_context → D_partial → E_generated → F_emergency`
+с жёстким фильтром `modes.blocking_reasons` (неизвестные или запрещённые права,
+битый файл, `must_avoid`, заявленное противоречие, evidence на другой предмет) и
+детерминированным `tie_break_key`, не зависящим от того, какой provider ответил
+первым. Rung E — сгенерированная по спецификации сцены диаграмма, rung F —
+project-owned нейтральная карточка, которая ничего не утверждает. Это canonical
+owner completion-состояний; он сохраняется, пока дальнейшее evidence не докажет
+дефект boundary. Второй словарь состояний не вводится.
+
+**Является дырой — всё выше по потоку:**
+
+| Что | Owner-слайс |
+|---|---|
+| генерация запросов и semantic expansion | PLAN-9B |
+| semantic/Vision wiring — результат анализа влияет на ranking | PLAN-9C |
+| best-so-far persistence через `resume` | PLAN-9A |
+| ledger попыток и причины остановки | PLAN-10A |
+| pagination и provider exhaustion | PLAN-10B |
+| adaptive budget, plateau, порядок эскалации | PLAN-10C |
+| альтернативная правдивая визуальная стратегия | PLAN-9B + PLAN-10C |
+
+**Hard constraints отбора** (класс `[HARD]`, не предмет торга ни при каком
+качестве): factual truth · rights и provenance · `must_avoid` ·
+misleading/conflict · paid approval.
+
+**Heuristics отбора** (класс `[HINT]`, агент вправе изменить с обоснованием,
+пока не доказано обратное): приоритет провайдеров · число и виды запросов ·
+пороги `minimum_confidence` и `hard_reject_confidence` · предпочтительный тип
+визуала для сцены · размер shortlist.
+
 ### PLAN-9A — best-so-far foundation и tolerant persistence/resume
 
-- **status:** blocked (PLAN-1 включая C01-SEM, PLAN-8 + owner approval) ·
-  **commit:** —
+- **status:** blocked · **commit:** —
+- **prerequisite chain (единственная действующая, ревизия 2):**
+  `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4 → PLAN-5 → PLAN-6A → PLAN-6D →
+  PLAN-6E → PLAN-1C′`. Прежняя формула «PLAN-1 включая C01-SEM, PLAN-8 + owner
+  approval» отменена: PLAN-1 разделён на capability gates, из которых 9A требует
+  только 1C′; PLAN-8 параллелен. Отдельный owner approval на сам слайс не
+  требуется, потому что он **уже выдан**: persisted-bytes tripwire срабатывает,
+  и утверждение ревизии 2 покрывает его ровно в описанном здесь объёме — см.
+  «Decision rights → Уже выданные owner approvals». Tripwire этим не отменён:
+  любое persisted-изменение сверх состава и ограничений ниже требует нового
+  approval.
+- **первый product-слайс программы.** До него меняется только tests, `tools/qa`
+  и документация; PLAN-L меняет production-код параллельно и на активный
+  `content_creator` не влияет.
 - **цель:** до расширения поиска гарантировать, что лучший найденный материал
   не теряется между итерациями и при `resume`.
 - **состав:** top candidates по сцене, best-so-far с обоснованием, semantic
@@ -833,31 +1494,142 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-12 — классификация и архивирование документации
 
-- **status:** blocked (PLAN-1) · **commit:** —
+- **status:** blocked (PLAN-1B) · **commit:** —
+- **изменено ревизией 2.** Прежний блокер «PLAN-1» больше не существует: PLAN-1
+  разделён на capability gates. **Вся family PLAN-12 не блокирует первый
+  product slice** — она выполняется параллельно или после PLAN-9A. Внутренняя
+  последовательная цепочка `12E → 12A → 12B → 12C` сохраняется без изменений.
+- **добавлено в PLAN-12B (перенесено из PLAN-1C):** пофайловая классификация
+  `docs/implementation` (96 файлов), `docs/audits` (9), `docs/architecture` (5),
+  `docs/apps` (3) — registry C27, C28. PLAN-9A её не требует.
+- **порядок внутри этапа:** `12E → 12A → 12B → 12C`.
+  **Буквы под-slices — идентификаторы, а не порядок выполнения.** Цепочка
+  последовательная: каждый под-slice зависит от **непосредственно
+  предыдущего** звена, а не от 12E напрямую. Пропуск звена запрещён.
+  Существующие ID не переименовываются.
 - **цель:** current navigation ведёт только к актуальным документам.
-- **bounded sub-slices:**
-  - **PLAN-12A — current docs:** перенести уникальные подтверждённые данные
-    `ARCHITECTURE_BOUNDARY_MAP.md` в `SYSTEM_MAP.md`, затем удалить
-    current-копию; убрать дубли CURRENT_STATE/START_HERE;
-  - **PLAN-12B — данные внутри docs:** перенести production/evaluation fixtures
-    из `docs/implementation` в versioned fixture/data owner и обновить callers;
-    paid evidence сохранять без переписывания истории;
-  - **PLAN-12C — archive:** `PROJECT_RESCUE_MASTER_PLAN.md` и подтверждённо
-    исторические plans/audits/reports переместить в `docs/archive`, обновив
-    navigation и links.
+- **bounded sub-slices** (перечислены в порядке выполнения):
+  - **PLAN-12E — document ownership model.** *Выполняется первым внутри
+    PLAN-12.* **Зависимости: PLAN-1B.**
+    Решение владельца от 2026-07-31: принято **направление B** —
+    `current` (волатильное состояние и активные планы) / `architecture`
+    (долговечные границы) / `product` (цель, quality, evaluation) /
+    `runbooks` (операционные пути запуска) / `adr` / `archive` /
+    `implementation`.
+    **Направление — это ownership *direction*, а не разрешение перемещать
+    конкретные файлы.** Все размещения ниже — candidate, не назначение:
+    - `docs/apps/*` — candidate source для `docs/runbooks/`; exact per-file
+      migration только после PLAN-12B evidence; каталог не архивируется;
+    - `docs/architecture/visual_rendering_policy.md` — candidate source для
+      `docs/product/QUALITY_BAR.md`; move/extract только после подтверждения
+      PLAN-12B, что competing quality owner не существует (registry C23);
+    - `docs/contracts/*` — target responsibility решается **по содержимому
+      каждого файла**, не автоматически по каталогу (registry C22);
+    - `SYSTEM_MAP.md` — target `docs/architecture/` принят концептуально;
+      физический move выполняется только вместе с обновлением всех callers
+      в соответствующем bounded slice.
+    Категории `architecture/`, `apps/` и `contracts/` не удаляются ради
+    меньшего числа каталогов. Число каталогов и число Markdown-файлов
+    метриками качества не являются. Критерии — один canonical owner на
+    responsibility, понятный lifecycle, отделение current от historical,
+    отделение runtime data от source, сохранность product knowledge,
+    тематичность документов и создание нового owner только при доказанной
+    необходимости.
+    *Измерение Foundation audit, не gate:* `docs/current/` — 2639 строк, из
+    них 1616 (61%) приходится на два волатильных плановых документа.
+    Разрешённые зоны: только `docs/current/CLEANUP_REGISTRY.md` и этот файл.
+    Никаких move в этом под-slice.
+  - **PLAN-12A — current docs. Зависимости: PLAN-12E.** Перенести уникальные
+    подтверждённые данные `ARCHITECTURE_BOUNDARY_MAP.md` в `SYSTEM_MAP.md`,
+    затем удалить current-копию; убрать дубли CURRENT_STATE/START_HERE.
+    `docs/current/PRODUCT_EVIDENCE_GATE.md` **обязан переехать**, а не просто
+    сменить `status`: [FACT] пять его `source_paths` указывают внутрь
+    gitignored `projects/`, поэтому его evidence неверсионируемо и файл не
+    может остаться в `docs/current/`.
+    После слияния `SYSTEM_MAP` ← `ARCHITECTURE_BOUNDARY_MAP` **измерить
+    результат как measurement**. Решение о `RUNTIME_FLOWS` принимается по
+    качественным критериям, а не по числу строк — см. отдельный пункт
+    «`RUNTIME_FLOWS` — CONDITIONAL NEW OWNER CANDIDATE» ниже.
+  - **PLAN-12B — данные внутри docs. Зависимости: PLAN-12A.** Перенести
+    production/evaluation fixtures из `docs/implementation` в versioned
+    fixture/data owner и обновить callers; paid evidence сохранять без
+    переписывания истории.
+  - **PLAN-12C — archive. Зависимости: PLAN-12B.** `PROJECT_RESCUE_MASTER_PLAN.md`
+    и подтверждённо исторические plans/audits/reports переместить в
+    `docs/archive`, обновив navigation и links.
+    **Не начинается, пока не закрыты 12E, 12A и 12B:** archive/move без
+    утверждённой модели владения и без выполненных предшествующих шагов
+    запрещён.
+    Персональные ограничения состава:
+    - `docs/architecture/visual_rendering_policy.md` — **временно защищён от
+      archive и delete** до подтверждения PLAN-12B, что competing quality
+      owner не существует (registry C23);
+    - `docs/architecture/localization_and_voice_architecture.md` — **не
+      объявляется заранее ни `keep`, ни archive-кандидатом**: DEFER вместе с
+      остальными `docs/architecture/*` до полного per-file evidence
+      (registry C28);
+    - состав `docs/implementation`, `docs/audits`, `docs/architecture` и
+      `docs/apps` — **DEFER до PLAN-12B** (registry C27).
+- **`RUNTIME_FLOWS` — CONDITIONAL NEW OWNER CANDIDATE.** Не «justified».
+  Создаётся только при выполнении всех пяти условий: пофайловая классификация
+  `docs/*` завершена (PLAN-12B, ревизия 2 — прежде PLAN-1C);
+  фактические runtime-flow sources прочитаны полностью (`docs/apps/*`,
+  `COMMANDS.md` §10, `skills/resume-project`, `skills/create-short-video-first`,
+  ADR 0006); PLAN-12A выполнил merge; итоговый `SYSTEM_MAP` измерен как
+  measurement; **качественно** доказано, что runtime execution / stage /
+  resume / failure information не помещается туда без смешения
+  ответственности. Если после merge `SYSTEM_MAP` остаётся тематичным и его
+  ответственности не смешиваются — новый owner не создаётся, независимо от
+  числа строк.
 - **действия по классам:** keep, move, archive, backup_then_untrack, delete,
   defer. Целое семейство одним действием не архивируется и не удаляется.
 - **запрещено:** untrack двенадцати reference jpg до переноса dataset;
-  переписывать historical snapshot как current; оставлять битые ссылки.
-- **required verification:** PLAN-12A/12C — docs QA; PLAN-12B — targeted
-  production callers + `full`; `git diff --check` всегда.
+  переписывать historical snapshot как current; оставлять битые ссылки;
+  начинать 12C раньше закрытия 12E/12A/12B; трактовать буквенную нумерацию
+  под-slices как порядок выполнения.
+- **required verification:** PLAN-12E — docs QA; PLAN-12A/12C — docs QA;
+  PLAN-12B — targeted production callers + `full`; `git diff --check` всегда.
 - **rollback:** один commit на семейство.
 
-### PLAN-13 — ownership migration и retirement
+### PLAN-13 — ownership migration, retirement и root-structure classification
 
-- **status:** blocked (PLAN-1, PLAN-6C, PLAN-12) · **commit:** —
+- **status:** blocked (PLAN-1B) · **commit:** —
+- **изменено ревизией 2.** Блокеры PLAN-6C и PLAN-12 сняты как механические:
+  прямой зависимостью является только capability gate PLAN-1B. **PLAN-9A не
+  блокирует.** Значительная часть прежнего scope PLAN-13D переехала в PLAN-L.
 - **цель:** один owner бизнес-логики, один установленный package root и один
   канонический CLI без потери compatibility/persisted contracts.
+- **root-structure classification (OD-6, OD-9) — новый обязательный под-slice
+  PLAN-13E, выполняется до любого move.** Старое допущение «существующий path —
+  аргумент сохранить path» отменено; locked decisions 8 и 9 больше не запрещают
+  пересмотр. Но переносить ради эстетики запрещено: **сначала классификация пяти
+  групп, потом решение.**
+
+  | Группа | Что известно | Действие |
+  |---|---|---|
+  | `channels/` | после L3 остаются `nature_science_news_ru` (активный) и `nature_pulse` | классифицировать вместе с template policy |
+  | `schemas/` | 8 versioned contracts, читаются `test_artifact_schemas` | классифицировать |
+  | reusable templates | `config/render_presets/`, `channels/*/templates/`, versioned SVG | классифицировать |
+  | evaluation resources | live-eval dataset/results/frames — registry C31 | классифицировать; `docs/` подтверждён неправильным owner (OD-8) |
+  | versioned assets/config | [FACT] после L3 все 5 оставшихся файлов `config/` активны, 8–21 caller каждый | **оставить на месте**, отдельной причины двигать нет |
+
+  **Top-level `resources/` заранее не создаётся (OD-9).** Решение принимается по
+  результату классификации и только если `resources/` реально уменьшает число
+  owners и делает структуру понятнее. `resources/evaluation/` — candidate path,
+  не назначение.
+- **PLAN-13E также назначает physical target для C31** и переводит caller
+  `src/assets/semantic_visual_evaluation_tooling.py:26,38,695` плюс
+  `tests/test_semantic_decision_policy.py`, освобождая `docs/` от production
+  dependency. Синтетический генератор
+  `tests/test_semantic_visual_evaluation.py:458 _write_prepared_dataset` уже
+  существует и повторно не создаётся.
+- **applications против developer tools.** Это разные responsibilities:
+  `apps/*` и `anime_factory/` — applications; `tools/` — developer tooling, QA,
+  диагностика и maintenance. `anime_factory` остаётся **migration source**
+  будущего `video_repurposer` (ADR 0016), а не постоянной параллельной
+  архитектурой приложения; его runtime (`episodes/`, `input/`, `config.yaml`)
+  живёт внутри source tree и переезжает во внешний workspace.
+  `apps/news_to_short` вторым CLI не остаётся (OD-2, registry K08).
 - **bounded sub-slices:**
   - **PLAN-13A — caller migration:** одно семейство production callers, затем
     current docs/examples, затем tests;
@@ -868,8 +1640,13 @@ allowed zones и owner approvals не пересекаются; изменени
     после zero-production-caller gate и dependency/toolchain audit PLAN-6C;
     root `ai_youtube/` и `src/ai_youtube/` свести к одному installable
     src-layout package;
-  - **PLAN-13D — legacy pipeline:** сохранить только подтверждённые
-    maintenance/migration commands; `pipeline.py` удалить последним.
+  - **PLAN-13D — legacy pipeline: перенесён в PLAN-L ревизией 2.** Весь его
+    прежний scope — сохранение maintenance-команд (теперь PLAN-L2), удаление
+    `pipeline.py` (PLAN-L4), снятие production-импорта `scripts.test_moss_voices`
+    (PLAN-L4, registry C18) — выполняется в параллельном этапе PLAN-L, потому
+    что ждать здесь было незачем: у legacy-стека ровно один production-caller.
+    Здесь под-slice сохранён как якорь ссылок и собственного содержания не имеет.
+  - **PLAN-13E — root-structure classification:** см. выше в этом разделе.
 - **предусловие удаления любого старого entrypoint:** переведены или удалены
   tests, актуальные docs, console scripts, module entrypoints и подтверждённые
   внешние callers в том же изменении. Красные tests или лгущая документация
@@ -898,22 +1675,65 @@ allowed zones и owner approvals не пересекаются; изменени
     генерировать или удалить только по зафиксированному caller/docs gate.
     Anime/ML optional dependencies, `venv/`, MOSS/Whisper/model weights и
     agent-specific adapters имеют раздельных owners. Обновление lock/download
-    требует отдельного network approval;
+    требует отдельного network approval.
+    За 14B остаётся distribution boundary `tools/` (registry C26).
+    **Изменено ревизией 2:** installed-package defect C25,
+    `scripts/test_moss_voices.py` C18 и hardcoded `G:/` C24 закрываются в
+    PLAN-L, потому что их носители (`pipeline.py`, `scripts/`,
+    `config/video_style.json`, `channels/psychology/`) там удаляются. Здесь они
+    не дублируются; 14B только проверяет, что после L4 в выжившем versioned
+    config не осталось hardcoded drive;
   - **PLAN-14C — generated/cache/empty directories:** удалять только
     воспроизводимые cache/temp и подтверждённо пустые runtime directories по
     проверенному абсолютному пути; пустой `__init__.py` не мусор;
-  - **PLAN-14D — runtime dry-run inventory:** counts, manifests, checksums,
-    project/media/model/toolchain roots и target workspace; ничего не
-    копировать, не переключать и не удалять;
-  - **PLAN-14E — workspace migration:** только по отдельному owner approval:
-    `copy → verify counts/manifests/checksums → switch`, dual-read legacy roots,
-    новые записи во внешний workspace; source остаётся до отдельного retirement;
-  - **PLAN-14F — root allowlist:** по одному top-level family за commit;
-    tracked source, runtime/user data и generated output классифицируются
-    раздельно.
+  - **PLAN-14D — runtime inventory и отбор representative corpus.**
+    **Переписан ревизией 2 (OWNER: тестовое медиа disposable).** Inventory
+    counts, manifests, project/media/model/toolchain roots и target workspace —
+    как раньше, ничего не копируя и не удаляя. **Добавлено:** классификация и
+    дедупликация 749 legacy JSON-манифестов (registry C32) по `schema_version`,
+    manifest shape, completion state, resume state, legacy edge case и
+    malformed/partial; отбор **минимального representative corpus**,
+    достаточного tolerant-reader tests. Полный набор — во внешний retirement
+    bundle как historical evidence. **749 файлов не становятся permanent
+    architecture anchor.** Checksum-верификация применяется только к
+    отобранному корпусу;
+  - **PLAN-14E — workspace migration.** **Переписан ревизией 2.** Прежний
+    `copy → verify counts/manifests/checksums → switch` для всего дерева
+    заменён на: сохранить отобранный corpus, `media_index.json`, versioned SVG
+    и, если нужно, минимальный voice sample с provenance (OD-3) → создать
+    внешний workspace → переключить default → удалить disposable медиа.
+    Выполняется только по отдельному owner approval; dual-read legacy roots
+    сохраняется.
+    **`MOSS_TTS_Nano/` не переносится (OD-7):** это цельный вендоренный
+    сторонний репозиторий, а Runtime Workspace не является хранилищем исходного
+    кода. Он ретайрится в PLAN-L4 вместе с `src/tts_providers/` после Knowledge
+    Salvage Gate;
+  - **PLAN-14F — root allowlist и правила `.gitignore`:** по одному top-level
+    family за commit; tracked source, runtime/user data и generated output
+    классифицируются раздельно.
+    **Разрешённые зоны включают `.gitignore`** — это единственный slice,
+    которому оно разрешено. Причина: `.gitignore` описывает именно root
+    allowlist, а C20 и C21 — правила о top-level путях. **PLAN-6B остаётся
+    detector/report-only owner и `.gitignore` не правит**; молчаливое
+    превращение report-слайса в mutation-слайс запрещено. Нового PLAN ради двух
+    правил не создаётся.
+    Здесь исполняются exit conditions:
+    (a) **C21** — директорное правило `assets/broll/` заменяется на
+    `assets/broll/*`, после чего `git ls-files -i -c --exclude-standard` не
+    содержит `.gitkeep`;
+    (b) **C20** — `output/` и `tmp/` получают правила `.gitignore`. Удаление
+    самих untracked артефактов в commit не входит и выполняется отдельно
+    (PLAN-14C для воспроизводимого cache/temp), потому что untracked-файлы
+    Git-состояние не меняют.
+    **Изменено ревизией 2:** 8 × `outputs/*.json` (C19) и
+    `outputs/asset_library_report.md` (C29) снимаются с Git в **PLAN-L4**
+    вместе с их producer `pipeline.py --asset-report`, поэтому здесь остаётся
+    только `assets/broll/.gitkeep` (C21) и остаток root allowlist. Обратить
+    внимание: `src/media_library.py` при этом **сохраняется** — он используется
+    активным news-путём;
 - **измеримый результат:** report-only QA зелёный по утверждённому allowlist;
-  runtime default не зависит от repo root/drive; пользовательские данные
-  сохранены.
+  runtime default не зависит от repo root/drive; сохранён именно
+  `Preserved runtime corpus`, а не всё дерево runtime.
 - **required verification:** targeted paths/contracts; `full` после path/
   package/toolchain changes; без реального render и сети.
 - **rollback:** один commit на под-slice; data copy не совмещается с source
@@ -950,25 +1770,77 @@ gates и проверки остаются в соответствующих р�
 | После этапа | Что фактически получаем |
 |---|---|
 | PLAN-0 | Один активный versioned execution plan на отдельной локальной ветке. |
-| PLAN-1 | Проверенный реестр всех старых путей, callers, owners, замен и условий удаления; production ещё не перемещается. |
+| PLAN-1D-routing | Новый агент попадает в этот план, а не в historical master plan. |
+| PLAN-1C′ | Закрыт C01-SEM: у asset/semantic capability известны owner, callers, persisted contracts, дубли и тесты. PLAN-9A разблокирован. |
+| PLAN-1A / PLAN-1B | Capability gates для PLAN-L и PLAN-13; product-работу не блокируют. |
+| PLAN-L | Legacy content stack ретайрен после Knowledge Salvage Gate: −~5700 строк, −6 тестов, −6 top-level путей; закрыты C17, C18, C19, C24, C25, C29; знание сохранено, retirement обратим. |
 | PLAN-2 | Исправленные voice-profile fixtures без изменения рабочего production resolver. |
 | PLAN-3 | Исправленные completion/resume fixtures, соответствующие output-validated idempotency. |
 | PLAN-4 | Зелёный и воспроизводимый полный offline baseline на зафиксированном source HEAD. |
 | PLAN-5 | Один test runner с режимами `smoke`, `fast`, `targeted`, `full`; локальные проверки и offline CI используют одну командную модель. |
-| PLAN-6 | Короткие единые правила для любых AI-агентов, ранний отчёт о мусоре/дублях, проверенная карта dependency/toolchain ownership, технический scope-контроль и один независимый read-only reviewer. |
+| PLAN-6A / 6D / 6E | Короткие единые правила с классами `[HARD]/[ARCH]/[HINT]`, приоритет цели над предписанным методом, технический scope-контроль и один независимый read-only reviewer, ловящий в том числе «unmet objective / premature stop». |
+| PLAN-6B / 6C | Ранний отчёт о мусоре и дублях с зафиксированными кандидатами fitness-проверок; проверенная карта dependency/toolchain ownership. Параллельны product-работе. |
 | PLAN-7 | README, COMMANDS и рабочие skills обучают только каноническому `python -m ai_youtube`; старые entrypoints пока лишь совместимы. |
 | PLAN-8 | Отдельный `PRODUCT_PLAN.md` с приоритетами, evidence gates и roadmap двух engines; execution plan становится короче. |
 | PLAN-9 | Сохранение best-so-far, переносимое через resume; универсальные queries; semantic decision path доказан и включается только opt-in. |
 | PLAN-10 | Ограниченный и объяснимый search loop с ledger, stop reasons, pagination и adaptive budget; локальная библиотека включается только после rights-аудита. |
 | PLAN-11 | Проверенное offline M1 evidence на нескольких темах без новых платных Vision-вызовов и без ложных claims по Story Card. |
-| PLAN-12 | Current docs содержат только актуальные знания; fixtures получают правильного владельца; historical материалы находятся в archive. |
-| PLAN-13 | Один владелец бизнес-логики на capability, один physical package root и один канонический CLI; лишние wrappers retired доказанными slices. |
-| PLAN-14 | Минимальный root allowlist, согласованные dependency/toolchain files и переносимый runtime workspace; пользовательские данные сохранены. |
+| PLAN-12 | Утверждённая модель владения документами (12E) фиксируется **до** любых archive/move; затем current docs содержат только актуальные знания, fixtures получают правильного владельца, а historical материалы находятся в archive. Порядок внутри этапа — последовательная цепочка `12E → 12A → 12B → 12C`. |
+| PLAN-13 | Один владелец бизнес-логики на capability, один physical package root, один канонический CLI; классификация пяти групп root structure выполнена, решение о `resources/` принято по evidence, `docs/` свободен от production dependency. |
+| PLAN-14 | Минимальный root allowlist, согласованные dependency/toolchain files и переносимый runtime workspace; сохранён отобранный representative corpus и versioned resources, disposable медиа удалено. |
 | PLAN-15 | Финально доказанный чистый, понятный, переносимый offline-проект с честным catalog и закрытым cleanup registry. |
 
 ## Decisions and discoveries
 
 Только новые факты, меняющие порядок или scope. Не журнал команд.
+
+### Ревизия 2 плана, 2026-07-31
+
+- **[FACT]** legacy content stack — `pipeline.py` → `src/legacy_pipeline/workflow.py`
+  → 20 модулей корня `src/` (~4903 строки) — имеет **ровно одного**
+  production-caller и 6 test-модулей из 112. `legacy/` (424 строки) не имеет ни
+  одного Python-caller. Исключения, которые остаются: `src/media_library.py`
+  (активный news-путь) и `src/utils.py` (`src/audio/tts/env.py`,
+  `src/tts_providers/moss_tts_provider.py`). Это основание для раннего PLAN-L.
+- **[FACT]** `src/legacy_pipeline/maintenance.py` — не legacy-генерация, а
+  единственный CLI-доступ к visual-preview, semantic-backend,
+  semantic-evaluation, semantic-visual, media-library и envato-manual;
+  канонический CLI этих команд не имеет. Поэтому L2 обязателен до L3.
+- **[FACT]** `channels/{psychology,quotes,survival,size_comparison}` и
+  `content/survival/juliane_koepcke_001.json` читаются
+  `tests/test_channel_profiles.py` и `tests/test_documentary_visual_engine.py` —
+  это fixtures legacy-стека, а не user data. Registry N04 изменён.
+- **[FACT]** `MOSS_TTS_Nano/` — цельный вендоренный сторонний репозиторий
+  (собственные `pyproject.toml`, `venv/`, `tests/`, `finetuning/`, 45 `.exe`);
+  активный `src/audio/tts/provider_manager.py` MOSS не регистрирует.
+  **[INFERENCE]** после L3/L4 у него и у `src/tts_providers/` ноль callers.
+  Делить на weights и vendor code нечего — OD-7 ретайрит целиком.
+- **[FACT]** production-зависимость на `docs/implementation/openai_live_evaluation`
+  — три строки `semantic_visual_evaluation_tooling.py:26,38,695` плюс
+  `tests/test_semantic_decision_policy.py`. Синтетический генератор
+  `_write_prepared_dataset` уже существует. Дефект зафиксирован как C31.
+- **[FACT]** после L3 все пять оставшихся файлов `config/` активны, 8–21 caller
+  каждый. Повода переносить каталог нет; открыты только `channels/`, `schemas/`
+  и reusable templates.
+- **[FACT]** `apps/news_to_short/main.py` — 83 строки собственного argparse,
+  дублирующего флаги канонического `create`/`resume`; два других wrapper —
+  8-строчные делегации. Registry K08 уточнён.
+- **[FACT]** PLAN-6E был заблокирован невыполнимым предусловием: Codex не
+  установлен, discovery-check выполнить нельзя, а 6E обязателен до PLAN-9A.
+  Deadlock снят разделением Claude-части и Codex-части.
+- **[FACT]** `src/assets/completion/` уже владеет лестницей выбора A–F,
+  `blocking_reasons` и словарём состояний завершённости. Второй словарь
+  (`PASS/DEGRADED/…`) не вводится: это создало бы второго canonical owner.
+  Продуктовая дыра находится **выше по потоку** — см. «Продуктовая рамка
+  PLAN-9 и PLAN-10».
+- **[owner decision]** OD-1…OD-10 приняты; см. раздел «Owner decisions
+  ревизии 2».
+- **[owner decision]** порядок первых действий изменён: STEP 0 (перенос ревизии
+  в этот файл и в registry) выполняется **до** PLAN-1D-routing, потому что 1D
+  направляет будущих агентов именно сюда.
+- **[FACT]** `baseline_head` остаётся `fe2df5b`: нового full baseline run не
+  выполнялось. Смещение `current_checkpoint` с PLAN-1A на PLAN-1D-routing —
+  следствие reorder, а не выполненной работы.
 
 - **2026-07-30** targeted re-search ограничен одной фазой **на сцену**, а не на
   проект: `targeted_search_done` — локальная переменная
@@ -1057,6 +1929,100 @@ gates и проверки остаются в соответствующих р�
   нельзя блокировать вовсе. 79 из 112 тестовых модулей используют
   `TemporaryDirectory`/`mkdtemp` вне репозитория, поэтому repo-relative
   deny-list synthetic tempfile не задевает.
+
+### Repository Foundation audit, 2026-07-31
+
+Read-only bounded аудит каркаса (root, `docs`, agent infrastructure,
+developer tooling, QA, dev config) от clean HEAD `4ca3655`. Каждая запись
+имеет класс: **FACT** — проверено командой; **INFERENCE** — вывод, исполнением
+не проверенный; **[ПРЕДП]** — не проверено вовсе; **DEFER** — evidence
+недостаточно.
+
+- **2026-07-31 [FACT]** аудит выполнен от `audit_head` `4ca3655`.
+  `baseline_head` остаётся `fe2df5b`: полный offline suite на `4ca3655` не
+  запускался, промежуточные commits docs-only. Происхождение измерения не
+  переписывается без повторного full run.
+- **2026-07-31 [FACT]** покрытие аудита: 183 tracked файла в scope, 61
+  прочитан построчно, 108 проверены программно, 14 metadata-only, 1 исключён
+  по security. **`docs/implementation` (96 файлов) построчно не читался**,
+  `docs/audits` (9) и `docs/architecture` (5) прочитаны заголовками. Поэтому
+  archive/move/delete внутри этих семейств — DEFER до PLAN-12B.
+- **2026-07-31 [FACT]** `git ls-files -i -c --exclude-standard`: 9 tracked
+  файлов совпадают с `.gitignore` — 8 × `outputs/*.json` и
+  `assets/broll/.gitkeep`. Директорное правило `assets/broll/` обесценивает
+  последующее `!assets/broll/.gitkeep`.
+- **2026-07-31 [FACT]** `output/` и `tmp/` не покрыты `.gitignore`.
+  `output/` содержит один файл — `output/pdf/PROJECT_EXECUTION_PLAN_mobile.pdf`,
+  280 820 байт; `tmp/pdfs/` пуст. **[INFERENCE]** это generated artifact:
+  имя и размер соответствуют рендеру активного плана, содержимое PDF не
+  парсилось. Владелец подтвердил удаление; оно выполняется отдельно от
+  commit, поскольку файлы untracked.
+- **2026-07-31 [FACT]** `pipeline.py:9` импортирует `scripts.test_moss_voices`;
+  `packages.find.include` не содержит `scripts*` при `py-modules=["pipeline"]`.
+  **[INFERENCE]** non-editable install ломает `import pipeline` — `pip install .`
+  не выполнялся, CI использует `--editable` и дефект не ловит.
+  **Отдельный вопрос [DEFER]:** отсутствие `tools*` в wheel дефектом по
+  умолчанию не является — сначала PLAN-6C определяет intended distribution
+  boundary. Предварительно `tools/` остаётся вне wheel.
+- **2026-07-31 [FACT]** `legacy/` (8 файлов) не имеет ни одного Python-caller
+  repo-wide; ссылки только в `README.md` и historical docs. **[DEFER]**
+  архивирование требует caller gate PLAN-L1: статический граф не доказывает
+  отсутствия внешнего или строкового caller.
+- **2026-07-31 [FACT]** link-checker по всем 100 tracked `.md`: 0 битых
+  локальных ссылок. Hash-скан по всем 664 tracked: единственный содержательный
+  exact-дубликат — `ai_youtube/__main__.py` == `src/ai_youtube/__main__.py`,
+  то есть симптом двух package roots (C01/C11), а не удаляемый дубль.
+  Остальные совпадения — 15 пустых `.gitkeep` и 3 корректных
+  `apps/*/__main__.py` boilerplate.
+- **2026-07-31 [FACT]** активный execution plan имеет **одну** входящую ссылку
+  во всём репозитории — `CURRENT_STATE.md`. `AGENTS.md`, `START_HERE.md`,
+  `CLAUDE.md` и `README.md` его не упоминают. Routing чинит PLAN-1D.
+  `docs/architecture/visual_rendering_policy.md` — единственный документ,
+  задающий визуальный quality bar, — имеет **ноль** входящих ссылок.
+- **2026-07-31 [FACT]** `README.md` (405 строк) и `COMMANDS.md` (681 строка)
+  не упоминают `ai_youtube` ни разу; `COMMANDS.md` содержит 49 упоминаний
+  `src.content_creation.cli` и 24 × `pipeline.py`; `README.md` учит bare
+  `python`/`pip` вопреки `AGENTS.md`. `docs/contracts/STAGE1_PUBLIC_CONTRACTS.md`
+  называет `src.content_creation.cli` «current CLI» и до сих пор не входил ни
+  в один slice — добавлен в зоны PLAN-7.
+- **2026-07-31 [FACT]** Claude Code не обнаруживает корневой `skills/`
+  автоматически: `.claude/` содержит только `settings.json`,
+  `settings.local.json` и `scheduled_tasks.lock`. **[ПРЕДП]** утверждение
+  «Codex обнаруживает эти skills через `skills/*/agents/openai.yaml`» **не
+  проверено**: Codex в среде не установлен, discovery-check не выполнялся,
+  tracked codex-конфигов нет. Наличие файла не является доказательством
+  discovery. Различать четыре состояния: наличие файлов, manual loading,
+  auto-discovery, actual invocation.
+- **2026-07-31 [FACT]** три из шести `SKILL.md` учат
+  `python -m src.content_creation.cli`, а `tools/qa/check_agent_docs.py`
+  проверяет только frontmatter, локальные ссылки и `TODO` — команды внутри
+  skills не проверяются. PLAN-7 чинит файлы, PLAN-6A добавляет проверку.
+- **2026-07-31 [FACT]** `docs/current/PRODUCT_EVIDENCE_GATE.md` указывает в
+  `source_paths` пять путей внутри gitignored `projects/`. Смена `status` его
+  не чинит: файл обязан переехать (PLAN-12A).
+- **2026-07-31 [FACT]** `docs/current/` — 2639 строк, из них 1616 (61%)
+  приходится на два волатильных плановых документа. **[INFERENCE]** слияние
+  `SYSTEM_MAP` + `ARCHITECTURE_BOUNDARY_MAP` + `docs/apps/` + `docs/contracts/`
+  дало бы 793 строки до вычета перекрытий. Это **measurement**, а не gate:
+  решения о создании отдельного owner принимаются по responsibility, readers,
+  lifecycle, смешению контрактов, routing ambiguity и maintenance coupling.
+  Число строк может подтверждать проблему, но само по себе новый файл не
+  создаёт.
+- **2026-07-31 [owner decision]** принято **направление B** модели владения
+  документами; зафиксировано как PLAN-12E. Направление — ownership direction,
+  не разрешение перемещать файлы. Обязательная последовательная цепочка
+  внутри этапа: `12E → 12A → 12B → 12C`, каждое звено зависит от предыдущего.
+- **2026-07-31 [FACT]** из восьми кандидатов на новых document owners
+  (`RUNTIME_FLOWS`, `QUALITY_BAR`, `EVALUATION_STRATEGY`, `TESTING`,
+  `RECOVERY_AND_RESUME`, `STATE_AND_SCHEMAS`, `SECURITY_AND_APPROVALS`,
+  `RUNTIME_WORKSPACE`) сейчас не создаётся ни один:
+  1 CONDITIONAL NEW OWNER CANDIDATE (`RUNTIME_FLOWS`, пять evidence gates),
+  1 EXTRACT CANDIDATE (`QUALITY_BAR`), 2 EXTEND EXISTING OWNER
+  (`TESTING` → `tools/qa/run_tests.py`, `STATE_AND_SCHEMAS` → `schemas/` и
+  существующий индекс), 2 DEFER (`EVALUATION_STRATEGY`, `RECOVERY_AND_RESUME`),
+  2 NOT NEEDED (`SECURITY_AND_APPROVALS` — уже имеет корректное трёхуровневое
+  владение instruction + permission + test; `RUNTIME_WORKSPACE` — ADR 0002 +
+  PLAN-14 + `CURRENT_STATE`). Ни один не запрещён заранее.
 
 ## Completion and archive policy
 

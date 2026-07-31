@@ -42,8 +42,25 @@ bounded commits. 9B-P01 подтвердил два target engines; caller/owner
 inventory C01–C16 ещё не выполнен.
 
 Допустимые значения: `keep`, `split`, `merge`, `move`, `replace`, `archive`,
-`delete`, `do_not_touch`. `compatibility wrapper` — переходное состояние, а не
-финальный class.
+`delete`, `do_not_touch`, `obsolete-with-legacy`. `compatibility wrapper` —
+переходное состояние, а не финальный class.
+
+**Ревизия 2 execution plan, 2026-07-31.** Владелец зафиксировал: существующая
+зависимость, существующий owner и существующая архитектура не являются
+доказательством правильности; тестовое runtime-медиа disposable. Поэтому часть
+строк сменила class с `do_not_touch` на `split`, `delete` или
+`obsolete-with-legacy`, а gates перенаправлены на новый параллельный этап
+`PLAN-L` и на capability-scoped gates. Owner decisions OD-1…OD-10 и правило
+«отсутствие caller не доказывает отсутствия ценности» находятся в
+`PROJECT_EXECUTION_PLAN.md`; здесь они не дублируются.
+
+Ни одна строка не даёт права на действие сама по себе. Для knowledge-bearing
+families (source, workflow, config, prompts, templates, tests, уникальное
+docs/evidence) обязателен Knowledge Salvage Gate (`PLAN-L0`) перед destructive
+retirement и обратимый retirement-механизм (annotated tag + `git bundle` +
+строка в `Retired`). Для disposable runtime/media/cache действует другая
+цепочка — `PLAN-14D` → `PLAN-14E` со сверкой по `Preserved runtime corpus`;
+KSG к ним не применяется.
 
 ## Architecture candidates
 
@@ -56,7 +73,7 @@ inventory C01–C16 ещё не выполнен.
 | K05 | `src/assets/provider_contract.py` + `src/providers/` | `keep` | этап 7 (`fb93a05`) закрепил `StockProvider` canonical contract и перенёс default factory в `src.providers.registry`; adapters/download/preview/diagnostics используют общую foundation | единственный provider contract и registry | 7 complete |
 | K06 | `src/audio/` | `keep` | approval, voice manifests, timeline и TTS manager защищены отдельными tests | не создавать второй voice/TTS contract | всегда |
 | K07 | `src/subtitles/` | `keep` | единственный engine, news использует adapter | не создавать второй subtitle engine | всегда |
-| K08 | `apps/*` wrappers | `delete` | `test_apps_structure`, docs и `python -m apps.*` entrypoints; три `__main__.py` exact-identical | 9B фиксирует external promise/callers; 9C переводит callers; 9E удаляет ненужные packages, permanent adapter возможен только по ADR и owner evidence | 9B–9E |
+| K08 | `apps/*` wrappers | `delete` | **уточнено ревизией 2.** [FACT] `apps/anime_factory/main.py` и `apps/youtube_pipeline/main.py` — 8-строчные делегации; `apps/news_to_short/main.py` — **83 строки собственного argparse**, дублирующего флаги канонического `create`/`resume`, то есть второй CLI активного workflow | `youtube_pipeline` удаляется в **PLAN-L4**. `news_to_short` (**OD-2**): сверить флаги и поведение с каноническим CLI; полностью покрытые — удалить; уникальную возможность сначала перенести в `content_creator`, затем удалить entrypoint. `anime_factory` — вместе с миграцией `video_repurposer` | L4 / PLAN-13 |
 | S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
 | S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
 | S03 | `src/content_creation/wizard.py` + `wizard_state`/`wizard_steps`/`wizard_presentation` | `split` | 6C (`b9f8212`) уменьшил facade с 1229 до 175 строк и разделил state/request translation, steps/execution и terminal presentation | выполнено; `run_wizard`, private compatibility imports, module request-builder patch-point и lazy CLI boundary защищены characterization | 6C complete |
@@ -78,11 +95,11 @@ inventory C01–C16 ещё не выполнен.
 | D03 | `packages/README.md` и пустая planning directory | `delete` | повторный audit подтвердил один tracked planning README, отсутствие runtime/current callers и package discovery только из `ai_youtube*`, `src*`, `anime_factory*`, `apps*` | завершено: README и пустая physical directory удалены; historical snapshots не переписаны | 9 D03 complete |
 | D04 | untracked `__pycache__/`, `*.pyc` | `delete` | 0 tracked matches; bytecode воспроизводим | удалять только filesystem-cleanup slice, не вместе с refactor | 10 |
 | N01 | `.env`, `.env.*`, credentials/private keys | `do_not_touch` | конфигурация может содержать secrets; содержимое не проверялось | никогда не читать/коммитить/удалять автоматически | всегда |
-| N02 | `projects/`, manifests, MP4/WAV, evidence/license proof | `do_not_touch` | 1618 файлов, 0 tracked; оба project readers используют root | только copy → verify → switch по отдельному разрешению | всегда |
-| N03 | `assets/`, `manual_assets/`, `music/`, voice samples | `do_not_touch` | runtime/config callers и rights-sensitive user media | backup/checksums до любой миграции; не удалять автоматически | всегда |
-| N04 | `content/`, включая `story_card_jobs.tsv` | `do_not_touch` | TSV не имеет runtime caller, но каталог содержит versioned legacy source content | отсутствие caller не доказывает право удалить user/source data | всегда |
-| N05 | `project_solar_vs_nuclear/` | `do_not_touch` | 102 runtime/experiment файла, 0 tracked | сохранять до отдельного owner decision | всегда |
-| N06 | `MOSS_TTS_Nano/`, model weights, `venv/` | `do_not_touch` | локальные runtime/toolchain roots, 0 tracked; MOSS/Whisper нужны существующим paths | C01/10 inventory: models → Workspace `model_cache` только copy/verify/switch; venv воспроизводить вне clean root; ничего не удалять автоматически | 9B/10 |
+| N02 | `projects/` — 1618 файлов | `split` | **изменено ревизией 2 (OWNER).** 749 JSON + ~700 медиа, 0 tracked; оба project readers используют root | медиа — disposable, удаляется на runtime reset; JSON/SRT/ASS проходят classify/dedupe и дают **минимальный representative corpus** (C32); полный набор — во внешний retirement bundle | 14D |
+| N03 | `assets/`, `manual_assets/`, `music/` | `split` | **изменено ревизией 2 (OWNER).** 287 + 18 + 3 файла; смешанные runtime media и versioned resources | **keep:** `assets/library/metadata/media_index.json` (provenance/rights), versioned SVG в `manual_assets/**`. **delete:** всё медиа, кэши. `assets/voice_samples` — **disposable (OD-3)**; минимально необходимый sample активного voice profile переносится во внешний Workspace с provenance, иначе удаляется | 14D/14E |
+| N04 | `content/`, включая `story_card_jobs.tsv` | `obsolete-with-legacy` | **изменено ревизией 2.** [FACT] это fixtures legacy-стека, а не user data: `content/survival/juliane_koepcke_001.json` и `channels/survival` читаются `tests/test_documentary_visual_engine.py` и `tests/test_channel_profiles.py`; `story_card_jobs.tsv` не имеет runtime caller | ретайр вместе с legacy-стеком **после Knowledge Salvage Gate** (OD-1): visual rules, промпты и продуктовые декларации форматов сохраняются как knowledge | **PLAN-L0 → L3** |
+| N05 | `project_solar_vs_nuclear/` | `delete` | **изменено ревизией 2 (OWNER).** 102 runtime/experiment файла, 0 tracked | удаляется на runtime reset; уникальных инженерных доказательств не содержит | 14C/14D |
+| N06 | `MOSS_TTS_Nano/` (56 463 файла), `src/tts_providers/` | `delete` | **изменено ревизией 2 (OD-7).** [FACT] это цельный вендоренный сторонний репозиторий: собственные `pyproject.toml`, `requirements.txt`, `venv/`, `tests/`, `finetuning/`, `.egg-info`, `app.py`, `infer.py`, 45 `.exe`, `generated_audio/`, логи. [FACT] активный `src/audio/tts/provider_manager.py` MOSS **не регистрирует**; единственный мост `src/tts_providers/moss_tts_provider.py` импортируют только `src/voice_engine.py` (L3), `pipeline.py` и `scripts/test_moss_voices.py` (L4) и один тест. [INFERENCE] после L3/L4 — ноль callers | KSG сохраняет provider-specific knowledge, инструкции запуска, edge cases и вывод «почему пробовали и что вышло» в один ADR, затем оба пути удаляются. **Не реинтегрировать в scope этой программы. Vendor repo в `Workspace/models` не переносить** — Runtime Workspace не хранилище исходного кода. `venv/` воспроизводится вне clean root | **PLAN-L0 → L4** |
 
 ## 9B compatibility и ownership inventory
 
@@ -110,6 +127,50 @@ dependency, public promise, replacement и exit condition. Test-only caller са
 | C14 | Anime FFmpeg/crop/render helpers против news/root renderers | несколько FFmpeg runners и render orchestrations; crop/scoring действительно domain-specific | один shared FFmpeg execution boundary и render contracts; crop/layout orchestration остаётся у workflow, не создавать один giant renderer |
 | C15 | Anime `EpisodePaths`/JSON layout против `WorkspacePaths`/`ProjectRepository` | Anime runtime живёт под package root и не распознаётся общим repository | app-scoped project path через существующий resolver, tolerant legacy episode reader; не создавать third project system |
 | C16 | Anime transcription/audio/scene analysis/candidate scoring | единственная рабочая source-to-clips реализация уже существует в Anime modules | переносить/обобщать существующие modules внутри `video_repurposer`; shared service только при доказанном втором caller |
+
+## Repository Foundation audit findings (C17–C29)
+
+Read-only bounded audit каркаса репозитория, выполнен 2026-07-31 от clean
+HEAD `4ca3655` (`audit_head`). Production-код, tests и структура не менялись.
+
+Каждая строка имеет класс доказанности:
+**FACT** — проверено командой, воспроизводимо;
+**INFERENCE** — вывод из фактов, исполнением не проверен;
+**DEFER** — evidence недостаточно, решение отложено к названному gate.
+
+Это findings каркаса, а не 9B compatibility surfaces: они не заменяют и не
+дублируют C01–C16.
+
+| ID | Path / предмет | Current owner | Класс | Evidence | Exit condition | Gate |
+|---|---|---|---|---|---|---|
+| C17 | `legacy/` (8 файлов, 424 строки) | никто | **FACT** + **DEFER** | repo-wide поиск не нашёл ни одного Python-caller; ссылки только из `README.md` и historical docs | статический граф не доказывает отсутствия внешнего/строкового caller — нужен caller gate; salvage знания; затем delete с retirement tag | **PLAN-L0 → L1 → L4** |
+| C18 | `scripts/test_moss_voices.py` | `pipeline.py:9` | **FACT** | единственный production-импорт из `scripts/`; sys.path-инъекция; hardcoded `G:/`; имя `test_*.py` вне `tests/` | **OD-7 закрыл вариант «→ `tools/`»:** MOSS ретайрится, `src/tts_providers/` удаляется, значит helper удаляется вместе с ними. Class → `delete`; импорт снимается в L4 вместе с `pipeline.py` | **PLAN-L0 → L4** |
+| C19 | `outputs/*.json` (**8 файлов**) | Git index ∩ ignore | **FACT** | `git ls-files -i -c --exclude-standard` перечисляет `asset_plan`, `music_plan`, `quote_plan`, `render_plan`, `render_stage`, `scene_plan`, `self_eval`, `youtube_metadata` — tracked при совпадении с `outputs/**/*.json` | класс решён: generated output legacy-стека. Producer умирает вместе с `pipeline.py`, поэтому untrack выполняется в L4, а не отдельным minimalism-слайсом | **PLAN-L4** |
+| C20 | `output/`, `tmp/` | никто | **FACT** | `git check-ignore` → NOT IGNORED для обоих; `output/` = 1 файл (`output/pdf/PROJECT_EXECUTION_PLAN_mobile.pdf`, 280 820 байт, 2026-07-30); `tmp/pdfs/` пуст | правила `.gitignore` для `output/` и `tmp/` добавлены **в PLAN-14F** (единственный slice с `.gitignore` в allowed zones); untracked-артефакты удалены — это commit не требует, воспроизводимый cache/temp закрывает 14C. PLAN-6B — только detector | PLAN-6B (detect) → **14F** (`.gitignore`) → 14C (untracked cleanup) |
+| C21 | `assets/broll/.gitkeep` | Git index ∩ ignore | **FACT** | директорное правило `assets/broll/` обесценивает последующее `!assets/broll/.gitkeep`; файл tracked и ignored одновременно | правило заменено на `assets/broll/*` **в PLAN-14F** (единственный slice с `.gitignore` в allowed zones); `git ls-files -i -c` не содержит `.gitkeep`. PLAN-6B — только detector | PLAN-6B (detect) → **14F** (fix) |
+| C22 | `docs/contracts/STAGE1_PUBLIC_CONTRACTS.md` | orphan | **FACT** + **DEFER** | 0 входящих ссылок; называет `src.content_creation.cli` «current CLI»; канонический `python -m ai_youtube` не упоминает | target responsibility определяется PLAN-12E **по содержимому файла**, не автоматически по каталогу; затем update или archive | PLAN-12E → 7/12C |
+| C23 | `docs/architecture/visual_rendering_policy.md` | orphan; **временно защищён от archive/delete** | **FACT** + **INFERENCE** | FACT: 0 входящих ссылок. INFERENCE: единственный владелец визуального quality bar — `docs/implementation` построчно не читался | PLAN-12E выбрал target path (кандидат — `docs/product/QUALITY_BAR.md`); PLAN-12B подтвердил отсутствие competing quality owner. **Ревизия 2 перенесла подтверждение из PLAN-1C в PLAN-12B** вместе с пофайловой классификацией `docs/*` (C27). **До этого archive/delete запрещены** | **PLAN-12E → 12B** |
+| C24 | hardcoded `G:/` в versioned config | `config/`, `channels/` | **FACT** | `config/video_style.json` — `moss_tts_path`, `vault_path`; `channels/psychology/style.json` — `moss_tts_path` | **оба носителя умирают в L3:** `config/video_style.json` и `channels/psychology/` ретайрятся вместе с legacy-стеком, поэтому отдельного исправления не требуется. Если после L3 hardcoded drive обнаружится в выжившем versioned config — резолвить через существующий resolver или env | **PLAN-L3**, остаток → PLAN-14B |
+| C25 | `pyproject`: `pipeline` в дистрибутиве без `scripts` | packaging | **FACT** + **INFERENCE** | FACT: `py-modules = ["pipeline"]`, `packages.find.include` без `scripts*`, `pipeline.py:9` импортирует `scripts.test_moss_voices`. INFERENCE: non-editable install ломает `import pipeline` — `pip install .` не выполнялся | дефект исчезает вместе с носителем: L4 удаляет `pipeline.py` и `scripts/` и снимает `py-modules`. Проверка: wheel собран и импортируется в temporary venv вне checkout | **PLAN-L4** |
+| C26 | intended distribution boundary `tools/` | не определён | **DEFER** | `tools*` не входит в `packages.find.include`; все известные callers (`AGENTS.md`, `tests/test_stage2_agent_onboarding.py`, ADR, активный план) находятся внутри checkout | зафиксировать: `tools/` в wheel или только checkout. Предварительно — только checkout, тогда правка идёт в формулировку `AGENTS.md`, а не в `pyproject.toml`. **Добавлять `tools*` в wheel только ради работы repository QA из установленного пакета запрещено** | PLAN-6C |
+| C27 | `docs/implementation` (96), `docs/audits` (9), `docs/architecture` (5), `docs/apps` (3) | смешанный | **DEFER** | проверены типы, заголовки, frontmatter, reference-граф и hash; построчно **не читались** | пофайловая классификация выполнена; до этого archive/move/delete любого файла этих семейств не выполняются. **Ревизия 2 перенесла классификацию из PLAN-1C в PLAN-12B:** PLAN-9A её не требует | **PLAN-12B** |
+| C28 | `docs/architecture/localization_and_voice_architecture.md` | не классифицирован | **DEFER** | заранее не объявляется ни `keep`, ни archive-кандидатом | per-file evidence по всему `docs/architecture/*` получено | **PLAN-12B** |
+| C29 | `outputs/asset_library_report.md` | tracked generated output | **FACT** | **не** входит в index ∩ ignore и не подпадает ни под одно правило `.gitignore` — в отличие от C19. Порождается production-кодом: `src/media_library.py:218` `create_asset_report(output_path="outputs/asset_library_report.md")`, вызывается из `src/legacy_pipeline/maintenance.py:459` по флагу `--asset-report` (`src/legacy_pipeline/cli.py:47`) | producer `--asset-report` умирает вместе с legacy CLI; untrack выполняется в L4. `src/media_library.py` при этом **сохраняется** — он используется активным news-путём | **PLAN-L4** |
+
+Строки C17–C29 не дают права на действие сами по себе: каждая закрывается
+своим gate по общему `Closure rule` ниже.
+
+## Ревизия 2 findings (C30–C33)
+
+Зафиксировано 2026-07-31 архитектурной ревизией execution plan. Классы
+доказанности те же: **FACT** / **INFERENCE** / **DEFER**.
+
+| ID | Path / предмет | Current owner | Класс | Evidence | Action / target | Exit condition | Gate |
+|---|---|---|---|---|---|---|---|
+| C30 | legacy content stack: `pipeline.py`, `src/legacy_pipeline/{cli,workflow}.py`, 20 модулей корня `src/` (~4903 строки), `src/tts_providers/`, `channels/{psychology,quotes,survival,size_comparison}`, `content/`, `config/video_style.json`, `apps/youtube_pipeline/`, `legacy/`, `scripts/` | `pipeline.py` | **FACT** | единственный production-caller — `pipeline.py`; 6 test-модулей из 112. Исключения, которые **остаются**: `src/media_library.py` (активный news-путь) и `src/utils.py` (`src/audio/tts/env.py`, `src/tts_providers/moss_tts_provider.py`) | `delete` после salvage. Diagnostics из `maintenance.py` — **не** часть стека, переезжают в L2 | ноль production-callers; канонический CLI — единственный вход; retirement tag создан и выгружен bundle | **PLAN-L0 → L1 → L2 → L3 → L4** |
+| C31 | production-зависимость на `docs/implementation/openai_live_evaluation` | `src/assets/semantic_visual_evaluation_tooling.py` | **FACT** | три production-строки: `:26` дефолтный dataset, `:38` дефолтный results dir, `:695` переписывание относительных путей. Плюс `tests/test_semantic_decision_policy.py` (3 места). Синтетический генератор уже существует: `tests/test_semantic_visual_evaluation.py:458 _write_prepared_dataset` | `move`. **Зафиксировано (OD-8): `docs/` — неправильный target owner**, fixture/evidence сохраняется. **Physical target — DEFER**; `resources/evaluation/` только candidate, потому что top-level `resources/` не утверждён (OD-9) | target owner утверждён classification-ом, caller переведён, `docs/` свободен от production dependency | **PLAN-13** (запись дефекта — PLAN-1C′, без перемещения файлов) |
+| C32 | legacy manifest corpus, 749 JSON в `projects/` | runtime | **FACT** + **DEFER** | 749 JSON плюс ~700 медиафайлов; единственный реальный корпус legacy-манифестов | `split`: classify/dedupe по `schema_version`, manifest shape, completion state, resume state, legacy edge case, malformed/partial → в active resources только **минимальный representative corpus** для tolerant-reader tests. Полный набор — во внешний retirement bundle как historical evidence. **Не делать 749 файлов permanent architecture anchor** | representative corpus отобран и версионирован; полный набор выгружен наружу; tolerant-reader tests зелёные | **PLAN-14D** |
+| C33 | `src/size_comparison_engine.py` (720 строк) | `pipeline.py` | **FACT** + **DEFER** | входит в C30; собственный test-модуль `tests/test_size_comparison_engine.py` | `delete` после KSG (**OD-10**): сохраняются алгоритм, visual logic, edge cases, полезные проверки и запись «что стоит восстановить». **Capability внутри PLAN-L не мигрируется.** Формат при необходимости реализуется отдельным будущим product slice на новом canonical core | salvage записан в `Knowledge salvage log`; движок и его тест удалены | **PLAN-L0 → L3** |
 
 ## Delete evidence
 
@@ -514,12 +575,98 @@ handoff. Порядок не разрешает перепрыгивать че�
 1. **9A:** D01–D03 завершены отдельными проверенными commits.
 2. **9B-P01:** два target engines и место documentary подтверждены ADR 0016.
 3. **9B-C01:** выполнить read-only compatibility/ownership inventory и
-   заполнить C01–C16 фактическими callers/decisions.
+   заполнить C01–C16 фактическими callers/decisions. **Ревизия 2 разделила этот
+   монолитный checkpoint на capability gates `PLAN-1A` / `PLAN-1B` / `PLAN-1C′`
+   (+ routing `PLAN-1D`); единого шага «9B-C01» больше нет.**
 4. **9C:** переводить callers на canonical imports по одному family.
 5. **9D:** передавать ownership реализации по одному workflow/subsystem.
 6. **9E:** удалять old wrappers/package roots после zero-caller gate.
 7. **10:** только после этапа 9 начать раздельные docs/generated/cache/runtime/
    root-minimization slices; никаких user-data deletions.
+8. **C17–C29:** findings Repository Foundation audit распределены по
+   существующим владельцам активного execution plan. Отдельный cleanup plan для
+   них не создаётся.
+9. **Ревизия 2 (2026-07-31)** перенаправила часть gates на новый параллельный
+   этап `PLAN-L` и на capability-scoped gates. Актуальные gates смотреть в
+   таблицах выше, а не в этом списке.
+
+## Retired
+
+Обратимый ретайр по механизму `PROJECT_EXECUTION_PLAN.md` →
+«Reversible retirement mechanism»: annotated tag на последний commit, где код
+существовал, + `git bundle` во внешний workspace, + строка здесь. Постоянный
+каталог `trash/` не создаётся.
+
+| ID | Что ретайрено | Tag | Commit | Причина | Замена | Salvaged | Дата снятия с учёта |
+|---|---|---|---|---|---|---|---|
+| — | пока ничего не ретайрено | — | — | — | — | — | — |
+
+Строка добавляется **в том же commit**, что и удаление. Ретайр без tag, без
+bundle и без строки здесь считается незавершённым.
+
+## Knowledge salvage log
+
+Заполняется PLAN-L0 до destructive retirement **knowledge-bearing family**:
+source, workflow, config, prompts, templates, tests и docs/evidence с уникальным
+инженерным или product knowledge. Disposable runtime/media/cache сюда не
+попадают — их владелец `PLAN-14D` → `PLAN-14E` и `Preserved runtime corpus`.
+Правило: **отсутствие caller не является критерием отсутствия ценности.**
+
+Классы находок: `MIGRATE CAPABILITY` (пометить как отдельный будущий product
+slice, внутри PLAN-L **не выполняется**) · `MIGRATE KNOWLEDGE` · `KEEP MINIMAL
+REGRESSION` · `ARCHIVE ONLY` · `DELETE`.
+
+| Family | Находка | Класс | Куда перенесено | Что стоит восстановить позже |
+|---|---|---|---|---|
+| — | PLAN-L0 не выполнен | — | — | — |
+
+Обязательные к проверке families: `channels/{psychology,quotes,survival,size_comparison}`
+и `content/` (OD-1) · 20 движков корня `src/` · `legacy/` ·
+`src/legacy_pipeline/workflow.py` · `config/video_style.json` ·
+`MOSS_TTS_Nano/` + `src/tts_providers/` (OD-7) · `src/size_comparison_engine.py`
+(OD-10) · 6 legacy test-модулей.
+
+Что искать в каждом: reusable algorithm · domain и product knowledge · prompts,
+templates, visual rules · rights и licensing knowledge · fallback и recovery
+logic · edge cases · reusable schema knowledge · полезные characterization и
+product tests.
+
+## Preserved runtime corpus
+
+Канонический список того, что переживает runtime reset. Всё, что не перечислено
+здесь и классифицировано как runtime/generated/media, — disposable (OWNER,
+2026-07-31). Операционные детали — `PROJECT_EXECUTION_PLAN.md` →
+«Safety boundaries».
+
+| Предмет | Почему сохраняется | Owner решения |
+|---|---|---|
+| минимальный representative набор JSON/SRT/ASS манифестов проектов | единственная база проверки tolerant readers и resume на реальных legacy-формах; состав отбирается, а не сохраняется целиком | C32, PLAN-14D |
+| `assets/library/metadata/media_index.json` | provenance и rights локальной медиатеки; нужен аудиту PLAN-10D | N03 |
+| versioned SVG в `manual_assets/**` | versioned resource, не runtime media | N03 |
+| `config/` кроме `video_style.json`; `channels/nature_science_news_ru`, `channels/nature_pulse` | активная versioned-конфигурация: 8–21 caller на файл | N04, T.9 |
+| live-eval dataset / results / frames | active evaluation resource, читается production-кодом; нужен PLAN-9D | C31 |
+| минимально необходимый voice sample активного профиля, если он реально требуется | переносится во внешний Workspace **с provenance**, иначе удаляется | OD-3 |
+
+## Accidental invariants
+
+Тесты и проверки, которые замораживают случайную структуру или момент времени, а
+не product/public behavior. Класс — **LEGACY ANCHOR** по test classification
+`PROJECT_EXECUTION_PLAN.md`. LEGACY ANCHOR **не препятствует сознательному
+ретайру старой архитектуры** и переписывается либо удаляется вместе с ней.
+
+| Предмет | Что именно заморожено | Почему это anchor, а не контракт | Действие | Gate |
+|---|---|---|---|---|
+| `tests/test_apps_structure.py` (19 строк) | существование файлов `pipeline.py` и `anime_factory/pipeline.py`; импортируемость `apps.*.main` | это снимок временных compatibility wrappers, а не обещание пользователю | переписать в fitness-тест «нет второго canonical public CLI», затем retire исходный | **PLAN-L4** |
+| `tests/test_reproducibility_contract.py:24-27` | буквальное равенство `packages.find.include == ["ai_youtube*","src*","anime_factory*","apps*"]` | упадёт в момент исправления C25 и удаления `apps/`; фиксирует implementation detail с авторитетом контракта | переписать в инвариант: «нет package root вне объявленного набора», «wheel импортирует канонический CLI» | **PLAN-L4** |
+| `tests/test_stage2_agent_onboarding.py:19` | `today=date(2026,7,29)` и точное равенство множества `REQUIRED_SKILLS` | замораживает момент времени; добавление reviewer-skill (PLAN-6E) уронит тест | заменить на минимальный обязательный набор skills + автопроверку всех найденных; дату передавать аргументом | **PLAN-6A** |
+| `tests/test_stage2_agent_onboarding.py:26` | `AGENTS.md ≤ 120` строк | число не является архитектурным решением; `AGENTS.md` должен быть коротким **по responsibility** | переклассифицировать в measurement/warning | **PLAN-6A** |
+| `tests/test_documentary_visual_engine.py` (295), `tests/test_channel_profiles.py`, `tests/test_size_comparison_engine.py` | реализация legacy-движков и чтение legacy-каналов | замораживают ретайримую архитектуру | KSG извлекает полезные проверки, затем retire | **PLAN-L0 → L3** |
+| `tests/test_legacy_pipeline_internals_contract.py`, `tests/test_legacy_pipeline_application_boundary.py` | CHARACTERIZATION этапов 6F/8D | своё назначение выполнили: рефакторинг, который они охраняли, завершён | retire вместе с носителем | **PLAN-L3 / L4** |
+
+Не-anchor для контраста, менять нельзя без отдельного решения:
+`tests/test_asset_import_boundaries.py` и `tests/test_capability_consistency.py`
+— **ARCHITECTURE INVARIANT**; проверки `modes.blocking_reasons` (rights,
+`must_avoid`, misleading, битый файл) — **PRODUCT CONTRACT**.
 
 ## Closure rule
 
