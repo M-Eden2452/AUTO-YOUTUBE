@@ -54,6 +54,16 @@ inventory C01–C16 ещё не выполнен.
 «отсутствие caller не доказывает отсутствия ценности» находятся в
 `PROJECT_EXECUTION_PLAN.md`; здесь они не дублируются.
 
+**Ревизия 2.1 execution plan, 2026-07-31.** Добавлены findings C34–C50 по
+input/query truth, LocalLibrary, provider declarations, export catalog, FFmpeg,
+legacy knowledge salvage и rights fail-open. Часть формулировок предыдущих
+аудитов **опровергнута** контролируемыми offline-пробами и здесь записана в
+исправленном виде: не «три независимых LocalLibrary implementation», не «пять
+расходящихся provider registries», не «два конкурирующих orchestration owner»,
+не «конкатенация перекодируется в CRF 20». Owner decisions OD-11…OD-26, D-1,
+D-2, D-3 и E-13 находятся в `PROJECT_EXECUTION_PLAN.md`; здесь не дублируются.
+Ни одна строка ревизии 2.1 не даёт права на действие и ничего ещё не ретайрено.
+
 Ни одна строка не даёт права на действие сама по себе. Для knowledge-bearing
 families (source, workflow, config, prompts, templates, tests, уникальное
 docs/evidence) обязателен Knowledge Salvage Gate (`PLAN-L0`) перед destructive
@@ -73,7 +83,7 @@ KSG к ним не применяется.
 | K05 | `src/assets/provider_contract.py` + `src/providers/` | `keep` | этап 7 (`fb93a05`) закрепил `StockProvider` canonical contract и перенёс default factory в `src.providers.registry`; adapters/download/preview/diagnostics используют общую foundation | единственный provider contract и registry | 7 complete |
 | K06 | `src/audio/` | `keep` | approval, voice manifests, timeline и TTS manager защищены отдельными tests | не создавать второй voice/TTS contract | всегда |
 | K07 | `src/subtitles/` | `keep` | единственный engine, news использует adapter | не создавать второй subtitle engine | всегда |
-| K08 | `apps/*` wrappers | `delete` | **уточнено ревизией 2.** [FACT] `apps/anime_factory/main.py` и `apps/youtube_pipeline/main.py` — 8-строчные делегации; `apps/news_to_short/main.py` — **83 строки собственного argparse**, дублирующего флаги канонического `create`/`resume`, то есть второй CLI активного workflow | `youtube_pipeline` удаляется в **PLAN-L4**. `news_to_short` (**OD-2**): сверить флаги и поведение с каноническим CLI; полностью покрытые — удалить; уникальную возможность сначала перенести в `content_creator`, затем удалить entrypoint. `anime_factory` — вместе с миграцией `video_repurposer` | L4 / PLAN-13 |
+| K08 | `apps/*` wrappers | `delete` | **уточнено ревизией 2.** [FACT] `apps/anime_factory/main.py` и `apps/youtube_pipeline/main.py` — 8-строчные делегации; `apps/news_to_short/main.py` — **83 строки собственного argparse**, дублирующего флаги канонического `create`/`resume`, то есть второй CLI активного workflow. **Ревизия 2.1:** [FACT] единственная уникальная бизнес-возможность — `--text` / `--text-file`; у пакета есть test-callers и собственный `README.md` | `youtube_pipeline` удаляется в **PLAN-L4**. `news_to_short` (**OD-2, OD-19, D-1**): уникальная capability мигрирует в канонический CLI в **PLAN-9B-5a** (additive, без удаления), retirement — **только в PLAN-9B-5b** после миграции всех callers, с PLAN-6D + PLAN-6E + reversible retirement. `anime_factory` — вместе с миграцией `video_repurposer`; **capability не disposable (OD-23)** | L4 / **9B-5a → 9B-5b** / PLAN-13 |
 | S01 | `src/news/asset_manager.py` + `src/news/asset_*.py` | `split` | 6A (`cba1cf7`, `20750ab`, `59b39d3`, `fe5ba44`) оставил 266-строчный facade и отделил builder, summaries, completion и provider adapters | выполнено; public functions, imports и patch-points защищены characterization | 6A complete |
 | S02 | CLI internals после canonical migration | `split` | 6B (`1f9495c`) оставил 81-строчный compatibility facade, разделил catalog/localization/authoring handlers и terminal presentation; diagnostics стал 78-строчным facade | выполнено; public command/output contract и старые patch-points защищены characterization | 6B complete |
 | S03 | `src/content_creation/wizard.py` + `wizard_state`/`wizard_steps`/`wizard_presentation` | `split` | 6C (`b9f8212`) уменьшил facade с 1229 до 175 строк и разделил state/request translation, steps/execution и terminal presentation | выполнено; `run_wizard`, private compatibility imports, module request-builder patch-point и lazy CLI boundary защищены characterization | 6C complete |
@@ -115,7 +125,7 @@ dependency, public promise, replacement и exit condition. Test-only caller са
 | C02 | `src.content_creation.cli` | compatibility CLI с сохранёнными patch-points; canonical dispatcher уже существует | caller inventory → canonical imports → delete или обоснованный permanent adapter |
 | C03 | Fullscreen/Story Card old use-case paths | thin wrappers, canonical application use cases уже существуют | перевести callers и удалить wrappers отдельными slices |
 | C04 | `apps.news_to_short`, `apps.anime_factory`, `apps.youtube_pipeline` | compatibility packages и документированные module entrypoints | owner/external promise decision; убрать бессрочный `keep always` |
-| C05 | `src.news` против Fullscreen canonical boundary | application use case перенесён, staged workflow/project/assets всё ещё принадлежат `src.news` | определить app-specific и shared ownership, затем переносить без копирования |
+| C05 | `src.news` против Fullscreen canonical boundary | application use case перенесён, staged workflow/project/assets всё ещё принадлежат `src.news`. **Ревизия 2.1:** расслоение application/news ownership зафиксировано **ADR 0009 намеренно**; «два конкурирующих orchestration owner» — опровергнуто | определить app-specific и shared ownership, затем переносить без копирования. Точный idempotency contract defect вынесен в **C43a**, возможная поздняя convergence — **C43b** |
 | C06 | `src.templates.story_card`/`src.production_plan` против Story Card boundary | project/evidence/render contracts остаются у прежних owners | определить shared contracts и workflow owner; не создавать второй renderer |
 | C07 | `anime_factory` против Anime Clipper adapter | adapter новый, implementation/output layout старые, capability disabled | P01: finish migration в единый `video_repurposer`; C01 должен разложить modules по app-specific/shared ownership |
 | C08 | `pipeline.py`/`src.legacy_pipeline` против legacy adapter | root namespace, patch-points и behavior разделены между переходными paths | классифицировать каждую command family; root wrapper удалить последним |
@@ -171,6 +181,47 @@ HEAD `4ca3655` (`audit_head`). Production-код, tests и структура н
 | C31 | production-зависимость на `docs/implementation/openai_live_evaluation` | `src/assets/semantic_visual_evaluation_tooling.py` | **FACT** | три production-строки: `:26` дефолтный dataset, `:38` дефолтный results dir, `:695` переписывание относительных путей. Плюс `tests/test_semantic_decision_policy.py` (3 места). Синтетический генератор уже существует: `tests/test_semantic_visual_evaluation.py:458 _write_prepared_dataset` | `move`. **Зафиксировано (OD-8): `docs/` — неправильный target owner**, fixture/evidence сохраняется. **Physical target — DEFER**; `resources/evaluation/` только candidate, потому что top-level `resources/` не утверждён (OD-9) | target owner утверждён classification-ом, caller переведён, `docs/` свободен от production dependency | **PLAN-13** (запись дефекта — PLAN-1C′, без перемещения файлов) |
 | C32 | legacy manifest corpus, 749 JSON в `projects/` | runtime | **FACT** + **DEFER** | 749 JSON плюс ~700 медиафайлов; единственный реальный корпус legacy-манифестов | `split`: classify/dedupe по `schema_version`, manifest shape, completion state, resume state, legacy edge case, malformed/partial → в active resources только **минимальный representative corpus** для tolerant-reader tests. Полный набор — во внешний retirement bundle как historical evidence. **Не делать 749 файлов permanent architecture anchor** | representative corpus отобран и версионирован; полный набор выгружен наружу; tolerant-reader tests зелёные | **PLAN-14D** |
 | C33 | `src/size_comparison_engine.py` (720 строк) | `pipeline.py` | **FACT** + **DEFER** | входит в C30; собственный test-модуль `tests/test_size_comparison_engine.py` | `delete` после KSG (**OD-10**): сохраняются алгоритм, visual logic, edge cases, полезные проверки и запись «что стоит восстановить». **Capability внутри PLAN-L не мигрируется.** Формат при необходимости реализуется отдельным будущим product slice на новом canonical core | salvage записан в `Knowledge salvage log`; движок и его тест удалены | **PLAN-L0 → L3** |
+
+## Ревизия 2.1 findings (C34–C50)
+
+Зафиксировано 2026-07-31 по evidence
+`docs/audits/CRITICAL_INPUT_SEARCH_DEEP_DIVE_2026-07-31.md` и
+`docs/audits/SECONDARY_ARCHITECTURE_FINDINGS_DEEP_DIVE_2026-07-31.md`
+(контролируемые offline-пробы, сеть/платные API/render не использовались).
+Классы доказанности: **FACT** / **INFERENCE** / **DEFER**.
+
+**Общее правило для каждой строки ниже:**
+
+```
+replacement working → callers migrated → targeted/full green → reviewer/gates
+                    → затем retirement
+```
+
+Ни одна строка не даёт права на действие. Ни одна из них ещё не исполнена.
+
+| ID | Предмет | Класс | Evidence / исправленная формулировка | Action | Gate |
+|---|---|---|---|---|---|
+| C34 | `query_adapter` GLOSSARY substring matcher | **FACT** | матчинг подстрокой даёт ложные срабатывания (термин «лёд» внутри несвязанного слова) и не знает морфологии — пропускает единственное релевантное слово | **MIGRATE THEN DELETE**: состав терминов сохраняется как seed, harmful матчер заменяется (границы слова + нормализация) | **PLAN-9B-1 → PLAN-9B-3** |
+| C35 | topic-hardcode `provider_queries` под одну тему (orca) в `src/news/script_generator.py` + его тест | **FACT** | доказывает, что `VisualBrief`/`provider_queries` — **уже рабочий transport contract**; но заполняется только для одной темы и скрывает дефект на «своей» теме | **MIGRATE CAPABILITY THEN DELETE**: перенести форму ответа, трёхуровневую структуру запросов и `must_avoid` как часть смысла, затем удалить hardcode | **PLAN-9B-2 → PLAN-9B-3** |
+| C36 | `legacy_broad_query` в legacy visual-plan format | **FACT** | дописывается в каждую сцену и **не доходит до провайдера ни разу**: `source_is_latin` — свойство всего набора, поэтому русский `primary_query` выбрасывает английский alternative вместе с собой. Шум в persisted-плане | **DELETE — только после** работающей замены (9B-1 и исправления проверки `source_is_latin` на уровне элемента), иначе покрытие на переходный период падает до нуля | **PLAN-9B-3** |
+| C37 | deprecated `make_stock_query` в `src/news/visual_plan.py` | **FACT** | deprecated, production-callers отсутствуют | **DELETE** после gate, вместе с C36 | **PLAN-9B-3** |
+| C38 | `src/assets/semantic_selection/query_generator.py` + `_animal_category` | **FACT** | **не участвует** в формировании remote-запросов; его callers питают envato-метаданные и отчёты. Содержит полезную лестницу `exact → broad → environment → atmospheric` | **MIGRATE KNOWLEDGE/CALLERS THEN RETIRE** — только после миграции **всех** callers | **PLAN-9B-3** (открытый вопрос: семантика callers построчно не читалась) |
+| C39 | несколько поколений query generation в репозитории | **FACT** | сосуществуют legacy-, semantic- и adapter-поколения; canonical boundary remote-запросов — `src/assets/query_adapter.py` | **CONVERGENCE к фактическому query boundary**; второй query pipeline, `TranslatorService`, `SearchEngine` и `QueryOrchestrator` **не создаются** | **PLAN-9B** |
+| C40 | глобальная локальная стоковая библиотека | **FACT** | **Исправлено ревизией 2.1.** **Не** «три независимых implementation»: один `media_index`, **один** rights-authority `apply_policy_to_candidate`, **два** matcher'а, несколько consumers/wrappers; legacy path использует **ту же** `media_library.search_local_assets`, что и канонический. Доказанных расхождений live-путей ровно **два**: missing `provenance` и `review_required=True`; обратных — **ноль**. Аргумент про `RIGHTS_REFERENCE_ONLY` **опровергнут** (значение перезаписывается политикой). Дополнительно: `duplicate_penalty` в `rank_local_assets` — **мёртвый код** (`used_asset_ids` вызывает `continue` раньше применения penalty) | **ONE CANONICAL OWNER глобальной локальной стоковой библиотеки:** canonical matcher/provider boundary · harmonize provenance/review semantics · salvage diversity reserve (C47) · удалить superseded wrappers/path · **четвёртый путь запрещён**. **User/manual project assets и project pool — отдельные legitimate capabilities и в конвергенцию не входят.** `duplicate_penalty` убирается вместе с этим слайсом | **PLAN-10D** |
+| C41 | provider declarations vs фактический registry | **FACT** | **Исправлено ревизией 2.1.** Гипотеза «пять расходящихся реестров, всё свести к `providers/registry`» **опровергнута**: это разные legitimate facts (actual constructed providers · capabilities · fallback language info · source-class priority · diagnostics inventory · availability), таблицы корректно фильтруются по availability, `ProviderCapabilities.query_languages` **уже** имеет приоритет над fallback-таблицей | Остаточный cleanup, **не** конвергенция: (a) `local_library` declaration mismatch (объявлен провайдером с поддержкой RU, но не создаётся, а реальный локальный поиск идёт мимо адаптера) → **PLAN-10D**; (b) вестигиальный `DEFAULT_PROVIDER_ORDER` → opportunistic cleanup; (c) осиротевшее имя `unsplash` → opportunistic cleanup. **PLAN-10B owner-ом не является (D-2); отдельный PLAN-ID не создаётся** | **PLAN-10D** + opportunistic |
+| C42 | `apps/news_to_short` — уникальные `--text` / `--text-file` | **FACT** | единственная уникальная бизнес-возможность во всём `apps/`; канонический CLI такого входа не имеет. У пакета есть test-callers и собственный `README.md` | **MIGRATE UNIQUE CAPABILITY (9B-5a) → RETIRE (9B-5b)**. Порядок обязателен: capability сначала мигрируется, wrapper удаляется только потом (OD-2, OD-19, D-1, K08) | **PLAN-9B-5a → PLAN-9B-5b** |
+| C43a | idempotency contract defect: explicit `stage=` path отключает output-validated idempotency ADR 0006 | **FACT** | условие `and not stage` в `src/news/pipeline.py` означает, что при явно запрошенной стадии проверка «completed + валидный output → пропустить» не применяется. Batch-режим (`until_stage=`) контракт **соблюдает**; explicit-режим повторно исполняет завершённые локальные стадии. Контракт для `stage=` не покрыт ни одним тестом. **Повторных платных операций нет** (несколько независимых guard'ов + существующие тесты); повторяются только локальные preview/final render. Вызовов **4–7** в зависимости от режима, не «ровно 7». **Severity: MEDIUM** | точный contract fix: один контракт идемпотентности, действующий во всех режимах вызова. Owner — **ADR 0006 / `src/news/pipeline.py`**, отдельный будущий bounded slice. Предусловие: подтвердить фактических `resume`/`force-stage`/`stop-stage` callers и public behavior | future bounded pipeline-contract slice |
+| C43b | возможная поздняя orchestration convergence | **INFERENCE** | расслоение application orchestration / news pipeline ownership зафиксировано **ADR 0009 намеренно**; «два конкурирующих owner» **опровергнуто**. Дублируется ровно один факт — порядок хвостовых стадий | «один владелец порядка стадий» — **не** принятое решение. Выполняется **только если** после C43a остаётся архитектурная необходимость | **PLAN-13B** |
+| C44 | export catalog mismatch | **FACT** | catalog объявляет **5** active export targets; три production-owner согласованно работают с **3**. `supported_export_targets` и `safe_zone_profile` имеют **ноль** production-читателей и в render decision не участвуют — каталог единственный outlier. Master копируется побайтово, адаптации под площадку нет | **truthful catalog**: убрать несуществующие targets из `active` **либо** перевести в `planned` — по фактическому intended product contract в момент implementation. **Создавать byte-identical копии ради соответствия каталогу запрещено.** **PLAN-11 = evidence gate**, обязанный ловить ложные product capabilities; **implementation owner — будущий bounded `production_catalog` slice**. Нового PLAN-ID нет | **PLAN-11** (gate) + future catalog slice |
+| C45 | несколько lossy generations в final render | **FACT** + **INFERENCE** | **Исправлено ревизией 2.1.** Нормальный путь: segment encode CRF 23 → concat **`-c:v copy`** (не перекодирует) → audio + exact-duration encode CRF 20 → ASS subtitle encode CRF 21 → copies. Три lossy generations возникают **при audio + ASS subtitles**; без озвучки или без ASS — две, без обоих — одна. CRF 20 имеет документированную причину (`-shortest` + `-c:v copy` промахивается по длительности). **INFERENCE:** величина ущерба **никем не измерялась** — ни один аудит не рендерил | **PLAN-8 = roadmap owner** product-quality item. **Implementation owner — будущий bounded renderer slice, characterization первым.** Первый разумный кандидат: объединить audio/duration encode и subtitle burn в один encode, если characterization докажет эквивалентность. Полный filtergraph single-pass — отдельное более крупное исследование. «Single-pass как простой fix» — **неверно** | **PLAN-8** (roadmap) + future renderer slice |
+| C46 | legacy query expansion ladder (`build_query_variants`) | **FACT** | настоящая лестница расширения: суффиксы, усечение, mood, channel-расширения | **MIGRATE KNOWLEDGE** → потребитель **PLAN-9B-2**. Старый pipeline ради этого не сохраняется | **PLAN-L0** |
+| C47 | legacy local diversity reserve | **FACT** | `min_local_diversity_per_scene` / `reserved_download_slots`: «не заполняй сцену копиями одного локального клипа, оставь слоты под новый материал». Современного эквивалента **нет** — прямо релевантно проблеме повторяющихся визуалов | **MIGRATE KNOWLEDGE** → потребитель **PLAN-10D** | **PLAN-L0** |
+| C48 | историческая практика внешних EN visual keywords | **FACT** | `visual_keywords` в legacy `content/**/*.json` — **входные данные**, а не выход кода: provider-ready английские ключи существовали отдельным полем, отделённым от нарратива | **MIGRATE KNOWLEDGE** (ADR/registry). Реализацию не восстанавливать | **PLAN-L0** |
+| C49 | subprocess network-guard measurement | **FACT** | `tests/network_guard.py` живёт внутри test-пакета и дочерним процессом **не наследуется**. На audit HEAD `adcbb19` subprocess-модулей **12** (ранее записано 7). Это **measurement, не invariant** | зафиксировать как измерение; архитектурное решение по kill-switch **сейчас не принимается** — механизм и owner остаются implementation-time решением. **PLAN-6B остаётся report/measurement owner в своей текущей границе** | **PLAN-6B** (measure) + позднее решение owner |
+| C50 | **rights fail-open:** явный `review_required=True` local-library record проходит канонический путь | **FACT** + **INFERENCE** | policy-правило для локальной библиотеки устанавливает `review_required: false` и **перезаписывает исходный флаг записи**, поэтому явно помеченная на ревью запись проходит. Обратного случая нет. Дефект не описан ни в одном предыдущем аудите | **[HARD] rights correctness.** Отдельный bounded fix с собственной verification: policy **не может silently снять** explicit `review_required` без доказанного разрешённого контракта. Owner — `apply_policy_to_candidate` / `with_policy_decision`. **Не смешивать с PLAN-10D architectural convergence** | отдельный future bounded rights slice |
+
+Строки C34–C50 закрываются каждая своим gate по общему `Closure rule` ниже.
+Ничего из перечисленного пока не удалено — таблица `Retired` остаётся пустой.
 
 ## Delete evidence
 
@@ -589,6 +640,13 @@ handoff. Порядок не разрешает перепрыгивать че�
 9. **Ревизия 2 (2026-07-31)** перенаправила часть gates на новый параллельный
    этап `PLAN-L` и на capability-scoped gates. Актуальные gates смотреть в
    таблицах выше, а не в этом списке.
+10. **Ревизия 2.1 (2026-07-31)** добавила findings C34–C50 и перевела
+    governance на risk-based модель: первым product-этапом становится семейство
+    `PLAN-9B` (`9B-0 → 9B-1 → 9B-5a → 9B-4 → 9B-2 → 9B-3`, затем `9B-5b`),
+    `PLAN-9A` выполняется после него. `PLAN-5` и `PLAN-6A` — параллельные;
+    `PLAN-6D` — gate первого multi-owner слайса; `PLAN-6E` — gate первого
+    destructive слайса и обязателен для `PLAN-9A` и `PLAN-9C`. Порядок и
+    обоснования — в `PROJECT_EXECUTION_PLAN.md`.
 
 ## Retired
 
@@ -625,6 +683,15 @@ REGRESSION` · `ARCHIVE ONLY` · `DELETE`.
 `src/legacy_pipeline/workflow.py` · `config/video_style.json` ·
 `MOSS_TTS_Nano/` + `src/tts_providers/` (OD-7) · `src/size_comparison_engine.py`
 (OD-10) · 6 legacy test-модулей.
+
+**Обязательные находки ревизии 2.1** — PLAN-L0 сохраняет их **до** retirement;
+старый pipeline ради них **не** сохраняется:
+
+| Находка | Класс | Целевой потребитель | Registry |
+|---|---|---|---|
+| legacy query expansion ladder `build_query_variants` (суффиксы, усечение, mood, channel-расширения) | `MIGRATE KNOWLEDGE` | **PLAN-9B-2** | C46 |
+| local-library diversity reserve (`min_local_diversity_per_scene` / `reserved_download_slots`) | `MIGRATE KNOWLEDGE` | **PLAN-10D** | C47 |
+| практика «provider-ready английские visual keywords существуют отдельным полем, отделённым от нарратива» | `MIGRATE KNOWLEDGE` | ADR / registry | C48 |
 
 Что искать в каждом: reusable algorithm · domain и product knowledge · prompts,
 templates, visual rules · rights и licensing knowledge · fallback и recovery
