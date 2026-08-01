@@ -6,7 +6,7 @@ updated_at: 2026-08-01
 baseline_head: fe2df5b
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-2
+current_checkpoint: PLAN-3
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,7 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-2, не начат.
+- **Текущий шаг:** PLAN-3, не начат.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -57,19 +57,27 @@ source_paths:
   `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` сохранён и не редактировался.
   Findings C51 (`PRODUCT_EVIDENCE_GATE.md`) и C52 (root `skills/` discovery)
   записаны в `CLEANUP_REGISTRY.md` без перемещения файлов и без создания
-  второго набора skills.
-- **Зелёные проверки:** `tools.qa.check_agent_docs`.
-- **Почему checkpoint сместился с PLAN-1A на PLAN-1D, а затем на PLAN-2.**
-  Смещение на 1D было **не** признаком выполненной работы: ревизия 2 разделила
-  монолитный PLAN-1 на три capability gates (1A, 1B, 1C′) и выделила
+  второго набора skills. **PLAN-2** — исправлена изоляция fixtures в
+  `tests/test_voice_profile_resolution.py`: изменён только этот test-модуль,
+  production-код не менялся.
+- **Зелёные проверки:** `tools.qa.check_agent_docs`;
+  `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
+  последовательных прогонах (2026-08-01). Это **targeted** измерение: зелёность
+  полного baseline им не подтверждается и остаётся предметом PLAN-4.
+- **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2 и
+  PLAN-3.** Смещение на 1D было **не** признаком выполненной работы: ревизия 2
+  разделила монолитный PLAN-1 на три capability gates (1A, 1B, 1C′) и выделила
   routing-фикс 1D как первый самостоятельный шаг. Ни один под-slice PLAN-1A/1B/
   1C′ не выполнен. Переход на PLAN-2 — следствие фактически выполненного
-  docs-only слайса PLAN-1D. `baseline_head` остаётся `fe2df5b`: нового
-  baseline run не выполнялось, PLAN-2 не начат.
+  docs-only слайса PLAN-1D; переход на PLAN-3 — следствие фактически
+  выполненного test-only слайса PLAN-2. `baseline_head` остаётся `fe2df5b`:
+  нового полного baseline run не выполнялось, PLAN-2 проверялся только своим
+  targeted-модулем, PLAN-3 не начат.
 - **Заблокировано (модель ревизии 2.1 — risk-based, не линейная цепочка):**
   - **PLAN-9B-0 и PLAN-9B-1** — первый product-этап программы — блокируются
     только цепочкой `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`, из которой
-    `PLAN-1D-routing` завершён 2026-08-01; остаются `PLAN-2 → PLAN-3 → PLAN-4`;
+    `PLAN-1D-routing` и `PLAN-2` завершены 2026-08-01; остаются
+    `PLAN-3 → PLAN-4`;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -84,7 +92,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-2.
+- **После проверки Git выполнить:** PLAN-3.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1045,7 +1053,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-2 — baseline repair: voice-profile fixtures
 
-- **status:** pending · **completed:** — · **commit:** —
+- **status:** completed · **completed:** 2026-08-01 · **commit:** — (см. Git log,
+  trailer `Plan-Step: PLAN-2`)
 - **цель:** убрать устаревшую изоляцию через `os.chdir` и использовать явный
   `channels_dir` либо существующий path seam.
 - **зависимости:** PLAN-1D-routing. **Изменено ревизией 2:** зависимость от
@@ -1053,15 +1062,50 @@ allowed zones и owner approvals не пересекаются; изменени
   ownership не меняет.
 - **разрешённые зоны:** `tests/test_voice_profile_resolution.py`.
 - **запрещено:** production-код, прочие тесты.
-- **диагноз:** изоляция через `os.chdir` перестала действовать после того, как
-  versioned resources стали резолвиться от корня репозитория, а не от `cwd`;
-  реестр читает настоящий `channels/` и возвращает чужой профиль. Production
-  корректен.
+- **диагноз (подтверждён):** изоляция через `os.chdir` перестала действовать
+  после того, как versioned resources стали резолвиться от корня репозитория, а
+  не от `cwd`; реестр читает настоящий `channels/` и возвращает чужой профиль.
+  Production корректен.
+- **root cause (фактический):** `src/config_resolver/paths.py` вычисляет
+  `_REPOSITORY_ROOT` от расположения модуля (`Path(__file__).resolve().parents[2]`),
+  и `ApplicationPaths.channels_root` — это `repository / "channels"`. `cwd` в этой
+  цепочке не участвует вообще, поэтому `os.chdir()` во временный каталог не
+  изолировал ничего: и `capabilities._channels_root()`, и
+  `voice_profile_registry._channels_root()` продолжали читать настоящий
+  `channels/`. Доказательство характеризацией: `list_voice_profiles` возвращал
+  `['ru_dom']` вместо `['ru_test']` — то есть реальный профиль из
+  `channels/nature_science_news_ru/voices.yaml`.
+- **применённый seam:** существующий публичный параметр `repository_root=`
+  функции `src.config_resolver.paths.resolve_application_paths` — тот же seam,
+  которым уже пользуются `tests/test_stage3_workspace_paths.py` и
+  `tests/test_legacy_pipeline_internals_contract.py`. Fixture создаёт временный
+  `channels/`-каталог и на время блока подменяет `resolve_application_paths`
+  обёрткой, подставляющей `repository_root` фикстуры; обе точки входа
+  (`capabilities._channels_root`, `voice_profile_registry._channels_root`)
+  импортируют эту функцию внутри тела, поэтому один seam покрывает обе.
+  `channels_dir` как явный аргумент здесь неприменим: ни
+  `capabilities.resolve_voice_profile`, ни `list_voice_profiles`, ни
+  `load_voice_profile_for_channel` его не принимают, а добавление параметра было
+  бы изменением production-кода вне разрешённых зон. Новый helper, registry или
+  второй способ разрешения channels не создавался.
 - **измеримый результат:** модуль завершается без failures и errors; сохранены
   паритет UI и runtime, резолв по display_name, borrowed profile с
-  `source_channel_id`, `include_global=False`, понятное сообщение об ошибке.
+  `source_channel_id`, `include_global=False`, понятное сообщение об ошибке и
+  отсутствие протечки реальных repository-профилей в fixture. `os.chdir()` из
+  модуля удалён; `cwd` процесса после прогона не меняется.
 - **required verification:** только targeted-модуль. Режим `fast` ещё не
   существует до PLAN-5 и поэтому не может быть prerequisite.
+- **фактическая verification (2026-08-01, HEAD до слайса `373daa8`):**
+  - до изменения: `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_voice_profile_resolution` — exit code 1, 8 тестов, 1 failure и
+    3 errors;
+  - после изменения: та же команда — exit code 0 двумя последовательными
+    прогонами; каждый test-класс отдельно тоже зелёный (зависимости от порядка
+    нет);
+  - `.\venv\Scripts\python.exe -m tools.qa.check_agent_docs` — exit code 0;
+  - `git diff --check` — без замечаний.
+  Числа тестов, failures и errors записаны как измерение с датой и проверенным
+  HEAD, нормой они не являются (Measurement policy).
 - **rollback:** один commit.
 
 ### PLAN-3 — baseline repair: completion-wiring fixtures
