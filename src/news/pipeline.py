@@ -1,3 +1,56 @@
+"""Canonical boundary для стадийного выполнения workflow ``fullscreen_voiceover_v1``.
+
+Responsibilities:
+- создание проекта (``create_news_to_short_job``) и его запуск
+  (``run_news_to_short_job``, ``run_news_to_short_cli``);
+- порядок стадий из ``models.NEWS_TO_SHORT_STAGES``, диспетчеризация каждой
+  стадии к её владельцу и запись stage state через ``NewsProjectStore``;
+- resume, ``--stage``, ``--until-stage``, ``--force-stage`` и ``--dry-run``;
+- итоговый статус job: ``completed``, ``needs_review``, ``draft_completed``,
+  ``in_progress``, ``dry_run_completed`` либо терминальная причина completion;
+- применение completion-настроек и инвалидация зависящих от них стадий.
+
+Does not own:
+- содержание стадий: research, script, visual plan, ассеты, озвучка, субтитры,
+  quality check, рендер и экспорт принадлежат своим модулям;
+- persisted форму и запись файлов — ``project_store.NewsProjectStore``;
+- выбор шаблона и application-уровень — ``src.content_creation.service`` и
+  ``src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover``
+  (ADR 0009);
+- общие сервисы: ``src.assets``, ``src.providers``, ``src.audio``,
+  ``src.subtitles``, ``src.project_foundation``.
+
+Inputs: ``projects_root``, ``job_id`` и флаги запуска; для create — канал,
+язык, вход (topic/text/url), пользовательские ассеты, длительность, completion
+mode и adaptation.
+
+Outputs: ``NewsPipelineResult`` и артефакты стадий на диске — ``job.json`` со
+stage state, ``article/``, ``research/claims.json``,
+``localizations/<lang>/`` (script, visual plan, voice, subtitles, output),
+``assets/assets_manifest.json``, ``quality/quality_report.json``,
+``render/final_render_manifest.json``, ``export/``.
+
+Important invariants:
+- повторяемые стадии от ``research`` до ``export`` идемпотентны по проверке
+  фактического output; ``input`` и потенциально сетевой ``article_ingestion``
+  в эту policy намеренно не входят (ADR 0006);
+- завершённая стадия пропускается при обычном повторе и при ``resume``;
+  перезапустить её можно через ``force_stage`` либо явно запрошенной ``stage``
+  без ``resume``;
+- стадия, чей JSON-результат содержит ``status="blocked"``, отмечается
+  ``blocked``, а не ``completed``;
+- ``strict`` требует ``quality_report.status == "passed"`` до финального
+  рендера; ``draft_complete`` идёт через отдельный draft render gate и всегда
+  оставляет ``publish_ready=false``;
+- ``--execute-voice`` сам по себе платную генерацию не запускает: approval
+  проверяет ``src.audio.narration_workflow``;
+- ``dry_run`` останавливается на ``asset_search`` и до озвучки, рендера и
+  экспорта не доходит.
+
+See also: ``docs/current/SYSTEM_MAP.md``, ADR 0004, 0005, 0006, 0009,
+``src/news/__init__.py``.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

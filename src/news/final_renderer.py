@@ -1,3 +1,55 @@
+"""Canonical boundary финальной сборки ролика ``fullscreen_voiceover_v1``.
+
+Единственный публичный вход — ``render_final_video``. Его вызывает стадия
+``final_render`` в ``src.news.pipeline``; каталог объявляет этот модуль
+``workflow_binding.renderer`` активного шаблона.
+
+Responsibilities:
+- нарезка сегментов по визуальным слотам сцены с приведением к общей геометрии
+  и кадровой частоте, включая повторное применение сохранённого crop-решения;
+- склейка сегментов без перекодирования (``concat`` + ``-c:v copy``);
+- сведение озвучки и музыки с ducking и приведение к целевой длительности;
+- вшивание ASS-субтитров, если манифест субтитров их предоставил;
+- выкладка платформенных копий и возврат render manifest.
+
+Does not own:
+- подбор и права материала — ``src.assets``, ``src.providers``;
+- длительности сцен — ``src.audio.scene_timeline``; рендер только читает
+  фактическое время;
+- narration, музыкальный манифест и политику хвоста — ``src.audio``;
+- текст и тайминг субтитров — ``src.subtitles``;
+- порядок стадий, resume и статус проекта — ``src.news.pipeline``;
+- рендер Story Card — ``src.production_plan.story_card_short_render``.
+
+Inputs: ``project_root``, язык, ``script``, ``visual_plan``,
+``assets_manifest``, ``voice_manifest``, политика конца и completion mode;
+плюс прочитанные с диска манифесты субтитров и музыки.
+
+Outputs: файлы в ``render/`` (сегменты, ``frames.txt``, ``silent_master.mp4``)
+и в ``localizations/<lang>/output/`` (``master_1080x1920.mp4`` либо
+``draft_1080x1920.mp4``, вариант без субтитров и платформенные копии), а также
+dict, который ``pipeline`` записывает в ``render/final_render_manifest.json``.
+
+Important invariants:
+- рендер ничего не выбирает и не скачивает: он показывает то, что уже отобрано
+  и проверено по правам;
+- в ``draft_complete`` выход всегда помечен ``publish_ready=False`` и имеет имя
+  черновика;
+- склейка сегментов не перекодирует видео;
+- длительность приводится к политике конца, а не растяжением речи:
+  ``audio_time_stretched=False`` и ``speech_tempo=1.0``;
+- субтитры вшиваются одним слоем; при их отсутствии мастер — копия варианта
+  без субтитров.
+
+Известные ограничения foundation (кадровая частота, зашитая в фильтрах,
+отсутствие per-scene fingerprint и visual regression) зафиксированы в
+``docs/current/CLEANUP_REGISTRY.md`` и разделе motion rendering
+``docs/current/PRODUCT_PLAN.md``; здесь они не дублируются.
+
+See also: ``src/news/pipeline.py``, ``src/production_catalog/catalog.py``,
+``docs/current/SYSTEM_MAP.md``.
+"""
+
 from __future__ import annotations
 
 import math

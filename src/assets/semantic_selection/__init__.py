@@ -1,3 +1,41 @@
+"""Что сцена требует, что кандидат доказуемо показывает, и почему выбран этот.
+
+Подпакет владеет разбором сцены на проверяемые требования, чтением evidence,
+которое провайдер действительно дал, оценкой кандидата и единственным
+объяснимым verdict'ом. Он работает на метаданных и на уже вычисленных
+признаках; сам он ничего не ищет, не скачивает и не вызывает платные сервисы.
+
+Публичные точки входа: ``analyze_scene`` -> ``SemanticScene`` и её типы
+(``SCENE_EXACT_SUBJECT``, ``SCENE_EXACT_ACTION``, ``SCENE_ENVIRONMENT``,
+``SCENE_RESEARCH_CONTEXT``, ``SCENE_ABSTRACT_EXPLANATION``,
+``SCENE_TRANSITION``), ``rank_candidates`` и ``select_best_candidate``,
+``decision`` (по-слотовый verdict и его чтение), ``check_continuity``,
+``validate_candidate_vision``, ``generate_queries`` / ``ordered_queries``.
+
+Поток: сцена -> требования -> evidence по каждому кандидату -> оценки, хранимые
+раздельно -> ``decision`` -> выбор с сохранённым обоснованием.
+
+Не владеет: строкой, которая уходит провайдеру (``src.assets.query_adapter``),
+порядком опроса провайдеров (``src.assets.scene_strategy`` и
+``provider_routing``), правами (``src.assets.license_policy``), скачиванием,
+completion и манифестом ассетов. ``generate_queries`` здесь обслуживает
+метаданные и отчёты и не является генератором remote-запросов.
+
+Инварианты: поисковый запрос и производные от него теги не считаются evidence;
+отсутствие метаданных сообщается как ``metadata_status="unavailable"`` и не
+округляется до совпадения; кандидат оценивается по каждому требованию сцены
+отдельно, и обоснование сохраняется до записи манифеста; порядок отбора
+детерминирован; ``validate_candidate_vision`` потребляет только предвычисленные
+теги и платных Vision-вызовов не делает.
+
+Расширение: новый признак — новое требование сцены и новое правило evidence в
+существующих модулях; дополнительный Vision-источник подключается через
+``src.assets.semantic_visual_backend``. Второй candidate selector и второй
+словарь verdict'ов не создаются.
+
+См. также: ``src/assets/README.md``, ``docs/current/PRODUCT_PLAN.md``.
+"""
+
 from __future__ import annotations
 
 from .candidate_ranker import rank_candidates, select_best_candidate

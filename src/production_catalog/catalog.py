@@ -1,3 +1,52 @@
+"""Canonical boundary фактического состава продукта: приложения, форматы, шаблоны.
+
+``get_default_catalog`` — единственная сборка default каталога и единственный
+ответ на вопрос «что продукт умеет прямо сейчас». Результат кэширован, каталог
+неизменяем и не зависит от окружения.
+
+Responsibilities:
+- регистрация ``ApplicationDefinition``, ``FormatDefinition``,
+  ``TemplateDefinition`` и ``ExportTargetDefinition`` с их ``enabled`` и
+  ``implementation_status``;
+- объявление ``workflow_binding`` шаблона: какой workflow, service entrypoint,
+  integration, project system и renderer за ним стоят;
+- объявление ``output_contract``, требования evidence, policy id и render
+  preset id шаблона.
+
+Does not own:
+- реализацию workflow и рендереров — каталог только называет существующих
+  владельцев по import path;
+- разрешение шаблона для конкретного запроса — ``src.content_creation.service``;
+- render presets и design tokens — ``config/render_presets/`` и владельцы
+  конфигурации;
+- права, провайдеров, озвучку, субтитры и project state.
+
+Inputs: отсутствуют — состав задан кодом этого модуля.
+
+Outputs: ``ProductionCatalog`` из четырёх in-memory реестров. Ни одного файла
+не создаётся и не читается.
+
+Important invariants:
+- каталог описывает фактическое, а не планируемое состояние: ``enabled=False``
+  означает выключенную возможность, а не отвергнутую;
+- формат без зарегистрированного шаблона остаётся выключенным, иначе
+  вызывающая сторона получает формат, для которого нельзя выбрать шаблон;
+- ``active`` присваивается только шаблону с подтверждённым сквозным
+  результатом; сегодня это ``story_card_text_only_v1`` и
+  ``fullscreen_voiceover_v1``;
+- согласованность каталога с ``src.content_creation.capabilities`` проверяет
+  ``tests/test_capability_consistency.py``;
+- ``video_repurposer`` остаётся ``planned``/выключенным, пока миграция не
+  выполнена.
+
+Расхождение объявленных export targets с фактическим поведением рендера
+зафиксировано в ``docs/current/CLEANUP_REGISTRY.md`` и здесь не дублируется.
+
+See also: ``src/production_catalog/__init__.py``,
+``docs/adr/0016-two-engine-product-architecture.md``,
+``docs/current/SYSTEM_MAP.md``.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,3 +1,46 @@
+"""Canonical boundary создания контента: единственный вход ``create_content``.
+
+Facade остаётся общей точкой входа канонического CLI, compatibility CLI и
+Wizard. Он разрешает и проверяет запрос один раз, после чего делегирует
+существующей application boundary шаблона.
+
+Responsibilities:
+- разрешение шаблона: явный ``template_id`` либо ``default_template`` канала;
+- проверка совместимости ``format_id`` с шаблоном;
+- валидация музыкального входа запроса;
+- маршрутизация в
+  ``src.ai_youtube.apps.content_creator.workflows.story_card`` или
+  ``...workflows.fullscreen_voiceover``;
+- явная ошибка для шаблона, который каталог знает, но реализации у него нет.
+
+Does not own:
+- сами workflow, их стадии, project state и рендер;
+- состав каталога — ``src.production_catalog``;
+- сборку запроса из аргументов — ``src.content_creation.request_builder``;
+- каналы и их конфигурацию — ``src.project_foundation.channels``;
+- ассеты, права, озвучку, субтитры и экспорт.
+
+Inputs: ``ContentCreationRequest`` и необязательный ``progress_callback``.
+
+Outputs: ``ContentCreationResult`` от выбранного use case. Файлы создают
+workflow и их storage owners, а не этот модуль.
+
+Important invariants:
+- ``create_content`` остаётся единственной точкой входа создания;
+- реализованы ровно два шаблона — ``story_card_text_only_v1`` и
+  ``fullscreen_voiceover_v1``; остальное в каталоге architecture-supported и
+  создание для него завершается явной ``ContentCreationError``;
+- запрос отвергается до начала работы, а не в середине выполнения;
+- import pipeline остаётся ленивым внутри use case, чтобы граница CLI не тянула
+  весь workflow;
+- ``fullscreen_voiceover_use_case`` и ``story_card_use_case`` в этом пакете —
+  compatibility wrappers; новая логика добавляется в canonical boundaries.
+
+See also: ``src/content_creation/__init__.py``,
+``docs/adr/0009-fullscreen-voiceover-application-boundary.md``,
+``docs/adr/0010-story-card-application-boundary.md``.
+"""
+
 from __future__ import annotations
 
 from src.content_creation import input_validation

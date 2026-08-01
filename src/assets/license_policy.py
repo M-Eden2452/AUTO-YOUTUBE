@@ -1,3 +1,55 @@
+"""Canonical boundary прав: единственное решение о том, можно ли использовать актив.
+
+Responsibilities:
+- чтение декларативной политики ``config/license_policy.json``
+  (``load_license_policy``);
+- ``evaluate_asset_policy`` — чистая оценка кандидата: провайдер, тип медиа,
+  имя лицензии, контекст использования, provider-специфические проверки
+  (Wikimedia, NASA, Internet Archive, Envato, ручные поставки) и требование
+  owner review;
+- ``apply_policy_to_candidate`` — та же оценка, записанная в кандидата:
+  ``policy_decision`` и приведённая ``AssetLicense``;
+- ``policy_status_for_provider`` — состояние политики по провайдеру для
+  диагностики и отчётов;
+- ``LicensePolicyDecision`` — форма решения с ``status``, ``reason``,
+  ``allowed_for_render``, ``review_required``, ``owner_review_required``,
+  требованиями атрибуции, share-alike и уведомления об изменении.
+
+Does not own:
+- поиск, скачивание и валидацию файла — ``download``, ``http_client``,
+  провайдеры;
+- отказ рендера: его выполняет ``provider_contract.ensure_license_allows_render``
+  на основании этого решения;
+- отчёт о правах проекта — ``src.projects.rights``;
+- evidence проекта — ``src.project_foundation``, мост — ``evidence_adapter``;
+- сами правила: их состав задан конфигурацией, а не кодом.
+
+Inputs: ``AssetCandidate`` либо его manifest-словарь, необязательная уже
+загруженная политика и явный контекст использования.
+
+Outputs: ``LicensePolicyDecision``. Файлов модуль не пишет;
+``apply_policy_to_candidate`` изменяет переданного кандидата на месте.
+
+Important invariants:
+- политика — единственный авторитет прав; решение авторитетно и перезаписывает
+  поля лицензии кандидата, включая ``review_required``;
+- отсутствие правила по умолчанию означает запрет: ``default_deny``, а не
+  разрешение;
+- любая заблокированная причина обнуляет ``allowed_for_render`` и включает
+  ``review_required``;
+- ``reason`` остаётся машиночитаемым и сохраняет все накопленные причины;
+- недоступный или повреждённый файл политики даёт ``missing-policy`` и
+  запрещающее поведение, а не молчаливое разрешение.
+
+Открытый дефект: правило локальной библиотеки может снять явный
+``review_required`` записи. Он зафиксирован в
+``docs/current/CLEANUP_REGISTRY.md`` как отдельный bounded rights slice и здесь
+не переписывается.
+
+See also: ``src/assets/README.md``, ``src/assets/provider_contract.py``,
+``config/license_policy.json``.
+"""
+
 from __future__ import annotations
 
 import dataclasses

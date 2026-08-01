@@ -1,3 +1,56 @@
+"""Canonical boundary платной генерации озвучки: gate, сборка, манифест, валидация.
+
+Единственный путь, по которому проект выполняет платную генерацию речи.
+``prepare_final`` только смотрит, ``generate_final`` действует и без валидного
+approval отказывает.
+
+Responsibilities:
+- ``prepare_final`` — preflight провайдера, осмотр кэша сцен и проверка
+  approval без единого платного вызова;
+- ``approval_covers_request`` — approval выдаётся один раз на весь текст
+  озвучки и проверяется по существующему hash-контракту;
+- ``generate_final`` — по-сценная генерация, сборка narration с паузами формата
+  и запись ``voice_manifest.json``;
+- ``invalidate_scenes`` — точечная инвалидация только перечисленных сцен;
+- ``validate_output`` — completed-gate озвучки на диске;
+- ``EXTENDED_VOICE_STATES`` — расширение существующего набора состояний
+  ``voice_workflow.VOICE_STATES``, а не его замена.
+
+Does not own:
+- контракт TTS-провайдера и их реестр — ``src.audio.tts``;
+- policy озвучки и профили голоса — ``voice_policy``,
+  ``voice_profile_registry``;
+- форму манифеста — ``voice_manifest``; сборку звука — ``audio_assembler``;
+  паузы — ``pause_policy``;
+- фактические длительности сцен — ``scene_timeline``;
+- порядок стадий и статус проекта — ``src.news.pipeline``;
+- субтитры и рендер.
+
+Inputs: ``NarrationRequest`` (текст, сцены, профиль голоса, язык, policy,
+approval, ``output_root``) и ``TTSProviderManager``.
+
+Outputs: ``localizations/<lang>/voice/voice_manifest.json``, по-сценные
+аудиофайлы с sidecar-кэшем и собранный ``narration.wav``; функции возвращают
+сам манифест либо ``NarrationValidationResult``.
+
+Important invariants:
+- при ``approval_required`` генерация без валидного approval поднимает
+  ``PermissionError``; approval привязан к текущему тексту, настройкам, голосу,
+  модели и языку;
+- ``prepare_final`` платных вызовов не делает;
+- выключенная озвучка даёт манифест со статусом ``skipped``, а не пустой
+  результат;
+- narration собирается только когда все сцены завершены; частичный сбой
+  оставляет ``partially_completed`` и сохраняет уже сгенерированные сцены;
+- ``validate_output`` считает озвучку завершённой только при полном наборе
+  сцен, существующих файлах, ненулевой длительности и совпадении checksum;
+- ``invalidate_scenes`` удаляет только sidecar перечисленных сцен и остальные
+  не трогает.
+
+See also: ``src/audio/__init__.py``, ``src/news/voice_stage.py``,
+``docs/current/SYSTEM_MAP.md``.
+"""
+
 from __future__ import annotations
 
 import dataclasses

@@ -1,3 +1,49 @@
+"""Canonical boundary контракта стокового провайдера и его типов ошибок.
+
+``StockProvider`` — единственный контракт провайдера в репозитории (ADR 0008).
+Всё, что умеет искать, показывать превью, разрешать лицензию и скачивать
+материал, реализует именно его.
+
+Responsibilities:
+- протокол ``StockProvider``: ``capabilities``, ``search``, ``get_preview``,
+  ``resolve_license``, ``download``, ``health_check``;
+- формы запроса и контекста: ``AssetSearchRequest``, ``DownloadContext``,
+  ``AssetPreview``, ``ProviderHealth``;
+- иерархия ``ProviderError`` с машиночитаемыми ``code`` — configuration,
+  authentication, rate limit, timeout, network, invalid response, no results,
+  download failure, validation failure, ``LicenseReviewRequired``;
+- ``ensure_license_allows_render`` — точка, где непрояснённые права
+  превращаются в отказ, а не в тихое использование.
+
+Does not own:
+- реализации провайдеров и default набор — ``src.providers``;
+- правила прав — ``src.assets.license_policy`` (сюда они только вызываются);
+- модели ассета — ``src.assets.models``;
+- HTTP, скачивание и валидацию файла — ``src.assets.http_client``,
+  ``src.assets.download``;
+- формирование строки запроса и порядок опроса — ``query_adapter``,
+  ``scene_strategy``, ``provider_routing``.
+
+Inputs: описание того, что нужно сцене — запрос, тип медиа, геометрия,
+ориентация, ограничения и негативные термины.
+
+Outputs: типы, на которых говорят все провайдеры и все вызывающие стороны;
+persisted артефактов модуль не создаёт.
+
+Important invariants:
+- второй provider contract не создаётся; новый источник материала реализует
+  этот протокол;
+- ошибка провайдера классифицируется кодом и признаком ``retryable``, а не
+  строкой сообщения;
+- ``ensure_license_allows_render`` спрашивает политику, а не поля кандидата, и
+  блокирует как ``review_required``, так и запрет рендера;
+- ``resolve_license`` провайдера сообщает то, что известно источнику, и решением
+  о правах не является.
+
+See also: ``src/assets/README.md``,
+``docs/adr/0008-canonical-provider-registry.md``, ``src/providers/__init__.py``.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
