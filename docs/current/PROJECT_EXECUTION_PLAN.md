@@ -3,10 +3,10 @@ status: active
 plan_revision: 2.1
 created_at: 2026-07-30
 updated_at: 2026-08-01
-baseline_head: fe2df5b
+baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-4
+current_checkpoint: PLAN-9B-0
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,7 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-4, не начат.
+- **Текущий шаг:** PLAN-9B-0, не начат.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -62,28 +62,35 @@ source_paths:
   production-код не менялся. **PLAN-3** — fixtures в
   `tests/test_autonomous_completion_pipeline.py` создают реальные минимальные
   outputs для стадий, объявленных completed; изменён только этот test-модуль,
-  production-код не менялся.
+  production-код не менялся. **PLAN-4** — полный offline suite завершился
+  зелёным на проверенном исходном HEAD
+  `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`; production-код и tests в этом
+  verification-only слайсе не менялись.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
   `tests.test_autonomous_completion_pipeline` — targeted-модуль, exit code 0
-  в двух последовательных прогонах (2026-08-01). Это **targeted** измерение:
-  зелёность полного baseline им не подтверждается и остаётся предметом PLAN-4.
-- **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2 и
-  PLAN-3 и PLAN-4.** Смещение на 1D было **не** признаком выполненной работы: ревизия 2
-  разделила монолитный PLAN-1 на три capability gates (1A, 1B, 1C′) и выделила
-  routing-фикс 1D как первый самостоятельный шаг. Ни один под-slice PLAN-1A/1B/
-  1C′ не выполнен. Переход на PLAN-2 — следствие фактически выполненного
-  docs-only слайса PLAN-1D; переход на PLAN-3 — следствие фактически
-  выполненного test-only слайса PLAN-2; переход на PLAN-4 — следствие
-  фактически выполненного test-only слайса PLAN-3. `baseline_head` остаётся
-  `fe2df5b`: нового полного baseline run не выполнялось, PLAN-2 и PLAN-3
-  проверялись только своими targeted-модулями, PLAN-4 не начат.
-- **Заблокировано (модель ревизии 2.1 — risk-based, не линейная цепочка):**
-  - **PLAN-9B-0 и PLAN-9B-1** — первый product-этап программы — блокируются
-    только цепочкой `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`, из которой
-    `PLAN-1D-routing`, `PLAN-2` и `PLAN-3` завершены 2026-08-01; остаётся
-    `PLAN-4`;
+  в двух последовательных прогонах (2026-08-01); полный offline suite — 1441
+  тест, 231.839 секунды, exit code 0 без failures, errors и skips на проверенном
+  исходном HEAD `84bdd8b4f64c7adaf7582bdb39b15b18163253fb` (2026-08-01). Число тестов и
+  длительность — измерение, не норматив.
+- **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
+  PLAN-3, PLAN-4 и PLAN-9B-0.** Смещение на 1D было **не** признаком
+  выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
+  gates (1A, 1B, 1C′) и выделила routing-фикс 1D как первый самостоятельный
+  шаг. Ни один под-slice PLAN-1A/1B/1C′ не выполнен. Переход на PLAN-2 —
+  следствие фактически выполненного docs-only слайса PLAN-1D; переход на
+  PLAN-3 — следствие фактически выполненного test-only слайса PLAN-2; переход
+  на PLAN-4 — следствие фактически выполненного test-only слайса PLAN-3;
+  переход на PLAN-9B-0 — следствие зелёного полного offline baseline PLAN-4.
+  `baseline_head` обновлён на фактически проверенный исходный HEAD
+  `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`; будущий plan-only commit этим
+  baseline не является. PLAN-9B-0 не начат.
+- **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
+  линейная цепочка):**
+  - **PLAN-9B-0** — текущий первый product-слайс, pending/not started;
+    prerequisite-цепочка `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`
+    завершена 2026-08-01;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -98,7 +105,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-4.
+- **После проверки Git выполнить:** PLAN-9B-0.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -613,6 +620,16 @@ budget cap, timeout, количество обязательных artifacts, л
   примерно по одной секунде каждая;
 - сохранённая калибровка live-eval: 3 сцены, 6 кандидатов, 12 кадров;
   индикативное измерение, **не** production evidence.
+
+Измерение на проверенном исходном HEAD
+`84bdd8b4f64c7adaf7582bdb39b15b18163253fb`, 2026-08-01, tracked-дерево
+чистое:
+
+- `.\venv\Scripts\python.exe -B -m unittest discover -s tests -p
+  "test_*.py"` — 1441 тест, 231.839 секунды, exit code 0; failures: 0,
+  errors: 0, skips: 0. Прогон выполнен offline; provider search/download,
+  Vision, TTS, платные API-вызовы и реальный пользовательский render не
+  выполнялись. Число тестов и длительность — измерение, не норматив.
 
 ## Execution protocol
 
@@ -1165,7 +1182,7 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-4 — зелёный baseline
 
-- **status:** pending · **completed:** — · **commit:** —
+- **status:** completed · **completed:** 2026-08-01 · **commit:** —
 - **цель:** воспроизводимый зелёный offline baseline.
 - **зависимости:** PLAN-2, PLAN-3.
 - **разрешённые зоны:** production/tests не меняются; этот plan обновляется
@@ -1175,6 +1192,15 @@ allowed zones и owner approvals не пересекаются; изменени
   тестов и время записаны в Measurement policy как измерение с датой и
   проверенным исходным HEAD.
 - **required verification:** full offline suite.
+- **фактическая verification (2026-08-01):** на проверенном исходном HEAD
+  `84bdd8b4f64c7adaf7582bdb39b15b18163253fb` команда
+  `.\venv\Scripts\python.exe -B -m unittest discover -s tests -p
+  "test_*.py"` завершилась с exit code 0: 1441 тест за 231.839 секунды,
+  failures: 0, errors: 0, skips: 0. Unexpected failures/errors отсутствуют;
+  прогон был offline, без provider search/download, Vision, TTS, платных
+  API-вызовов и реального пользовательского render. Production-код и tests в
+  PLAN-4 не менялись. Число тестов и длительность — измерение, не норматив;
+  будущий plan-only commit не является проверенным source HEAD.
 - **rollback:** один plan-only checkpoint commit.
 
 ### PLAN-5 — единый test runner
