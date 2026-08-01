@@ -6,7 +6,7 @@ updated_at: 2026-08-01
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-9B-0
+current_checkpoint: PLAN-9B-1
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,7 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-9B-0, не начат.
+- **Текущий шаг:** PLAN-9B-1, не начат.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -65,7 +65,10 @@ source_paths:
   production-код не менялся. **PLAN-4** — полный offline suite завершился
   зелёным на проверенном исходном HEAD
   `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`; production-код и tests в этом
-  verification-only слайсе не менялись.
+  verification-only слайсе не менялись. **PLAN-9B-0** — новый in-process
+  offline-модуль `tests/test_input_query_truth_characterization.py` через
+  canonical `create_content` path зафиксировал pre-fix input/query behavior,
+  production-код не менялся.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -73,9 +76,13 @@ source_paths:
   в двух последовательных прогонах (2026-08-01); полный offline suite — 1441
   тест, 231.839 секунды, exit code 0 без failures, errors и skips на проверенном
   исходном HEAD `84bdd8b4f64c7adaf7582bdb39b15b18163253fb` (2026-08-01). Число тестов и
-  длительность — измерение, не норматив.
+  длительность — измерение, не норматив;
+  `tests.test_input_query_truth_characterization` — 2 теста, два
+  последовательных прогона с exit code 0 (74.191 и 73.016 секунды), active
+  network guard не зафиксировал попыток сети; targeted radius из четырёх
+  существующих модулей — 118 тестов, 26.004 секунды, exit code 0 (2026-08-01).
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
-  PLAN-3, PLAN-4 и PLAN-9B-0.** Смещение на 1D было **не** признаком
+  PLAN-3, PLAN-4, PLAN-9B-0 и PLAN-9B-1.** Смещение на 1D было **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
   gates (1A, 1B, 1C′) и выделила routing-фикс 1D как первый самостоятельный
   шаг. Ни один под-slice PLAN-1A/1B/1C′ не выполнен. Переход на PLAN-2 —
@@ -85,12 +92,15 @@ source_paths:
   переход на PLAN-9B-0 — следствие зелёного полного offline baseline PLAN-4.
   `baseline_head` обновлён на фактически проверенный исходный HEAD
   `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`; будущий plan-only commit этим
-  baseline не является. PLAN-9B-0 не начат.
+  baseline не является. Переход на PLAN-9B-1 — следствие зелёной
+  characterization PLAN-9B-0; full suite в test-only слайсе не запускался,
+  поэтому `baseline_head` не менялся. PLAN-9B-1 не начат.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
-  - **PLAN-9B-0** — текущий первый product-слайс, pending/not started;
-    prerequisite-цепочка `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`
-    завершена 2026-08-01;
+  - **PLAN-9B-1** — текущий первый production-слайс, pending/not started;
+    prerequisite-цепочка
+    `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4 → PLAN-9B-0` завершена
+    2026-08-01;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -105,7 +115,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-9B-0.
+- **После проверки Git выполнить:** PLAN-9B-1.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1868,7 +1878,7 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-0 — characterization текущего поведения
 
-- **status:** pending. **Первый шаг семейства.**
+- **status:** completed · **completed:** 2026-08-01 · **commit:** —
 - **зависимости:** PLAN-4.
 - **цель:** зафиксировать фактическое поведение **до** правки, чтобы диффы были
   доказуемы. **Ноль production-изменений**, ноль сети, ноль денег.
@@ -1883,6 +1893,39 @@ misleading/conflict · paid approval.
 - **тесты deep-dive:** T10, T11.
 - **risk boundary:** нет.
 - **required verification:** targeted + активный `network_guard`.
+- **зафиксированное текущее поведение:** через canonical application chain
+  `create_content → fullscreen_voiceover → run_news_to_short_job →
+  build_news_asset_manifest → build_scene_queries → search_provider` пять
+  English-only fake providers получили production-built `AssetSearchRequest`.
+  Для тем про ворон / солнечную электростанцию / канал через пустыню выполнено
+  соответственно 10 / 50 / 10 вызовов `search()`; уникальные строки —
+  `ice researchers` / (`station`, `ice researchers station`) /
+  `ice researchers`. Source всех отправленных `ProviderQuery` —
+  `deterministic_glossary`. Пропущено по `query_translation_required`
+  соответственно 25 provider-scene попыток в 5 сценах / 5 попыток в 1 сцене /
+  25 попыток в 5 сценах; source пропущенных entries — `visual_brief_fields`.
+  Это characterization известных дефектов, а не их исправление.
+- **persisted characterization:** тест читает реальный temporary
+  `assets/assets_manifest.json`; для каждой темы проверен минимальный subset 30
+  `query_plan.queries`, включая provider, query, status, source и
+  `untranslatable_providers`. Manifest writer и query builders не patch'ились.
+- **input/script characterization:** недостаточный topic-only factual input
+  сохраняет `script_provider == "legacy_template"`, metadata
+  `fallback_reason == "insufficient_source_material"` и одновременно
+  `script_validation.status == "passed"`. Поведение только зафиксировано.
+- **фактическая verification (2026-08-01, HEAD до слайса `c4aeff6`):**
+  - `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_input_query_truth_characterization` — exit code 0 двумя
+    последовательными прогонами: 2 теста за 74.191 и 73.016 секунды;
+  - `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_visual_retrieval_repair tests.test_script_engine_pipeline
+    tests.test_news_asset_manager_contract tests.test_content_creation_service`
+    — exit code 0, 118 тестов за 26.004 секунды;
+  - package-wide `tests/network_guard.py` оставался активным; fake providers не
+    выполняют HTTP, `blocked_attempts` не изменился; сеть, download, Vision,
+    TTS, paid calls и render не выполнялись;
+  - production-код не менялся; full suite не запускался, `baseline_head`
+    остаётся `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`.
 
 #### PLAN-9B-1 — provider-language / query foundation
 
