@@ -10,9 +10,12 @@
 3. Для архитектурной работы открой
    [docs/current/SYSTEM_MAP.md](docs/current/SYSTEM_MAP.md); для статуса —
    [docs/current/CURRENT_STATE.md](docs/current/CURRENT_STATE.md).
-4. Если задача продолжает rescue plan, полностью прочитай
+4. Если задача продолжает текущую программу работ, полностью прочитай
+   [docs/current/PROJECT_EXECUTION_PLAN.md](docs/current/PROJECT_EXECUTION_PLAN.md)
+   и выполняй только его `current_checkpoint`.
    [docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md](docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md)
-   и выполняй только первый незавершённый этап.
+   остаётся историческим контекстом и текущий порядок выполнения не задаёт;
+   при расхождении по порядку работ верен активный execution plan.
 
 Не считай исторические отчёты в `docs/archive/` актуальными без проверки кода.
 
@@ -79,4 +82,5 @@
 - Повтори `git status`, проверь diff и запусти targeted tests.
 - Не заявляй о тестах, API-вызовах или artifacts, которых фактически не было.
 - Обнови metadata в `docs/current/`, если изменились описанные границы.
-- Для rescue stage обнови статус и «Текущий handoff» в master plan.
+- Для шага текущей программы обнови статус, checkpoint и evidence в активном
+  execution plan; исторический master plan как current plan не обновляется.

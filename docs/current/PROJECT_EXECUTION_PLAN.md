@@ -6,7 +6,7 @@ updated_at: 2026-08-01
 baseline_head: fe2df5b
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-1D-routing
+current_checkpoint: PLAN-2
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,21 +45,31 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-1D-routing, не начат.
+- **Текущий шаг:** PLAN-2, не начат.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
   docs-only слайсом; production-код, tests, схемы и public CLI не менялись.
+  **PLAN-1D-routing** — routing исправлен в `AGENTS.md`,
+  `docs/current/START_HERE.md` и `docs/current/CURRENT_STATE.md`: все три
+  current-документа называют текущим execution plan этот файл и больше не
+  называют `9B-C01` текущим checkpoint. Исторический
+  `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` сохранён и не редактировался.
+  Findings C51 (`PRODUCT_EVIDENCE_GATE.md`) и C52 (root `skills/` discovery)
+  записаны в `CLEANUP_REGISTRY.md` без перемещения файлов и без создания
+  второго набора skills.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`.
-- **Почему checkpoint сместился с PLAN-1A.** Это **не** признак выполненной
-  работы. Ревизия 2 разделила монолитный PLAN-1 на три capability gates
-  (1A, 1B, 1C′) и выделила routing-фикс 1D как первый самостоятельный шаг.
-  Ни один под-slice PLAN-1 не выполнен. `baseline_head` остаётся `fe2df5b`:
-  нового baseline run не было. **Ревизия 2.1 checkpoint не сдвинула:**
-  следующий шаг по-прежнему PLAN-1D-routing.
+- **Почему checkpoint сместился с PLAN-1A на PLAN-1D, а затем на PLAN-2.**
+  Смещение на 1D было **не** признаком выполненной работы: ревизия 2 разделила
+  монолитный PLAN-1 на три capability gates (1A, 1B, 1C′) и выделила
+  routing-фикс 1D как первый самостоятельный шаг. Ни один под-slice PLAN-1A/1B/
+  1C′ не выполнен. Переход на PLAN-2 — следствие фактически выполненного
+  docs-only слайса PLAN-1D. `baseline_head` остаётся `fe2df5b`: нового
+  baseline run не выполнялось, PLAN-2 не начат.
 - **Заблокировано (модель ревизии 2.1 — risk-based, не линейная цепочка):**
   - **PLAN-9B-0 и PLAN-9B-1** — первый product-этап программы — блокируются
-    только `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`;
+    только цепочкой `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`, из которой
+    `PLAN-1D-routing` завершён 2026-08-01; остаются `PLAN-2 → PLAN-3 → PLAN-4`;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -74,7 +84,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-1D-routing.
+- **После проверки Git выполнить:** PLAN-2.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -144,13 +154,12 @@ Master plan не обновляется как current plan и не архиви
 Если код или tests противоречат этому плану, агент обязан остановиться,
 проверить evidence и обновить план после решения владельца.
 
-**Временная маршрутизация агентов.** После ревизии 2 документы больше **не**
-указывают один и тот же следующий шаг: этот файл указывает PLAN-1D-routing, а
-`AGENTS.md` и `START_HERE.md` по-прежнему направляют задачу в master plan, то
-есть в 9B-C01. Поэтому PLAN-1D выполняется первым: он добавляет в `AGENTS.md`
-и `START_HERE.md` короткую ссылку на активный execution plan. До этой ссылки
-checkpoint нельзя переводить на PLAN-2: иначе новый агент, буквально выполнив
-текущий `AGENTS.md`, снова начнёт C01.
+**Маршрутизация агентов — исправлена PLAN-1D (2026-08-01).** После ревизии 2
+`AGENTS.md` и `START_HERE.md` направляли задачу в master plan, а
+`CURRENT_STATE.md` называл текущим checkpoint `9B-C01`, которого больше нет.
+PLAN-1D добавил в шаг 4 `AGENTS.md` и в `START_HERE.md` ссылку на этот файл как
+на активный execution plan и снял stale checkpoint из всех трёх current-документов.
+Master plan во всех трёх упоминается только как исторический контекст.
 
 ## Locked owner decisions
 
@@ -795,7 +804,9 @@ allowed zones и owner approvals не пересекаются; изменени
 
 #### PLAN-1D-routing — маршрутизация агентов
 
-- **status:** pending. **Текущий шаг.**
+- **status:** completed · **completed:** 2026-08-01 · **commit:** Git log —
+  trailer `Plan-Step: PLAN-1D-routing` (собственный hash внутри того же commit
+  не записывается, см. Execution protocol, пункт 3).
 - **зависимости:** STEP 0 (перенос ревизии 2 в этот файл и в registry) выполнен.
   **Порядок обязателен:** 1D направляет будущих агентов в этот документ, поэтому
   документ должен сначала содержать утверждённую архитектуру.
@@ -819,8 +830,38 @@ allowed zones и owner approvals не пересекаются; изменени
   кандидат PLAN-12A (перемещение выполняет 12A, не 1D); и факт, что `skills/` не
   загружаются Claude Code автоматически, поскольку каталог не является
   `.claude/skills/`.
-- **измеримый результат:** новый агент, буквально исполнив `AGENTS.md`,
-  попадает в этот план, а не в historical master plan.
+- **измеримый результат:** достигнут. Шаг 4 `AGENTS.md` направляет агента в этот
+  файл и требует выполнять только его `current_checkpoint`; `START_HERE.md`
+  называет этот файл текущим execution plan; `CURRENT_STATE.md` называет текущим
+  checkpoint PLAN-2. Ни один из трёх документов не называет `9B-C01` текущим
+  checkpoint. Master plan во всех трёх фигурирует только как исторический
+  контекст. Дополнительно снята инструкция «обнови статус и «Текущий handoff» в
+  master plan» из раздела «Завершение работы» `AGENTS.md` — она направляла
+  запись current-статуса в исторический документ.
+- **фактические проверки (2026-08-01, ветка `governance-reset`, HEAD до слайса
+  `b396a50`, tracked-дерево чистое):**
+  - `.\venv\Scripts\python.exe -m tools.qa.check_agent_docs` — exit code 0,
+    «Agent documentation and skills are current and internally consistent.»;
+  - `git diff --check` — пустой вывод, exit code 0;
+  - `git grep -n "9B-C01" -- AGENTS.md docs/current/START_HERE.md
+    docs/current/CURRENT_STATE.md` — ноль совпадений;
+  - `git grep -n "PROJECT_RESCUE_MASTER_PLAN" -- ...` по тем же трём файлам —
+    остались только historical/context упоминания и `source_paths`;
+  - `git grep -n "PROJECT_EXECUTION_PLAN" -- ...` по тем же трём файлам —
+    входящие ссылки появились в `AGENTS.md` и `START_HERE.md` дополнительно к
+    существовавшей в `CURRENT_STATE.md`;
+  - `git diff --name-only` — ровно пять docs-файлов: `AGENTS.md`,
+    `docs/current/START_HERE.md`, `docs/current/CURRENT_STATE.md`,
+    `docs/current/CLEANUP_REGISTRY.md`, `docs/current/PROJECT_EXECUTION_PLAN.md`.
+  Production-код, tests, схемы, config и runtime не менялись; новых документов
+  не создавалось; `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` не изменён.
+  Baseline run не выполнялся, `baseline_head` остаётся `fe2df5b`.
+- **registry:** findings записаны как **C51** (`PRODUCT_EVIDENCE_GATE.md` —
+  `status: historical_reference` внутри `docs/current/`, кандидат PLAN-12A, файл
+  не перемещался) и **C52** (корневой `skills/` не является `.claude/skills/`,
+  поэтому Claude Code не загружает его автоматически; Codex discovery остаётся
+  `[ПРЕДП]`; второй набор skills не создаётся). Смысловых дубликатов в registry
+  не было.
 - **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
 - **rollback:** один commit.
 

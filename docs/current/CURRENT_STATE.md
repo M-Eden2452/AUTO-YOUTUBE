@@ -89,7 +89,8 @@ source_paths:
 
 Активный порядок работ задаёт
 [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); текущий checkpoint —
-9B-C01.
+PLAN-2. Исторический `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` порядок работ
+не задаёт.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и
@@ -111,8 +112,7 @@ source_paths:
   caller migration, ownership transfer и wrapper/package retirement.
   9B-P01 подтвердил два target engines: `content_creator` для short/long
   creation и `video_repurposer` на основе Anime Factory. Catalog status не
-  менялся; repurposer остаётся disabled. Следующий checkpoint — read-only
-  9B-C01; production code не менялся.
+  менялся; repurposer остаётся disabled; production code не менялся.
 - Этап 4.6 создал проверенные
   [dependency/boundary map](ARCHITECTURE_BOUNDARY_MAP.md) и
   [cleanup registry](CLEANUP_REGISTRY.md) без изменения production code/runtime.
@@ -264,10 +264,12 @@ source_paths:
 - этап 8 установил application boundaries, но не завершил ownership transfer:
   `src.news`, `src.templates.story_card`, `anime_factory`, `pipeline.py` и
   `src.legacy_pipeline` всё ещё владеют частью реализации;
-- 9B-C01 должен дополнить cleanup registry точными production/test/docs callers
-  и exit conditions для package roots/wrappers, Anime project/transcription/
-  subtitle/render modules и legacy/shared music paths. До завершения C01
-  перенос и удаление этих paths запрещены.
+- capability owner gates активного плана (PLAN-1A, PLAN-1B, PLAN-1C′), которые
+  заменили монолитный inventory, должны дополнить cleanup registry точными
+  production/test/docs callers и exit conditions для package roots/wrappers,
+  Anime project/transcription/subtitle/render modules и legacy/shared music
+  paths. До закрытия соответствующего gate перенос и удаление этих paths
+  запрещены.
 
 Создание, продолжение, TTS, render и визуальная проверка reference video больше
 не являются этапами rescue plan. Архитектурные изменения выполняются малыми

@@ -40,7 +40,8 @@ consistency review** этого файла: 2026-08-01 от clean HEAD `affa138`
   исторических HEAD, указанных внутри строк;
 - **C17–C29** — Repository Foundation audit, 2026-07-31 от `4ca3655`;
 - **C30–C33** — evidence ревизии 2, 2026-07-31;
-- **C34–C50** — evidence ревизии 2.1 (deep-dive), 2026-07-31 от `adcbb19`.
+- **C34–C50** — evidence ревизии 2.1 (deep-dive), 2026-07-31 от `adcbb19`;
+- **C51–C52** — findings PLAN-1D-routing, 2026-08-01 от clean HEAD `b396a50`.
 
 Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
@@ -233,6 +234,19 @@ replacement working → callers migrated → targeted/full green → reviewer/ga
 
 Строки C34–C50 закрываются каждая своим gate по общему `Closure rule` ниже.
 Ничего из перечисленного пока не удалено — таблица `Retired` остаётся пустой.
+
+## PLAN-1D findings (C51–C52)
+
+Зафиксировано 2026-08-01 слайсом `PLAN-1D-routing` от clean HEAD `b396a50`.
+Проверено чтением файлов и листингом каталогов; production-код, tests, схемы и
+runtime не затрагивались. Классы доказанности те же: **FACT** / **INFERENCE** /
+**DEFER**. Ни одна строка не даёт права на перемещение, создание или удаление
+чего-либо: PLAN-1D только записал findings.
+
+| ID | Предмет | Класс | Evidence | Action / target | Gate |
+|---|---|---|---|---|---|
+| C51 | `docs/current/PRODUCT_EVIDENCE_GATE.md` внутри `docs/current/` | **FACT** | frontmatter файла — `status: historical_reference` (`last_verified_commit` `05cc8ed`, `last_verified_date` 2026-07-28); это единственный такой файл в `docs/current/`. `tools/qa/check_agent_docs.py` требует `status: current` только от `START_HERE.md`, `SYSTEM_MAP.md` и `CURRENT_STATE.md`, поэтому расхождение не ловится автоматически. Его `source_paths` указывают на пять путей внутри gitignored `projects/`, поэтому смена `status` дефект не чинит | **не считать active current document**; `move` из `docs/current/`. **Физическое перемещение выполняет PLAN-12A, а не PLAN-1D** — в этом слайсе файл не перемещался и не изменялся | **PLAN-12A** |
+| C52 | корневой `skills/` и Claude Code project-skill discovery | **FACT** + **INFERENCE** | **FACT:** каталог со skills — корневой `skills/` (6 skills); `.claude/` в репозитории содержит только `settings.json`, `settings.local.json` и `scheduled_tasks.lock` — каталога `.claude/skills/` нет. Claude Code автоматически корневой `skills/` как project skills не загружает; наличие `SKILL.md` само по себе auto-discovery не доказывает. **INFERENCE / `[ПРЕДП]`:** discovery Codex через `skills/*/agents/openai.yaml` **не проверен** и фактом не записывается. Различать четыре состояния: наличие файлов · manual loading · auto-discovery · actual invocation | решение о размещении и способе discovery принадлежит **PLAN-6C / PLAN-6D / PLAN-6E** согласно execution plan. **Второй набор skills сейчас не создаётся**, файлы не перемещаются и не дублируются | **PLAN-6C / PLAN-6D / PLAN-6E** |
 
 ## Delete evidence
 
