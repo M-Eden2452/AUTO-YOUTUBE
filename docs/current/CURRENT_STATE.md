@@ -89,8 +89,9 @@ source_paths:
 
 Активный порядок работ задаёт
 [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); текущий checkpoint —
-PLAN-2. Исторический `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` порядок работ
-не задаёт.
+PLAN-9B-5a, pending / not started. Точное значение checkpoint и next action
+всегда берутся из самого плана. Исторический
+`docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` порядок работ не задаёт.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и

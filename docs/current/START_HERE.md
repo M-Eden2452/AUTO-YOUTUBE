@@ -4,6 +4,8 @@ last_verified_commit: 9f3ddba
 last_verified_date: 2026-07-29
 source_paths:
   - AGENTS.md
+  - docs/current/PROJECT_EXECUTION_PLAN.md
+  - docs/current/PRODUCT_PLAN.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
@@ -38,8 +40,16 @@ AI-YouTube — локальная offline-first платформа создан�
 
 Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
 Он задаёт порядок работ; выполняется только его `current_checkpoint` — сейчас
-PLAN-2. [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
+PLAN-9B-5a, pending / не начат. Точное значение и следующее действие всегда
+берутся из самого плана, а не отсюда.
+[PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
 остаётся историческим контекстом и текущий порядок выполнения не задаёт.
+
+Продуктовое направление: [PRODUCT_PLAN.md](PRODUCT_PLAN.md). Разделение простое:
+execution plan отвечает за **порядок реализации** (checkpoint, статусы,
+зависимости, gates), product plan — за **направление продукта** и сохранённые
+идеи. Идея из product plan не реализуется напрямую: сначала она должна стать
+bounded execution slice в execution plan.
 
 Этапы 0–8 завершены. Этап 8 создал canonical boundaries для
 `fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy pipeline, но

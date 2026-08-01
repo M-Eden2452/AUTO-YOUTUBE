@@ -195,7 +195,10 @@ Plan-Step: <ID>. В конце сообщи результат, проверки
 2. Реальные tests и artifacts.
 3. **Этот файл — порядок выполнения текущей программы.**
 4. `CURRENT_STATE.md` — фактическое состояние продукта.
-5. `PRODUCT_PLAN.md` — продуктовая цель и evidence (создаётся в PLAN-8).
+5. `PRODUCT_PLAN.md` — продуктовое направление, committed capabilities и склад
+   идей. **Создан слайсом PRODUCT-PLAN-1**; PLAN-8 его расширяет и проверяет, а
+   не создаёт заново. Execution state (checkpoint, next action, порядок,
+   prerequisites, статусы) он не хранит — источником остаётся этот файл.
 6. `CLEANUP_REGISTRY.md` — переходные пути, owners и exit conditions.
 7. `docs/adr/` — зафиксированные долговечные решения.
 8. Historical plans и audits — только как context.
@@ -1064,6 +1067,16 @@ allowed zones и owner approvals не пересекаются; изменени
   3. **практика «provider-ready английские visual keywords существуют
      отдельным полем, отделённым от нарратива»** — `MIGRATE KNOWLEDGE`,
      носитель ADR/registry (registry C48).
+  4. **анализ качества готового файла** (`src/self_eval.py`) — `MIGRATE
+     KNOWLEDGE`. Это единственное в репозитории знание о проверке
+     отрендеренного файла, а не метаданных; потребитель — будущее расширение
+     существующего quality owner. Новый Quality Engine не создаётся.
+  5. **thumbnail generation, YouTube metadata и формат сравнения размеров** —
+     `MIGRATE CAPABILITY` по OD-10: это продуктовые возможности, которых у
+     нового продукта нет вовсе. Внутри PLAN-L они **не** мигрируются; каждая
+     помечается отдельным будущим product slice на новом canonical core.
+     Продуктовая запись — `PRODUCT_PLAN.md`, раздел «Legacy knowledge and
+     capability salvage».
 - **измеримый результат:** для каждого family записан класс каждой находки и,
   где применимо, что именно потенциально стоит восстановить позже.
 - **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
@@ -1744,11 +1757,24 @@ allowed zones и owner approvals не пересекаются; изменени
   Количество строк — measurement и warning signal, оно может подтверждать
   проблему, но само по себе новый файл не создаёт. Числовой порог объёма как
   условие extraction не задаётся.
-- **обязательное завершение:** после commit `PRODUCT_PLAN.md` продуктовые
-  подробности PLAN-9–PLAN-11 (лестницы, M1/M2/M3, reference domains и quality
-  evidence) переносятся туда. В этом execution plan остаются только ID,
-  зависимости, allowed/prohibited zones, gates, verification и rollback.
-  До появления проверенного `PRODUCT_PLAN.md` текущие подробности не удалять.
+- **`PRODUCT_PLAN.md` уже существует (слайс PRODUCT-ROADMAP → PRODUCT-PLAN-1,
+  2026-08-01).** PLAN-8 **расширяет и проверяет существующий документ** и
+  **не создаёт второй competing planning document**: третий плановый документ
+  по-прежнему запрещён. Разрешённая зона не меняется — это тот же путь.
+  Уже записанные там owner-approved решения (committed capabilities, границы
+  Vision, UI direction, MSP direction, warehouse, candidate slices, owner
+  decisions pending) при расширении сохраняются, а не переписываются.
+  Status, порядок и prerequisites PLAN-8 этим не меняются.
+- **зафиксировано продуктовым документом, здесь только как non-goal:** longform
+  и documentary остаются **форматом/шаблоном/workspace поверх общего core** и
+  не становятся отдельным pipeline или третьим приложением; расширение проверки
+  качества по готовому файлу принадлежит существующему quality owner и **новым
+  Quality Engine не оформляется**.
+- **обязательное завершение:** продуктовые подробности PLAN-9–PLAN-11
+  (лестницы, M1/M2/M3, reference domains и quality evidence) переносятся в
+  `PRODUCT_PLAN.md`. В этом execution plan остаются только ID, зависимости,
+  allowed/prohibited zones, gates, verification и rollback.
+  До проверенного переноса текущие подробности не удалять.
 - **required verification:** docs QA.
 - **rollback:** один commit.
 
@@ -2119,6 +2145,20 @@ misleading/conflict · paid approval.
 - **`[HARD]` gate неприкосновенен:** снятие topic-литералов, живущих внутри
   safety gate `modes.blocking_reasons`, требует отдельного обоснования и **не**
   является разрешением менять сам gate.
+- **non-goals (добавлено PRODUCT-PLAN-1, scope слайса не расширен):**
+  `query_adapter` **не становится** producer provider-language evidence и не
+  становится visual planner; `TranslatorService`, `SearchEngine` и
+  `QueryOrchestrator` не создаются (OD-13). Канонические направления —
+  `visual planning → существующий VisualBrief → query_adapter`.
+- **предусловие «источник provider-языка» пока не имеет владельца.** [FACT]
+  PLAN-9B-1 закрыл integrity адаптера и **явно оставил** arbitrary raw-topic
+  provider-language generation нереализованной. Producer как отдельный bounded
+  slice записан кандидатом в `PRODUCT_PLAN.md` (раздел «Candidate new slices»);
+  в PLAN-9B-2 он **не** добавлен, потому что producer и лестница расширения —
+  два независимо проверяемых user outcome, а этот слайс уже пересекает
+  multi-owner, persisted и destructive boundary. Планирование producer требует
+  owner decision (`PRODUCT_PLAN.md`, OD-P-1); до него состав, зависимости и
+  порядок PLAN-9B-2 не меняются.
 - **тесты deep-dive:** — (T3 перенесён в PLAN-9B-1 вместе с исправлением
   `source_is_latin`, registry C36; тест не потерян и нового тестового этапа не
   создаётся).
@@ -2158,6 +2198,14 @@ misleading/conflict · paid approval.
   умирает в PLAN-L4. **Молчаливо потерять `--assets` запрещено.**
   Точный public CLI для user-assets сейчас не проектируется: это
   implementation decision и public-surface tripwire.
+- **user outcome (добавлено PRODUCT-PLAN-1).** Owner decision по пункту **B**
+  принят: user assets **мигрируют**, а не ретайрятся. Требуемый результат —
+  пользовательские материалы становятся **first-class canonical Content Creator
+  input**, доступным через канонический CLI/application request, а не
+  сохраняются «ради wrapper parity». Переиспользуются существующие
+  `ContentCreationRequest` и `NewsJob.user_assets`; новая логика отбора и
+  хранения не создаётся. Точное публичное имя входа остаётся public-surface
+  tripwire и решается в момент implementation (`PRODUCT_PLAN.md`, OD-P-5).
 - **разрешается только после:** parity inventory wrapper'а; миграции всех
   сохраняемых capabilities; миграции callers; PLAN-6D; PLAN-6E; reversible
   retirement; targeted + smoke + `full`.
@@ -2190,11 +2238,26 @@ misleading/conflict · paid approval.
   жёстко пишет `semantic_rerank_enabled=False` независимо от фактического
   конфига. Это дефект **отчётности**, а не решения; читателей этого поля из
   манифеста нет.
+- **user outcome и acceptance criteria (добавлено PRODUCT-PLAN-1).** Vision —
+  **committed product capability** (`PRODUCT_PLAN.md`, раздел «Vision AI»), и
+  этот слайс является её wiring owner. Требуемый порядок: `provider search →
+  deterministic normalization/ranking → **bounded shortlist** лучших кандидатов
+  → Vision evidence → существующее semantic decision/selection → human review
+  при необходимости`. Evidence обязано попадать в существующий decision layer
+  **до** отбора; выполнение Vision после окончательного выбора, когда её вывод
+  уже не способен повлиять на результат, приёмкой не считается. Размер
+  shortlist и бюджет принадлежат PLAN-10C.
 - **разрешённые зоны:** production asset selection path.
 - **запрещено:** создавать второй visual planner, Vision stack или asset
   pipeline; изменять default-поведение в этом slice; **использовать mock
   semantic backend как влияющий на production selection** — mock допустим
   только в wiring-тестах и не является доказательством визуального качества.
+- **non-goals Vision (добавлено PRODUCT-PLAN-1):** не создавать
+  `VisionAssetManager`, `VisionSearchEngine`, второй candidate selector, вторую
+  completion ladder, отдельный project state и новый semantic manifest, пока не
+  доказано, что существующих evidence/review manifests недостаточно.
+  Состояние «требуется проверка человеком» берётся из существующего словаря
+  `src/assets/completion/modes.py`; второй словарь не вводится.
 - **измеримый результат:** wiring доказан тестами; default-конфигурация
   поведения не меняет.
 - **required verification:** targeted selection/wiring tests + `full`, так как
@@ -2230,6 +2293,20 @@ misleading/conflict · paid approval.
   действие. До такой проверки **нельзя утверждать**, что конкретный model ID
   валиден или невалиден; это implementation-time verification, а не новый
   architecture finding и не новый PLAN-ID.
+- **продуктовые режимы Vision (добавлено PRODUCT-PLAN-1).** Концептуально
+  продукт различает **off · local · optional paid**. Это **продуктовые
+  концепции, а не публичный контракт**: точные публичные имена CLI/API/enum
+  здесь намеренно **не фиксируются** и требуют отдельного owner decision в
+  момент implementation (`PRODUCT_PLAN.md`, OD-P-3). Режимы обязаны стать
+  понятным названием уже существующей конфигурации, а не вторым контрактом.
+  `optional paid` требует предварительного расчёта, отображения модели, числа
+  проверяемых кандидатов, ожидаемой стоимости, явного подтверждения
+  пользователя, кеша, resume без повторного расхода и fail-closed при
+  неизвестном результате. `local` — отдельный adapter в той же роли
+  evidence-провайдера, а не отдельная capability.
+- **Vision не является обязательной runtime-зависимостью.** Продукт обязан
+  полностью работать при выключенной Vision; отсутствие backend, бюджета или
+  результата даёт безопасный fallback, а не отказ пайплайна.
 - **запрещено:** глобально включать paid backend, менять default всех старых
   проектов, использовать mock, ослаблять rights/`must_avoid`/misleading gates.
 - **измеримый результат:** opt-in policy имеет безопасный fallback при
@@ -2291,8 +2368,19 @@ misleading/conflict · paid approval.
 - **измеримый результат:** поиск продолжается, пока улучшает best-so-far;
   plateau останавливает; одна сложная сцена не останавливает остальные, не
   удаляет найденные assets, не сбрасывает проект и не блокирует reviewable draft.
+- **acceptance criterion «partial preview» (добавлено PRODUCT-PLAN-1).**
+  Черновое preview обязано быть возможным и тогда, когда часть сцен не
+  разрешена: неразрешённые сцены занимает **безопасный project-owned
+  placeholder** существующей completion ladder (ступени `E_generated` /
+  `F_emergency`). Это продолжение уже принадлежащего этому слайсу порядка
+  эскалации «разрешённый fallback», а не новая политика.
 - **запрещено:** случайный нерелевантный asset ради `completed`, misleading
   visual, `must_avoid` conflict, нарушение rights, ложный `publish_ready`.
+- **non-goals partial preview (добавлено PRODUCT-PLAN-1):** placeholder в
+  preview **никогда** не означает `publish_ready`, `quality passed` или
+  коммерческий выпуск и не ослабляет gate финального рендера; **второй preview
+  pipeline не создаётся** — расширяется существующий preview/escalation путь;
+  второй словарь состояний завершённости не вводится.
 - **required verification:** targeted policy tests после каждого slice;
   `full` один раз при закрытии adaptive-search family.
 - **rollback:** один commit.
