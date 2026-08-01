@@ -5,6 +5,7 @@ from typing import Any
 
 from src.content_creation import capabilities, input_validation
 from src.content_creation.models import (
+    ContentCreationError,
     ContentCreationRequest,
     ExecutionFlags,
     MusicRequestConfig,
@@ -23,6 +24,9 @@ def from_cli_namespace(
     channels_root: str,
 ) -> ContentCreationRequest:
     """Translate parsed CLI input into the application request contract."""
+    script_path, pasted_script, content_input_mode = _normalize_cli_content_input(
+        args
+    )
     voice_profile = args.voice_profile
     if voice_profile and args.channel_id:
         try:
@@ -44,9 +48,9 @@ def from_cli_namespace(
         project_id=args.project_id,
         title=args.title,
         source_url=args.source_url,
-        script_path=args.script_path,
-        pasted_script=getattr(args, "pasted_script", ""),
-        content_input_mode=getattr(args, "content_input_mode", ""),
+        script_path=script_path,
+        pasted_script=pasted_script,
+        content_input_mode=content_input_mode,
         channel_id=args.channel_id,
         format_id=args.format_id or "",
         template_id=args.template_id or "",
@@ -86,6 +90,57 @@ def from_cli_namespace(
             "channels_root": channels_root,
         },
     )
+
+
+def _normalize_cli_content_input(args: Namespace) -> tuple[str, str, str]:
+    """Validate CLI source ownership and reuse the existing internal modes."""
+    raw_pasted_script = getattr(args, "pasted_script", None)
+    raw_script_path = getattr(args, "script_path", None)
+    pasted_script_provided = raw_pasted_script is not None
+    script_path_provided = raw_script_path is not None
+    pasted_script = str(raw_pasted_script or "")
+    script_path = str(raw_script_path or "")
+    content_input_mode = str(getattr(args, "content_input_mode", "") or "")
+
+    if pasted_script_provided:
+        result = input_validation.validate_pasted_script(pasted_script)
+        if not result.valid:
+            raise ContentCreationError(result.message, reason=result.reason)
+    if script_path_provided:
+        result = input_validation.validate_script_file(script_path)
+        if not result.valid:
+            raise ContentCreationError(result.message, reason=result.reason)
+
+    authoritative_inputs: list[tuple[str, str]] = []
+    if str(getattr(args, "topic", "") or "").strip():
+        authoritative_inputs.append(("topic", "--topic"))
+    if str(getattr(args, "source_url", "") or "").strip():
+        authoritative_inputs.append(("article_url", "--source-url"))
+    if pasted_script_provided:
+        authoritative_inputs.append(("pasted_script", "--source-text"))
+    if script_path_provided:
+        authoritative_inputs.append(("script_file", "--source-text-file"))
+
+    if len(authoritative_inputs) > 1:
+        labels = ", ".join(label for _mode, label in authoritative_inputs)
+        raise ContentCreationError(
+            "Choose one authoritative content source; received " + labels + ".",
+            reason="invalid_content",
+        )
+
+    selected_mode = authoritative_inputs[0][0] if authoritative_inputs else ""
+    selected_label = authoritative_inputs[0][1] if authoritative_inputs else ""
+    if content_input_mode and selected_mode and content_input_mode != selected_mode:
+        raise ContentCreationError(
+            f"--input-mode {content_input_mode!r} conflicts with {selected_label}; "
+            f"use {selected_mode!r} or omit --input-mode.",
+            reason="invalid_content",
+        )
+
+    if not content_input_mode and selected_mode in {"pasted_script", "script_file"}:
+        content_input_mode = selected_mode
+
+    return script_path, pasted_script, content_input_mode
 
 
 def from_wizard_state(

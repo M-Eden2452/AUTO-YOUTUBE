@@ -2,11 +2,11 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-01
+updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-9B-5a
+current_checkpoint: PLAN-9B-4
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,7 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-9B-5a, pending/not started. В этом слайсе не начинался.
+- **Текущий шаг:** PLAN-9B-4, pending/not started. В этом слайсе не начинался.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -81,6 +81,14 @@ source_paths:
   decision заменён на T1A (prepared provider-ready evidence) + T1B (unsupported
   raw intent fail-closed). Arbitrary raw-topic provider-language generation
   остаётся открытой product capability, а не скрывается generic fallback.
+- **PLAN-9B-5a** — canonical `create` получил owner-approved public flags
+  `--source-text` / `--source-text-file`; прежние `--pasted-script` /
+  `--script-file` сохранены aliases того же parser destination. Общий
+  `request_builder` нормализует их в существующие поля `pasted_script` /
+  `script_path` и существующие modes `pasted_script` / `script_file`,
+  валидирует единственность authoritative input и compatible `--input-mode`.
+  Story Card `--text` / `--comment`, request model, script engine, persisted
+  schema, wrapper `apps/news_to_short` и `--assets` не менялись.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -100,6 +108,14 @@ source_paths:
   integration — 82 теста за 33.120 секунды, exit code 0. Числа и длительности
   являются измерениями, не нормативами. Network guard оставался чистым; сеть,
   model API, provider HTTP/download, Vision, TTS, paid calls и render не
+  выполнялись;
+  PLAN-9B-5a: новый regression-модуль — 15 тестов в составе окончательного
+  targeted radius; parser/request/service/use-case/Wizard radius — 193 теста
+  за 43.183 секунды, exit code 0; `create --help`, inline source-text dry-run и
+  file source-text dry-run — три smoke-команды, каждая exit code 0; полный
+  offline suite — 1465 тестов за 309.632 секунды, exit code 0, failures/errors
+  нет (2026-08-02). Числа и длительности — измерения, не нормативы. Сеть,
+  provider/model API, download, Vision, TTS, paid calls и реальный render не
   выполнялись.
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
   PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1 и PLAN-9B-5a.** Смещение на 1D было
@@ -118,14 +134,19 @@ source_paths:
   поэтому `baseline_head` не менялся. Переход на PLAN-9B-5a — следствие
   выполненного локального PLAN-9B-1; full suite не запускался, потому что public
   signatures, schema/layout и shared architecture boundary не менялись.
-  `baseline_head` остаётся прежним. PLAN-9B-5a не начат.
+  `baseline_head` остаётся прежним.
+- Переход на PLAN-9B-4 — следствие завершённого additive public CLI slice
+  PLAN-9B-5a и его зелёных targeted, smoke и full offline проверок.
+  `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
+  авторитетом commit evidence. PLAN-9B-4 не начат.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
     `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4 → PLAN-9B-0` завершена
     2026-08-01;
-  - **PLAN-9B-5a** — текущий checkpoint, pending/not started; зависит от
-    завершённого PLAN-9B-1 и в его слайсе не выполнялся;
+  - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
+  - **PLAN-9B-4** — текущий checkpoint, pending/not started; зависит от
+    завершённого PLAN-9B-5a и в его слайсе не выполнялся;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -140,7 +161,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git:** не начинать PLAN-9B-5a без отдельного задания
+- **После проверки Git:** не начинать PLAN-9B-4 без отдельного задания
   владельца.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
@@ -2171,7 +2192,8 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-5a — additive source-text canonical input (CRITICAL-2, часть 1)
 
-- **status:** pending · **зависимости:** PLAN-9B-1.
+- **status:** completed · **completed:** 2026-08-02 · **commit:** — ·
+  **зависимости:** PLAN-9B-1.
 - **исправлено 2026-08-01 — source text уже частично существует.** [FACT]
   канонический `python -m ai_youtube create` через `--pasted-script` /
   `--script-file` при текущем default/legacy unspecified `content_input_mode`
@@ -2186,15 +2208,29 @@ misleading/conflict · paid approval.
   external content как first-class input. Слайс **не** создаёт новый script
   engine и **не** создаёт capability с нуля.
 - **additive: `apps/news_to_short` в этом слайсе не удаляется.**
-- **имя input mode окончательно не фиксируется**, пока implementation не
-  проверит текущий CLI naming contract. Реализация точного нового или
-  изменённого имени input mode всё ещё требует owner approval в момент
-  implementation (PUBLIC CLI SURFACE tripwire).
+- **реализованное owner-approved public naming:** `--source-text` и
+  `--source-text-file`. `--pasted-script` и `--script-file` остаются видимыми
+  compatibility aliases тех же destinations. `--text` не менялся и остаётся
+  Story Card headline. Новые persisted/internal enum-like значения не
+  вводились: используются существующие `pasted_script` / `script_file`.
+- **normalization/validation owner:** общий
+  `src/content_creation/request_builder.py`; только CLI request получает
+  explicit mode при source-text input. Legacy programmatic request с
+  `content_input_mode=""` остаётся tolerant и проходит прежнюю unspecified
+  ветку. Existing `input_validation` проверяет пустой inline input и файл;
+  conflicting authoritative inputs и несовместимый `--input-mode` дают
+  прежний structured CLI error shape до application service/pipeline.
 - **risk boundary:** **PUBLIC CLI SURFACE → отдельный owner approval в момент
   implementation.** Слайс **не** destructive; 6D/6E им не требуются.
 - **тесты deep-dive:** T9.
 - **required verification:** targeted + smoke (существующими командами) +
   `full`.
+- **фактическая verification (2026-08-02):** targeted radius — 193 теста,
+  exit code 0; canonical `create --help`, inline/file temp dry-run smoke — по
+  exit code 0; full offline suite — 1465 тестов за 309.632 секунды, exit code
+  0, `OK`; docs QA после checkpoint update — exit code 0. Числа и длительности —
+  измерения, не нормативы. Network/provider/download/Vision/TTS/paid/render
+  operations не выполнялись.
 
 #### PLAN-9B-4 — truthful source/script behavior (CRITICAL-2, часть 2)
 

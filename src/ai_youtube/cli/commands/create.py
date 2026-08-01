@@ -29,17 +29,26 @@ def handle_create(
         create_content_fn = create_content
 
     resolve_paths_fn(args)
-    request = from_cli_namespace(
-        args,
-        projects_root=args.projects_root,
-        project_fallback_roots=tuple(getattr(args, "project_fallback_roots", ())),
-        channels_root=getattr(args, "channels_root", ""),
-    )
-
     if getattr(args, "debug", False):
+        request = from_cli_namespace(
+            args,
+            projects_root=args.projects_root,
+            project_fallback_roots=tuple(
+                getattr(args, "project_fallback_roots", ())
+            ),
+            channels_root=getattr(args, "channels_root", ""),
+        )
         result = create_content_fn(request)
     else:
         try:
+            request = from_cli_namespace(
+                args,
+                projects_root=args.projects_root,
+                project_fallback_roots=tuple(
+                    getattr(args, "project_fallback_roots", ())
+                ),
+                channels_root=getattr(args, "channels_root", ""),
+            )
             result = create_content_fn(request)
         except ContentCreationError as exc:
             if args.json_output:

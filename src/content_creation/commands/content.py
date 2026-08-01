@@ -74,7 +74,16 @@ def add_create_arguments(parser: argparse.ArgumentParser) -> None:
         default="",
         help="Article URL (fullscreen_voiceover_v1).",
     )
-    parser.add_argument("--script-file", dest="script_path", default="")
+    parser.add_argument(
+        "--source-text-file",
+        "--script-file",
+        dest="script_path",
+        default=None,
+        help=(
+            "UTF-8 .txt/.md source material for fullscreen_voiceover_v1 "
+            "(--script-file is a compatibility alias)."
+        ),
+    )
     parser.add_argument(
         "--visual-brief",
         dest="visual_brief_path",
@@ -87,16 +96,24 @@ def add_create_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--source-text",
         "--pasted-script",
-        default="",
-        help="Full script text pasted directly (fullscreen_voiceover_v1).",
+        dest="pasted_script",
+        default=None,
+        help=(
+            "Prepared source material pasted directly for fullscreen_voiceover_v1 "
+            "(--pasted-script is a compatibility alias)."
+        ),
     )
     parser.add_argument(
         "--input-mode",
         dest="content_input_mode",
         default="",
         choices=["", "topic", "article_url", "pasted_script", "script_file"],
-        help="Which of --topic/--source-url/--pasted-script/--script-file is authoritative.",
+        help=(
+            "Which of --topic/--source-url/--source-text/--source-text-file is "
+            "authoritative. Compatibility aliases: --pasted-script/--script-file."
+        ),
     )
     parser.add_argument("--project-id", default="")
     parser.add_argument(
