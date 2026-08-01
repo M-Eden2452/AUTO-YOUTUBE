@@ -160,6 +160,11 @@ repurposer остаётся disabled до migration и evidence.
   `anime_factory`; `apps.anime_factory` использует эту canonical boundary, но
   catalog остаётся planned/disabled.
 
+`docs/implementation/` — каталог implementation evidence и истории capabilities,
+а не источник текущих границ: индекс и статусы находятся в
+[docs/implementation/README.md](../implementation/README.md), и ни один документ
+оттуда не переопределяет эту карту, ADR или код.
+
 Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
 contracts и runtime roots зафиксированы в
 [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md); классификация

@@ -57,7 +57,7 @@ plan. Это правило защищает от того, чтобы прод�
 темы, исходного текста, статьи или готового сценария, с подбором визуала,
 озвучкой, субтитрами, музыкой, рендером и экспортом.
 
-Вне scope — Anime Factory и будущий Video Repurposer (раздел 15).
+Вне scope — Anime Factory и будущий Video Repurposer (раздел 14).
 
 ## 4. Owner-approved product decisions
 
@@ -418,7 +418,7 @@ approval; манифест рендера.
 | Идея | Польза | Статус | Owner | Prerequisites | Почему не сейчас | Риск каши | Критерий возврата |
 |---|---|---|---|---|---|---|---|
 | **Anime Factory** | нарезка существующего длинного видео | вне scope этого документа | `anime_factory/` | — | отдельный продукт, сейчас не меняется | — | отдельный deep audit после UI Content Creator |
-| **Video Repurposer** | нарезка стримов, подкастов, фильмов | `COMMITTED_LATER` · отдельное приложение | будущая миграция Anime Factory | стабильный Content Creator + его UI + deep audit | приоритетом не является | **очень высокий** при попытке писать заново | по порядку раздела 15 |
+| **Video Repurposer** | нарезка стримов, подкастов, фильмов | `COMMITTED_LATER` · отдельное приложение | будущая миграция Anime Factory | стабильный Content Creator + его UI + deep audit | приоритетом не является | **очень высокий** при попытке писать заново | по порядку раздела 14 |
 
 ## 12. Do-not-build-as-separate-owner list
 
@@ -438,7 +438,7 @@ approval; манифест рендера.
 | Отдельная asset system или ещё один путь к локальной медиатеке | одна canonical local-library capability | сведение локальной библиотеки |
 | Новый Quality Engine | расширить существующий quality owner | salvage знания из legacy |
 | Второй каталог шаблонов | data-driven contract в существующем registry | Template Builder prerequisites |
-| Второй clip pipeline с нуля | миграция существующего Anime Factory | раздел 15 |
+| Второй clip pipeline с нуля | миграция существующего Anime Factory | раздел 14 |
 | Отдельный набор agent skills | один canonical набор | — |
 | Второй renderer registry или `production_plan.json`, копирующий все манифесты | расширить существующий `production_catalog` и существующие визуальные контракты | раздел 19 |
 | Отдельная design system на каждый renderer backend | один token owner для всех авторов кадра | `MOTION-CS3` |
