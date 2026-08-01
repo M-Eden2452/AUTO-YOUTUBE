@@ -359,6 +359,35 @@ def _write_render_inputs(
     store.write_json(root / "quality" / "quality_report.json", {"status": quality_status})
 
 
+def _write_completed_resume_outputs(
+    *,
+    store: NewsProjectStore,
+    job: NewsJob,
+    root: Path,
+) -> None:
+    scene = {"scene_id": "scene_001"}
+    store.write_json(root / "research" / "claims.json", {"claims": []})
+    store.write_json(
+        root / "localizations" / job.language / "script" / "script.json",
+        {
+            "narration_text": "Offline completion fixture narration.",
+            "scenes": [scene],
+        },
+    )
+    store.write_json(
+        root / "localizations" / job.language / "visual" / "visual_plan.json",
+        {"scenes": [scene]},
+    )
+    store.write_json(
+        root / "assets" / "assets_manifest.json",
+        {
+            "schema_version": 1,
+            "scenes": [scene],
+            "missing_scenes": [],
+        },
+    )
+
+
 class _VisualOnlyAdapter:
     adapter_id = "offline_visual_only"
     paid = False
@@ -457,6 +486,11 @@ class CompletionModeWiringTests(unittest.TestCase):
                         now=f"2026-07-27T11:0{index}:00+00:00",
                     )
                     project = store.create_project(job).root
+                    _write_completed_resume_outputs(
+                        store=store,
+                        job=job,
+                        root=project,
+                    )
                     for state in job.stages.values():
                         state.status = "completed"
                         state.finished_at = "2026-07-27T11:30:00+00:00"
@@ -514,7 +548,12 @@ class CompletionModeWiringTests(unittest.TestCase):
                 completion_mode=MODE_DRAFT_COMPLETE,
                 now="2026-07-27T11:10:00+00:00",
             )
-            store.create_project(job)
+            project = store.create_project(job).root
+            _write_completed_resume_outputs(
+                store=store,
+                job=job,
+                root=project,
+            )
             for state in job.stages.values():
                 state.status = "completed"
             store.save_job(job)

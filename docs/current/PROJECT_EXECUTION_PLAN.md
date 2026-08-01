@@ -6,7 +6,7 @@ updated_at: 2026-08-01
 baseline_head: fe2df5b
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-3
+current_checkpoint: PLAN-4
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,7 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-3, не начат.
+- **Текущий шаг:** PLAN-4, не начат.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -59,25 +59,31 @@ source_paths:
   записаны в `CLEANUP_REGISTRY.md` без перемещения файлов и без создания
   второго набора skills. **PLAN-2** — исправлена изоляция fixtures в
   `tests/test_voice_profile_resolution.py`: изменён только этот test-модуль,
+  production-код не менялся. **PLAN-3** — fixtures в
+  `tests/test_autonomous_completion_pipeline.py` создают реальные минимальные
+  outputs для стадий, объявленных completed; изменён только этот test-модуль,
   production-код не менялся.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
-  последовательных прогонах (2026-08-01). Это **targeted** измерение: зелёность
-  полного baseline им не подтверждается и остаётся предметом PLAN-4.
+  последовательных прогонах (2026-08-01);
+  `tests.test_autonomous_completion_pipeline` — targeted-модуль, exit code 0
+  в двух последовательных прогонах (2026-08-01). Это **targeted** измерение:
+  зелёность полного baseline им не подтверждается и остаётся предметом PLAN-4.
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2 и
-  PLAN-3.** Смещение на 1D было **не** признаком выполненной работы: ревизия 2
+  PLAN-3 и PLAN-4.** Смещение на 1D было **не** признаком выполненной работы: ревизия 2
   разделила монолитный PLAN-1 на три capability gates (1A, 1B, 1C′) и выделила
   routing-фикс 1D как первый самостоятельный шаг. Ни один под-slice PLAN-1A/1B/
   1C′ не выполнен. Переход на PLAN-2 — следствие фактически выполненного
   docs-only слайса PLAN-1D; переход на PLAN-3 — следствие фактически
-  выполненного test-only слайса PLAN-2. `baseline_head` остаётся `fe2df5b`:
-  нового полного baseline run не выполнялось, PLAN-2 проверялся только своим
-  targeted-модулем, PLAN-3 не начат.
+  выполненного test-only слайса PLAN-2; переход на PLAN-4 — следствие
+  фактически выполненного test-only слайса PLAN-3. `baseline_head` остаётся
+  `fe2df5b`: нового полного baseline run не выполнялось, PLAN-2 и PLAN-3
+  проверялись только своими targeted-модулями, PLAN-4 не начат.
 - **Заблокировано (модель ревизии 2.1 — risk-based, не линейная цепочка):**
   - **PLAN-9B-0 и PLAN-9B-1** — первый product-этап программы — блокируются
     только цепочкой `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`, из которой
-    `PLAN-1D-routing` и `PLAN-2` завершены 2026-08-01; остаются
-    `PLAN-3 → PLAN-4`;
+    `PLAN-1D-routing`, `PLAN-2` и `PLAN-3` завершены 2026-08-01; остаётся
+    `PLAN-4`;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -92,7 +98,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-3.
+- **После проверки Git выполнить:** PLAN-4.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1110,7 +1116,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-3 — baseline repair: completion-wiring fixtures
 
-- **status:** pending · **completed:** — · **commit:** —
+- **status:** completed · **completed:** 2026-08-01 · **commit:** — (см. Git
+  log, trailer `Plan-Step: PLAN-3`)
 - **цель:** создавать обязательные stage outputs согласно output-validated
   idempotency ADR 0006.
 - **зависимости:** PLAN-2. **Изменено ревизией 2:** зависимость от полного
@@ -1118,8 +1125,21 @@ allowed zones и owner approvals не пересекаются; изменени
   который меняет PLAN-9A, поэтому он остаётся прямым prerequisite 9A.
 - **разрешённые зоны:** `tests/test_autonomous_completion_pipeline.py`.
 - **запрещено:** production-код.
-- **диагноз:** три теста помечают стадии `completed`, не создавая обязательных
-  outputs, и ожидают поведение до этапа 5D.
+- **диагноз (подтверждён):** два test-метода давали три failure-case:
+  `test_resume_restarts_asset_search_when_completion_semantics_change` (два
+  subtest) и
+  `test_resume_keeps_completed_asset_search_when_override_is_unchanged`
+  помечали стадии `completed`, не создавая обязательных outputs, и ожидали
+  поведение до этапа 5D. `NewsProjectStore.is_stage_completed` после ADR 0006
+  признаёт marker только вместе с пригодным output, поэтому production
+  корректно повторял `research`, `script` и `visual_plan`; в unchanged-case
+  также не существовал пригодный output `asset_search`.
+- **исправление:** private helper внутри test-модуля создаёт во временном
+  project layout реальные минимальные `research/claims.json`, локализованные
+  `script/script.json` и `visual/visual_plan.json`, а также
+  `assets/assets_manifest.json`. Fixtures проходят фактические production
+  validators; assertions, resume/force-stage semantics и production-код не
+  менялись.
 - **окончательный resume-факт:** стадия с отсутствующим или непригодным output
   может быть перезапущена; по 28 проверенным проектам платные и сетевые стадии
   не перезапускаются; у 7 проектов могут повториться только локальные
@@ -1129,6 +1149,18 @@ allowed zones и owner approvals не пересекаются; изменени
   ожидаемое production-поведение не изменено.
 - **required verification:** только targeted-модуль. Совместный полный
   baseline выполняется отдельным PLAN-4.
+- **фактическая verification (2026-08-01, HEAD до слайса `a8c40a1`):**
+  - до изменения: `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_autonomous_completion_pipeline` — exit code 1, 14 тестов,
+    3 failures;
+  - после изменения: та же команда — exit code 0 в двух последовательных
+    прогонах;
+  - `.\venv\Scripts\python.exe -m tools.qa.check_agent_docs` — exit code 0;
+  - `git diff --check` — без замечаний;
+  - full offline suite не запускался; зелёность baseline остаётся предметом
+    PLAN-4.
+  Числа тестов и failures записаны как измерение с датой и проверенным HEAD,
+  нормой они не являются (Measurement policy).
 - **rollback:** один commit.
 
 ### PLAN-4 — зелёный baseline
