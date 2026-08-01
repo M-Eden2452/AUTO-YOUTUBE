@@ -10,6 +10,10 @@ from __future__ import annotations
 import unittest
 
 from src.assets.query_adapter import (
+    SOURCE_BRIEF_FIELDS,
+    SOURCE_EXPLICIT,
+    SOURCE_GLOSSARY,
+    SOURCE_SAME_LANGUAGE,
     STATUS_OK,
     STATUS_TRANSLATION_REQUIRED,
     build_scene_queries,
@@ -233,6 +237,151 @@ class ProviderQueryLanguageTests(unittest.TestCase):
         scene = _scene(narration="совершенно непереводимое", primary_query="непереводимое слово")
         plan = build_scene_queries(scene, providers=["wikimedia"], intent_language="ru")
         self.assertIn("wikimedia", plan.untranslatable_providers)
+        self.assertEqual(plan.queries[0].status, STATUS_TRANSLATION_REQUIRED)
+        self.assertEqual(plan.queries[0].query, "")
+
+    def test_t1a_prepared_queries_are_filtered_and_stably_deduplicated(self) -> None:
+        brief = {
+            "subject": "corvid bird",
+            "action": "recognizing human face",
+            "place": "urban park",
+            "provider_queries": {
+                "default": [
+                    "corvid bird recognizing human face",
+                    "crow watching person outdoors",
+                    "  CORVID   BIRD recognizing human face  ",
+                    "ворона узнаёт лицо",
+                ]
+            },
+        }
+        plan = build_scene_queries(
+            _scene(
+                narration="Ворона узнаёт лицо человека.",
+                primary_query="ворона узнаёт лицо",
+                visual_brief=brief,
+            ),
+            providers=["wikimedia"],
+            intent_language="ru",
+        )
+        queries = plan.for_provider("wikimedia")
+        self.assertEqual(
+            [query.query for query in queries[:2]],
+            [
+                "corvid bird recognizing human face",
+                "crow watching person outdoors",
+            ],
+        )
+        self.assertEqual(
+            sum(query.source == SOURCE_EXPLICIT for query in queries),
+            2,
+        )
+        self.assertIn(SOURCE_BRIEF_FIELDS, {query.source for query in queries})
+        self.assertEqual(
+            len({" ".join(query.query.casefold().split()) for query in queries}),
+            len(queries),
+        )
+        self.assertTrue(all(query.language == "en" for query in queries))
+        self.assertTrue(all("ворона" not in query.query for query in queries))
+
+    def test_t1b_structured_intents_exclude_the_unproven_legacy_broad_query(self) -> None:
+        scene = _scene(
+            narration="квазиморфный объект флуктуирует",
+            primary_query="квазиморфный объект",
+            alternative_queries=["nature science wildlife observation"],
+            visual_brief={},
+        )
+        plan = build_scene_queries(
+            scene,
+            providers=["wikimedia"],
+            intent_language="ru",
+        )
+        self.assertEqual(plan.for_provider("wikimedia"), [])
+        self.assertEqual(plan.untranslatable_providers, ["wikimedia"])
+        self.assertEqual(plan.queries[0].status, STATUS_TRANSLATION_REQUIRED)
+        self.assertNotIn(
+            "nature science wildlife observation",
+            {query.query for query in plan.queries},
+        )
+
+    def test_t2_glossary_does_not_match_inside_an_unrelated_word(self) -> None:
+        plan = build_scene_queries(
+            _scene(
+                narration="Исследователи связывают историю с фактами.",
+                primary_query="исследователи факты",
+                alternative_queries=[],
+                visual_brief={},
+            ),
+            providers=["wikimedia"],
+            intent_language="ru",
+        )
+        words = {
+            word.casefold()
+            for query in plan.for_provider("wikimedia")
+            for word in query.query.split()
+        }
+        self.assertNotIn("ice", words)
+
+    def test_t3_english_alternative_survives_a_russian_primary(self) -> None:
+        plan = build_scene_queries(
+            _scene(
+                narration="Вороны узнают лица людей.",
+                primary_query="вороны узнают лица",
+                alternative_queries=[
+                    "corvid bird facial recognition",
+                    "crow watching human face",
+                ],
+                visual_brief={},
+            ),
+            providers=["pexels"],
+            intent_language="ru",
+        )
+        queries = plan.for_provider("pexels")
+        self.assertEqual(
+            [query.query for query in queries],
+            [
+                "corvid bird facial recognition",
+                "crow watching human face",
+            ],
+        )
+        self.assertTrue(
+            all(query.source == SOURCE_SAME_LANGUAGE for query in queries)
+        )
+        self.assertTrue(all(query.language == "en" for query in queries))
+
+    def test_t4_glossary_recognizes_safe_morphological_forms(self) -> None:
+        for form in ("пустыню", "пустыни", "пустыней"):
+            with self.subTest(form=form):
+                plan = build_scene_queries(
+                    _scene(
+                        narration=f"Камера показывает {form}.",
+                        primary_query=form,
+                        alternative_queries=[],
+                        visual_brief={},
+                    ),
+                    providers=["wikimedia"],
+                    intent_language="ru",
+                )
+                self.assertTrue(
+                    any(
+                        query.query == "desert"
+                        and query.source == SOURCE_GLOSSARY
+                        for query in plan.for_provider("wikimedia")
+                    )
+                )
+
+    def test_t5_unknown_intent_remains_fail_closed(self) -> None:
+        plan = build_scene_queries(
+            _scene(
+                narration="квазиморфный объект флуктуирует",
+                primary_query="квазиморфный объект",
+                alternative_queries=[],
+                visual_brief={},
+            ),
+            providers=["wikimedia"],
+            intent_language="ru",
+        )
+        self.assertEqual(plan.for_provider("wikimedia"), [])
+        self.assertEqual(plan.untranslatable_providers, ["wikimedia"])
         self.assertEqual(plan.queries[0].status, STATUS_TRANSLATION_REQUIRED)
         self.assertEqual(plan.queries[0].query, "")
 

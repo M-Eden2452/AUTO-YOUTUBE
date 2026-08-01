@@ -25,6 +25,7 @@ video, which is worse than an empty result.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -80,7 +81,135 @@ GLOSSARY: dict[str, str] = {
 
 _LATIN_RE = re.compile(r"[A-Za-z][A-Za-z0-9.\-']*")
 _CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
+_WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 _MAX_QUERY_TERMS = 8
+
+# Exact outputs of the upstream compatibility fallback. Canonical plans distinguish
+# them structurally (they are absent from ``visual_intents``), but old flat plans do
+# not carry provenance. Excluding these four known values prevents the new per-query
+# reader from promoting a previously rejected generic fallback into fake adaptation.
+_LEGACY_BROAD_QUERIES = frozenset(
+    {
+        "whale mother calf aerial ocean",
+        "scientific researchers nature field observation",
+        "ocean wildlife aerial waves",
+        "nature science wildlife observation",
+    }
+)
+
+# Four legacy seed entries are intentionally word stems rather than full words.
+# They may consume only a known Russian ending within one token; arbitrary
+# prefix/substring matching is never used.
+_GLOSSARY_STEMS = frozenset({"лабораторн", "камен", "скал", "антарктик"})
+_RUSSIAN_INFLECTION_SUFFIXES = (
+    "иями",
+    "ями",
+    "ами",
+    "ого",
+    "ему",
+    "ому",
+    "ыми",
+    "ими",
+    "ую",
+    "юю",
+    "ая",
+    "яя",
+    "ое",
+    "ее",
+    "ые",
+    "ие",
+    "ый",
+    "ий",
+    "ой",
+    "ей",
+    "ом",
+    "ем",
+    "ах",
+    "ях",
+    "ам",
+    "ям",
+    "ов",
+    "ев",
+    "а",
+    "я",
+    "ы",
+    "и",
+    "у",
+    "ю",
+)
+_GLOSSARY_STEM_ENDINGS = frozenset(
+    {
+        "",
+        "ь",
+        "а",
+        "я",
+        "ы",
+        "и",
+        "у",
+        "ю",
+        "е",
+        "ой",
+        "ей",
+        "ом",
+        "ем",
+        "ами",
+        "ями",
+        "ах",
+        "ях",
+        "ный",
+        "ная",
+        "ное",
+        "ные",
+        "ного",
+        "ному",
+        "ным",
+        "ную",
+        "ных",
+        "ными",
+        "ый",
+        "ая",
+        "ое",
+        "ые",
+        "ого",
+        "ому",
+        "ым",
+        "ую",
+        "ых",
+        "ыми",
+        "ческий",
+        "ческая",
+        "ческое",
+        "ческие",
+        "ческого",
+        "ческому",
+        "ческим",
+        "ческую",
+        "ческих",
+        "ческими",
+    }
+)
+
+# These words describe framing, a generic role or a facility, not the missing
+# subject. Alone they would turn an unknown intent into a plausible-looking lie
+# such as ``station`` or ``researchers``. They remain usable beside a real anchor.
+_GLOSSARY_CONTEXT_ONLY = frozenset(
+    {
+        "aerial",
+        "close up",
+        "wide shot",
+        "panorama",
+        "drone",
+        "slow motion",
+        "scientists",
+        "researchers",
+        "expedition",
+        "station",
+        "instrument",
+        "sample",
+        "samples",
+        "particles",
+    }
+)
 
 
 @dataclass
@@ -149,45 +278,29 @@ def build_scene_queries(
     caps = capabilities or {}
     source_queries = _source_language_queries(scene)
     english = _english_queries(scene, intent_language=intent_language)
+    brief_ready = [
+        item for item in english if item.get("source") == SOURCE_BRIEF_FIELDS
+    ]
+    adapted = [
+        item for item in english if item.get("source") != SOURCE_BRIEF_FIELDS
+    ]
     plan = SceneQueryPlan(scene_id=str(scene.get("scene_id") or ""), intent_language=intent_language)
 
-    # A plan may declare Russian and still carry English queries (an English brief, or
-    # a plan written in English). Judging by the script the words are actually in beats
-    # trusting the declaration, and is what lets an already-English plan reach an
-    # English-only provider untouched.
-    source_is_latin = bool(source_queries) and not any(
-        _CYRILLIC_RE.search(str(item["query"])) for item in source_queries
-    )
     for provider in providers:
         languages = provider_query_languages(provider, caps.get(provider))
-        if source_is_latin and "en" in languages:
-            for index, item in enumerate(source_queries):
-                plan.queries.append(
-                    ProviderQuery(
-                        provider=provider,
-                        query=item["query"],
-                        language="en",
-                        kind=str(item.get("kind") or "primary"),
-                        fallback_level=int(item.get("fallback_level") or index + 1),
-                        source=SOURCE_SAME_LANGUAGE,
-                    )
-                )
-            continue
-        if intent_language.lower() in languages and source_queries:
-            for index, item in enumerate(source_queries):
-                plan.queries.append(
-                    ProviderQuery(
-                        provider=provider,
-                        query=item["query"],
-                        language=intent_language,
-                        kind=str(item.get("kind") or "primary"),
-                        fallback_level=int(item.get("fallback_level") or index + 1),
-                        source=SOURCE_SAME_LANGUAGE,
-                    )
-                )
-            continue
-        explicit = _explicit_provider_queries(scene, provider)
-        chosen = explicit or english
+        candidates = [
+            *_explicit_provider_queries(scene, provider),
+            *brief_ready,
+            *(
+                {
+                    **item,
+                    "source": SOURCE_SAME_LANGUAGE,
+                }
+                for item in source_queries
+            ),
+            *adapted,
+        ]
+        chosen = _provider_ready_candidates(candidates, languages=languages)
         if not chosen:
             plan.queries.append(
                 ProviderQuery(
@@ -209,7 +322,7 @@ def build_scene_queries(
                 ProviderQuery(
                     provider=provider,
                     query=str(item["query"]),
-                    language="en",
+                    language=str(item["language"]),
                     kind=str(item.get("kind") or "primary"),
                     fallback_level=int(item.get("fallback_level") or index + 1),
                     source=str(item.get("source") or SOURCE_BRIEF_FIELDS),
@@ -336,7 +449,7 @@ def _english_queries(scene: dict[str, Any], *, intent_language: str) -> list[dic
     must = [_english_only(str(item)) for item in (brief.get("must_include") or [])]
     shot = _english_only(str(brief.get("shot_type") or scene.get("shot_type") or ""))
 
-    exact_english = [item for item in exact if not _CYRILLIC_RE.search(item)]
+    exact_english = [item for item in exact if _query_language(item) == "en"]
     # A shot type is a modifier, never a query on its own: "action" and "payoff" name
     # how to frame a subject, not what to look for. Without a subject, a place or an
     # exact name there is nothing here to search with.
@@ -360,6 +473,10 @@ def _english_queries(scene: dict[str, Any], *, intent_language: str) -> list[dic
     # deterministic glossary hit, or a Latin token the script already contains.
     glossary_terms = _glossary_terms(scene)
     latin_terms = _latin_terms(scene)
+    if glossary_terms and not latin_terms and all(
+        term in _GLOSSARY_CONTEXT_ONLY for term in glossary_terms
+    ):
+        glossary_terms = []
     combined = _terms(glossary_terms + latin_terms)
     if not combined:
         return []
@@ -368,28 +485,103 @@ def _english_queries(scene: dict[str, Any], *, intent_language: str) -> list[dic
 
 
 def _source_language_queries(scene: dict[str, Any]) -> list[dict[str, Any]]:
-    """The plan's own queries, in the language the plan was written in."""
+    """The planner's own queries, preserving structured provenance when present.
+
+    The canonical legacy writer appends its broad compatibility query only to the
+    flat ``alternative_queries`` list. It is not a ``visual_intent`` because it is
+    not semantic evidence. Reading structured intents first therefore keeps the
+    compatibility field persisted without presenting it as successful adaptation.
+    Plans written before structured intents existed retain their tolerant flat read.
+    """
+    raw_intents = scene.get("visual_intents")
+    structured = (
+        [item for item in raw_intents if isinstance(item, dict)]
+        if isinstance(raw_intents, list)
+        else []
+    )
+    if structured:
+        queries: list[dict[str, Any]] = []
+        for index, intent in enumerate(structured, start=1):
+            raw_terms = intent.get("terms")
+            if isinstance(raw_terms, (list, tuple)):
+                terms = [str(item).strip() for item in raw_terms if str(item).strip()]
+            else:
+                terms = [
+                    str(item).strip()
+                    for item in (
+                        intent.get("subject"),
+                        *(intent.get("modifiers") or []),
+                        *(intent.get("context") or []),
+                    )
+                    if str(item or "").strip()
+                ]
+            text = " ".join(_terms(terms))
+            if text:
+                queries.append(
+                    {
+                        "query": text,
+                        "kind": str(intent.get("kind") or "primary"),
+                        "fallback_level": int(
+                            intent.get("fallback_level") or index
+                        ),
+                    }
+                )
+        return queries
+
     queries: list[dict[str, Any]] = []
     primary = str(scene.get("primary_query") or "").strip()
-    if primary:
+    if primary and not _is_legacy_broad_query(primary):
         queries.append({"query": primary, "kind": "primary", "fallback_level": 1})
     for index, alternative in enumerate(scene.get("alternative_queries") or [], start=2):
         text = str(alternative).strip()
-        if text and all(text != item["query"] for item in queries):
+        if (
+            text
+            and not _is_legacy_broad_query(text)
+            and all(text != item["query"] for item in queries)
+        ):
             queries.append({"query": text, "kind": "alternative", "fallback_level": index})
     return queries
+
+
+def _provider_ready_candidates(
+    candidates: list[dict[str, Any]],
+    *,
+    languages: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    """Filter and stably deduplicate candidates for one provider.
+
+    Language belongs to each candidate string, not to the set it arrived in. This
+    lets safe English alternatives survive beside a Russian primary while keeping
+    every unsupported or mixed-script string away from an English-only provider.
+    """
+    supported = {str(language).casefold() for language in languages}
+    seen: set[str] = set()
+    chosen: list[dict[str, Any]] = []
+    for item in candidates:
+        query = _clean_query_text(str(item.get("query") or ""))
+        language = _query_language(query)
+        key = _query_key(query)
+        if not query or not language or language not in supported or key in seen:
+            continue
+        seen.add(key)
+        chosen.append({**item, "query": query, "language": language})
+    return chosen
 
 
 def _glossary_terms(scene: dict[str, Any]) -> list[str]:
     text = " ".join(
         str(scene.get(key) or "")
         for key in ("narration", "visual_description", "visual_intent", "primary_query")
-    ).lower()
-    if not text.strip():
+    )
+    tokens = _word_tokens(text)
+    if not tokens:
         return []
     matched: list[str] = []
     for russian, english in GLOSSARY.items():
-        if russian in text and english not in matched:
+        if (
+            _contains_lexicon_phrase(tokens, _word_tokens(russian))
+            and english not in matched
+        ):
             matched.append(english)
     return matched
 
@@ -412,10 +604,8 @@ def _latin_terms(scene: dict[str, Any]) -> list[str]:
 def _english_only(value: str) -> str:
     """Drop anything that is not Latin script: a brief field left in Russian is not
     an English query and must not be smuggled into one."""
-    text = (value or "").strip()
-    if not text or _CYRILLIC_RE.search(text):
-        return ""
-    return text
+    text = _clean_query_text(value)
+    return text if _query_language(text) == "en" else ""
 
 
 def _terms(values: list[str]) -> list[str]:
@@ -423,11 +613,77 @@ def _terms(values: list[str]) -> list[str]:
     words: list[str] = []
     for value in values:
         for word in str(value or "").split():
-            key = word.lower()
+            key = _normalize_text(word)
             if key and key not in seen:
                 seen.add(key)
                 words.append(word)
     return words[:_MAX_QUERY_TERMS]
+
+
+def _contains_lexicon_phrase(tokens: list[str], phrase: list[str]) -> bool:
+    if not phrase or len(phrase) > len(tokens):
+        return False
+    for start in range(len(tokens) - len(phrase) + 1):
+        if all(
+            _lexicon_token_matches(token, expected)
+            for token, expected in zip(
+                tokens[start : start + len(phrase)],
+                phrase,
+            )
+        ):
+            return True
+    return False
+
+
+def _lexicon_token_matches(token: str, expected: str) -> bool:
+    if token == expected:
+        return True
+    if expected in _GLOSSARY_STEMS:
+        return (
+            token.startswith(expected)
+            and token[len(expected) :] in _GLOSSARY_STEM_ENDINGS
+        )
+    return _russian_morph_key(token) == _russian_morph_key(expected)
+
+
+def _russian_morph_key(token: str) -> str:
+    if not _CYRILLIC_RE.search(token):
+        return token
+    for suffix in _RUSSIAN_INFLECTION_SUFFIXES:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+            return token[: -len(suffix)]
+    return token
+
+
+def _word_tokens(value: str) -> list[str]:
+    return _WORD_RE.findall(_normalize_text(value))
+
+
+def _query_language(value: str) -> str:
+    text = _normalize_text(value)
+    if not text:
+        return ""
+    if _CYRILLIC_RE.search(text):
+        return "ru"
+    if _LATIN_RE.search(text):
+        return "en"
+    return ""
+
+
+def _query_key(value: str) -> str:
+    return " ".join(_normalize_text(value).split())
+
+
+def _is_legacy_broad_query(value: str) -> bool:
+    return _query_key(value) in _LEGACY_BROAD_QUERIES
+
+
+def _clean_query_text(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", value or "").split())
+
+
+def _normalize_text(value: str) -> str:
+    return unicodedata.normalize("NFKC", value or "").casefold().replace("ё", "е")
 
 
 __all__ = [

@@ -1,9 +1,9 @@
-"""Pre-fix characterization for the active Content Creator input/query path.
+"""Regression coverage for the active Content Creator input/query path.
 
-These assertions intentionally record current defects before PLAN-9B-1.  The
-wrong glossary matches and the fail-closed skips are expected to change when
-the provider-language foundation is corrected; the test must then be reviewed,
-not preserved as desired product behaviour.
+The query assertions are the post-fix contract for PLAN-9B-1: prepared English
+evidence reaches providers, unsafe source-language text stays out, and persisted
+query plans explain both dispatched and fail-closed outcomes. The separate
+legacy-template assertion remains pre-fix characterization for PLAN-9B-4.
 
 The tests run the canonical ``create_content`` application entrypoint in-process.
 Only the existing provider-factory seam is replaced: production still builds the
@@ -26,12 +26,19 @@ from src.assets.provider_contract import (
     AssetSearchRequest,
     ProviderHealth,
 )
+from src.assets.query_adapter import (
+    SOURCE_BRIEF_FIELDS,
+    SOURCE_EXPLICIT,
+    SOURCE_GLOSSARY,
+    SOURCE_SAME_LANGUAGE,
+)
 from src.content_creation.models import (
     ContentCreationRequest,
     ExecutionFlags,
     VoiceRequestConfig,
 )
 from src.content_creation.service import create_content
+from src.news.asset_manager import build_assets_manifest
 from tests.network_guard import blocked_attempts
 
 
@@ -129,32 +136,24 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
         }
 
     def test_current_provider_dispatch_and_persisted_query_plan(self) -> None:
-        # These are the three controlled offline inputs from the deep-dive.  Exact
-        # counts and wrong strings are pre-fix characterization for PLAN-9B-1.
+        # Raw topics are not translations. Two have no safe provider-ready evidence;
+        # the third contains the seed's unambiguous environment concept ``desert``.
+        # Counts remain measurements, not invariants.
         cases = (
             {
                 "topic": "Почему вороны запоминают человеческие лица",
-                "search_calls": 10,
-                "query_plan_ok": 5,
-                "skipped": 25,
-                "skipped_scenes": 5,
-                "queries": {"ice researchers"},
+                "required_terms": set(),
+                "forbidden_terms": {"ice", "station", "nature"},
             },
             {
                 "topic": "Солнечная электростанция и аккумуляторное хранилище",
-                "search_calls": 50,
-                "query_plan_ok": 25,
-                "skipped": 5,
-                "skipped_scenes": 1,
-                "queries": {"station", "ice researchers station"},
+                "required_terms": set(),
+                "forbidden_terms": {"ice", "station", "nature"},
             },
             {
                 "topic": "Строительство большого канала через пустыню",
-                "search_calls": 10,
-                "query_plan_ok": 5,
-                "skipped": 25,
-                "skipped_scenes": 5,
-                "queries": {"ice researchers"},
+                "required_terms": {"desert"},
+                "forbidden_terms": {"ice", "station", "nature"},
             },
         )
 
@@ -168,20 +167,44 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
                     for provider in providers
                     for request in provider.search_requests
                 ]
+                request_queries = {request.query for request in requests}
+                request_words = {
+                    word.casefold()
+                    for query in request_queries
+                    for word in query.split()
+                }
 
-                self.assertEqual(len(requests), case["search_calls"])
                 self.assertTrue(
                     all(isinstance(request, AssetSearchRequest) for request in requests)
                 )
-                self.assertEqual({request.query for request in requests}, case["queries"])
-                self.assertEqual(
-                    {provider.name for provider in providers if provider.search_requests},
-                    set(_PROVIDER_IDS),
+                self.assertTrue(
+                    set(case["forbidden_terms"]).isdisjoint(request_words)
                 )
-                self.assertEqual(
-                    {len(provider.search_requests) for provider in providers},
-                    {int(case["search_calls"]) // len(_PROVIDER_IDS)},
+                self.assertTrue(
+                    all(
+                        not any("Ѐ" <= char <= "ӿ" for char in query)
+                        for query in request_queries
+                    )
                 )
+                if case["required_terms"]:
+                    self.assertTrue(
+                        all(
+                            set(case["required_terms"]).intersection(
+                                query.casefold().split()
+                            )
+                            for query in request_queries
+                        )
+                    )
+                    self.assertEqual(
+                        {
+                            provider.name
+                            for provider in providers
+                            if provider.search_requests
+                        },
+                        set(_PROVIDER_IDS),
+                    )
+                else:
+                    self.assertEqual(requests, [])
 
                 attempts = manifest["provider_attempts"]
                 skipped = [
@@ -195,20 +218,18 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
                     for attempt in attempts
                     if attempt.get("status") == "completed"
                 ]
-                self.assertEqual(len(skipped), case["skipped"])
-                self.assertEqual(
-                    len({attempt["scene_id"] for attempt in skipped}),
-                    case["skipped_scenes"],
-                )
+                self.assertGreater(len(skipped), 0)
                 self.assertEqual(
                     {attempt["provider"] for attempt in skipped},
                     set(_PROVIDER_IDS),
                 )
-                self.assertEqual(len(completed), case["query_plan_ok"])
-                self.assertEqual(
-                    {attempt["query_source"] for attempt in completed},
-                    {"deterministic_glossary"},
-                )
+                if case["required_terms"]:
+                    self.assertEqual(
+                        {attempt["query_source"] for attempt in completed},
+                        {SOURCE_GLOSSARY},
+                    )
+                else:
+                    self.assertEqual(completed, [])
 
                 # Read the minimal meaningful persisted subset from the real JSON,
                 # rather than snapshotting the unrelated manifest fields.
@@ -226,25 +247,134 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
                     for query in persisted_queries
                     if query["status"] == "query_translation_required"
                 ]
-                self.assertEqual(len(persisted_queries), 30)
-                self.assertEqual(len(ok_queries), case["query_plan_ok"])
-                self.assertEqual(len(translation_required), case["skipped"])
-                self.assertEqual(
-                    {query["query"] for query in ok_queries},
-                    case["queries"],
+                persisted_query_strings = {
+                    query["query"] for query in ok_queries
+                }
+                persisted_words = {
+                    word.casefold()
+                    for query in persisted_query_strings
+                    for word in query.split()
+                }
+                self.assertTrue(request_queries.issubset(persisted_query_strings))
+                self.assertTrue(
+                    set(case["forbidden_terms"]).isdisjoint(persisted_words)
                 )
-                self.assertEqual(
-                    {query["source"] for query in ok_queries},
-                    {"deterministic_glossary"},
+                self.assertTrue(
+                    set(case["required_terms"]).issubset(persisted_words)
                 )
+                self.assertGreater(len(translation_required), 0)
                 self.assertEqual(
                     {query["source"] for query in translation_required},
-                    {"visual_brief_fields"},
+                    {SOURCE_BRIEF_FIELDS},
                 )
                 self.assertEqual(
                     sum(len(plan["untranslatable_providers"]) for plan in query_plans),
-                    case["skipped"],
+                    len(translation_required),
                 )
+
+    def test_prepared_evidence_reaches_fake_providers_with_provenance(self) -> None:
+        explicit_queries = {
+            "corvid bird recognizing human face",
+            "crow watching person outdoors",
+        }
+        alternative_queries = {
+            "solar power plant battery storage",
+            "solar farm electrical grid",
+        }
+        providers = [_RecordingStockProvider(name) for name in _PROVIDER_IDS]
+        network_attempts_before = list(blocked_attempts)
+        manifest = build_assets_manifest(
+            visual_plan={
+                "intent_language": "ru",
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "visual_type": "video",
+                        "primary_query": "ворона узнаёт лицо",
+                        "alternative_queries": [],
+                        "visual_brief": {
+                            "subject": "corvid bird",
+                            "action": "recognizing human face",
+                            "place": "urban park",
+                            "provider_queries": {
+                                "default": [
+                                    *sorted(explicit_queries),
+                                    "  CORVID   BIRD recognizing human face  ",
+                                    "ворона узнаёт лицо",
+                                ]
+                            },
+                        },
+                    },
+                    {
+                        "scene_id": "scene_002",
+                        "visual_type": "video",
+                        "primary_query": "солнечная электростанция",
+                        "alternative_queries": [
+                            *sorted(alternative_queries),
+                            "nature science wildlife observation",
+                        ],
+                        "visual_intents": [
+                            {
+                                "kind": "primary",
+                                "terms": ["солнечная", "электростанция"],
+                                "language": "ru",
+                                "fallback_level": 1,
+                                "requires_translation": True,
+                            },
+                            {
+                                "kind": "alternative",
+                                "terms": ["solar power plant", "battery storage"],
+                                "language": "en",
+                                "fallback_level": 2,
+                                "requires_translation": False,
+                            },
+                            {
+                                "kind": "context_fallback",
+                                "terms": ["solar farm", "electrical grid"],
+                                "language": "en",
+                                "fallback_level": 3,
+                                "requires_translation": False,
+                            },
+                        ],
+                    },
+                ],
+            },
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=providers,
+            dry_run=False,
+            project_id="query-foundation-fixture",
+        )
+        self.assertEqual(blocked_attempts, network_attempts_before)
+
+        for provider in providers:
+            sent = {request.query for request in provider.search_requests}
+            self.assertTrue(explicit_queries.issubset(sent))
+            self.assertTrue(alternative_queries.issubset(sent))
+            self.assertNotIn("nature science wildlife observation", sent)
+            self.assertTrue(
+                all(not any("Ѐ" <= char <= "ӿ" for char in query) for query in sent)
+            )
+
+        persisted = [
+            query
+            for scene in manifest["scenes"]
+            for query in scene["query_plan"]["queries"]
+            if query["status"] == "ok"
+        ]
+        by_text = {
+            query["query"]: query["source"]
+            for query in persisted
+            if query["query"] in explicit_queries | alternative_queries
+        }
+        self.assertEqual(
+            {by_text[query] for query in explicit_queries},
+            {SOURCE_EXPLICIT},
+        )
+        self.assertEqual(
+            {by_text[query] for query in alternative_queries},
+            {SOURCE_SAME_LANGUAGE},
+        )
 
     def test_topic_only_thin_input_currently_passes_legacy_template(self) -> None:
         observed = self._run_topic(

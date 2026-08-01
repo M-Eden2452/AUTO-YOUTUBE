@@ -6,7 +6,7 @@ updated_at: 2026-08-01
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-9B-1
+current_checkpoint: PLAN-9B-5a
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,7 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-9B-1, не начат.
+- **Текущий шаг:** PLAN-9B-5a, pending/not started. В этом слайсе не начинался.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -68,7 +68,19 @@ source_paths:
   verification-only слайсе не менялись. **PLAN-9B-0** — новый in-process
   offline-модуль `tests/test_input_query_truth_characterization.py` через
   canonical `create_content` path зафиксировал pre-fix input/query behavior,
-  production-код не менялся.
+  production-код не менялся. **PLAN-9B-1** — canonical owner
+  `src/assets/query_adapter.py` теперь валидирует язык каждого candidate query
+  отдельно, стабильно normalizes/deduplicates explicit/brief/intent evidence,
+  читает canonical structured `visual_intents` раньше плоского compatibility
+  fallback и использует Unicode token boundaries плюс ограниченную безопасную
+  морфологию seed-лексикона. Ложные `ice researchers` и одиночный misleading
+  `station` устранены; English alternatives рядом с Russian primary и prepared
+  VisualBrief доходят до fake providers с существующим provenance. Unknown raw
+  intent остаётся `query_translation_required`; adapter переводчиком не стал.
+  Первоначальный raw-topic T1 был несовместим с adapter-only scope и по owner
+  decision заменён на T1A (prepared provider-ready evidence) + T1B (unsupported
+  raw intent fail-closed). Arbitrary raw-topic provider-language generation
+  остаётся открытой product capability, а не скрывается generic fallback.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -80,9 +92,18 @@ source_paths:
   `tests.test_input_query_truth_characterization` — 2 теста, два
   последовательных прогона с exit code 0 (74.191 и 73.016 секунды), active
   network guard не зафиксировал попыток сети; targeted radius из четырёх
-  существующих модулей — 118 тестов, 26.004 секунды, exit code 0 (2026-08-01).
+  существующих модулей — 118 тестов, 26.004 секунды, exit code 0 (2026-08-01);
+  PLAN-9B-1: `tests.test_input_query_truth_characterization` — 3 теста, два
+  окончательных последовательных прогона с exit code 0 (74.852 и 75.004
+  секунды); прямой query radius — 75 тестов за 1.574 секунды; caller radius
+  через script pipeline, asset manager, canonical content service и provider
+  integration — 82 теста за 33.120 секунды, exit code 0. Числа и длительности
+  являются измерениями, не нормативами. Network guard оставался чистым; сеть,
+  model API, provider HTTP/download, Vision, TTS, paid calls и render не
+  выполнялись.
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
-  PLAN-3, PLAN-4, PLAN-9B-0 и PLAN-9B-1.** Смещение на 1D было **не** признаком
+  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1 и PLAN-9B-5a.** Смещение на 1D было
+  **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
   gates (1A, 1B, 1C′) и выделила routing-фикс 1D как первый самостоятельный
   шаг. Ни один под-slice PLAN-1A/1B/1C′ не выполнен. Переход на PLAN-2 —
@@ -94,13 +115,17 @@ source_paths:
   `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`; будущий plan-only commit этим
   baseline не является. Переход на PLAN-9B-1 — следствие зелёной
   characterization PLAN-9B-0; full suite в test-only слайсе не запускался,
-  поэтому `baseline_head` не менялся. PLAN-9B-1 не начат.
+  поэтому `baseline_head` не менялся. Переход на PLAN-9B-5a — следствие
+  выполненного локального PLAN-9B-1; full suite не запускался, потому что public
+  signatures, schema/layout и shared architecture boundary не менялись.
+  `baseline_head` остаётся прежним. PLAN-9B-5a не начат.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
-  - **PLAN-9B-1** — текущий первый production-слайс, pending/not started;
-    prerequisite-цепочка
+  - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
     `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4 → PLAN-9B-0` завершена
     2026-08-01;
+  - **PLAN-9B-5a** — текущий checkpoint, pending/not started; зависит от
+    завершённого PLAN-9B-1 и в его слайсе не выполнялся;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -115,7 +140,8 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git выполнить:** PLAN-9B-1.
+- **После проверки Git:** не начинать PLAN-9B-5a без отдельного задания
+  владельца.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1929,40 +1955,95 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-1 — provider-language / query foundation
 
-- **status:** pending · **зависимости:** PLAN-9B-0.
+- **status:** completed · **completed:** 2026-08-01 · **зависимости:**
+  PLAN-9B-0.
 - **фактический owner:** `src/assets/query_adapter.py`.
-- **цель:** произвольный visual intent порождает **несколько provider-ready
-  queries** без topic-specific hardcode.
+- **исправленный контракт (owner decision 2026-08-01).** Первоначальный T1
+  требовал от adapter-only слайса тематически переводить произвольный raw
+  Russian topic и поэтому был невыполним без topic literals, translator/model
+  или upstream producer. Он заменён на **T1A:** prepared VisualBrief, explicit
+  provider queries и безопасные English intents/alternatives дают несколько
+  provider-ready candidates; **T1B:** unknown raw source-language intent без
+  такого evidence остаётся fail-closed. PLAN-9B-1 закрывает integrity adapter,
+  а **не** создание перевода.
 - **разрешённые зоны:** `src/assets/query_adapter.py` и его тесты.
 - **reuse (OD-13) — новых сущностей не создаётся:** `VisualBrief` ·
   `SceneVisualPlan` / `VisualSearchIntent` · `ProviderQuery` ·
   `build_scene_queries` / `build_slot_queries` · provider contracts.
   **Не создавать** `TranslatorService`, `SearchEngine`, `QueryOrchestrator` и
   второй query pipeline.
-- **сохранить fail-closed.** При неуверенности по-прежнему
+- **реализованный механизм:** explicit provider queries → English VisualBrief
+  fields → structured/source intents → bounded deterministic seed. Для каждого
+  candidate отдельно определяется фактический язык; затем выполняются Unicode
+  NFKC normalization, whitespace/casefold key и stable deduplication. Canonical
+  `visual_intents` являются structured provenance; добавленный upstream только
+  в flat `alternative_queries` generic legacy broad fallback не считается
+  semantic evidence. Для tolerant старых flat plans четыре существующих
+  compatibility outputs также не повышаются до успешной adaptation.
+- **deterministic seed:** substring matcher заменён Unicode-aware token/phrase
+  matcher. Ограниченное suffix matching распознаёт доказанные формы
+  `пустыню` / `пустыни` / `пустыней`, но `лед` больше не совпадает внутри
+  `исследователи`. Generic roles/modifiers/facilities вроде `researchers` и
+  `station` без semantic anchor не выпускаются как успешный query.
+- **fail-closed сохранён.** При неуверенности по-прежнему
   `translation_required`, а не догадка. Догадки как factual query не
   отправляются. «Просто отправлять русский текст провайдеру» — откат к уже
   измеренному нулевому результату и запрещён.
-- **исправляется в scope этого слайса:** harmful substring glossary matching
-  (состав терминов сохраняется как seed, механизм матчинга заменяется —
-  границы слова + нормализация) · морфологические пропуски ·
-  provider-language source gap.
-- **метод adaptation заранее не фиксируется (OD-16):** deterministic
-  normalization/lexicon, prepared brief, model-assisted adaptation или
-  комбинация — по evidence. **Model/network вариант требует отдельного owner
-  approval на конкретное действие.**
 - **`ProviderQuery.source` — E-2 закрыт.** Это существующее свободное строковое
   telemetry-поле: **не** schema-level change, tolerant reader не требуется,
-  persisted-bytes tripwire не срабатывает. Characterization 9B-0 обязан
-  зафиксировать `query_plan` до правки.
-- **тесты deep-dive:** T1, T2, T3, T4, T5. **Исправлено 2026-08-01:** T3
-  («английская alternative не выбрасывается вместе с русским primary») проверяет
-  исправление `source_is_latin`, который вычисляется на уровне всего набора в
-  `src/assets/query_adapter.py` — то есть в owner и allowed zone этого слайса.
+  persisted-bytes tripwire не срабатывает. Temporary real
+  `assets_manifest.json` подтвердил новые values в существующем `query_plan`
+  без нового field/version/layout.
+- **T1A/T1B–T5:** T1A — два explicit VisualBrief queries и два structured
+  English alternatives реально получены каждым из пяти fake providers;
+  normalized duplicate и Cyrillic explicit entry отфильтрованы, sources равны
+  `explicit_override` / `provider_supports_source_language`. T1B — raw Russian
+  intent с одним generic legacy broad fallback не отправляет fallback и даёт
+  `query_translation_required`. T2 — «Исследователи…» не даёт `ice`. T3 — два
+  English alternatives переживают Russian primary. T4 — три формы пустыни дают
+  `desert` с source `deterministic_glossary`. T5 — unknown intent без evidence
+  остаётся `query_translation_required` и не вызывает provider.
+- **characterization migration:** query/provider assertions в
+  `tests/test_input_query_truth_characterization.py` стали regression contract
+  PLAN-9B-1; отдельный topic-only assertion по-прежнему требует
+  `legacy_template`, `fallback_reason="insufficient_source_material"` и
+  `script_validation.status="passed"` как pre-fix evidence будущего PLAN-9B-4.
+  Instrumented canonical measurement: вороны — 0 calls, 30 translation skips;
+  солнечная станция — 0 calls, 30 translation skips; канал — 50 fake-provider
+  search calls, unique `desert` / `desert researchers`, 25 completed entries с
+  source `deterministic_glossary` и 5 translation skips. Это измерение, не
+  invariant; ни один случай не выпустил `ice`, misleading `station` или
+  `nature science wildlife observation`.
+- **оставшийся product gap / follow-up constraint:** arbitrary raw-topic
+  provider-language generation **не реализована** и не заявляется. Реальный
+  producer должен заполнять существующий VisualBrief contract до product
+  evidence gate или утверждения поддержки произвольной русской темы. Точный
+  механизм — manual/prepared, local model или optional separately approved
+  model — требует отдельного owner decision; новый query owner в этом слайсе не
+  создавался. Upstream `legacy_broad_query` не удалён; его окончательный
+  retirement остаётся follow-up cleanup после работающей замены.
+- **фактическая verification:**
+  - `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_input_query_truth_characterization` — два окончательных
+    последовательных прогона, 3 теста, exit code 0 за 74.852 и 75.004 секунды;
+  - `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_visual_retrieval_repair tests.test_visual_retrieval_regression
+    tests.test_slot_aware_retrieval` — 75 тестов за 1.574 секунды, exit code 0;
+  - `.\venv\Scripts\python.exe -B -m unittest
+    tests.test_script_engine_pipeline tests.test_news_asset_manager_contract
+    tests.test_content_creation_service
+    tests.test_news_to_short_provider_integration` — 82 теста за 33.120
+    секунды, exit code 0;
+  - active package network guard остался чистым; сеть, model/provider API,
+    download, Vision, TTS, paid calls и render не выполнялись;
+  - full suite не запускался: public signatures и schema/layout не менялись,
+    production diff остался внутри одного canonical owner, targeted radius
+    зелёный; `baseline_head` остаётся
+    `84bdd8b4f64c7adaf7582bdb39b15b18163253fb`.
 - **risk boundary:** локальное поведение одного owner; ноль public/paid/
   destructive. Достаточно 1D/2/3/4.
-- **required verification:** targeted `query_adapter` tests; `full` — только
-  если проверка покажет изменение shared contract.
+- **required verification:** выполнена targeted verification; full не требовался
+  по фактическому diff.
 
 #### PLAN-9B-5a — additive source-text canonical input (CRITICAL-2, часть 1)
 
