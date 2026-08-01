@@ -41,7 +41,8 @@ consistency review** этого файла: 2026-08-01 от clean HEAD `affa138`
 - **C17–C29** — Repository Foundation audit, 2026-07-31 от `4ca3655`;
 - **C30–C33** — evidence ревизии 2, 2026-07-31;
 - **C34–C50** — evidence ревизии 2.1 (deep-dive), 2026-07-31 от `adcbb19`;
-- **C51–C52** — findings PLAN-1D-routing, 2026-08-01 от clean HEAD `b396a50`.
+- **C51–C52** — findings PLAN-1D-routing, 2026-08-01 от clean HEAD `b396a50`;
+- **C53–C62** — findings motion rendering, 2026-08-01 от clean HEAD `35325b4`.
 
 Код и Git имеют приоритет.
 Классификация означает целевое действие после указанного gate, а не действие
@@ -75,6 +76,16 @@ legacy knowledge salvage и rights fail-open. Часть формулирово�
 не «конкатенация перекодируется в CRF 20». Owner decisions OD-11…OD-26, D-1,
 D-2, D-3 и E-13 находятся в `PROJECT_EXECUTION_PLAN.md`; здесь не дублируются.
 Ни одна строка ревизии 2.1 не даёт права на действие и ничего ещё не ретайрено.
+
+**Motion rendering findings, 2026-08-01.** Добавлены findings C53–C62 по
+composition/renderer: временная реализация Story Card, MoviePy и его duration
+probes, рисующая часть `generated_infographic`, защитная запись о stock FFmpeg
+path, недостижимый `preview_render`, разрозненные FPS/canvas, отсутствие
+per-scene fingerprint и visual regression, разрозненные design tokens. Каждый
+пункт перепроверен по коду. Owner decisions мотивации находятся в
+`PROJECT_EXECUTION_PLAN.md` и `PRODUCT_PLAN.md`; здесь не дублируются. Ни одна
+строка права на действие не даёт; правило парности замещения и retirement —
+**PD-11**.
 
 Ни одна строка не даёт права на действие сама по себе. Для knowledge-bearing
 families (source, workflow, config, prompts, templates, tests, уникальное
@@ -247,6 +258,34 @@ runtime не затрагивались. Классы доказанности �
 |---|---|---|---|---|---|
 | C51 | `docs/current/PRODUCT_EVIDENCE_GATE.md` внутри `docs/current/` | **FACT** | frontmatter файла — `status: historical_reference` (`last_verified_commit` `05cc8ed`, `last_verified_date` 2026-07-28); это единственный такой файл в `docs/current/`. `tools/qa/check_agent_docs.py` требует `status: current` только от `START_HERE.md`, `SYSTEM_MAP.md` и `CURRENT_STATE.md`, поэтому расхождение не ловится автоматически. Его `source_paths` указывают на пять путей внутри gitignored `projects/`, поэтому смена `status` дефект не чинит | **не считать active current document**; `move` из `docs/current/`. **Физическое перемещение выполняет PLAN-12A, а не PLAN-1D** — в этом слайсе файл не перемещался и не изменялся | **PLAN-12A** |
 | C52 | корневой `skills/` и Claude Code project-skill discovery | **FACT** + **INFERENCE** | **FACT:** каталог со skills — корневой `skills/` (6 skills); `.claude/` в репозитории содержит только `settings.json`, `settings.local.json` и `scheduled_tasks.lock` — каталога `.claude/skills/` нет. Claude Code автоматически корневой `skills/` как project skills не загружает; наличие `SKILL.md` само по себе auto-discovery не доказывает. **INFERENCE / `[ПРЕДП]`:** discovery Codex через `skills/*/agents/openai.yaml` **не проверен** и фактом не записывается. Различать четыре состояния: наличие файлов · manual loading · auto-discovery · actual invocation | решение о размещении и способе discovery принадлежит **PLAN-6C / PLAN-6D / PLAN-6E** согласно execution plan. **Второй набор skills сейчас не создаётся**, файлы не перемещаются и не дублируются | **PLAN-6C / PLAN-6D / PLAN-6E** |
+
+## Motion rendering findings (C53–C62)
+
+Зафиксировано 2026-08-01 слайсом `MOTION-ROADMAP-1` от clean HEAD `35325b4`.
+Источник — read-only rendering / motion-design / AI-directed video аудит;
+каждый пункт **перепроверен по фактическому коду** перед записью. Сеть,
+providers, Vision, TTS, render и установка зависимостей не выполнялись.
+Классы доказанности прежние: **FACT** / **INFERENCE** / **DEFER**.
+
+**Ни одна строка не даёт права на действие.** Destructive cleanup по этим
+находкам сейчас **не разрешён**: каждая закрывается своим gate по общему
+`Closure rule` ниже, а замещение подчиняется **PD-11** (`PRODUCT_PLAN.md`).
+
+| ID | Предмет | Класс | Evidence | Action / disposition | Gate |
+|---|---|---|---|---|---|
+| C53 | Story Card renderer на MoviePy | **FACT** | `src/production_plan/story_card_short_render.py` (528 строк) — второй способ композиции в активном продукте: `moviepy.VideoClip` + покадровая Pillow-вёрстка с ручным измерением метрик шрифта. Единственный активный production-caller MoviePy, помимо duration probes (C54). Шаблон `story_card_text_only_v1` объявляет его в `workflow_binding.renderer` (`src/production_catalog/catalog.py`) | **MIGRATE_CAPABILITY_THEN_DELETE.** Замена — выбранный production web motion backend. Шаблон **сохраняется**, удаляется только реализация. Обязателен parity: functional · adaptive text · vertical layout · visual parity или улучшение · стабильный Windows render | **MOTION-CS2** (parity case) → **MOTION-CS4**; PoC + parity + caller migration + targeted/full |
+| C54 | MoviePy duration probes | **FACT** | `src/audio/tts/elevenlabs_provider.py::_probe_audio_duration` и `src/audio/voice_cli.py::_duration` импортируют `AudioFileClip` только чтобы получить длительность не-WAV файла, в `try/except` с возвратом `0.0`. Существующий владелец того же факта — `src/assets/frame_sampling.py::ffprobe_media_info` (ключ `duration_sec`), которым пользуется остальной код | **REPLACE_WITH_EXISTING_OWNER_THEN_DELETE.** Замена — существующий ffprobe helper; новый owner не создаётся | caller search + targeted audio tests |
+| C55 | зависимость `moviepy` | **FACT** | `requirements.txt` и `pyproject.toml` объявляют `moviepy==2.2.1`. Активные callers: C53, C54. Остальные (`src/music_tools.py`, `src/self_eval.py`, `src/video_renderer.py`) — legacy-семейство, уже назначенное к удалению в **PLAN-L3** | **REMOVE_AFTER_LAST_CALLER.** Снятие с зависимостей допустимо **только** после закрытия C53, C54 и PLAN-L3. **Не объявлять удалённой заранее** | dependency/caller search + `full` |
+| C56 | рисующая часть `generated_infographic` | **FACT** | `src/assets/generated_infographic.py`: `CANVAS_WIDTH`/`CANVAS_HEIGHT` — константы модуля, и `build_generated_asset` **выбрасывает исключение** при ином размере, поэтому горизонтальный формат физически недостижим; палитра зашита в код; вёрстка — ручная арифметика курсора; `_load_font` при отсутствии кандидатов молча падает в `ImageFont.load_default()`, из-за чего детерминизм машинно-зависим (docstring признаёт «on the same machine») | **MIGRATE_DRAWING_CAPABILITY.** Замена — web motion backend + ECharts. **PRESERVE (не удалять):** правило «нет evidence → нет фактической диаграммы» (`spec_from_scene` возвращает `None` без авторских значений) · fingerprint спеки · создание project-owned актива `build_generated_asset` с license/provenance/checksum · technical validation · минимальная offline аварийная карточка | **MOTION-CS4**; после миграции прежний owner теряет право рисовать production-инфографику |
+| C57 | stock fullscreen FFmpeg path | **FACT** | `src/news/final_renderer.py` — canonical владелец финального рендера активного `fullscreen_voiceover_v1`; единственный caller — стадия `final_render` в `src/news/pipeline.py`. Покрыт end-to-end тестом с реальным offline-рендером (`tests/test_news_to_short_renderer.py`) | **KEEP_AND_IMPROVE.** Это canonical stock composition path и canonical final assembler. **Не должен попасть под широкий renderer cleanup** и не замещается motion-бэкендом. Доработка — предмет **MOTION-CS1**, а не замена | — (защитная запись) |
+| C58 | недостижимый `preview_render` | **FACT** | `NEWS_TO_SHORT_STAGES` (`src/news/models.py`) ставит `preview_render` **раньше** `final_render`, но `src/news/preview_renderer.py` требует `master_1080x1920.mp4`, который пишет только `final_render` (`src/news/final_renderer.py`). В `draft_complete` итоговый файл называется `draft_1080x1920.mp4`, поэтому preview не резолвится **никогда**. На первом проходе стадия всегда возвращает `blocked` | **FIX (не удаление).** Порядок стадий и имя файла — предмет **MOTION-CS1**. Блокирует scene preview, Vision review композиции и bounded repair сильнее, чем отсутствие motion-бэкенда | **MOTION-CS1** |
+| C59 | FPS/canvas зашиты в нескольких местах | **FACT** | `30` зашит в ffmpeg-фильтрах `src/news/final_renderer.py` (`fps=30` в `_video_filter`, `_render_image_segment`); `config/render_presets/story_card_short_v1.json` объявляет свои `fps`/`resolution`; `channels/*/channel_config.json` объявляет `fps`, **который никто не читает** — это прямо задокументировано в `src/config_resolver/keys.py` | **CONVERGE TO ONE CONTRACT.** Единый источник canvas/FPS/pixel-format/duration — предусловие любого второго backend, потому что это половина контракта сегмента | **MOTION-CS1** |
+| C60 | отсутствие per-scene render fingerprint/cache | **FACT** | `src/news/final_renderer.py::_create_scene_segments` всегда пишет `render/segments/{scene_id}{suffix}.mp4` с флагом `-y`; ключа кэша нет. Resume — только stage-level (`src/news/project_store.py::is_stage_completed` → `validate_stage_output`). Перерендер одной сцены сегодня невозможен. Готовый образец content-addressed ключа уже есть в репозитории: `src/assets/semantic_visual_cache.py::compute_semantic_cache_key` | **ADD FINGERPRINT/CACHE.** Обязательно. **Место persistence не утверждено** — см. `OWNER_DECISION_REQUIRED` в MOTION-CS1: сначала проверяются существующий render manifest, project state и tolerant readers; `assets_manifest` **не выбирается автоматически**; любое изменение persisted schema — owner tripwire | **MOTION-CS1** + owner decision |
+| C61 | отсутствие visual regression рендерера | **FACT** | В `tests/` нет golden-frame / perceptual-baseline теста рендерера: совпадения `perceptual_hash` встречаются только в semantic/preview/temporal-модулях. Инструменты для регрессии уже в репозитории и новых зависимостей не требуют (`sha256_file`, perceptual hash, попиксельная разница в `src/assets/temporal_video_analysis.py`) | **ADD BEFORE ANY RENDERER CHANGE.** Предусловие безопасного изменения рендерера, включая характеризацию C45 | **MOTION-CS1** (characterization первым) |
+| C62 | design tokens размазаны по шести источникам | **FACT** | `channels/*/subtitle_style.json` (шрифт, safe zones, margins) · `channels/*/style.json` (только свободные строки, не токены) · `channels/*/channel_config.json` (resolution/fps) · `config/render_presets/story_card_short_v1.json` (цвета, шрифты, layout, radii, encoding — **и литеральный текст конкретного ролика**) · зашитая палитра в `src/assets/generated_infographic.py` · зашитые CRF/preset/fps в `src/news/final_renderer.py`. Canonical owner темы отсутствует | **ONE TOKEN OWNER.** Точное место (`channels` либо `config/design_tokens`) — `OWNER_DECISION_REQUIRED`. Отдельно: развести токены и контент конкретного ролика в существующем render preset. **Design system на каждый backend запрещена** | **MOTION-CS3** + owner decision |
+
+Строки C53–C62 закрываются каждая своим gate по общему `Closure rule` ниже.
+Таблица `Retired` остаётся пустой.
 
 ## Delete evidence
 
@@ -719,6 +758,18 @@ REGRESSION` · `ARCHIVE ONLY` · `DELETE`.
 | legacy query expansion ladder `build_query_variants` (суффиксы, усечение, mood, channel-расширения) | `MIGRATE KNOWLEDGE` | **PLAN-9B-2** | C46 |
 | local-library diversity reserve (`min_local_diversity_per_scene` / `reserved_download_slots`) | `MIGRATE KNOWLEDGE` | **PLAN-10D** | C47 |
 | практика «provider-ready английские visual keywords существуют отдельным полем, отделённым от нарратива» | `MIGRATE KNOWLEDGE` | ADR / registry | C48 |
+
+**Обязательные находки motion rendering (2026-08-01)** — сохраняются **до**
+замещения соответствующего owner по **PD-11**; старая реализация ради них не
+сохраняется:
+
+| Находка | Класс | Целевой потребитель | Registry |
+|---|---|---|---|
+| поведение Story Card: адаптивный текст, вёрстка по реальным метрикам шрифта, работа с длинными строками, вертикальный layout | `MIGRATE KNOWLEDGE` + `KEEP MINIMAL REGRESSION` | parity case **MOTION-CS2** → **MOTION-CS4** | C53 |
+| контракт «спека → project-owned asset с license/provenance/checksum/technical validation» и fingerprint спеки (`build_generated_asset`) | `MIGRATE KNOWLEDGE` | **MOTION-CS4** — новый author встраивается **в** этот контракт, а не рядом | C56 |
+| правило «нет evidence → нет фактической диаграммы» (`spec_from_scene` возвращает `None` без авторских значений) | `MIGRATE KNOWLEDGE` | **MOTION-CS4** и будущая data-evidence policy | C56 |
+| callers и фактическая необходимость `moviepy` | `MIGRATE KNOWLEDGE` | **MOTION-CS4** (dependency gate) | C54, C55 |
+| анализ качества готового файла (`src/self_eval.py`): длительность, разрешение, число сцен, переполнение текста | `MIGRATE KNOWLEDGE` | будущее расширение существующего quality owner; **MOTION-CS1** (technical QA сегмента) | C45-смежное |
 
 Что искать в каждом: reusable algorithm · domain и product knowledge · prompts,
 templates, visual rules · rights и licensing knowledge · fallback и recovery

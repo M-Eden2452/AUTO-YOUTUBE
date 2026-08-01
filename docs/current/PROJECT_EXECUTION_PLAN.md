@@ -398,6 +398,65 @@ Audit evidence обязано **уменьшать** архитектуру, а 
 LocalLibrary path · второй completion-state vocabulary · placeholder-пакеты и
 speculative interfaces под future AI.
 
+## Owner decisions: motion rendering (2026-08-01)
+
+Источник — read-only rendering / motion-design / AI-directed video аудит от
+clean HEAD `35325b4`; findings записаны в `CLEANUP_REGISTRY.md` как C53–C62.
+Продуктовая форма направления — `PRODUCT_PLAN.md`, раздел «Motion Design and
+Multi-Renderer Composition». **Ни одно решение ниже не меняет current
+checkpoint, критический путь, prerequisites и статусы существующих этапов.**
+
+| # | Решение |
+|---|---|
+| **OD-M-1** | **Несколько специализированных авторов кадра, но не несколько конкурирующих pipelines.** Каноническая модель: `content core → visual/composition intent → canonical author для composition_type → normalized scene artifact → FFmpeg final assembly → существующие quality/rights/export` |
+| **OD-M-2** | **FFmpeg остаётся canonical final assembler**: normalization, concat, voice, music, SFX, subtitles, encoding, export. Его роль не оспаривается ни одним motion-инструментом. При этом **`final_renderer` не объявляется неизменным**: его foundation подлежит доработке (C58–C61) |
+| **OD-M-3** | **Stock crop/zoom path сохраняется и дорабатывается, а не замещается** (C57). Для стокового кадра FFmpeg — лучший инструмент; широкий renderer cleanup не имеет права его удалить |
+| **OD-M-4** | **Один `composition_type` → один canonical production backend.** Разные `composition_type` могут иметь разных специализированных авторов. Бессрочно поддерживать один user outcome в двух реализациях (counter в двух backend одновременно) запрещено |
+| **OD-M-5** | **Пользователь и AI выбирают визуальный замысел, а не библиотеку**: stock footage · animated counter · chart · map · comparison · process diagram · text emphasis · scientific animation. Expert/debug режим позднее может отключать web motion, включать безопасный fallback, выбирать backend в сравнительном PoC и диагностировать сбои. **Точные публичные имена не фиксируются** |
+| **OD-M-6** | **Порядок AI-режиссуры:** AI Director предлагает 2–4 варианта **разных** `composition_type` → каждый даёт дешёвый poster frame → deterministic QA отсеивает технический брак → Vision или человек выбирает по смыслу → полный motion render только для выбранного → отвергнутые сохраняются как evidence. Аудиция идёт по замыслу, а не по инструментам. **Новый AI orchestration owner не создаётся** — расширяются visual planning, production catalog, semantic evidence, completion/review |
+| **OD-M-7** | **PD-11 — Replacement and Retirement Pairing.** Внедрение, замещающее существующую capability, обязано иметь связанный retirement path. Полная формулировка и жизненный цикл — `PRODUCT_PLAN.md`, раздел 4 |
+| **OD-M-8** | **Story Card сохраняется как рабочий product template; удаление шаблона запрещено.** Его текущий MoviePy renderer — **временная** implementation, бессрочное закрепление запрещено. Story Card становится **обязательным parity-case** сравнительного PoC (C53) |
+| **OD-M-9** | **`generated_infographic` разбирается, а не удаляется целиком** (C56). Сохраняются: правило «нет evidence → нет фактической диаграммы», fingerprint спеки, создание project-owned актива с license/provenance/checksum, technical validation, минимальная offline аварийная карточка. Замещается только рисующая часть |
+| **OD-M-10** | **Целевая стратегия инструментов — вариант «Hybrid high-quality».** CORE: FFmpeg + один web motion backend после PoC + ECharts. COMMITTED LATER: MapLibre (после license decision) · Lottie · OTIO только как односторонний export. SPECIALIZED ON DEMAND: Manim · Three.js внутри выбранного backend · Blender после hardware review · Resolve/Fusion как внешний manual finishing |
+| **OD-M-11** | **Motion Canvas в первый PoC не включается.** Пересмотр только если Remotion и HyperFrames оба провалят обязательные критерии детерминизма или Windows-надёжности |
+| **OD-M-12** | **Не добавлять сейчас:** Vega-Lite как второй runtime · D3 как отдельный chart stack · deck.gl · Rive · PySceneDetect/OpenCV в Content Creator · Shotstack/Creatomate · обязательный cloud rendering · генерация произвольного кода в пользовательском рантайме |
+| **OD-M-13** | **`PLAN-9B` — вторая половина формата Hybrid Explainer, а не его предшественник.** Стоковая часть гибридного формата зависит от корректных provider-запросов, поэтому motion-направление её не заменяет и не откладывает |
+
+### Motion rendering: что остаётся `OWNER_DECISION_REQUIRED`
+
+Не утверждено этим слайсом и не может быть выведено из аудита:
+
+1. победитель Remotion vs HyperFrames;
+2. актуальные лицензии и коммерческие ограничения любого инструмента;
+3. точные публичные имена `composition_type`;
+4. владелец хранения design tokens (`channels` либо `config/design_tokens`);
+5. место persistence render cache/fingerprint;
+6. политика map tiles и styles;
+7. момент постановки `MOTION-CS1…CS4` в расписание;
+8. удаляется ли проигравший web backend полностью или сохраняется только в
+   developer-only PoC archive.
+
+### Motion rendering: что запрещено утверждать без отдельной проверки
+
+Ни один из пунктов ниже не измерялся и не проверялся в этом слайсе, поэтому
+записывать их как факт запрещено:
+
+- что MoviePy доказанно медленнее browser backend на текущей машине владельца;
+- что HyperFrames не несёт коммерческого риска;
+- что Remotion имеет конкретную текущую цену или конкретные условия лицензии;
+- что вопрос map tiles/styles решён;
+- что RX 570 работает или не работает в конкретном текущем релизе любого
+  инструмента.
+
+Такие пункты маркируются
+`REQUIRES SEPARATE WEB/LICENSE/HARDWARE VERIFICATION`.
+
+Численные пороги сравнительного PoC (например время рендера сцены, время
+poster frame, потолок памяти, доля совпадений perceptual hash, число прогонов,
+доля автоматически исправленных сцен) остаются **предлагаемыми критериями
+измерения**. Ни один из них ещё не измерялся, поэтому нормой продукта они не
+являются — действует общая `Measurement policy` этого плана.
+
 ## Safety boundaries
 
 Действуют правила R1–R3 из `AGENTS.md`; здесь они не дублируются.
@@ -1077,6 +1136,23 @@ allowed zones и owner approvals не пересекаются; изменени
      помечается отдельным будущим product slice на новом canonical core.
      Продуктовая запись — `PRODUCT_PLAN.md`, раздел «Legacy knowledge and
      capability salvage».
+- **обязательные salvage-находки motion rendering (2026-08-01)** — сохраняются
+  **до** замещения соответствующего owner по PD-11; старая реализация ради них
+  не сохраняется:
+  6. **поведение Story Card** — адаптивный текст, вёрстка по реальным метрикам
+     шрифта, работа с длинными строками, вертикальный layout: `MIGRATE
+     KNOWLEDGE` + `KEEP MINIMAL REGRESSION`, потребитель — parity case
+     `MOTION-CS2` → `MOTION-CS4` (registry C53);
+  7. **ценные контракты `generated_infographic`** — «спека → project-owned
+     asset с license/provenance/checksum/technical validation», fingerprint
+     спеки и правило «нет evidence → нет фактической диаграммы»: `MIGRATE
+     KNOWLEDGE`, потребитель — `MOTION-CS4`; новый author встраивается **в**
+     этот контракт, а не рядом с ним (registry C56);
+  8. **callers и фактическая необходимость `moviepy`** — `MIGRATE KNOWLEDGE`,
+     потребитель — dependency gate `MOTION-CS4` (registry C54, C55);
+  9. **анализ качества готового файла** (`src/self_eval.py`) уже записан
+     находкой 4 выше; дополнительный потребитель — technical QA сегмента в
+     `MOTION-CS1`. Новый Quality Engine не создаётся.
 - **измеримый результат:** для каждого family записан класс каждой находки и,
   где применимо, что именно потенциально стоит восстановить позже.
 - **required verification:** `tools.qa.check_agent_docs`, `git diff --check`.
@@ -1750,6 +1826,22 @@ allowed zones и owner approvals не пересекаются; изменени
     отдельное более крупное исследование. **PLAN-8 хранит запись; implementation
     owner — будущий bounded renderer slice с characterization первым. Нового
     PLAN-ID сейчас не создаётся.**
+    **Уточнено 2026-08-01:** этот «будущий bounded renderer slice» теперь имеет
+    предложенную форму — candidate slice `MOTION-CS1` (см. «Unscheduled
+    candidate slices — Motion family»). Он остаётся unscheduled и PLAN-ID не
+    получает. Дополнительное условие: characterization C45 невозможна без
+    baseline visual regression (registry C61), поэтому регрессия идёт первой;
+  - **roadmap Motion Design and Multi-Renderer Composition (2026-08-01).**
+    PLAN-8 — **roadmap owner** и этого направления тоже, implementation owner —
+    нет. Продуктовая запись находится в `PRODUCT_PLAN.md`, раздел «Motion
+    Design and Multi-Renderer Composition»; owner decisions — в разделе «Owner
+    decisions: motion rendering» этого файла; findings — C53–C62 реестра.
+    Обязательное содержание roadmap-записи: несколько специализированных
+    авторов кадра при **одном** FFmpeg-сборщике · один `composition_type` —
+    один canonical backend · stock FFmpeg path сохраняется и дорабатывается ·
+    **новый video pipeline не создаётся** · Node остаётся опциональным с
+    безопасным fallback. Longform и horizontal по-прежнему остаются форматом и
+    шаблоном поверх общего core, а не отдельным pipeline;
 - **решение по отдельному `EVALUATION_STRATEGY`:** принимается **после** того,
   как `PRODUCT_PLAN.md` написан, и **по качественным критериям**, а не по
   объёму файла: отдельная responsibility; отдельные readers; отдельный
@@ -1926,6 +2018,12 @@ misleading/conflict · paid approval.
 - **тесты T1–T11** из `docs/audits/CRITICAL_INPUT_SEARCH_DEEP_DIVE_2026-07-31.md`
   распределены как regression/product tests по под-слайсам ниже. Отдельный
   диагностический этап под них **не создаётся** (OD-11).
+- **отношение к motion-направлению (OD-M-13, добавлено 2026-08-01).** PLAN-9B
+  является **стоковой/провайдерской половиной** будущего формата Hybrid
+  Explainer, а не его предшественником: гибридная сцена совмещает стоковый
+  материал с motion-композицией, и стоковая часть зависит именно от корректных
+  provider-запросов. Motion-направление эту семью **не заменяет, не откладывает
+  и не ускоряет**; порядок, состав и статусы PLAN-9B этой записью не меняются.
 - **rollback:** один commit на под-slice.
 
 #### PLAN-9B-0 — characterization текущего поведения
@@ -2258,6 +2356,16 @@ misleading/conflict · paid approval.
   доказано, что существующих evidence/review manifests недостаточно.
   Состояние «требуется проверка человеком» берётся из существующего словаря
   `src/assets/completion/modes.py`; второй словарь не вводится.
+- **второй момент использования того же evidence (добавлено 2026-08-01,
+  OD-M-6).** Помимо review кандидатов-ассетов, тот же Vision evidence-провайдер
+  позднее применяется к **poster frame собранной композиции сцены**: смысл
+  сцены, читаемость, визуальная иерархия, misleading, «недоделанный вид».
+  Это **тот же producer в той же роли**, а не второй Vision stack, не второй
+  selector и не отдельный pipeline; verdict попадает в существующий
+  decision/review слой, а «требуется проверка человеком» — в существующий
+  словарь. **Реализация принадлежит candidate slice `MOTION-CS4`** и требует
+  рабочего scene preview (`MOTION-CS1`, registry C58); scope, статус и
+  зависимости PLAN-9C этой записью не меняются.
 - **измеримый результат:** wiring доказан тестами; default-конфигурация
   поведения не меняет.
 - **required verification:** targeted selection/wiring tests + `full`, так как
@@ -2307,6 +2415,12 @@ misleading/conflict · paid approval.
 - **Vision не является обязательной runtime-зависимостью.** Продукт обязан
   полностью работать при выключенной Vision; отсутствие backend, бюджета или
   результата даёт безопасный fallback, а не отказ пайплайна.
+- **то же правило распространяется на motion backend (добавлено 2026-08-01).**
+  Node/браузерный author никогда не становится обязательной runtime-зависимостью
+  продукта: его отсутствие, сбой или таймаут дают безопасный fallback по
+  существующей completion ladder, а не отказ пайплайна. Активация Vision-review
+  композиции подчиняется тем же гейтам этого этапа, что и Vision-review
+  кандидатов; отдельный activation-контракт не вводится.
 - **запрещено:** глобально включать paid backend, менять default всех старых
   проектов, использовать mock, ослаблять rights/`must_avoid`/misleading gates.
 - **измеримый результат:** opt-in policy имеет безопасный fallback при
@@ -2381,6 +2495,18 @@ misleading/conflict · paid approval.
   коммерческий выпуск и не ослабляет gate финального рендера; **второй preview
   pipeline не создаётся** — расширяется существующий preview/escalation путь;
   второй словарь состояний завершённости не вводится.
+- **bounded repair сцены — потребитель этой политики (добавлено 2026-08-01,
+  OD-M-6).** Будущий цикл «poster frame → technical QA → Vision review →
+  structured repair → эскалация к человеку» **не вводит собственную политику
+  бюджета**: число итераций, потолок расходов, детекция plateau и момент
+  эскалации остаются за этим этапом. Repair-действия ограничены закрытым
+  списком структурированных изменений (сменить утверждённый template той же
+  `composition_type` · изменить валидируемые props · изменить длительность или
+  порядок слотов · сменить background из существующего shortlist · понизить
+  интенсивность motion · отказаться от композиции в пользу стока · эскалировать
+  к человеку). Прямое редактирование production-кода агентом в этот список не
+  входит. Реализация принадлежит `MOTION-CS4`; scope и статус PLAN-10C этой
+  записью не меняются.
 - **required verification:** targeted policy tests после каждого slice;
   `full` один раз при закрытии adaptive-search family.
 - **rollback:** один commit.
@@ -2485,6 +2611,14 @@ misleading/conflict · paid approval.
      случайного видео.
 - **gate не использует единый глобальный процент видео.** Соотношение
   video / still / infographic определяет template policy.
+- **motion / hybrid evidence — future criterion (добавлено 2026-08-01).**
+  Когда появится первый hybrid-формат, требование «каталог не обещает
+  несуществующий output» распространяется и на `composition_type`: объявленный
+  тип композиции обязан иметь работающего canonical author, иначе он остаётся
+  `planned`. Это **будущий** критерий: пока `MOTION-CS1…CS4` не запланированы и
+  не выполнены, он не применяется и состав, статус и gates PLAN-11 не меняет.
+  PLAN-11 по-прежнему **не является implementation owner** ни каталога, ни
+  motion-направления.
 - **общие требования:** все обязательные сцены имеют безопасный usable visual;
   ноль `must_avoid`; ноль misleading conflicts; ноль нарушений
   rights/provenance; нет новых topic-specific hardcodes; best-so-far и
@@ -2808,6 +2942,98 @@ misleading/conflict · paid approval.
 - **required verification:** все перечисленные offline checks.
 - **rollback:** финальный docs/checkpoint commit; проблемный implementation
   откатывается по его собственному bounded commit.
+
+## Unscheduled candidate slices — Motion family
+
+Записано 2026-08-01 слайсом `MOTION-ROADMAP-1`. Это **не этапы программы**.
+
+Статус всей семьи:
+
+- **не получают PLAN-ID** и не занимают номера существующих этапов;
+- **не становятся** `current_checkpoint`;
+- **не входят** в критический путь и ни один существующий этап не блокируют;
+- **требуют отдельного owner approval** перед планированием;
+- подчиняются общему правилу `PRODUCT_PLAN.md` раздела 18: до approval
+  candidate slice не планируется и PLAN-ID не получает.
+
+Временные метки — `MOTION-CS1`, `MOTION-CS2`, `MOTION-CS3`, `MOTION-CS4`.
+Продуктовое обоснование каждой — `PRODUCT_PLAN.md`, раздел «Motion Design and
+Multi-Renderer Composition». Findings — C53–C62 реестра.
+
+### MOTION-CS1 — Renderer Foundation
+
+- **user outcome:** пользователь видит сцену **до** дорогого финального
+  рендера; неизменённые сцены не перерендериваются; будущий второй author
+  получает единый segment contract.
+- **предлагаемый scope:** characterization и baseline visual regression
+  **первыми** (registry C61) · рабочий scene/poster preview (C58) · единый
+  контракт canvas / FPS / pixel format / duration (C59) · per-scene
+  fingerprint и кэш сегментов (C60) · technical QA готового сегмента.
+- **`OWNER_DECISION_REQUIRED` — место persistence fingerprint.** Исходный
+  аудит содержит **противоречие**: он одновременно требует «не менять persisted
+  schema» и «добавить fingerprint в `assets_manifest`». Оба утверждения
+  одновременно невыполнимы, поэтому фиксируется только следующее: fingerprint и
+  кэш **обязательны**; точное место их persistence **не утверждено**; сначала
+  проверяются существующий render manifest, project state и tolerant readers;
+  `assets_manifest` **не выбирается автоматически**; любое изменение persisted
+  schema является owner tripwire и требует отдельного разрешения.
+- **предлагаемые non-goals:** не добавлять зависимости · не менять concat/mux/
+  subtitle-логику · не создавать второй preview pipeline · не создавать второй
+  project state · не замещать stock FFmpeg path (C57).
+- **отношение к существующим этапам:** это и есть предполагавшийся PLAN-8
+  «будущий bounded renderer slice» для C45; PLAN-8 остаётся roadmap owner.
+
+### MOTION-CS2 — Isolated Comparative PoC
+
+- **user outcome:** решение о motion backend принимается по измерениям, а не по
+  внешнему рейтингу.
+- **участники:** Remotion · HyperFrames · текущий MoviePy-рендерер Story Card
+  как baseline. **Motion Canvas не участвует** (OD-M-11) и добавляется только
+  если оба web-кандидата провалят обязательные критерии детерминизма или
+  Windows-надёжности.
+- **предлагаемые кейсы:** animated title · highlighted captions · statistic
+  counter · comparison card · ECharts line chart · stock background + motion
+  overlay · process diagram · вертикальный вариант · горизонтальный вариант ·
+  alpha/transparent overlay · **Story Card parity case** (обязателен, OD-M-8).
+- **обязательная изоляция:** не меняет активный Content Creator, persisted
+  manifests, Python-зависимости и активный renderer; не выполняет платных
+  вызовов и сетевых операций без отдельного разрешения; **не становится
+  автоматическим fallback**.
+- **измерения остаются измерениями,** а не архитектурными правилами и не
+  нормами продукта — действует общая `Measurement policy`.
+
+### MOTION-CS3 — Shared Design Tokens
+
+- **user outcome:** один канал/тема выглядит одинаково у FFmpeg/Python-автора и
+  у будущего web-автора.
+- **предлагаемый scope:** один владелец для colors · typography · spacing ·
+  safe zones · canvas/FPS · radii · shadows · motion durations · easing ·
+  intensity levels · encoding profiles. Отдельно — развести design tokens и
+  контент конкретного ролика в существующем render preset (registry C62).
+- **`OWNER_DECISION_REQUIRED` — место хранения:** `channels` либо
+  `config/design_tokens`. Не выбрано.
+- **предлагаемый non-goal:** отдельная design system на каждый backend
+  запрещена; внешний вид существующих проектов не меняется молча.
+
+### MOTION-CS4 — SceneComposer and First Hybrid Explainer
+
+- **зависимости:** `MOTION-CS1` + `MOTION-CS2` + `MOTION-CS3` + owner-решение
+  по backend + релевантная query/asset foundation **PLAN-9B** (OD-M-13).
+- **user outcome:** первая production-сцена совмещает стоковый материал и
+  качественный motion.
+- **предлагаемое направление scope:** additive composition intent в
+  **существующих** визуальных контрактах · **`production_plan.json` не
+  создаётся** · расширение существующего `production_catalog`, а не второй
+  registry · один выбранный web backend · первая chart-композиция на ECharts ·
+  первый hybrid explainer формат/шаблон · переиспользование существующих
+  rights / completion / project / timeline / subtitle owners · Node остаётся
+  опциональным с безопасным fallback.
+- **парный retirement (PD-11):** рисующая часть `generated_infographic`
+  (C56) · MoviePy-рендерер Story Card **после** parity gate (C53) ·
+  зависимость `moviepy` **после** caller gate (C54, C55). Шаблон Story Card
+  при этом сохраняется.
+- **не фиксируется без owner approval:** точная persisted-схема и публичные
+  имена `composition_type`.
 
 ## Результат после каждого этапа
 
