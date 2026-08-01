@@ -2,7 +2,7 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-07-31
+updated_at: 2026-08-01
 baseline_head: fe2df5b
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
@@ -239,7 +239,7 @@ Secondary Deep Dive исправляет Proposal 2.1**; исправленны�
 | **OD-16** | Метод provider-language adaptation **не фиксируется заранее**: deterministic normalization/lexicon, prepared `VisualBrief`, model-assisted adaptation или комбинация. Выбор — по semantic correctness, fail-closed, testability, cost, network/paid boundary и reuse существующих owners. **Model/network вариант требует отдельного owner approval** |
 | **OD-17** | CRITICAL-2 исправляется сейчас, **без AI research**. Idea generation, web/AI research, AI script writing, autonomous creative direction — **DEFER**: без PLAN, package, interface и placeholder |
 | **OD-18** | Для factual strict workflow `topic` = **intent, не source material**. Silent fallback `topic → insufficient material → generic template → factual production success` запрещён. `LegacyTemplateScriptProvider` **не удаляется**: допустим только в явно выбранном `template`/`demo`/`test`/`draft`. `content_origin` **не создаётся** |
-| **OD-19** | Уникальная capability `apps/news_to_short --text/--text-file` **мигрирует** в канонический `python -m ai_youtube` + content_creation request path. **Разделено (D-1):** миграция — PLAN-9B-5a (additive), retirement — PLAN-9B-5b |
+| **OD-19** | Capability `apps/news_to_short --text/--text-file` **мигрирует** в канонический `python -m ai_youtube` + content_creation request path. **Разделено (D-1):** миграция — PLAN-9B-5a (additive), retirement — PLAN-9B-5b. **Исправлено 2026-08-01:** это не единственная возможность wrapper'а — перед retirement обязателен полный **capability parity check** (см. PLAN-9B-5b), минимум `--text`/`--text-file` **и** `--assets` |
 | **OD-20** | CRITICAL-3 («в content path мало AI») **не является** current defect и отдельного этапа не получает. Future-proofing rule: downstream pipeline не должен предполагать, что script создан внутри AI-YouTube; prepared external content — first-class input |
 | **OD-21** | CRITICAL-4 (double orchestration) сохраняется как architecture debt, **не** prerequisite CRITICAL-1/2. **Исправлено Secondary Deep Dive:** severity **MEDIUM**, не HIGH; finding разделяется на contract defect и возможную позднюю конвергенцию (D-3) |
 | **OD-22** | Порядок semantic/Vision: provider-ready query → candidates → semantic/Vision → rank/select. PLAN-9C сохраняется, новый semantic stack не создаётся |
@@ -271,6 +271,7 @@ Dive. Возвращать их в план, registry, задания и commit-
 | «PLAN-5 обязателен до PLAN-9B-5 и PLAN-9B-3» | Targeted, full и все три smoke-команды исполнимы **сегодня** существующими командами. PLAN-5 улучшает uniform runner UX/reproducibility, но техническим blocker product fixes не является |
 | «`legacy_broad_query` — единственное, что гарантированно доходит до провайдера» | Не доходит ни разу: `source_is_latin` — свойство всего набора, поэтому русский `primary_query` выбрасывает английский alternative вместе с собой |
 | «topic-hardcode сосредоточен в `semantic_selection/query_generator.py`» | Этот модуль **не участвует** в формировании remote-запросов. Canonical boundary — `src/assets/query_adapter.py`; главный носитель hardcode — `src/news/script_generator.py` |
+| «канонический CLI не имеет source-text входа»; «`--text`/`--text-file` — единственная уникальная capability `apps/news_to_short`» (**опровергнуто 2026-08-01**) | `create --pasted-script` / `--script-file` при default/legacy unspecified `content_input_mode` уже проводят подготовленный текст в тот же downstream, поэтому PLAN-9B-5a делает вход **явным**, а не создаёт движок. Вторая возможность wrapper'а — `--assets` → `NewsJob.user_assets`, у которой канонического аналога нет; она не может быть молча потеряна при retirement |
 
 ### Открытые вопросы ревизии 2.1 (закрываются в момент implementation)
 
@@ -677,12 +678,26 @@ PLAN-1A · PLAN-1B · PLAN-1C′  · capability owner gates
 
 **Дальше — по risk boundary, а не по линейной цепочке:**
 
+Граф ниже нормализован по фактическим зависимостям detailed sections; он не
+является одной линейной цепочкой и новых рёбер не вводит.
+
 ```
-PLAN-9B-5a → PLAN-9B-4 → PLAN-9B-2 → PLAN-9B-3   (порядок внутри семейства 9B)
-PLAN-9B-5b   после успешной миграции capability и готовности destructive gates
-  → PLAN-9A → PLAN-9C → PLAN-9D → PLAN-9E
-  → PLAN-10A → PLAN-10B → PLAN-10C → PLAN-10D → PLAN-11
-  → PLAN-12* → PLAN-13* → PLAN-14* → PLAN-15
+семейство 9B (основная последовательность):
+  PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4 → PLAN-9B-2
+
+  PLAN-9B-3   — отдельный cleanup/destructive path после PLAN-9B-2
+  PLAN-9B-5b  — отдельный destructive retirement path после миграции
+                capability/callers и своих gates
+  Ни PLAN-9B-3, ни PLAN-9B-5b prerequisite PLAN-9A не являются.
+
+две сходящиеся ветки:
+  PLAN-9B-2 + PLAN-1C′ + PLAN-6E → PLAN-9A → PLAN-10A → PLAN-10B → PLAN-10C
+  PLAN-1C′ + PLAN-6E             → PLAN-9C → PLAN-9D
+
+PLAN-9E   требует PLAN-9D + PLAN-10C + owner approval
+PLAN-10D  после PLAN-10C
+PLAN-11   после PLAN-9E + PLAN-10C
+затем PLAN-12* → PLAN-13* → PLAN-14* → PLAN-15
 ```
 
 ### Risk-based governance model (ревизия 2.1)
@@ -728,10 +743,13 @@ blocker первого destructive слайса. Минимизированы т
 
 **Что изменилось относительно ревизии 2.** Первым product-слайсом становится
 `PLAN-9B-0/9B-1`, а не `PLAN-9A`: best-so-far persistence бессмысленна, пока
-система не получает provider-ready кандидатов (OD-15). Меняется **ровно одно
-ребро графа**: `9A → 9B` становится `9B → 9A`; все остальные зависимости
-сохраняются. `PLAN-5`, `PLAN-6A`, `PLAN-6D`, `PLAN-6E` и `PLAN-1C′` **не
-удалены** — они переходят в risk-based / parallel model выше.
+система не получает provider-ready кандидатов (OD-15). В основной **product
+order** перевёрнуто одно ключевое ребро: `9A → 9B` становится `9B → 9A`.
+Governance dependencies и gates при этом **отдельно перераспределены по
+risk-based model**: прямая `1C′ → 6E` снята, `9A → 6E` и `9C → 6E` записаны
+явно, `PLAN-5` и `PLAN-6A` стали parallel относительно 9B, 6D/6E переведены на
+свои risk boundaries, а PLAN-9B декомпозирован. `PLAN-5`, `PLAN-6A`, `PLAN-6D`,
+`PLAN-6E` и `PLAN-1C′` **не удалены**.
 
 PLAN-9B-1 становится первым слайсом, меняющим production-код в продуктовой
 ветке; PLAN-L2/L3/L4 меняют production-код независимо, в ретайр-ветке работ, и
@@ -764,8 +782,8 @@ allowed zones и owner approvals не пересекаются; изменени
   доказывается owner той capability, которую меняешь.
 - **зависимости:** PLAN-0. **Не зависит** от зелёного full suite.
 - **разрешённые зоны:** 1A, 1B, 1C′ — только `docs/current/CLEANUP_REGISTRY.md`;
-  1D дополнительно допускает короткую routing-правку в `AGENTS.md` и
-  `docs/current/START_HERE.md`.
+  1D дополнительно допускает короткую routing-правку в `AGENTS.md`,
+  `docs/current/START_HERE.md` и `docs/current/CURRENT_STATE.md`.
 - **запрещено:** production-код, tests, схемы, config, любые move/delete/untrack,
   создание новых документов, правка master plan, изменение поведения.
 - **общие требования к любому caller gate.** Проверяются module entrypoints через
@@ -784,6 +802,15 @@ allowed zones и owner approvals не пересекаются; изменени
 - **цель:** шаг 4 `AGENTS.md` и «Текущий rescue plan» в `START_HERE.md`
   перестают направлять задачу в `PROJECT_RESCUE_MASTER_PLAN.md` как в current
   plan; добавляется ссылка на активный execution plan.
+- **расширено 2026-08-01 — stale checkpoint в `CURRENT_STATE.md`.** [FACT]
+  `docs/current/CURRENT_STATE.md` ссылается на активный execution plan и при
+  этом называет текущим checkpoint `9B-C01`, которого после ревизии 2 больше
+  нет. Это тот же routing-дефект в третьем current-документе, поэтому он
+  чинится здесь же. **Exit condition расширен:** после PLAN-1D все current
+  routing docs указывают на `PROJECT_EXECUTION_PLAN.md` как на current
+  execution ordering source и **не называют `9B-C01` текущим checkpoint**. В
+  `CURRENT_STATE.md` меняется **только** routing/checkpoint statement;
+  unrelated docs cleanup там не выполняется.
 - **evidence:** [FACT] у активного плана **одна** входящая ссылка во всём
   репозитории — из `CURRENT_STATE.md`; `AGENTS.md`, `START_HERE.md`, `CLAUDE.md`
   и `README.md` его не упоминают.
@@ -1742,7 +1769,10 @@ misleading/conflict · paid approval.
   telemetry-поле: **не** schema-level change, tolerant reader не требуется,
   persisted-bytes tripwire не срабатывает. Characterization 9B-0 обязан
   зафиксировать `query_plan` до правки.
-- **тесты deep-dive:** T1, T2, T4, T5.
+- **тесты deep-dive:** T1, T2, T3, T4, T5. **Исправлено 2026-08-01:** T3
+  («английская alternative не выбрасывается вместе с русским primary») проверяет
+  исправление `source_is_latin`, который вычисляется на уровне всего набора в
+  `src/assets/query_adapter.py` — то есть в owner и allowed zone этого слайса.
 - **risk boundary:** локальное поведение одного owner; ноль public/paid/
   destructive. Достаточно 1D/2/3/4.
 - **required verification:** targeted `query_adapter` tests; `full` — только
@@ -1751,13 +1781,24 @@ misleading/conflict · paid approval.
 #### PLAN-9B-5a — additive source-text canonical input (CRITICAL-2, часть 1)
 
 - **status:** pending · **зависимости:** PLAN-9B-1.
-- **цель:** мигрировать **уникальную** capability `apps/news_to_short --text /
-  --text-file` в канонический `python -m ai_youtube` + content_creation request
-  path. Это **не** новая script-engine функциональность: движок режим уже
-  поддерживает.
+- **исправлено 2026-08-01 — source text уже частично существует.** [FACT]
+  канонический `python -m ai_youtube create` через `--pasted-script` /
+  `--script-file` при текущем default/legacy unspecified `content_input_mode`
+  уже проводит подготовленный исходный текст в тот же downstream
+  (`text` / `text_file` → deterministic/extractive script path). Формулировки
+  «канонический CLI не имеет source-text входа» и «`--text`/`--text-file` —
+  единственная уникальная capability» **опровергнуты** и не возвращаются.
+- **цель (переопределена):** сделать source-material input **явным first-class
+  canonical contract**: выбрать owner-approved public naming; убрать
+  зависимость от implicit/legacy unspecified mode; валидировать intent;
+  документировать; покрыть smoke/test public behavior; сохранить prepared
+  external content как first-class input. Слайс **не** создаёт новый script
+  engine и **не** создаёт capability с нуля.
 - **additive: `apps/news_to_short` в этом слайсе не удаляется.**
 - **имя input mode окончательно не фиксируется**, пока implementation не
-  проверит текущий CLI naming contract.
+  проверит текущий CLI naming contract. Реализация точного нового или
+  изменённого имени input mode всё ещё требует owner approval в момент
+  implementation (PUBLIC CLI SURFACE tripwire).
 - **risk boundary:** **PUBLIC CLI SURFACE → отдельный owner approval в момент
   implementation.** Слайс **не** destructive; 6D/6E им не требуются.
 - **тесты deep-dive:** T9.
@@ -1811,7 +1852,9 @@ misleading/conflict · paid approval.
 - **`[HARD]` gate неприкосновенен:** снятие topic-литералов, живущих внутри
   safety gate `modes.blocking_reasons`, требует отдельного обоснования и **не**
   является разрешением менять сам gate.
-- **тесты deep-dive:** T3.
+- **тесты deep-dive:** — (T3 перенесён в PLAN-9B-1 вместе с исправлением
+  `source_is_latin`, registry C36; тест не потерян и нового тестового этапа не
+  создаётся).
 - **risk boundary:** multi-owner diff + persisted содержимое visual plan +
   destructive → **PLAN-6D + PLAN-6E + reversible retirement**.
 - **required verification:** targeted + `full`.
@@ -1834,6 +1877,23 @@ misleading/conflict · paid approval.
   callers; **PLAN-6D**, **PLAN-6E**.
 - **порядок обязателен: capability сначала мигрируется, wrapper удаляется
   только потом** (OD-2, OD-19, registry K08, C42).
+- **capability parity check — обязателен перед retirement (2026-08-01).**
+  Список уникальных возможностей wrapper'а в прежней редакции был неполон,
+  поэтому перед удалением проводится полный parity inventory
+  `apps/news_to_short`. Минимум уже известных возможностей:
+  **A.** named source-text input (`--text` / `--text-file`) → canonical
+  first-class source-material contract (PLAN-9B-5a);
+  **B.** user supplied assets at project creation (`--assets` →
+  `NewsJob.user_assets`) → либо мигрировать в canonical Content Creator create
+  path, либо получить **явное owner decision** о намеренном retirement этой
+  capability. [FACT] у канонического `create` доказанного эквивалентного
+  create-time входа нет; второй носитель `pipeline.py --news-to-short --assets`
+  умирает в PLAN-L4. **Молчаливо потерять `--assets` запрещено.**
+  Точный public CLI для user-assets сейчас не проектируется: это
+  implementation decision и public-surface tripwire.
+- **разрешается только после:** parity inventory wrapper'а; миграции всех
+  сохраняемых capabilities; миграции callers; PLAN-6D; PLAN-6E; reversible
+  retirement; targeted + smoke + `full`.
 - **risk boundary:** destructive retirement реализации, у которой есть callers
   (test-callers и собственный README) → **PLAN-6D + PLAN-6E + reversible
   retirement**.
@@ -1893,6 +1953,16 @@ misleading/conflict · paid approval.
 - **status:** blocked (PLAN-9D, PLAN-10C + owner approval) · **commit:** —
 - **цель:** включить доказанный semantic decision path только для явно
   выбранного template/project policy.
+- **implementation-time verification моделей (2026-08-01).** До первого
+  разрешённого live/paid semantic/Vision вызова configured semantic/Vision
+  model identifiers обязаны быть сверены с **фактическим provider/backend
+  contract** и актуально поддерживаемыми model IDs: проверить configured model
+  IDs; сверить их с provider contract; **fail closed** при unknown/unsupported
+  model; не выполнять paid call при invalid или непроверенной model config.
+  Точная network/provider validation требует owner approval на конкретное
+  действие. До такой проверки **нельзя утверждать**, что конкретный model ID
+  валиден или невалиден; это implementation-time verification, а не новый
+  architecture finding и не новый PLAN-ID.
 - **запрещено:** глобально включать paid backend, менять default всех старых
   проектов, использовать mock, ослаблять rights/`must_avoid`/misleading gates.
 - **измеримый результат:** opt-in policy имеет безопасный fallback при
@@ -1998,6 +2068,18 @@ misleading/conflict · paid approval.
 - **не смешивать с C50.** Fail-open на явном `review_required=True` — отдельный
   rights correctness defect и отдельный bounded fix, не часть architectural
   convergence.
+- **deadline C50 (2026-08-01).** Новый top-level PLAN-ID не создаётся; C50
+  остаётся отдельным bounded rights-fix слайсом и может быть выполнен
+  независимо после зелёного PLAN-4, когда его bounded scope и tests
+  подтверждены. Но как `[HARD]` rights correctness он **обязан быть CLOSED**:
+  (1) до расширения / convergence / повторного включения Global Local Library
+  в PLAN-10D; (2) до финального product evidence PLAN-11 / M1; (3) до любого
+  live/publish-ready workflow, реально способного использовать Global Local
+  Library asset с policy normalization. PLAN-9E искусственным owner C50 не
+  делается — semantic activation и rights correctness разные
+  responsibilities; если PLAN-9E фактически использует LocalLibrary
+  publish-ready path, общий `[HARD]` rights gate применяется и без добавления
+  формальной dependency.
 - **открытый вопрос:** нужно ли вообще регистрировать `local_library` как
   `StockProvider` — решается по исходу конвергенции.
 - **измеримый результат:** одна canonical local-library capability без
@@ -2432,9 +2514,16 @@ Secondary Deep Dive исправляет Proposal 2.1.
   `fallback_reason`. Это CRITICAL-2. Как только CRITICAL-1 починят, шаблонный
   сценарий поедет в publish беспрепятственно, поэтому CRITICAL-2 идёт внутри
   той же цепочки PLAN-9B.
-- **[FACT]** единственная уникальная бизнес-возможность во всём `apps/` — флаги
-  `--text` / `--text-file`; тот же материал через них даёт нормальный
-  экстрактивный сценарий. Канонический CLI такого входа не имеет.
+- **[FACT, исправлено 2026-08-01]** у `apps/news_to_short` **две** возможности
+  вне явного контракта канонического `create`: (1) `--text` / `--text-file` —
+  **именованный** source-text вход; функционально тот же downstream уже
+  достижим как `create --pasted-script/--script-file` при default/legacy
+  unspecified `content_input_mode`, поэтому PLAN-9B-5a даёт имя, валидацию и
+  документацию, а не новый движок; (2) `--assets` — пользовательские ассеты при
+  создании проекта (`NewsJob.user_assets`), **доказанного аналога в
+  каноническом `create` нет**. Прежняя формулировка «единственная уникальная
+  бизнес-возможность — `--text`/`--text-file`» **опровергнута**. PLAN-9B-5b не
+  выполняется, пока не пройден capability parity check.
 - **[FACT]** `ProviderQuery.source` попадает в persisted manifest, но схема
   типизирует сцены как свободные объекты без `enum`, поле не валидируется и
   **не имеет ни одного читателя**. E-2 закрыт: не schema-level change, tolerant
