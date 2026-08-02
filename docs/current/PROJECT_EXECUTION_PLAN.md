@@ -6,7 +6,7 @@ updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-6D-3
+current_checkpoint: PLAN-6E
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,10 +45,10 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-6D-3, pending/not started после завершения PLAN-6D-2.
-  PLAN-6D в целом не завершён.
-- **PLAN-9B-2:** остаётся pending/not started и заблокирован незавершёнными
-  PLAN-6D/PLAN-6E; acceptance criteria и scope не менялись.
+- **Текущий шаг:** PLAN-6E, pending/not started после полного завершения
+  PLAN-6D.
+- **PLAN-9B-2:** остаётся pending/not started и заблокирован незавершённым
+  PLAN-6E; acceptance criteria и scope не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -117,6 +117,15 @@ source_paths:
   `OK`, `STOP_REQUIRED`, `INVALID_INPUT`; exit codes — 0, 1, 2 соответственно.
   Модуль не читает содержимое изменённых файлов, не меняет index/worktree и не
   хранит глобальный PLAN allowlist.
+- **PLAN-6D-3** — тонкий `CLAUDE.md` теперь явно сообщает, что repository
+  skills находятся в корневом `skills/`, не считаются автоматически
+  загруженными только из-за наличия в репозитории и перед специализированной
+  задачей требуют ручного открытия релевантного
+  `skills/<skill-name>/SKILL.md`. Skill применяется вместе с `AGENTS.md`,
+  актуальной документацией, фактическими кодом и тестами; состояние
+  репозитория имеет приоритет над предположениями skill. Содержимое skills не
+  копировалось, `.claude/skills/` не создавался, утверждения о Codex discovery
+  не добавлялись. PLAN-6D завершён полностью.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -167,9 +176,15 @@ source_paths:
   hooks, agents, skills и runtime/user data не менялись; сеть и платные
   действия не выполнялись (2026-08-02). Число тестов и длительность —
   измерения, не нормативы.
+  PLAN-6D-3: `check_task_scope` с четырьмя разрешёнными exact paths вернул
+  `OK/0`; docs QA, `tests.test_stage2_agent_onboarding` и `git diff --check`
+  завершились с exit code 0. Фактическая структура содержит шесть root skills
+  и не содержит `.claude/skills/`; `CLAUDE.md` остался тонким adapter,
+  содержимое skills не копировалось и не менялось. Сеть, providers, download,
+  Vision, TTS, paid API и render не выполнялись (2026-08-02).
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
   PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2,
-  PLAN-6D-2 и PLAN-6D-3.**
+  PLAN-6D-2, PLAN-6D-3 и PLAN-6E.**
   Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
@@ -189,7 +204,7 @@ source_paths:
   `baseline_head` остаётся прежним.
 - Переход на PLAN-9B-2 — следствие завершённых PLAN-9B-5a и PLAN-9B-4 и их
   зелёных targeted/full offline проверок. PLAN-9B-2 не начат и остаётся
-  заблокирован PLAN-6D/PLAN-6E.
+  заблокирован PLAN-6E.
   `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
   авторитетом commit evidence.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
@@ -198,6 +213,9 @@ source_paths:
 - Переход на PLAN-6D-3 — следствие зелёного локального read-only scope
   checker PLAN-6D-2. Он не начинает PLAN-9B-2/PLAN-6E и не означает завершение
   PLAN-6D.
+- Переход на PLAN-6E — следствие завершённого PLAN-6D-3 и полного закрытия
+  PLAN-6D. Он не начинает PLAN-6E или PLAN-9B-2; acceptance criteria обоих
+  шагов не менялись.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
@@ -206,13 +224,15 @@ source_paths:
   - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
   - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
   - **PLAN-9B-2** — pending/not started; зависит от
-    завершённого PLAN-9B-4 и незавершённых PLAN-6D/PLAN-6E;
+    завершённых PLAN-9B-4/PLAN-6D и незавершённого PLAN-6E;
   - **PLAN-6D-1** — completed 2026-08-02;
   - **PLAN-6D-2** — completed 2026-08-02;
-  - **PLAN-6D-3** — текущий checkpoint, pending/not started;
-  - **PLAN-6D** — в целом не завершён и остаётся blocker **первого
-    multi-owner implementation slice** (PLAN-9B-2);
-  - **PLAN-6E** — blocker **первого destructive retirement / high-risk
+  - **PLAN-6D-3** — completed 2026-08-02;
+  - **PLAN-6D** — completed 2026-08-02; evidence commits: `397d338`
+    (PLAN-6D-1), `10dd555` (PLAN-6D-2) и commit с trailer
+    `Plan-Step: PLAN-6D-3`;
+  - **PLAN-6E** — текущий checkpoint, pending/not started; blocker **первого
+    destructive retirement / high-risk
     shared-contract slice** (PLAN-9B-2, PLAN-9B-3, PLAN-9B-5b), плюс
     **обязателен для PLAN-9A** (persisted-bytes boundary) и **для PLAN-9C**
     (semantic decision boundary);
@@ -224,8 +244,8 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git:** не начинать PLAN-6D-3 без отдельного задания
-  владельца; PLAN-9B-2 также не начинать до закрытия его gates.
+- **После проверки Git:** не начинать PLAN-6E без отдельного задания владельца;
+  PLAN-9B-2 также не начинать до закрытия его gates.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1626,8 +1646,9 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-6D — scope control foundation
 
-- **status:** pending; PLAN-6D-1 and PLAN-6D-2 completed, PLAN-6D-3
-  pending/not started · **completed:** — · **commit:** —
+- **status:** completed · **completed:** 2026-08-02 · **commit:** Git log —
+  commits `397d338` (PLAN-6D-1), `10dd555` (PLAN-6D-2) и trailer
+  `Plan-Step: PLAN-6D-3` для завершающего commit.
 - **цель:** перевести защиту от выхода за scope и от порчи пользовательских
   данных с уровня «агент помнит правило» на уровень технического ограничения.
 - **роль в ревизии 2.1:** **BLOCKER первого multi-owner implementation slice**
@@ -1771,7 +1792,7 @@ allowed zones и owner approvals не пересекаются; изменени
 
 #### PLAN-6D-3 — Claude skill loading note
 
-- **status:** pending/not started.
+- **status:** completed 2026-08-02.
 - **scope:** `CLAUDE.md`. Одно предложение о том, что `skills/` не
   загружаются автоматически и релевантный `SKILL.md` нужно открыть перед
   задачей. Содержимое skills не дублируется. `.claude/skills/` не создаётся:
@@ -1780,6 +1801,19 @@ allowed zones и owner approvals не пересекаются; изменени
   доказана для Claude Code [FACT]. Утверждение о поведении Codex в
   `CLAUDE.md` не записывается до skills discovery verification PLAN-6C/6E:
   оно пока имеет статус **[ПРЕДП]**.
+- **фактический результат:** `CLAUDE.md` сохранил роль тонкого adapter и
+  добавил только короткое правило: root `skills/` не считается автоматически
+  загруженным; перед специализированной задачей Claude Code вручную открывает
+  релевантный `skills/<skill-name>/SKILL.md`, применяет его вместе с
+  `AGENTS.md`, актуальными repository docs, кодом и тестами, а фактическое
+  состояние репозитория имеет приоритет над предположениями skill. Перечень и
+  workflows skills не копировались; `.claude/skills/` не создан;
+  Codex discovery не описывался.
+- **verification evidence:** `check_task_scope` с разрешёнными `CLAUDE.md` и
+  тремя current docs вернул `OK/0`; docs QA,
+  `tests.test_stage2_agent_onboarding` и `git diff --check` завершились с exit
+  code 0. Фактически существуют шесть root skills, `.claude/skills/`
+  отсутствует; skills/tools/tests/src не менялись.
 - **измеримый результат:** deny/ask отражают проверенные пути и не блокируют ни
   один tracked versioned-файл; `check_task_scope` возвращает `STOP_REQUIRED` на
   неожиданный файл и `OK` на разрешённый; `CLAUDE.md` объясняет загрузку
@@ -1790,7 +1824,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-6E — independent reviewer foundation
 
-- **status:** pending · **completed:** — · **commit:** —
+- **status:** pending/not started; current checkpoint · **completed:** — ·
+  **commit:** —
 - **цель:** один независимый read-only reviewer до первого destructive и
   high-risk production-slice.
 - **роль в ревизии 2.1:** **BLOCKER первого destructive retirement / high-risk

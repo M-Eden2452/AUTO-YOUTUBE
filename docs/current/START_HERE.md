@@ -40,10 +40,13 @@ AI-YouTube — локальная offline-first платформа создан�
 
 Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
 Он задаёт порядок работ; выполняется только его `current_checkpoint` — сейчас
-PLAN-6D-3, pending / не начат после завершения PLAN-6D-2. Локальный checker
+PLAN-6E, pending / не начат после полного завершения PLAN-6D. Локальный checker
 `python -m tools.qa.check_task_scope` принимает task-specific `--allow` /
 `--allow-dir` и возвращает `OK/0`, `STOP_REQUIRED/1` или `INVALID_INPUT/2`.
-PLAN-9B-2 остаётся pending / не начат и заблокирован PLAN-6D/6E.
+Для Claude Code root `skills/` не считается автоматически загруженным:
+перед специализированной задачей нужно вручную открыть релевантный
+`skills/<skill-name>/SKILL.md`. PLAN-9B-2 остаётся pending / не начат и
+заблокирован PLAN-6E.
 Точное значение и следующее действие всегда
 берутся из самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
