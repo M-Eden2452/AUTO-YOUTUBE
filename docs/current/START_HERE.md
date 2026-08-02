@@ -50,11 +50,11 @@ AI-YouTube — локальная offline-first платформа создан�
 Для Claude Code root `skills/` не считается автоматически загруженным:
 перед специализированной задачей нужно вручную открыть релевантный
 `skills/<skill-name>/SKILL.md`. PLAN-6E завершён; owner decision OD-P-1 принят
-2026-08-02. Текущий checkpoint — PLAN-L0, pending / not started. После него
-запланирован отдельный PLAN-9B-PRODUCER; PLAN-9B-2 остаётся pending / not
-started и blocked до завершения обоих шагов и отдельного implementation prompt.
-Точное значение и следующее действие всегда
-берутся из самого плана, а не отсюда.
+2026-08-02; PLAN-L0 completed. Текущий checkpoint — PLAN-9B-PRODUCER,
+pending / not started; producer implementation не начиналась. PLAN-9B-2 остаётся
+pending / not started и blocked до completed PLAN-9B-PRODUCER и отдельного
+implementation prompt. Точное значение и следующее действие всегда берутся из
+самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
 остаётся историческим контекстом и текущий порядок выполнения не задаёт.
 

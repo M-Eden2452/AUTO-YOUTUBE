@@ -91,8 +91,10 @@ source_paths:
 Активный порядок задаёт [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); PLAN-6E завершён 2026-08-02.
 Canonical policy — `skills/review-change/SKILL.md`; тонкие Claude/Codex adapters не дублируют её.
 Controlled Cases A/B/C приняли immutable/safe изменения и нашли synthetic BLOCKER; после lock repair все repositories byte-stable.
-OD-P-1 принят 2026-08-02; текущий checkpoint — PLAN-L0, pending/not started; затем scheduled PLAN-9B-PRODUCER.
-PLAN-9B-2 pending/not started и blocked до completed обоих шагов и отдельного implementation prompt; `.claude/skills/` отсутствует. Точные действия — в плане.
+OD-P-1 принят 2026-08-02; PLAN-L0 completed. Текущий checkpoint — PLAN-9B-PRODUCER,
+pending/not started; producer implementation не начиналась. PLAN-9B-2 pending/not started
+и blocked до completed PLAN-9B-PRODUCER и отдельного implementation prompt; `.claude/skills/`
+отсутствует. Точное следующее действие — в плане.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и
