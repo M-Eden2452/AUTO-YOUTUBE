@@ -6,7 +6,7 @@ updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-9B-2
+current_checkpoint: PLAN-6D-2
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,8 +45,11 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-9B-2, pending/not started. Его prerequisite gates
-  PLAN-6D и PLAN-6E не завершены; implementation в этом слайсе не начиналась.
+- **Текущий шаг:** PLAN-6D-2, pending/not started. Владелец явно разрешил
+  prerequisite rerouting от заблокированного PLAN-9B-2 и завершение только
+  PLAN-6D-1; PLAN-6D-2 в завершённом слайсе не начинался.
+- **PLAN-9B-2:** остаётся pending/not started и заблокирован незавершёнными
+  PLAN-6D/PLAN-6E; acceptance criteria и scope не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -99,6 +102,13 @@ source_paths:
   создавались. Явный `legacy_template` сохранён для template/demo/test/draft и
   старых проектов; CLI diagnostics и оба application dry-run/prepare пути
   возвращают классифицированный отказ без traceback.
+- **PLAN-6D-1** — permission baseline разделён на точные permanent deny и
+  поддерживаемые `ask` rules. `.env` защищён для Read/Write/Edit; broad
+  `.env.*`, `*credential*` и `*secret*` patterns, блокировавшие versioned
+  examples/source, удалены. Bare/flagged `git clean`, `reset --hard` и force
+  push покрыты deny; обычные push/remote-add/stash/amend, прямые WebFetch/
+  WebSearch и перечисленные recursive cleanup primitives требуют approval.
+  Scope-controlled и mixed directories broad path rules не получили.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -135,8 +145,15 @@ source_paths:
   нормативы. Сеть, provider/model API, download, Vision, TTS и paid calls не
   выполнялись; render-проверки full suite использовали только синтетические
   fixtures во временных каталогах.
+  PLAN-6D-1: JSON и локальный Claude Code 2.1.219 parser — exit code 0;
+  полный tracked-path collision probe — 0 совпадений; `.env` покрыт
+  Read/Write/Edit, `.env.example` и `src/localization/secrets.py` доступны;
+  `tools.qa.check_agent_docs` и `tests.test_stage2_agent_onboarding` — exit
+  code 0; `git diff --check` — без замечаний (2026-08-02). Сеть, providers,
+  download, Vision, TTS, paid API и render не выполнялись.
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
-  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4 и PLAN-9B-2.**
+  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2 и
+  PLAN-6D-2.**
   Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
@@ -159,6 +176,9 @@ source_paths:
   заблокирован PLAN-6D/PLAN-6E.
   `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
   авторитетом commit evidence.
+- Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
+  завершённого PLAN-6D-1. Он не начинает PLAN-9B-2 и не меняет его acceptance
+  criteria; PLAN-6D-2 остаётся pending/not started до отдельного задания.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
@@ -166,10 +186,12 @@ source_paths:
     2026-08-01;
   - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
   - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
-  - **PLAN-9B-2** — текущий checkpoint, pending/not started; зависит от
+  - **PLAN-9B-2** — pending/not started; зависит от
     завершённого PLAN-9B-4 и незавершённых PLAN-6D/PLAN-6E;
-  - **PLAN-6D** — blocker **первого multi-owner implementation slice**
-    (PLAN-9B-2);
+  - **PLAN-6D-1** — completed 2026-08-02;
+  - **PLAN-6D-2** — текущий checkpoint, pending/not started;
+  - **PLAN-6D** — в целом не завершён и остаётся blocker **первого
+    multi-owner implementation slice** (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
     shared-contract slice** (PLAN-9B-2, PLAN-9B-3, PLAN-9B-5b), плюс
     **обязателен для PLAN-9A** (persisted-bytes boundary) и **для PLAN-9C**
@@ -182,8 +204,8 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git:** не начинать PLAN-9B-2 без отдельного задания
-  владельца.
+- **После проверки Git:** не начинать PLAN-6D-2 без отдельного задания
+  владельца; PLAN-9B-2 также не начинать до закрытия его gates.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1584,7 +1606,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-6D — scope control foundation
 
-- **status:** pending · **completed:** — · **commit:** —
+- **status:** pending; PLAN-6D-1 completed, PLAN-6D-2 pending/not started ·
+  **completed:** — · **commit:** —
 - **цель:** перевести защиту от выхода за scope и от порчи пользовательских
   данных с уровня «агент помнит правило» на уровень технического ограничения.
 - **роль в ревизии 2.1:** **BLOCKER первого multi-owner implementation slice**
@@ -1612,14 +1635,15 @@ allowed zones и owner approvals не пересекаются; изменени
   hooks, `.claude/agents/`, `.claude/skills/` и git-hooks отсутствуют.
 - **bounded под-slices:**
   - **6D-1 — permissions: четыре раздельных класса действий.** Классы не
-    смешиваются. **Исправлено ревизией 2:** прежняя редакция ставила permanent
+    смешиваются. **status: completed 2026-08-02.** **Исправлено ревизией 2:**
+    прежняя редакция ставила permanent
     hard deny на `projects/**`, `music/**`, `assets/library/**`,
     `assets/cache/**`, `anime_factory/episodes/**`. Владелец объявил это
     тестовое runtime-медиа disposable, а PLAN-14E обязан его удалить — правило
     пришлось бы обходить ради собственного утверждённого шага. Permission,
     которое придётся обходить, защитой не является.
     - *Hard deny — вечное:* secrets — существующие `.env`/credentials/pem/key
-      плюс `Write` и `Edit` по `.env` (сейчас закрыт только `Read`);
+      плюс `Write` и `Edit` по `.env`;
       destructive Git — `reset --hard`, `clean` по непроверенным путям, force
       operations, включая починку голого `git clean`, который текущий шаблон
       `Bash(git clean *)` не ловит; удаление реальных user data, **не**
@@ -1658,6 +1682,31 @@ allowed zones и owner approvals не пересекаются; изменени
     - *Почему не hook:* `.claude/settings.json` уже является владельцем этого
       ограничения и покрывает требуемое декларативно. Hook стал бы вторым
       владельцем одного правила.
+    - *Фактический результат:* локальный Claude Code 2.1.219 подтвердил
+      поддержку `permissions.ask` и распарсил итоговый settings. Permanent
+      deny ограничен точными secret families для Read/Write/Edit,
+      `git reset --hard`, bare/flagged `git clean`, force push и существующим
+      `media-library migrate --apply`. Поддерживаемые ask rules добавлены для
+      push/remote-add/stash/amend, WebFetch/WebSearch и перечисленных
+      recursive cleanup primitives. Пять scope-controlled families и четыре
+      mixed directories broad path rules не получили.
+    - *Оставшееся instruction-level:* arbitrary Python/PowerShell/Bash не
+      позволяет надёжно распознать любой network/provider/paid вызов или
+      условие «только в активном cleanup slice». Эти границы продолжают
+      удерживать owner approval, проверенный абсолютный путь и
+      `Preserved runtime corpus`; частичные эвристики не добавлялись.
+    - *Verification evidence (2026-08-02, исходный HEAD `3ee4e98`):*
+      `python -m json.tool` и локальный Claude parser — exit code 0;
+      permission structure — 15 ask и 43 deny rules; full tracked-path
+      collision probe — 0; `.env` покрыт Read/Write/Edit; `.env.example` и
+      `src/localization/secrets.py` имеют 0 deny matches; destructive Git и
+      ask command probes зелёные; docs QA, onboarding tests и
+      `git diff --check` — exit code 0. Production code, tests, hooks, agents,
+      skills, tools и runtime data не менялись; сеть и платные действия не
+      выполнялись.
+
+#### PLAN-6D-2 — task-scope checker
+
   - **6D-2 — `tools/qa/check_task_scope.py`.** Allowlist передаётся конкретной
     задачей; сравнивается с фактическим `git diff --name-only` с учётом add,
     rename и delete; неожиданный файл даёт понятный `STOP_REQUIRED`; модуль

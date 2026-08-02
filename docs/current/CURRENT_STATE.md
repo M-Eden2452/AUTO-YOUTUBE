@@ -89,9 +89,9 @@ source_paths:
 
 Активный порядок работ задаёт
 [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); текущий checkpoint —
-PLAN-9B-2, pending / not started и заблокирован prerequisite gates PLAN-6D/6E.
-Точное значение checkpoint и next action
-всегда берутся из самого плана. Исторический
+PLAN-6D-2, pending/not started после завершения PLAN-6D-1; PLAN-9B-2 остаётся
+pending/not started и заблокирован PLAN-6D/6E. Точные checkpoint/next action
+берутся из самого плана. Исторический
 `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` порядок работ не задаёт.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
