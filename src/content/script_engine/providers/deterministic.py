@@ -151,8 +151,10 @@ class DeterministicScriptProvider(BaseScriptProvider):
         """Not enough source material: reproduce the previous behaviour, loudly."""
         if not request.provider_options.get("allow_legacy_fallback", True):
             raise ScriptProviderInputError(
-                "Недостаточно исходного текста для сценария: добавьте статью, ссылку или готовый текст.",
+                "Insufficient source material for a factual script: provide an article URL "
+                "or source text, or explicitly use draft/template mode.",
                 provider=PROVIDER_ID,
+                code="insufficient_source_material",
             )
         result = LegacyTemplateScriptProvider().generate(request)
         result.warnings.append(

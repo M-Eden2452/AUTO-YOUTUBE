@@ -58,6 +58,7 @@ class NewsToShortDeliveryTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Почему киты поют в океане?",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-18T10:00:00+03:00",
             )
@@ -96,6 +97,7 @@ class NewsToShortDeliveryTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 text="Короткий сценарий для проверки безопасной озвучки.",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-18T10:00:00+03:00",
             )

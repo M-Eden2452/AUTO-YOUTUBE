@@ -29,7 +29,7 @@ from src.content.script_engine import (
     resolve_provider_id,
 )
 
-from .models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, NewsJob
+from .models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, NewsJob, completion_settings
 
 # Source kinds a job may declare in NewsJob.script_source. Empty means "work it
 # out from input_mode", which is what every pre-existing job.json does.
@@ -55,7 +55,13 @@ def resolve_source_kind(job: NewsJob, research: dict[str, Any] | None = None) ->
 
 
 def build_script_request(job: NewsJob, research: dict[str, Any]) -> ScriptRequest:
+    from src.assets.completion import MODE_DRAFT_COMPLETE, normalize_mode
+
     source_kind = resolve_source_kind(job, research)
+    allow_legacy_fallback = (
+        normalize_mode(str(completion_settings(job).get("mode") or ""))
+        == MODE_DRAFT_COMPLETE
+    )
     if source_kind in {SOURCE_USER_SCRIPT, SOURCE_NARRATION_TEXT}:
         # The user's own words are the material - never the research re-telling of them.
         raw_text = job.input_text
@@ -77,6 +83,7 @@ def build_script_request(job: NewsJob, research: dict[str, Any]) -> ScriptReques
         include_cta=bool(getattr(job, "script_include_cta", False)),
         cta_text=str(getattr(job, "script_cta_text", "") or ""),
         provider_id=str(getattr(job, "script_provider", "") or ""),
+        provider_options={"allow_legacy_fallback": allow_legacy_fallback},
         # The author's explicit "what to show", carried from the job to the provider
         # that can honour it. Empty for every job written before Q2.2A.
         visual_briefs={
@@ -98,7 +105,10 @@ def generate_for_job(job: NewsJob, research: dict[str, Any]) -> ScriptGeneration
     request = build_script_request(job, research)
     capabilities = get_provider(resolve_provider_id(request)).capabilities
     remote = capabilities.requires_network or capabilities.requires_paid_api
-    return generate_script(request, fallback_provider_id=DEFAULT_PROVIDER_ID if remote else "")
+    return generate_script(
+        request,
+        fallback_provider_id=DEFAULT_PROVIDER_ID if remote else "",
+    )
 
 
 def build_script(job: NewsJob, research: dict[str, Any]) -> dict[str, Any]:

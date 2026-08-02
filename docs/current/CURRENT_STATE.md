@@ -89,7 +89,8 @@ source_paths:
 
 Активный порядок работ задаёт
 [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); текущий checkpoint —
-PLAN-9B-4, pending / not started. Точное значение checkpoint и next action
+PLAN-9B-2, pending / not started и заблокирован prerequisite gates PLAN-6D/6E.
+Точное значение checkpoint и next action
 всегда берутся из самого плана. Исторический
 `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` порядок работ не задаёт.
 

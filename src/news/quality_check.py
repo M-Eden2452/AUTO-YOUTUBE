@@ -59,6 +59,14 @@ def run_quality_check(
     warnings: list[dict[str, str]] = []
     checks: list[dict[str, str]] = []
 
+    _check_script_source_truth(
+        script,
+        completion_mode=completion_mode,
+        errors=errors,
+        warnings=warnings,
+        checks=checks,
+    )
+
     duration = float(script.get("estimated_duration_sec") or 0)
     if 35 <= duration <= 70:
         checks.append({"check": "duration", "message": f"Duration is in range: {duration:.1f}s."})
@@ -100,6 +108,47 @@ def run_quality_check(
 
     status = "failed" if errors else "needs_review" if warnings else "passed"
     return {"status": status, "errors": errors, "warnings": warnings, "checks": checks}
+
+
+def _check_script_source_truth(
+    script: dict[str, Any],
+    *,
+    completion_mode: str,
+    errors: list[dict[str, str]],
+    warnings: list[dict[str, str]],
+    checks: list[dict[str, str]],
+) -> None:
+    from src.assets.completion import MODE_DRAFT_COMPLETE, normalize_mode
+
+    metadata = (
+        script.get("script_metadata")
+        if isinstance(script.get("script_metadata"), dict)
+        else {}
+    )
+    is_insufficient_source_fallback = (
+        str(metadata.get("fallback_provider") or "") == "legacy_template"
+        and str(metadata.get("fallback_reason") or "") == "insufficient_source_material"
+    )
+    if not is_insufficient_source_fallback:
+        checks.append(
+            {
+                "check": "script_source_truth",
+                "message": "No insufficient-source template fallback is recorded.",
+            }
+        )
+        return
+
+    issue = {
+        "check": "script_source_truth",
+        "message": (
+            "The script uses legacy template filler because source material was "
+            "insufficient; provide an article URL or source text before publication."
+        ),
+    }
+    if normalize_mode(completion_mode) == MODE_DRAFT_COMPLETE:
+        warnings.append(issue)
+    else:
+        errors.append(issue)
 
 
 def _check_schema_v1_assets(

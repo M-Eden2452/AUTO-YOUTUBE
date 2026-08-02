@@ -33,6 +33,7 @@ from src.assets.query_adapter import (
     SOURCE_SAME_LANGUAGE,
 )
 from src.content_creation.models import (
+    ContentCreationError,
     ContentCreationRequest,
     ExecutionFlags,
     VoiceRequestConfig,
@@ -93,7 +94,7 @@ class _RecordingStockProvider:
 
 
 class InputQueryTruthCharacterizationTests(unittest.TestCase):
-    def _run_topic(self, topic: str) -> dict[str, Any]:
+    def _run_topic(self, topic: str, *, completion_mode: str = "draft_complete") -> dict[str, Any]:
         providers = [_RecordingStockProvider(name) for name in _PROVIDER_IDS]
         network_attempts_before = list(blocked_attempts)
 
@@ -104,6 +105,7 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
                 language="ru",
                 content_input_mode="topic",
                 topic=topic,
+                completion_mode=completion_mode,
                 voice=VoiceRequestConfig(provider="disabled"),
                 execution=ExecutionFlags(prepare_only=True),
                 project_overrides={"projects_root": tmp},
@@ -376,7 +378,7 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
             {SOURCE_SAME_LANGUAGE},
         )
 
-    def test_topic_only_thin_input_currently_passes_legacy_template(self) -> None:
+    def test_topic_only_thin_input_uses_declared_draft_template_fallback(self) -> None:
         observed = self._run_topic(
             "Почему вороны запоминают человеческие лица"
         )
@@ -399,6 +401,18 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
                 for warning in script["script_warnings"]
             )
         )
+
+    def test_topic_only_thin_input_blocks_strict_content_creation(self) -> None:
+        with self.assertRaises(ContentCreationError) as caught:
+            self._run_topic(
+                "Почему вороны запоминают человеческие лица",
+                completion_mode="strict",
+            )
+
+        self.assertEqual(caught.exception.reason, "insufficient_source_material")
+        message = str(caught.exception).lower()
+        for alternative in ("article", "source text", "draft", "template"):
+            self.assertIn(alternative, message)
 
 
 if __name__ == "__main__":

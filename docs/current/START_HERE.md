@@ -40,7 +40,8 @@ AI-YouTube — локальная offline-first платформа создан�
 
 Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
 Он задаёт порядок работ; выполняется только его `current_checkpoint` — сейчас
-PLAN-9B-4, pending / не начат. Точное значение и следующее действие всегда
+PLAN-9B-2, pending / не начат и заблокирован prerequisite gates PLAN-6D/6E.
+Точное значение и следующее действие всегда
 берутся из самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
 остаётся историческим контекстом и текущий порядок выполнения не задаёт.

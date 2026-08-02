@@ -22,6 +22,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Почему киты-матери переворачиваются брюхом вверх?",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-18T09:30:00+03:00",
             )
@@ -57,6 +58,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 text="Короткий текст новости. Ученые сообщают о новом наблюдении.",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-18T09:30:00+03:00",
             )
@@ -88,6 +90,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Why whales swim in the ocean",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-18T09:30:00+03:00",
             )
@@ -135,6 +138,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Исследование поведения дельфинов в открытом море",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-28T12:00:00+03:00",
             )
@@ -167,6 +171,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Новые гипотезы в океанологии",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-28T12:00:00+03:00",
             )
@@ -202,6 +207,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Как морские птицы ориентируются над открытым океаном",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-29T12:00:00+03:00",
             )
@@ -250,6 +256,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Наблюдения за миграцией морских черепах",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-29T12:00:00+03:00",
             )
@@ -306,6 +313,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Как морские течения влияют на миграцию китов",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-29T12:00:00+03:00",
             )
@@ -354,6 +362,7 @@ class NewsToShortPipelineTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Наблюдения за коралловыми экосистемами",
+                script_provider="legacy_template",
                 language="ru",
                 now="2026-07-29T12:00:00+03:00",
             )

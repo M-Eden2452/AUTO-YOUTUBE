@@ -151,15 +151,23 @@ class FullscreenVoiceoverUseCase:
         self.store.save_job(self.job)
 
     def _dry_run_result(self) -> ContentCreationResult:
+        from src.content.script_engine import ScriptProviderInputError
         from src.news.pipeline import run_news_to_short_job
 
-        result = run_news_to_short_job(
-            projects_root=self.projects_root,
-            job_id=self.job.job_id,
-            dry_run=True,
-            completion_mode=self.request.completion_mode,
-            script_adaptation=self.request.script_adaptation,
-        )
+        try:
+            result = run_news_to_short_job(
+                projects_root=self.projects_root,
+                job_id=self.job.job_id,
+                dry_run=True,
+                completion_mode=self.request.completion_mode,
+                script_adaptation=self.request.script_adaptation,
+            )
+        except ScriptProviderInputError as exc:
+            raise ContentCreationError(
+                str(exc),
+                reason=exc.code,
+                retryable=exc.retryable,
+            ) from exc
         return ContentCreationResult(
             status="dry_run_completed",
             project_id=self.job.job_id,
@@ -174,6 +182,7 @@ class FullscreenVoiceoverUseCase:
         )
 
     def _run_safe_pipeline(self) -> None:
+        from src.content.script_engine import ScriptProviderInputError
         from src.news.article_ingestor import ArticleIngestionError
         from src.news.pipeline import run_news_to_short_job
 
@@ -194,6 +203,13 @@ class FullscreenVoiceoverUseCase:
                 str(exc),
                 reason=exc.reason,
                 retryable=exc.reason in _RETRYABLE_ARTICLE_REASONS,
+            ) from exc
+        except ScriptProviderInputError as exc:
+            notify(self.progress_callback, "script_and_research", "failed")
+            raise ContentCreationError(
+                str(exc),
+                reason=exc.code,
+                retryable=exc.retryable,
             ) from exc
         self.stages.extend(
             {"stage": stage, "status": "completed"}

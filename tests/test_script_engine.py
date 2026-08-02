@@ -290,7 +290,7 @@ class DeterministicProviderTest(unittest.TestCase):
         self.assertTrue(any("insufficient_source_material" in warning for warning in outcome.result.warnings))
 
     def test_thin_input_can_be_made_an_error_instead(self) -> None:
-        with self.assertRaises(ScriptProviderInputError):
+        with self.assertRaises(ScriptProviderInputError) as caught:
             generate_script(
                 _request(
                     source_kind=SOURCE_TOPIC,
@@ -299,6 +299,9 @@ class DeterministicProviderTest(unittest.TestCase):
                     provider_options={"allow_legacy_fallback": False},
                 )
             )
+        self.assertEqual(caught.exception.code, "insufficient_source_material")
+        self.assertIn("article", str(caught.exception).lower())
+        self.assertIn("source text", str(caught.exception).lower())
 
     def test_no_scene_exceeds_the_per_scene_limit(self) -> None:
         limits = ScriptConstraints(target_duration_sec=55.0)
@@ -667,6 +670,33 @@ class ValidationTest(unittest.TestCase):
             ),
         ]
         self.assertIn("language_mismatch", self._codes(self._result(scenes), expected_language="ru"))
+
+    def test_template_filler_is_invalid_in_strict_mode(self) -> None:
+        scenes = [
+            self._scene(duration_sec=4.0),
+            self._scene(
+                scene_id="scene_002",
+                index=2,
+                role=SCENE_ROLE_PAYOFF,
+                narration="This is placeholder material that must not pass strict validation.",
+                duration_sec=5.0,
+                start_sec=4.0,
+            ),
+        ]
+        validation = validate_script(
+            self._result(
+                scenes,
+                provider_id="legacy_template",
+                metadata={
+                    "fallback_provider": "legacy_template",
+                    "fallback_reason": "insufficient_source_material",
+                },
+            )
+        )
+
+        self.assertIn("template_filler_in_strict_mode", validation.codes())
+        self.assertFalse(validation.valid)
+        self.assertEqual(validation.status, "failed")
 
     def test_a_good_script_passes_cleanly(self) -> None:
         scenes = [

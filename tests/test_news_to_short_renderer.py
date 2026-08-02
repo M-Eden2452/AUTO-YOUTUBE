@@ -35,6 +35,7 @@ class NewsToShortRendererTests(unittest.TestCase):
                 projects_root=root,
                 channel_id="nature_science_news_ru",
                 topic="Почему леса охлаждают планету?",
+                script_provider="legacy_template",
                 assets=images,
                 language="ru",
                 now="2026-07-18T11:00:00+03:00",

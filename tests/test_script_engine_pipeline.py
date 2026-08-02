@@ -227,13 +227,24 @@ class SourceKindResolutionTest(unittest.TestCase):
         request = build_script_request(_job(), _research())
         self.assertEqual(request.raw_text, "")
 
-    def test_thin_material_falls_back_to_the_previous_generator(self) -> None:
-        """A bare topic has nothing to write from; the old template takes over and
-        the script says so, rather than inventing filler."""
+    def test_thin_material_blocks_strict_mode_with_actionable_alternatives(self) -> None:
+        """A bare topic is intent, not enough factual material for strict output."""
         job = _job(input_mode=INPUT_MODE_TOPIC, input_text="", topic="Вороны")
+        with self.assertRaisesRegex(Exception, "article.*source text.*draft.*template") as caught:
+            generate_for_job(job, {"topic": "Вороны", "claims": [], "summary": ""})
+        self.assertEqual(caught.exception.code, "insufficient_source_material")
+
+    def test_thin_material_can_use_legacy_template_in_draft_mode(self) -> None:
+        job = _job(
+            input_mode=INPUT_MODE_TOPIC,
+            input_text="",
+            topic="Вороны",
+            completion_mode="draft_complete",
+        )
         outcome = generate_for_job(job, {"topic": "Вороны", "claims": [], "summary": ""})
         self.assertEqual(outcome.provider_id, "legacy_template")
         self.assertTrue(any("insufficient_source_material" in w for w in outcome.result.warnings))
+        self.assertEqual(outcome.result.metadata["fallback_reason"], "insufficient_source_material")
 
 
 class BackwardCompatibleJobTest(unittest.TestCase):
@@ -419,6 +430,16 @@ class ScriptCliTest(unittest.TestCase):
             self.assertIn(code, (0, 1))
             self.assertIn("deterministic_local", output)
             self.assertEqual(set(os.listdir(tmp)), before)
+
+    def test_generate_from_bare_topic_returns_machine_readable_block(self) -> None:
+        code, output = _run_cli(
+            ["script", "generate", "--topic", "Why crows remember faces", "--json"]
+        )
+
+        self.assertEqual(code, 1)
+        payload = json.loads(output)
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["reason"], "insufficient_source_material")
 
     def test_generate_writes_a_pipeline_compatible_file_with_out(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

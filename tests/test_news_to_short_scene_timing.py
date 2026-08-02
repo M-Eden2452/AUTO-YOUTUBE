@@ -49,6 +49,7 @@ class VoiceStageSceneTimingTests(unittest.TestCase):
             projects_root=root,
             channel_id="nature_science_news_ru",
             text="Короткий текст новости. Ученые сообщают о новом наблюдении в океане.",
+            script_provider="legacy_template",
             language="ru",
             now="2026-07-25T09:30:00+03:00",
         )

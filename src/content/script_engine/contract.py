@@ -19,10 +19,19 @@ class ScriptProviderError(RuntimeError):
 
     code = "script_provider_error"
 
-    def __init__(self, message: str, *, provider: str = "", retryable: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str = "",
+        retryable: bool = False,
+        code: str = "",
+    ) -> None:
         super().__init__(message)
         self.provider = provider
         self.retryable = retryable
+        if code:
+            self.code = code
 
     def to_dict(self) -> dict[str, Any]:
         return {

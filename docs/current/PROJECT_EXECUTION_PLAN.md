@@ -6,7 +6,7 @@ updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-9B-4
+current_checkpoint: PLAN-9B-2
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,7 +45,8 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-9B-4, pending/not started. В этом слайсе не начинался.
+- **Текущий шаг:** PLAN-9B-2, pending/not started. Его prerequisite gates
+  PLAN-6D и PLAN-6E не завершены; implementation в этом слайсе не начиналась.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -89,6 +90,15 @@ source_paths:
   валидирует единственность authoritative input и compatible `--input-mode`.
   Story Card `--text` / `--comment`, request model, script engine, persisted
   schema, wrapper `apps/news_to_short` и `--assets` не менялись.
+- **PLAN-9B-4** — factual `strict` связывает существующий
+  `allow_legacy_fallback` со strict completion policy и возвращает
+  `insufficient_source_material` с вариантами article URL / source text /
+  draft / template. Существующие `script_provider`, `fallback_reason`,
+  `script_metadata` и `ScriptValidationResult` используются validation и
+  quality defense; `content_origin`, новые persisted fields и schema не
+  создавались. Явный `legacy_template` сохранён для template/demo/test/draft и
+  старых проектов; CLI diagnostics и оба application dry-run/prepare пути
+  возвращают классифицированный отказ без traceback.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -117,8 +127,17 @@ source_paths:
   нет (2026-08-02). Числа и длительности — измерения, не нормативы. Сеть,
   provider/model API, download, Vision, TTS, paid calls и реальный render не
   выполнялись.
+  PLAN-9B-4: targeted owner/caller radius — 168 тестов за 135.307 секунды,
+  exit code 0; полный offline suite — 1523 теста за 356.527 секунды, exit code
+  0, `OK` (2026-08-02). T6/T7/T8, canonical Content Creator, diagnostics,
+  persisted quality defense, explicit legacy compatibility, source-text и
+  resume/force-stage fixtures покрыты. Числа и длительности — измерения, не
+  нормативы. Сеть, provider/model API, download, Vision, TTS и paid calls не
+  выполнялись; render-проверки full suite использовали только синтетические
+  fixtures во временных каталогах.
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
-  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1 и PLAN-9B-5a.** Смещение на 1D было
+  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4 и PLAN-9B-2.**
+  Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
   gates (1A, 1B, 1C′) и выделила routing-фикс 1D как первый самостоятельный
@@ -135,18 +154,20 @@ source_paths:
   выполненного локального PLAN-9B-1; full suite не запускался, потому что public
   signatures, schema/layout и shared architecture boundary не менялись.
   `baseline_head` остаётся прежним.
-- Переход на PLAN-9B-4 — следствие завершённого additive public CLI slice
-  PLAN-9B-5a и его зелёных targeted, smoke и full offline проверок.
+- Переход на PLAN-9B-2 — следствие завершённых PLAN-9B-5a и PLAN-9B-4 и их
+  зелёных targeted/full offline проверок. PLAN-9B-2 не начат и остаётся
+  заблокирован PLAN-6D/PLAN-6E.
   `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
-  авторитетом commit evidence. PLAN-9B-4 не начат.
+  авторитетом commit evidence.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
     `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4 → PLAN-9B-0` завершена
     2026-08-01;
   - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
-  - **PLAN-9B-4** — текущий checkpoint, pending/not started; зависит от
-    завершённого PLAN-9B-5a и в его слайсе не выполнялся;
+  - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
+  - **PLAN-9B-2** — текущий checkpoint, pending/not started; зависит от
+    завершённого PLAN-9B-4 и незавершённых PLAN-6D/PLAN-6E;
   - **PLAN-6D** — blocker **первого multi-owner implementation slice**
     (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -161,7 +182,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git:** не начинать PLAN-9B-4 без отдельного задания
+- **После проверки Git:** не начинать PLAN-9B-2 без отдельного задания
   владельца.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
@@ -2234,7 +2255,7 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-4 — truthful source/script behavior (CRITICAL-2, часть 2)
 
-- **status:** pending · **зависимости:** PLAN-9B-5a (выполняется вместе или
+- **status:** completed 2026-08-02 · **зависимости:** PLAN-9B-5a (выполняется вместе или
   сразу после — иначе пользователь теряет offline-путь подачи материала).
 - **цель:** для factual strict workflow `topic` = **intent, не usable source
   material**. Запрещённая цепочка `topic → insufficient source →
@@ -2251,10 +2272,20 @@ misleading/conflict · paid approval.
   вызова, а не он сам.
 - **AI research не добавляется** (OD-17).
 - **тесты deep-dive:** T6, T7, T8.
-- **открытый вопрос:** backward compatibility со старыми persisted проектами,
-  где `script_provider == "legacy_template"` — проверяется в этом слайсе.
+- **backward compatibility:** старые persisted проекты и test fixtures с явным
+  `script_provider == "legacy_template"` продолжают воспроизводить старую форму;
+  defense-in-depth блокирует только metadata, явно фиксирующие неявный fallback
+  из-за `insufficient_source_material`.
 - **risk boundary:** наблюдаемое поведение `strict` → **owner approval**.
 - **required verification:** targeted + `full`.
+- **фактическая verification (2026-08-02):** targeted owner/caller radius —
+  168 тестов за 135.307 секунды, exit code 0; full offline suite — 1523 теста
+  за 356.527 секунды, exit code 0, `OK`. T6/T7/T8, clean application/diagnostic
+  errors, persisted quality defense, explicit legacy compatibility, source-text
+  и resume/force-stage fixtures зелёные; docs QA и
+  `tests.test_stage2_agent_onboarding` — exit code 0. Числа и длительности — измерения, не
+  нормативы; network/provider/download/Vision/TTS/paid calls не выполнялись,
+  synthetic render fixtures создавались только во временных каталогах.
 
 #### PLAN-9B-2 — expansion + hardcode migration
 

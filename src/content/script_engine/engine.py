@@ -78,7 +78,14 @@ def generate_script(
             raise
         result = _generate_with_fallback(request, fallback_provider_id, error)
 
-    validation = validate_script(result, constraints=request.constraints, expected_language=request.language)
+    validation = validate_script(
+        result,
+        constraints=request.constraints,
+        expected_language=request.language,
+        allow_legacy_fallback=bool(
+            request.provider_options.get("allow_legacy_fallback", False)
+        ),
+    )
     return ScriptGeneration(
         result=result,
         validation=validation,

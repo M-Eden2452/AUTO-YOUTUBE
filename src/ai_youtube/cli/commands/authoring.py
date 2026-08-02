@@ -42,6 +42,7 @@ def run_script_command(
     print_json_fn: Any,
 ) -> int:
     from src.content.script_engine import (
+        ScriptProviderInputError,
         from_legacy_script,
         list_capabilities,
         validate_script,
@@ -120,7 +121,20 @@ def run_script_command(
             "text": text or args.topic,
         },
     )
-    outcome = generate_for_job(job, research)
+    try:
+        outcome = generate_for_job(job, research)
+    except ScriptProviderInputError as exc:
+        payload = {
+            "status": "blocked",
+            "reason": exc.code,
+            "retryable": exc.retryable,
+            "error": str(exc),
+        }
+        if args.json_output:
+            print_json_fn(payload)
+        else:
+            print(f"Script generation blocked: {exc}")
+        return 1
     script = outcome.to_legacy_script(
         target_duration_sec=job.target_duration_sec
     )

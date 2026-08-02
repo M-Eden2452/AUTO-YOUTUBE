@@ -36,11 +36,18 @@ def validate_script(
     *,
     constraints: ScriptConstraints | None = None,
     expected_language: str = "",
+    allow_legacy_fallback: bool = False,
 ) -> ScriptValidationResult:
     """Check one script and return every problem found, worst first by severity."""
     limits = constraints or ScriptConstraints(target_duration_sec=result.target_duration_sec or 55.0)
     issues: list[ScriptValidationIssue] = []
 
+    issues.extend(
+        _check_source_truth(
+            result,
+            allow_legacy_fallback=allow_legacy_fallback,
+        )
+    )
     issues.extend(_check_not_empty(result))
     if not result.scenes:
         # Every remaining check is about scenes; reporting them all would bury the
@@ -58,6 +65,27 @@ def validate_script(
 
 def _issue(code: str, message: str, *, severity: str = SEVERITY_ERROR, scene_id: str = "") -> ScriptValidationIssue:
     return ScriptValidationIssue(code=code, message=message, severity=severity, scene_id=scene_id)
+
+
+def _check_source_truth(
+    result: ScriptResult,
+    *,
+    allow_legacy_fallback: bool,
+) -> list[ScriptValidationIssue]:
+    metadata = result.metadata if isinstance(result.metadata, dict) else {}
+    is_insufficient_source_fallback = (
+        str(metadata.get("fallback_provider") or "") == "legacy_template"
+        and str(metadata.get("fallback_reason") or "") == "insufficient_source_material"
+    )
+    if not is_insufficient_source_fallback or allow_legacy_fallback:
+        return []
+    return [
+        _issue(
+            "template_filler_in_strict_mode",
+            "Legacy template filler cannot pass strict factual validation; provide an "
+            "article URL or source text, or explicitly use draft/template mode.",
+        )
+    ]
 
 
 def _check_not_empty(result: ScriptResult) -> list[ScriptValidationIssue]:

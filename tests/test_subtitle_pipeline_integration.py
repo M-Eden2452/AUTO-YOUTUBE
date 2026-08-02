@@ -66,6 +66,7 @@ class SubtitleStageTests(unittest.TestCase):
             projects_root=root,
             channel_id="nature_science_news_ru",
             text=" ".join(NARRATIONS),
+            script_provider="legacy_template",
             language="ru",
             now="2026-07-26T10:00:00+03:00",
         )

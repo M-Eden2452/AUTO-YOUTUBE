@@ -170,7 +170,10 @@ class NewsVoiceAdapterTests(unittest.TestCase):
                 )
             job = create_news_to_short_job(
                 projects_root=root, channel_id="nature_science_news_ru",
-                topic="Почему вороны запоминают человеческие лица?", assets=images, language="ru",
+                topic="Почему вороны запоминают человеческие лица?",
+                script_provider="legacy_template",
+                assets=images,
+                language="ru",
                 now="2026-07-24T00:00:00+03:00",
             )
             with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]):

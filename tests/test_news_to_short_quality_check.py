@@ -48,6 +48,35 @@ class NewsToShortQualityCheckFoundationTests(unittest.TestCase):
         self.assertEqual(report["status"], "failed")
         self.assertIn("asset_local_file", {error["check"] for error in report["errors"]})
 
+    def test_template_fallback_warns_in_draft_and_blocks_strict(self) -> None:
+        from src.assets.completion import MODE_DRAFT_COMPLETE, MODE_STRICT
+        from src.news.quality_check import run_quality_check
+
+        script = self._script()
+        script.update(
+            {
+                "script_provider": "legacy_template",
+                "script_metadata": {
+                    "fallback_provider": "legacy_template",
+                    "fallback_reason": "insufficient_source_material",
+                },
+            }
+        )
+        common = {
+            "script": script,
+            "research": {"claims": []},
+            "assets_manifest": {"schema_version": 0, "missing_scenes": []},
+            "voice_manifest": {"status": "completed"},
+            "subtitles_manifest": {"srt_path": "subtitles.srt", "ass_path": "subtitles.ass"},
+        }
+
+        draft = run_quality_check(**common, completion_mode=MODE_DRAFT_COMPLETE)
+        strict = run_quality_check(**common, completion_mode=MODE_STRICT)
+
+        self.assertIn("script_source_truth", {item["check"] for item in draft["warnings"]})
+        self.assertNotIn("script_source_truth", {item["check"] for item in draft["errors"]})
+        self.assertIn("script_source_truth", {item["check"] for item in strict["errors"]})
+
     def test_quality_check_passes_new_manifest_with_valid_local_files_rights_and_provenance(self) -> None:
         from src.news.quality_check import run_quality_check
 

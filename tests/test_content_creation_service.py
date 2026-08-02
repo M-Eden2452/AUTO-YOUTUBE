@@ -140,6 +140,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 template_id="fullscreen_voiceover_v1",
                 language="ru",
                 topic="Почему кошки мурчат",
+                completion_mode="draft_complete",
                 voice=VoiceRequestConfig(provider="disabled"),
                 execution=ExecutionFlags(dry_run=True),
                 project_overrides={"projects_root": tmp},
@@ -163,6 +164,43 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
             self.assertEqual(ctx.exception.reason, "search_engine_url")
             # No project directory should have been created for a rejected URL.
             self.assertEqual(list(Path(tmp).iterdir()), [])
+
+    def test_strict_topic_without_source_material_returns_clean_blocking_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            request = ContentCreationRequest(
+                channel_id="nature_science_news_ru",
+                template_id="fullscreen_voiceover_v1",
+                language="ru",
+                content_input_mode="topic",
+                topic="Почему вороны запоминают человеческие лица",
+                execution=ExecutionFlags(prepare_only=True),
+                project_overrides={"projects_root": tmp},
+            )
+
+            with self.assertRaises(ContentCreationError) as caught:
+                create_content(request)
+
+            self.assertEqual(caught.exception.reason, "insufficient_source_material")
+            message = str(caught.exception).lower()
+            for alternative in ("article", "source text", "draft", "template"):
+                self.assertIn(alternative, message)
+
+    def test_strict_topic_dry_run_returns_the_same_clean_blocking_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            request = ContentCreationRequest(
+                channel_id="nature_science_news_ru",
+                template_id="fullscreen_voiceover_v1",
+                language="ru",
+                content_input_mode="topic",
+                topic="Почему вороны запоминают человеческие лица",
+                execution=ExecutionFlags(dry_run=True),
+                project_overrides={"projects_root": tmp},
+            )
+
+            with self.assertRaises(ContentCreationError) as caught:
+                create_content(request)
+
+            self.assertEqual(caught.exception.reason, "insufficient_source_material")
 
     def test_progress_callback_is_invoked_for_story_card(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -189,6 +227,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 template_id="fullscreen_voiceover_v1",
                 language="ru",
                 topic="Почему листья меняют цвет осенью",
+                completion_mode="draft_complete",
                 voice=VoiceRequestConfig(provider="elevenlabs", profile="ru_dom"),
                 project_overrides={"projects_root": tmp},
             )
@@ -226,6 +265,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                     channel_id="nature_science_news_ru",
                     topic="Почему у зебр полосы",
                     language="ru",
+                    completion_mode="draft_complete",
                 )
                 run_news_to_short_job(projects_root=projects_root, job_id=job.job_id, until_stage="script")
 
@@ -347,7 +387,11 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
 
                 job = create_news_to_short_job(
-                    projects_root=projects_root, channel_id="nature_pulse", topic="x", language="ru"
+                    projects_root=projects_root,
+                    channel_id="nature_pulse",
+                    topic="x",
+                    language="ru",
+                    completion_mode="draft_complete",
                 )
                 run_news_to_short_job(projects_root=projects_root, job_id=job.job_id, until_stage="script")
 
@@ -376,7 +420,11 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
 
                 job = create_news_to_short_job(
-                    projects_root=projects_root, channel_id="nature_pulse", topic="x", language="ru"
+                    projects_root=projects_root,
+                    channel_id="nature_pulse",
+                    topic="x",
+                    language="ru",
+                    completion_mode="draft_complete",
                 )
                 run_news_to_short_job(projects_root=projects_root, job_id=job.job_id, until_stage="script")
 
@@ -413,6 +461,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 template_id="fullscreen_voiceover_v1",
                 language="ru",
                 topic="Почему у зебр полосы",
+                completion_mode="draft_complete",
                 voice=VoiceRequestConfig(provider="elevenlabs", profile="ru_dom"),
                 project_overrides={"projects_root": tmp},
             )
@@ -454,6 +503,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                     template_id="fullscreen_voiceover_v1",
                     language="ru",
                     topic="В видео используются архивные материалы",
+                    completion_mode="draft_complete",
                     voice=VoiceRequestConfig(provider="disabled"),
                     project_overrides={"projects_root": tmp},
                 )
@@ -529,6 +579,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 template_id="fullscreen_voiceover_v1",
                 language="ru",
                 topic="Почему у зебр полосы",
+                completion_mode="draft_complete",
                 voice=VoiceRequestConfig(provider="elevenlabs", profile="ru_dom", approve_paid_generation=True),
                 project_overrides={"projects_root": tmp},
             )
@@ -564,7 +615,10 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                     language="ru",
                     topic="Почему совы бесшумно летают",
                     voice=VoiceRequestConfig(provider="elevenlabs", profile="ru_dom"),
-                    project_overrides={"projects_root": tmp},
+                    project_overrides={
+                        "projects_root": tmp,
+                        "script_provider": "legacy_template",
+                    },
                 )
                 first_result = create_content(first_request)
                 self.assertEqual(first_result.status, "prepared_awaiting_paid_approval")
@@ -611,7 +665,10 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
                 topic="Почему совы бесшумно летают",
                 voice=VoiceRequestConfig(provider="disabled"),
                 subtitles=SubtitleRequestConfig(style="disabled"),
-                project_overrides={"projects_root": tmp},
+                project_overrides={
+                    "projects_root": tmp,
+                    "script_provider": "legacy_template",
+                },
             )
             with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]), patch(
                 "src.news.pipeline.create_news_to_short_job", side_effect=_create_with_assets

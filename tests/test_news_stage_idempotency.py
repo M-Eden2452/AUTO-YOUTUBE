@@ -263,6 +263,7 @@ def _completed_project(projects_root: Path, target_stage: str):
         projects_root=projects_root,
         channel_id="nature_science_news_ru",
         text="Синтетический offline fixture для проверки повторных стадий.",
+        script_provider="legacy_template",
         language="ru",
         now="2026-07-29T14:00:00+03:00",
     )
