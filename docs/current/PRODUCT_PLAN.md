@@ -79,6 +79,14 @@ plan. Это правило защищает от того, чтобы прод�
 | **PD-10** | Anime Factory остаётся отдельным продуктом и источником будущего Video Repurposer. Второй clip pipeline с нуля запрещён |
 | **PD-11** | **Replacement and Retirement Pairing.** Любое внедрение, замещающее существующую capability, обязано иметь связанный retirement path. Слайс, который только добавляет, полной работой не считается (раздел 19.7) |
 
+**Owner-approved scheduling decision OD-P-1 (2026-08-02).** Candidate 16.3.1
+утверждён как отдельный bounded execution slice **PLAN-9B-PRODUCER**. Producer
+остаётся в существующем visual-planning ownership, заполняет существующий
+`VisualBrief` и не объединяется с лестницей расширения PLAN-9B-2. Полный
+execution contract, порядок, gates и verification принадлежат
+[PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); это решение разрешает
+планирование, но не implementation.
+
 ## 5. Current product truth
 
 Что продукт умеет **сегодня** — чтобы roadmap не выдавал намерение за
@@ -494,9 +502,10 @@ timeline-инструмента легко изобрести второй сл�
 
 - Текущий checkpoint, next action, статусы, зависимости и prerequisites — только
   в [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
-- Активная последовательность работ этим документом не изменялась.
-- Ни одна capability отсюда не добавлена в критический путь.
-- Ни один новый active PLAN-ID не создан.
+- OD-P-1 утверждает продуктовую границу отдельного producer-слайса; его
+  расписание и PLAN-ID зафиксированы только в execution plan.
+- Этот документ не хранит execution status, current checkpoint, next action
+  или дату завершения implementation.
 
 ## 16. Execution plan integration map
 
@@ -520,14 +529,16 @@ outcome, acceptance criteria, non-goals) без изменения scope, ста
 
 | Capability | PLAN-ID | Что запланировано | Остаточный gap |
 |---|---|---|---|
-| **Provider-language VisualBrief producer** | **PLAN-9B-2** объявляет источник provider-языка своим предусловием | лестница расширения запросов и снятие topic-hardcodes | **сам producer не имеет владельца ни в одном этапе.** PLAN-9B-1 закрыл целостность адаптера и явно оставил эту возможность нереализованной → candidate slice 16.3.1 |
+| **Provider-language VisualBrief producer** | **PLAN-9B-PRODUCER** | отдельный bounded slice в существующем visual-planning ownership; полный contract — в execution plan | execution status здесь намеренно не хранится; PLAN-9B-2 остаётся отдельным expansion/retirement slice |
 | **User assets** | PLAN-9B-5b | миграция или явный отказ перед retirement | точное публичное имя входа — owner decision в момент implementation |
 
-### 16.3. Candidate new slices
+### 16.3. Candidate slices and approved scheduling
 
-**Ровно три в этом разделе.** Ни одна не назначена, ни одна не входит в
-критический путь, ни для одной не создан PLAN-ID. Каждая требует owner approval
-до планирования.
+В этом разделе остаются две unscheduled candidate capabilities — 16.3.2 и
+16.3.3. Candidate 16.3.1 утверждён решением OD-P-1 и перенесён в execution plan
+как **PLAN-9B-PRODUCER**; ниже сохранена короткая product-ссылка, а не копия
+execution contract. Оставшиеся candidates требуют owner approval до
+планирования.
 
 Motion-направление добавило **четыре собственных** candidate slices —
 `MOTION-CS1…CS4`, раздел 19.11. Они в эти три не входят, но подчиняются тому же
@@ -535,14 +546,16 @@ Motion-направление добавило **четыре собственн
 
 #### 16.3.1. Provider-language VisualBrief producer
 
-- **Статус:** `CANDIDATE_EXECUTION_SLICE`
+- **Product decision:** `OWNER_APPROVED` — scheduled as
+  **PLAN-9B-PRODUCER** in
+  [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
 - **User outcome:** тема с материалом получает provider-ready описание кадра;
   при недостатке evidence состояние остаётся честным и редактируемым.
-- **Proposed owner:** существующий visual-planning ownership; заполняет
+- **Owner:** существующий visual-planning ownership; заполняет
   существующий `VisualBrief`.
-- **Dependencies:** завершённый PLAN-9B-1. Является предусловием полезности
-  PLAN-9B-2.
-- **Proposed allowed zones:** `src/content/visual_planning/**` и его тесты.
+- **Execution relation:** отдельный producer-слайс выполняется до PLAN-9B-2;
+  точные dependencies, allowed/prohibited zones, gates и verification находятся
+  только в execution plan.
 - **Success criteria:** для тем разных классов хотя бы один провайдер получает
   осмысленный запрос, построенный из evidence, а не из литерала темы;
   неизвестный intent по-прежнему fail-closed; явный авторский бриф всегда
@@ -557,7 +570,8 @@ Motion-направление добавило **четыре собственн
   Producer и лестница расширения — **два независимо проверяемых user outcome**:
   каждый работает и тестируется без другого. Добавление producer сделало бы
   PLAN-9B-2 небезопасно широким.
-- **Owner approval required before scheduling.** См. раздел 17, OD-P-1.
+- **Decision:** OD-P-1 принят 2026-08-02; это docs-only scheduling и не
+  разрешение начинать implementation.
 
 #### 16.3.2. Pre-search and pre-paid review gate
 
@@ -616,21 +630,9 @@ slices выше и capabilities, уже интегрированных в сущ
 ## 17. Owner decisions pending
 
 Предложения, затрагивающие порядок работ, публичные контракты, персистентные
-контракты или платные/live границы. **Ни одно не применено.**
-
-### OD-P-1 — планирование producer capability
-
-- **FACT.** PLAN-9B-2 объявляет источник provider-языка своим предусловием;
-  PLAN-9B-1 завершён и явно оставил эту возможность нереализованной.
-- **EVIDENCE.** Раздел «PLAN-9B-1 → оставшийся product gap» и формулировка
-  PLAN-9B-2 «предваряется источником provider-языка: без него лестница расширяет
-  ноль».
-- **CURRENT PLAN.** Ни один этап не владеет producer capability.
-- **PROPOSED CHANGE.** Запланировать candidate slice 16.3.1 отдельным bounded
-  слайсом перед PLAN-9B-2.
-- **BENEFIT.** PLAN-9B-2 перестаёт зависеть от несуществующего предусловия;
-  появляется первый видимый пользователю результат.
-- **RISK.** Ещё один слайс в очереди перед лестницей расширения.
+контракты или платные/live границы. **OD-P-1 принят 2026-08-02** и записан в
+разделах 4 и 16.3.1; pending-решения ниже начинаются с OD-P-2 и этим решением
+не изменены.
 
 ### OD-P-2 — публичная поверхность обзора до поиска
 

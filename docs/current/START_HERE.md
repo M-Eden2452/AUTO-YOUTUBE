@@ -49,9 +49,10 @@ AI-YouTube — локальная offline-first платформа создан�
 `--allow-dir` и возвращает `OK/0`, `STOP_REQUIRED/1` или `INVALID_INPUT/2`.
 Для Claude Code root `skills/` не считается автоматически загруженным:
 перед специализированной задачей нужно вручную открыть релевантный
-`skills/<skill-name>/SKILL.md`. PLAN-9B-2 остаётся pending / не начат: следующий
-маршрут — owner decision OD-P-1, затем salvage resolution PLAN-L0; новый
-implementation checkpoint без отдельного задания не активирован.
+`skills/<skill-name>/SKILL.md`. PLAN-6E завершён; owner decision OD-P-1 принят
+2026-08-02. Текущий checkpoint — PLAN-L0, pending / not started. После него
+запланирован отдельный PLAN-9B-PRODUCER; PLAN-9B-2 остаётся pending / not
+started и blocked до завершения обоих шагов и отдельного implementation prompt.
 Точное значение и следующее действие всегда
 берутся из самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)

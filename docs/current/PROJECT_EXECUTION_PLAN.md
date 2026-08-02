@@ -5,9 +5,9 @@ created_at: 2026-07-30
 updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
-owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-6E
-next_exact_action: owner decision OD-P-1, then PLAN-L0 salvage resolution
+owner_decisions_date: 2026-08-02
+current_checkpoint: PLAN-L0
+next_exact_action: execute PLAN-L0 salvage resolution
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,11 +47,14 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-6E completed 2026-08-02. Новый implementation checkpoint
-  не активирован: требуется отдельное задание владельца.
-- **PLAN-9B-2:** остаётся pending/not started. Reviewer gate PLAN-6E закрыт, но
-  слайс всё ещё заблокирован решением OD-P-1 о provider-language producer и
-  явным salvage-решением PLAN-L0; acceptance criteria и scope не менялись.
+- **Текущий шаг:** **PLAN-L0 pending / not started.** PLAN-6E завершён
+  2026-08-02; owner decision **OD-P-1 принят** 2026-08-02 docs-only слайсом.
+- **PLAN-9B-PRODUCER:** scheduled решением OD-P-1, pending / not started;
+  выполняется отдельным bounded implementation slice только после completed
+  PLAN-L0 и отдельного owner-issued implementation prompt.
+- **PLAN-9B-2:** остаётся pending / not started и blocked до completed PLAN-L0,
+  completed PLAN-9B-PRODUCER и отдельного owner-issued implementation prompt;
+  acceptance criteria, expansion ladder и retirement scope не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -187,7 +190,7 @@ source_paths:
   Vision, TTS, paid API и render не выполнялись (2026-08-02).
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
   PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2,
-  PLAN-6D-2, PLAN-6D-3 и PLAN-6E.**
+  PLAN-6D-2, PLAN-6D-3, PLAN-6E и PLAN-L0.**
   Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
@@ -205,9 +208,11 @@ source_paths:
   выполненного локального PLAN-9B-1; full suite не запускался, потому что public
   signatures, schema/layout и shared architecture boundary не менялись.
   `baseline_head` остаётся прежним.
-- Переход к подготовке PLAN-9B-2 — следствие завершённых PLAN-9B-5a,
-  PLAN-9B-4, PLAN-6D и PLAN-6E. PLAN-9B-2 не начат: сначала владелец решает
-  OD-P-1, затем PLAN-L0 фиксирует salvage knowledge для этого слайса.
+- Переход на PLAN-L0 — следствие завершённых PLAN-9B-5a, PLAN-9B-4, PLAN-6D,
+  PLAN-6E и принятого owner decision OD-P-1. PLAN-L0 не начат; docs-only
+  scheduling не является production HEAD и не реализует producer.
+  Утверждённый следующий порядок:
+  `PLAN-L0 → PLAN-9B-PRODUCER → PLAN-9B-2`.
   `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
   авторитетом commit evidence.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
@@ -217,7 +222,7 @@ source_paths:
   checker PLAN-6D-2. Он не начинает PLAN-9B-2/PLAN-6E и не означает завершение
   PLAN-6D.
 - PLAN-6E выполнен после завершённого PLAN-6D-3 и полного закрытия PLAN-6D.
-  Его закрытие не начинает PLAN-9B-2 и не заменяет OD-P-1/PLAN-L0.
+  Его закрытие не начинает PLAN-L0, PLAN-9B-PRODUCER или PLAN-9B-2.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
@@ -225,8 +230,12 @@ source_paths:
     2026-08-01;
   - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
   - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
+  - **PLAN-L0** — pending/not started; текущий checkpoint;
+  - **PLAN-9B-PRODUCER** — scheduled, pending/not started; зависит от
+    завершённого PLAN-9B-1 и completed PLAN-L0 согласно утверждённому порядку;
   - **PLAN-9B-2** — pending/not started; PLAN-9B-4/PLAN-6D/PLAN-6E завершены,
-    но слайс заблокирован owner decision OD-P-1 и salvage-решением PLAN-L0;
+    но слайс заблокирован до completed PLAN-L0, completed
+    PLAN-9B-PRODUCER и отдельного owner-issued implementation prompt;
   - **PLAN-6D-1** — completed 2026-08-02;
   - **PLAN-6D-2** — completed 2026-08-02;
   - **PLAN-6D-3** — completed 2026-08-02;
@@ -240,14 +249,13 @@ source_paths:
     `PLAN-6E`;
   - **PLAN-9C** — блокируется `PLAN-1C′` + `PLAN-6E`;
   - **PLAN-5, PLAN-6A, PLAN-6B, PLAN-6C, PLAN-7, PLAN-8, PLAN-1A, PLAN-1B,
-    PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L** — параллельны и
+    PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** получить owner decision OD-P-1 о выделении
-  provider-language VisualBrief producer в отдельный bounded slice; затем
-  выполнить PLAN-L0 salvage resolution.
-- **После решения:** не начинать PLAN-9B-2 до явного закрытия PLAN-L0 и нового
-  задания владельца.
+- **Следующее точное действие:** выполнить PLAN-L0 salvage resolution.
+- **После PLAN-L0:** не начинать PLAN-9B-PRODUCER без отдельного implementation
+  prompt; не начинать PLAN-9B-2 до completed PLAN-9B-PRODUCER и отдельного
+  implementation prompt.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -916,7 +924,7 @@ PLAN-4; PLAN-1C′ — сразу):
 PLAN-5                        · uniform test runner (UX/reproducibility)
 PLAN-6A → PLAN-6D → PLAN-6E   · governance / scope control / independent reviewer
 PLAN-6B · PLAN-6C · PLAN-7 · PLAN-8 · инкрементальный перевод прозы (OD-5)
-PLAN-L0 → L1 → L2 → L3 → L4   · retire legacy content stack
+PLAN-L1 → L2 → L3 → L4        · retire legacy content stack после PLAN-L0
 PLAN-1A · PLAN-1B · PLAN-1C′  · capability owner gates
 ```
 
@@ -926,8 +934,9 @@ PLAN-1A · PLAN-1B · PLAN-1C′  · capability owner gates
 является одной линейной цепочкой и новых рёбер не вводит.
 
 ```
-семейство 9B (основная последовательность):
-  PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4 → PLAN-9B-2
+основная продуктовая последовательность:
+  PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4
+  → PLAN-L0 → PLAN-9B-PRODUCER → PLAN-9B-2
 
   PLAN-9B-3   — отдельный cleanup/destructive path после PLAN-9B-2
   PLAN-9B-5b  — отдельный destructive retirement path после миграции
@@ -973,11 +982,12 @@ boundary.
 | локальное поведение, targeted tests, ноль persisted/public/paid/destructive | 1D, 2, 3, 4 | **PLAN-9B-0, PLAN-9B-1** |
 | public CLI / input mode | + **owner approval** (`smoke` исполним существующей командой) | **PLAN-9B-5a** |
 | наблюдаемое поведение `strict` | + **owner approval** | PLAN-9B-4 |
+| значения существующих persisted visual-plan полей без новой schema/layout | + **OD-P-1** + characterization tolerant round-trip | **PLAN-9B-PRODUCER** |
 | несколько owners в одном diff | + **PLAN-6D** (`check_task_scope`) | PLAN-9B-2 |
 | destructive retirement реализации с callers | + **PLAN-6E** + reversible retirement (annotated tag + `git bundle` + строка `Retired`) | PLAN-9B-2, PLAN-9B-3, PLAN-9B-5b |
 | persisted bytes / schema / layout | + tolerant reader + **owner approval** (approval PLAN-9A **не переносится**) + PLAN-6E | PLAN-9A |
 | semantic / Vision decision path | + **PLAN-1C′** + **PLAN-6E** | PLAN-9C |
-| network / model / paid операция | + **owner approval на конкретное действие** + PLAN-6E | model-assisted вариант PLAN-9B-1 (OD-16), PLAN-9E |
+| network / model / paid операция | + **owner approval на конкретное действие** + PLAN-6E | model-assisted вариант PLAN-9B-PRODUCER, PLAN-9E |
 | runtime / user data move | + `Preserved runtime corpus` + проверенный абсолютный путь + owner approval | PLAN-14D/14E |
 
 **Что осознанно не оптимизировано.** Путь не сокращался ради меньшего числа
@@ -1155,8 +1165,10 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-L — retirement legacy content stack
 
-- **status:** pending · **зависимости:** зелёный PLAN-4 ·
-  **параллелен PLAN-6A/6D/6E и PLAN-9A; prerequisite для PLAN-9A не является.**
+- **status:** pending · **зависимости:** зелёный PLAN-4. **PLAN-L0 — текущий
+  checkpoint и prerequisite PLAN-9B-PRODUCER/PLAN-9B-2; PLAN-L1…PLAN-L4
+  остаются отдельной retirement-веткой и напрямую prerequisite PLAN-9A не
+  являются.**
 - **цель:** убрать крупнейший disposable блок репозитория до того, как он
   продолжит удерживать docs, packaging, tests и minimalism.
 - **evidence [FACT], 2026-07-31:** legacy content-стек — `pipeline.py` →
@@ -1179,7 +1191,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 #### PLAN-L0 — Knowledge Salvage Gate
 
-- **status:** pending · **обязателен до L3** · **зоны:** только
+- **status:** pending / not started · **current checkpoint** · **обязателен до
+  PLAN-9B-PRODUCER и L3** · **зоны:** только
   `docs/current/CLEANUP_REGISTRY.md`.
 - **правило (OD-1):** отсутствие caller — **не** критерий отсутствия ценности.
   Ретайр legacy допускается только после salvage.
@@ -2132,7 +2145,8 @@ prepared content / topic
 |---|---|
 | честность источника сценария (`topic` → template) | **PLAN-9B-4** |
 | канонический вход «исходный текст» | **PLAN-9B-5a** |
-| источник provider-language запросов | **PLAN-9B-1** |
+| integrity provider-language query adapter | **PLAN-9B-1** |
+| provider-language VisualBrief producer | **PLAN-9B-PRODUCER** |
 | лестница расширения и снятие topic-hardcodes | **PLAN-9B-2** |
 | retirement устаревших query-путей | **PLAN-9B-3** |
 | semantic/Vision producer → existing consumer wiring | PLAN-9C |
@@ -2214,10 +2228,15 @@ misleading/conflict · paid approval.
   PLAN-6D/PLAN-12/PLAN-13):
 
   ```
-  PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4 → PLAN-9B-2 → PLAN-9B-3
+  PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4
+  → PLAN-L0 → PLAN-9B-PRODUCER → PLAN-9B-2 → PLAN-9B-3
   PLAN-9B-5b — после успешной миграции capability и готовности его
                destructive gates
   ```
+
+  PLAN-L0 остаётся отдельным knowledge-salvage owner, а
+  PLAN-9B-PRODUCER — отдельным visual-planning user outcome; включение их в
+  последовательность не смешивает scope трёх слайсов.
 
 - **фактический owner remote-запросов (OD-14).** [FACT]
   `src/assets/semantic_selection/query_generator.py` **не участвует** в
@@ -2465,9 +2484,116 @@ misleading/conflict · paid approval.
   нормативы; network/provider/download/Vision/TTS/paid calls не выполнялись,
   synthetic render fixtures создавались только во временных каталогах.
 
+#### PLAN-9B-PRODUCER — Provider-language VisualBrief producer
+
+- **status:** pending / not started; scheduled owner decision **OD-P-1**
+  2026-08-02. Этот docs-only scheduling slice producer не реализует.
+- **dependencies:** completed **PLAN-9B-1**; completed **PLAN-L0** до начала
+  execution согласно утверждённому порядку.
+- **owner:** `src/content/visual_planning/**`.
+- **objective:** из доказанного source/script/research evidence сформировать в
+  существующем visual-planning owner provider-language содержание существующего
+  `VisualBrief`, не перенося semantic intent в `query_adapter` и не создавая
+  второго planner/query pipeline.
+- **user outcome:** подготовленный материал разных доменов получает
+  осмысленный provider-ready visual brief/query; при недостатке evidence
+  состояние остаётся честным, fail-closed и редактируемым, а explicit author
+  brief всегда выигрывает.
+- **allowed zones будущего implementation:**
+  - `src/content/visual_planning/**`;
+  - exact owning test modules, доказанные pre-implementation caller audit;
+  - current docs только для checkpoint/evidence после фактического completion.
+  Зоны заранее не расширяются. Если code audit докажет необходимое изменение
+  caller вне них, implementation обязан **STOP** и запросить scope change.
+- **prohibited zones:** любой production owner вне
+  `src/content/visual_planning/**`; `query_adapter`, provider implementations,
+  script/research owners, public CLI/API, schemas, project/storage layout и
+  asset pipeline. Не создавать `TranslatorService`, `SearchEngine`,
+  `QueryOrchestrator`, `VisualBriefManager`, `VisualBriefEngine`, второй visual
+  planner, второй query pipeline, второй semantic stack, новый repository,
+  artifact, manifest, evidence store или project state.
+- **canonical contracts — только существующие:** `VisualBrief`;
+  `SceneVisualPlan.brief`; `provider_queries`; `claim_ids`; `source_refs`;
+  visual-plan serializers; `master/master_visual_plan.json`; локализованный
+  `visual/visual_plan.json`; существующая downstream copy `query_plan` /
+  `visual_brief` в `assets/assets_manifest.json`.
+- **author override priority:** automatic planner result → explicit author
+  brief applied last → author brief wins. `NewsJob.visual_briefs` остаётся
+  author input; producer не выдаёт automatic result за author input и не
+  перезаписывает prepared brief.
+- **truthful fail-closed boundary:** producer использует source text, script,
+  research evidence, template/channel brief и существующую structured scene
+  semantics. Factual provider query только из topic literal запрещён. При
+  недостаточном evidence не создаются generic plausible substitute,
+  topic-specific literals или misleading query; unknown intent остаётся
+  fail-closed.
+- **method is not frozen:** implementation-time варианты могут включать
+  deterministic evidence-derived adaptation, template/channel briefs и local
+  bounded adapter. Текущая approved implementation boundary — offline, без
+  сети, paid API и новой обязательной model dependency. Local model либо
+  optional paid/model-assisted adapter не утверждены этим слайсом; любой
+  network/paid/model-assisted вызов требует отдельного owner approval на
+  конкретное действие. Конкретная библиотека или модель заранее не выбирается.
+- **tripwires:**
+  - *persisted bytes:* OD-P-1 разрешает будущие изменения **только значений**
+    существующих `visual_brief`, `provider_queries`, существующих visual-plan
+    JSON objects и существующей downstream copy в assets manifest. Новый field,
+    schema version, файл, layout, manifest, project state, provenance field или
+    query-adapter-specific storage запрещены; старые проекты читаются
+    tolerant/default readers. Если нужен новый schema/layout/public contract —
+    **STOP** и новое owner decision;
+  - *public:* нового CLI/API/console surface нет; его необходимость требует
+    **STOP** и отдельного owner decision;
+  - *network/paid:* в первом implementation slice отсутствуют; отдельное
+    approval требуется на каждое конкретное действие;
+  - *destructive:* отсутствует; hardcode/query-path retirement остаётся
+    PLAN-9B-2/PLAN-9B-3 и этим слайсом не разрешён.
+- **success criteria:**
+  1. Для подготовленного материала минимум из классов animals/wildlife,
+     energy/technology и geography/infrastructure producer создаёт
+     evidence-derived provider-language content.
+  2. Хотя бы один поддерживающий provider получает осмысленный query из
+     evidence, а не из topic literal.
+  3. Unknown intent остаётся fail-closed.
+  4. Explicit author brief всегда выигрывает.
+  5. Topic-specific hardcodes не добавлены.
+  6. Второй query/planning owner не создан.
+  7. Новые fields/artifacts/layout отсутствуют.
+  8. Old/tolerant reading продолжает работать.
+  9. Network/paid calls в первом implementation slice отсутствуют.
+- **characterization requirements — до изменения поведения:**
+  1. Зафиксировать current automatic planner result и порядок author override.
+  2. Охарактеризовать текущий persisted round-trip. В частности,
+     `from_legacy_visual_plan()` может реконструировать scene semantics/intents
+     без восстановления `SceneVisualPlan.brief`; определить, требуется ли
+     model-level/editor/read-model round-trip на фактическом пути.
+  3. Если brief теряется на необходимом current path, исправить существующий
+     tolerant reader **внутри visual-planning ownership**, не создавая нового
+     storage owner. Заранее утверждать необходимость reader-изменения нельзя.
+  4. Зафиксировать существующие master/localized/assets-manifest copies,
+     `provider_queries`, `claim_ids`, `source_refs` и отсутствие новой
+     schema/layout.
+  5. Добавить multi-domain, explicit-author-override и fail-closed
+     unknown-intent characterization/regression.
+- **verification будущего implementation:** characterization first; targeted
+  visual-planning tests; query_adapter/provider integration regression;
+  multi-domain regression; persisted visual-plan round-trip tests; explicit
+  author-override test; fail-closed unknown-intent test; task-scope checker;
+  docs QA; `git diff --check`; полный offline suite, потому что меняются shared
+  behavior и persisted content. Product tests этого списка в docs-only OD-P-1
+  slice не запускаются.
+- **rollback:** один bounded implementation commit; revert этого commit.
+  Миграции данных, нового artifact/layout и irreversible действий нет.
+- **relation to PLAN-L0 and PLAN-9B-2:** PLAN-L0 сохраняет knowledge, включая
+  C46 и C48, но producer не реализует. PLAN-9B-PRODUCER реализует отдельный
+  user outcome. PLAN-9B-2 после него реализует expansion ladder и hardcode
+  migration. Три ответственности не смешиваются.
+
 #### PLAN-9B-2 — expansion + hardcode migration
 
-- **status:** pending · **зависимости:** PLAN-9B-4, **PLAN-6D**, **PLAN-6E**.
+- **status:** pending / not started; **blocked** до отдельного owner-issued
+  implementation prompt · **зависимости:** PLAN-9B-4, completed **PLAN-L0**,
+  completed **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E**.
 - **цель:** контролируемая лестница расширения плюс снятие topic-specific
   hardcodes из shared engine.
 - **лестница запросов:** точный субъект → субъект и действие → субъект,
@@ -2493,15 +2619,13 @@ misleading/conflict · paid approval.
   становится visual planner; `TranslatorService`, `SearchEngine` и
   `QueryOrchestrator` не создаются (OD-13). Канонические направления —
   `visual planning → существующий VisualBrief → query_adapter`.
-- **предусловие «источник provider-языка» пока не имеет владельца.** [FACT]
-  PLAN-9B-1 закрыл integrity адаптера и **явно оставил** arbitrary raw-topic
-  provider-language generation нереализованной. Producer как отдельный bounded
-  slice записан кандидатом в `PRODUCT_PLAN.md` (раздел «Candidate new slices»);
-  в PLAN-9B-2 он **не** добавлен, потому что producer и лестница расширения —
-  два независимо проверяемых user outcome, а этот слайс уже пересекает
-  multi-owner, persisted и destructive boundary. Планирование producer требует
-  owner decision (`PRODUCT_PLAN.md`, OD-P-1); до него состав, зависимости и
-  порядок PLAN-9B-2 не меняются.
+- **источник provider-языка получил отдельного owner-слайса.** OD-P-1
+  запланировал PLAN-9B-PRODUCER внутри существующего visual-planning ownership.
+  Он не добавлен в scope PLAN-9B-2: producer и лестница расширения остаются
+  двумя независимо проверяемыми user outcome, а PLAN-9B-2 по-прежнему
+  пересекает multi-owner, persisted и destructive boundary. PLAN-9B-2 не
+  начинается до completed PLAN-L0, completed PLAN-9B-PRODUCER и отдельного
+  implementation prompt.
 - **тесты deep-dive:** — (T3 перенесён в PLAN-9B-1 вместе с исправлением
   `source_is_latin`, registry C36; тест не потерян и нового тестового этапа не
   создаётся).
