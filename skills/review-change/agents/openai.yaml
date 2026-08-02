@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Change"
+  short_description: "Review one explicit change without mutation"
+  default_prompt: "Use $review-change to independently review an explicit immutable commit or diff without changing it."

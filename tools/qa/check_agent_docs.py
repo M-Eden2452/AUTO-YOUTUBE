@@ -24,7 +24,24 @@ REQUIRED_SKILLS = (
     "replace-visual-slot",
     "architecture-change",
     "create-handoff",
+    "review-change",
 )
+REVIEW_CHANGE_SKILL = "review-change"
+REVIEW_CHANGE_CLAUDE_ADAPTER = Path(".claude/agents/review-change.md")
+REVIEW_CHANGE_CLAUDE_FIELDS = {
+    "name",
+    "description",
+    "model",
+    "color",
+    "permissionMode",
+    "tools",
+}
+REVIEW_CHANGE_CLAUDE_TOOLS = {"Bash", "Glob", "Grep", "Read"}
+REVIEW_CHANGE_POLICY_HEADINGS = {
+    "Review dimensions",
+    "Findings format",
+    "Repair cycle",
+}
 REQUIRED_ARCHIVED_HANDOFFS = (
     "AUTONOMOUS_ARCHITECTURE_AUDIT.md",
     "AUTONOMOUS_IMPLEMENTATION_PLAN.md",
@@ -585,6 +602,118 @@ def validate_implementation_index(root: Path) -> list[str]:
     return errors
 
 
+def validate_skills(
+    root: Path = REPO_ROOT,
+    *,
+    required_skills: Iterable[str] = REQUIRED_SKILLS,
+) -> list[str]:
+    """Validate canonical repository skills and their thin platform adapters."""
+
+    errors: list[str] = []
+    for skill_name in required_skills:
+        skill_root = root / "skills" / skill_name
+        skill_file = skill_root / "SKILL.md"
+        openai_file = skill_root / "agents" / "openai.yaml"
+        if not skill_file.is_file():
+            errors.append(f"missing skill: {skill_name}")
+            continue
+        try:
+            metadata = _frontmatter(skill_file)
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            errors.append(f"{skill_name}: {exc}")
+            continue
+        if set(metadata) != {"name", "description"}:
+            errors.append(
+                f"{skill_name}: SKILL.md frontmatter must contain only name/description"
+            )
+        if metadata.get("name") != skill_name:
+            errors.append(f"{skill_name}: frontmatter name mismatch")
+        content = skill_file.read_text(encoding="utf-8")
+        if "TODO" in content:
+            errors.append(f"{skill_name}: unresolved TODO")
+
+        if not openai_file.is_file():
+            errors.append(f"{skill_name}: missing agents/openai.yaml")
+        else:
+            try:
+                openai_metadata = (
+                    yaml.safe_load(openai_file.read_text(encoding="utf-8")) or {}
+                )
+                prompt = openai_metadata["interface"]["default_prompt"]
+            except (KeyError, TypeError, yaml.YAMLError) as exc:
+                errors.append(f"{skill_name}: invalid agents/openai.yaml ({exc})")
+            else:
+                if f"${skill_name}" not in prompt:
+                    errors.append(
+                        f"{skill_name}: default_prompt must mention ${skill_name}"
+                    )
+
+        if skill_name != REVIEW_CHANGE_SKILL:
+            continue
+
+        if "GIT_OPTIONAL_LOCKS=0" not in content or "git --no-optional-locks" not in content:
+            errors.append(
+                f"{skill_name}: canonical skill must disable optional Git locks"
+            )
+
+        claude_file = root / REVIEW_CHANGE_CLAUDE_ADAPTER
+        if not claude_file.is_file():
+            errors.append(
+                f"{skill_name}: missing {REVIEW_CHANGE_CLAUDE_ADAPTER.as_posix()}"
+            )
+            continue
+        try:
+            claude_metadata = _frontmatter(claude_file)
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            errors.append(f"{skill_name}: invalid Claude adapter ({exc})")
+            continue
+        if set(claude_metadata) != REVIEW_CHANGE_CLAUDE_FIELDS:
+            errors.append(
+                f"{skill_name}: Claude adapter frontmatter must contain exactly "
+                + ", ".join(sorted(REVIEW_CHANGE_CLAUDE_FIELDS))
+            )
+        if claude_metadata.get("name") != skill_name:
+            errors.append(f"{skill_name}: Claude adapter name mismatch")
+        if claude_metadata.get("model") != "sonnet":
+            errors.append(f"{skill_name}: Claude adapter model must be sonnet")
+        if claude_metadata.get("permissionMode") != "plan":
+            errors.append(f"{skill_name}: Claude adapter permissionMode must be plan")
+        raw_tools = claude_metadata.get("tools")
+        tools = set(raw_tools) if isinstance(raw_tools, list) else set()
+        if tools != REVIEW_CHANGE_CLAUDE_TOOLS:
+            expected = ", ".join(sorted(REVIEW_CHANGE_CLAUDE_TOOLS))
+            found = ", ".join(sorted(str(tool) for tool in tools)) or "none"
+            errors.append(
+                f"{skill_name}: Claude adapter tools must be exactly {expected} "
+                f"(found {found})"
+            )
+
+        claude_content = claude_file.read_text(encoding="utf-8")
+        if "skills/review-change/SKILL.md" not in claude_content:
+            errors.append(
+                f"{skill_name}: Claude adapter must point to "
+                "skills/review-change/SKILL.md"
+            )
+        if (
+            "GIT_OPTIONAL_LOCKS=0" not in claude_content
+            or "git --no-optional-locks" not in claude_content
+        ):
+            errors.append(
+                f"{skill_name}: Claude adapter must disable optional Git locks"
+            )
+        duplicated = sorted(
+            heading
+            for heading in REVIEW_CHANGE_POLICY_HEADINGS
+            if f"## {heading}" in claude_content
+        )
+        if duplicated:
+            errors.append(
+                f"{skill_name}: Claude adapter duplicates canonical policy sections: "
+                + ", ".join(duplicated)
+            )
+    return errors
+
+
 def validate_repository(
     root: Path = REPO_ROOT,
     *,
@@ -634,37 +763,8 @@ def validate_repository(
 
     errors.extend(validate_governance_documents(root))
 
-    for skill_name in REQUIRED_SKILLS:
-        skill_root = root / "skills" / skill_name
-        skill_file = skill_root / "SKILL.md"
-        agent_file = skill_root / "agents" / "openai.yaml"
-        linked_docs.append(skill_file)
-        if not skill_file.is_file():
-            errors.append(f"missing skill: {skill_name}")
-            continue
-        try:
-            metadata = _frontmatter(skill_file)
-        except (OSError, ValueError, yaml.YAMLError) as exc:
-            errors.append(f"{skill_name}: {exc}")
-            continue
-        if set(metadata) != {"name", "description"}:
-            errors.append(f"{skill_name}: SKILL.md frontmatter must contain only name/description")
-        if metadata.get("name") != skill_name:
-            errors.append(f"{skill_name}: frontmatter name mismatch")
-        content = skill_file.read_text(encoding="utf-8")
-        if "TODO" in content:
-            errors.append(f"{skill_name}: unresolved TODO")
-        if not agent_file.is_file():
-            errors.append(f"{skill_name}: missing agents/openai.yaml")
-        else:
-            try:
-                agent_metadata = yaml.safe_load(agent_file.read_text(encoding="utf-8")) or {}
-                prompt = agent_metadata["interface"]["default_prompt"]
-            except (KeyError, TypeError, yaml.YAMLError) as exc:
-                errors.append(f"{skill_name}: invalid agents/openai.yaml ({exc})")
-            else:
-                if f"${skill_name}" not in prompt:
-                    errors.append(f"{skill_name}: default_prompt must mention ${skill_name}")
+    linked_docs.extend(root / "skills" / name / "SKILL.md" for name in REQUIRED_SKILLS)
+    errors.extend(validate_skills(root))
 
     handoff_root = root / "docs" / "handoff"
     if handoff_root.is_dir():

@@ -23,6 +23,9 @@ source_paths:
   - src/production_plan
   - docs/adr
   - tests
+  - skills/review-change
+  - .claude/agents/review-change.md
+  - tools/qa/check_agent_docs.py
 ---
 
 # Start Here
@@ -39,14 +42,16 @@ AI-YouTube — локальная offline-first платформа создан�
    [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
 
 Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
-Он задаёт порядок работ; выполняется только его `current_checkpoint` — сейчас
-PLAN-6E, pending / не начат после полного завершения PLAN-6D. Локальный checker
+Он задаёт порядок работ; PLAN-6E завершён 2026-08-02: canonical read-only policy
+находится в `skills/review-change/`, тонкие Claude/Codex adapters ссылаются на неё,
+а controlled acceptance проверила безопасный и нарушающий synthetic diff. Локальный checker
 `python -m tools.qa.check_task_scope` принимает task-specific `--allow` /
 `--allow-dir` и возвращает `OK/0`, `STOP_REQUIRED/1` или `INVALID_INPUT/2`.
 Для Claude Code root `skills/` не считается автоматически загруженным:
 перед специализированной задачей нужно вручную открыть релевантный
-`skills/<skill-name>/SKILL.md`. PLAN-9B-2 остаётся pending / не начат и
-заблокирован PLAN-6E.
+`skills/<skill-name>/SKILL.md`. PLAN-9B-2 остаётся pending / не начат: следующий
+маршрут — owner decision OD-P-1, затем salvage resolution PLAN-L0; новый
+implementation checkpoint без отдельного задания не активирован.
 Точное значение и следующее действие всегда
 берутся из самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)

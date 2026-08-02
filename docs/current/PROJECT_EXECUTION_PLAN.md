@@ -7,7 +7,7 @@ baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
 current_checkpoint: PLAN-6E
-next_exact_action: git status --short --branch
+next_exact_action: owner decision OD-P-1, then PLAN-L0 salvage resolution
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -31,6 +31,8 @@ source_paths:
   - apps
   - tests
   - tools/qa
+  - skills/review-change
+  - .claude/agents/review-change.md
 ---
 
 # AI-YouTube Project Execution Plan
@@ -45,10 +47,11 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-6E, pending/not started после полного завершения
-  PLAN-6D.
-- **PLAN-9B-2:** остаётся pending/not started и заблокирован незавершённым
-  PLAN-6E; acceptance criteria и scope не менялись.
+- **Текущий шаг:** PLAN-6E completed 2026-08-02. Новый implementation checkpoint
+  не активирован: требуется отдельное задание владельца.
+- **PLAN-9B-2:** остаётся pending/not started. Reviewer gate PLAN-6E закрыт, но
+  слайс всё ещё заблокирован решением OD-P-1 о provider-language producer и
+  явным salvage-решением PLAN-L0; acceptance criteria и scope не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -202,9 +205,9 @@ source_paths:
   выполненного локального PLAN-9B-1; full suite не запускался, потому что public
   signatures, schema/layout и shared architecture boundary не менялись.
   `baseline_head` остаётся прежним.
-- Переход на PLAN-9B-2 — следствие завершённых PLAN-9B-5a и PLAN-9B-4 и их
-  зелёных targeted/full offline проверок. PLAN-9B-2 не начат и остаётся
-  заблокирован PLAN-6E.
+- Переход к подготовке PLAN-9B-2 — следствие завершённых PLAN-9B-5a,
+  PLAN-9B-4, PLAN-6D и PLAN-6E. PLAN-9B-2 не начат: сначала владелец решает
+  OD-P-1, затем PLAN-L0 фиксирует salvage knowledge для этого слайса.
   `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
   авторитетом commit evidence.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
@@ -213,9 +216,8 @@ source_paths:
 - Переход на PLAN-6D-3 — следствие зелёного локального read-only scope
   checker PLAN-6D-2. Он не начинает PLAN-9B-2/PLAN-6E и не означает завершение
   PLAN-6D.
-- Переход на PLAN-6E — следствие завершённого PLAN-6D-3 и полного закрытия
-  PLAN-6D. Он не начинает PLAN-6E или PLAN-9B-2; acceptance criteria обоих
-  шагов не менялись.
+- PLAN-6E выполнен после завершённого PLAN-6D-3 и полного закрытия PLAN-6D.
+  Его закрытие не начинает PLAN-9B-2 и не заменяет OD-P-1/PLAN-L0.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
@@ -223,19 +225,17 @@ source_paths:
     2026-08-01;
   - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
   - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
-  - **PLAN-9B-2** — pending/not started; зависит от
-    завершённых PLAN-9B-4/PLAN-6D и незавершённого PLAN-6E;
+  - **PLAN-9B-2** — pending/not started; PLAN-9B-4/PLAN-6D/PLAN-6E завершены,
+    но слайс заблокирован owner decision OD-P-1 и salvage-решением PLAN-L0;
   - **PLAN-6D-1** — completed 2026-08-02;
   - **PLAN-6D-2** — completed 2026-08-02;
   - **PLAN-6D-3** — completed 2026-08-02;
   - **PLAN-6D** — completed 2026-08-02; evidence commits: `397d338`
     (PLAN-6D-1), `10dd555` (PLAN-6D-2) и commit с trailer
     `Plan-Step: PLAN-6D-3`;
-  - **PLAN-6E** — текущий checkpoint, pending/not started; blocker **первого
-    destructive retirement / high-risk
-    shared-contract slice** (PLAN-9B-2, PLAN-9B-3, PLAN-9B-5b), плюс
-    **обязателен для PLAN-9A** (persisted-bytes boundary) и **для PLAN-9C**
-    (semantic decision boundary);
+  - **PLAN-6E** — completed 2026-08-02; canonical review policy, два тонких
+    adapter и controlled read-only acceptance закрывают reviewer gate для
+    destructive/high-risk boundaries;
   - **PLAN-9A** — блокируется `PLAN-9B-2` + `PLAN-1C′`, дополнительно требует
     `PLAN-6E`;
   - **PLAN-9C** — блокируется `PLAN-1C′` + `PLAN-6E`;
@@ -243,9 +243,11 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git:** не начинать PLAN-6E без отдельного задания владельца;
-  PLAN-9B-2 также не начинать до закрытия его gates.
+- **Следующее точное действие:** получить owner decision OD-P-1 о выделении
+  provider-language VisualBrief producer в отдельный bounded slice; затем
+  выполнить PLAN-L0 salvage resolution.
+- **После решения:** не начинать PLAN-9B-2 до явного закрытия PLAN-L0 и нового
+  задания владельца.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1824,8 +1826,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-6E — independent reviewer foundation
 
-- **status:** pending/not started; current checkpoint · **completed:** — ·
-  **commit:** —
+- **status:** completed · **completed:** 2026-08-02 · **commit:** Git log,
+  trailer `Plan-Step: PLAN-6E`
 - **цель:** один независимый read-only reviewer до первого destructive и
   high-risk production-slice.
 - **роль в ревизии 2.1:** **BLOCKER первого destructive retirement / high-risk
@@ -1913,6 +1915,47 @@ allowed zones и owner approvals не пересекаются; изменени
   Synthetic diff создаётся во временном каталоге вне репозитория и в Git не
   попадает. Отдельная автоматизация и новый QA-модуль для этого не создаются:
   процедура выполняется один раз при закрытии слайса.
+- **реализовано:** canonical owner — `skills/review-change/SKILL.md`; тонкие
+  adapters — `skills/review-change/agents/openai.yaml` и
+  `.claude/agents/review-change.md`. Claude adapter использует `model: sonnet`,
+  `permissionMode: plan`, только `Read/Glob/Grep/Bash` и прямо запрещает
+  Write/Edit, сеть и repair. Canonical policy требует независимый контекст,
+  read-only before/after proof, review scope/objective, duplicate owners,
+  compatibility, persisted/network/rights boundaries, tests, findings и
+  повторный review после repair. Для Git-read launcher устанавливает
+  `GIT_OPTIONAL_LOCKS=0`, а reviewer использует `git --no-optional-locks`.
+- **QA contract:** `tools.qa.check_agent_docs` регистрирует седьмой skill,
+  проверяет обязательные canonical/adapter поля, точный read-only toolset,
+  отсутствие дублирования policy и обязательное отключение optional Git locks.
+  `tests.test_check_agent_docs` содержит positive и negative characterization.
+- **controlled acceptance evidence (2026-08-02):** Claude Code 2.1.218,
+  `--model sonnet --effort high`; фактически выбран `claude-sonnet-5`. Сеть была
+  разрешена только к Anthropic; WebSearch/WebFetch, другие providers, downloads,
+  Vision, TTS и render не выполнялись.
+  - Case A на immutable commit `619c817cb1d7234799a32c8fd7d567633b2b470b`:
+    первый model-run вернул PASS без findings, но launcher доказал изменение
+    только `.git/index` stat cache при неизменных HEAD/status/diff. Acceptance
+    объявлена FAIL; policy и adapter дополнены обязательным отключением optional
+    locks. Свежая независимая re-review session после repair вернула PASS/PASS,
+    findings `[]`; HEAD, porcelain, staged/unstaged diff и байты/mtime index
+    совпали до/после.
+  - Case B во внешнем временном synthetic repository: безопасный bounded diff
+    принят, findings `[]`, scope PASS, objective PASS; authoritative launcher
+    подтвердил byte-stable index и неизменные HEAD/status/diff.
+  - Case C в отдельном внешнем synthetic repository: неизвестное reviewer-у
+    нарушение найдено как BLOCKER в новом `src/second_owner.py`; evidence —
+    второй owner нормализации вне allowed scope с расходящейся семантикой;
+    smallest safe correction — удалить весь hunk. Scope/objective — FAIL/FAIL;
+    launcher подтвердил, что reviewer ничего не исправил и repository не изменил.
+  - Repair cycle выполнен новым Claude session; shell-capability остаётся
+    residual risk, сдерживаемый exact tool allowlist, plan mode, запретом сети и
+    внешним byte-level proof. Два ранних `--json-schema` запуска завершились
+    локальной parser-ошибкой до model call; successful model calls — четыре,
+    суммарная reported cost `$1.4021283`.
+- **verification evidence:** `tests.test_check_agent_docs` — 58 тестов;
+  `tests.test_stage2_agent_onboarding` — 3 теста; docs QA,
+  `compileall tools\qa`, task-scope checker по восьми разрешённым путям и
+  `git diff --check` — exit code 0. Числа тестов — измерения, не нормативы.
 - **required verification:** controlled read-only acceptance (шаги 1–6),
   docs QA, `git diff --check`.
 - **rollback:** один commit.

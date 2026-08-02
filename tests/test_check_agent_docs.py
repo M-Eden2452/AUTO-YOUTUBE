@@ -36,6 +36,7 @@ from tools.qa.check_agent_docs import (
     validate_implementation_index,
     validate_repository,
     validate_section_references,
+    validate_skills,
     validate_test_classification,
 )
 
@@ -110,11 +111,153 @@ def _governance_root(stack: TemporaryDirectory) -> Path:
     return root
 
 
+def _review_skill_root(stack: TemporaryDirectory) -> Path:
+    """A minimal root containing a valid canonical reviewer and both adapters."""
+
+    root = Path(stack.name)
+    _write(
+        root,
+        Path("skills/review-change/SKILL.md"),
+        """---
+name: review-change
+description: Independently review an immutable commit or explicit diff without mutation.
+---
+
+# Review Change
+
+## Purpose
+
+Review one explicit change object.
+Launch with `GIT_OPTIONAL_LOCKS=0`; use `git --no-optional-locks` for Git reads.
+""",
+    )
+    _write(
+        root,
+        Path("skills/review-change/agents/openai.yaml"),
+        """interface:
+  display_name: "Review Change"
+  short_description: "Review one explicit change without mutation"
+  default_prompt: "Use $review-change to review an explicit immutable change."
+""",
+    )
+    _write(
+        root,
+        Path(".claude/agents/review-change.md"),
+        """---
+name: review-change
+description: Review one explicit immutable commit or diff in an independent context.
+model: sonnet
+color: blue
+permissionMode: plan
+tools: [Read, Glob, Grep, Bash]
+---
+
+Use `skills/review-change/SKILL.md` as the only review policy.
+Set `GIT_OPTIONAL_LOCKS=0` and use `git --no-optional-locks` for every Git command.
+Do not fix findings, stage files, or create commits.
+""",
+    )
+    return root
+
+
 class RepositoryTests(unittest.TestCase):
     def test_repository_passes_every_governance_check(self) -> None:
         self.assertEqual(
             validate_repository(REPO_ROOT, today=date(2026, 7, 29), max_age_days=120),
             [],
+        )
+
+
+class SkillContractTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.stack = TemporaryDirectory()
+        self.addCleanup(self.stack.cleanup)
+        self.root = _review_skill_root(self.stack)
+
+    def test_valid_review_change_contract_produces_no_errors(self) -> None:
+        self.assertEqual(
+            validate_skills(self.root, required_skills=("review-change",)), []
+        )
+
+    def test_missing_claude_adapter_is_reported(self) -> None:
+        (self.root / ".claude/agents/review-change.md").unlink()
+        errors = validate_skills(self.root, required_skills=("review-change",))
+        self.assertIn("review-change: missing .claude/agents/review-change.md", errors)
+
+    def test_write_or_edit_capability_is_reported(self) -> None:
+        adapter = self.root / ".claude/agents/review-change.md"
+        adapter.write_text(
+            adapter.read_text(encoding="utf-8").replace(
+                "tools: [Read, Glob, Grep, Bash]",
+                "tools: [Read, Glob, Grep, Bash, Write, Edit]",
+            ),
+            encoding="utf-8",
+        )
+        errors = validate_skills(self.root, required_skills=("review-change",))
+        self.assertIn(
+            "review-change: Claude adapter tools must be exactly "
+            "Bash, Glob, Grep, Read (found Bash, Edit, Glob, Grep, Read, Write)",
+            errors,
+        )
+
+    def test_missing_canonical_policy_pointer_is_reported(self) -> None:
+        adapter = self.root / ".claude/agents/review-change.md"
+        adapter.write_text(
+            adapter.read_text(encoding="utf-8").replace(
+                "Use `skills/review-change/SKILL.md` as the only review policy.",
+                "Apply the review policy embedded here.",
+            ),
+            encoding="utf-8",
+        )
+        errors = validate_skills(self.root, required_skills=("review-change",))
+        self.assertIn(
+            "review-change: Claude adapter must point to "
+            "skills/review-change/SKILL.md",
+            errors,
+        )
+
+    def test_duplicated_policy_sections_are_reported(self) -> None:
+        adapter = self.root / ".claude/agents/review-change.md"
+        adapter.write_text(
+            adapter.read_text(encoding="utf-8")
+            + "\n## Review dimensions\nCopied policy.\n## Findings format\nCopied policy.\n",
+            encoding="utf-8",
+        )
+        errors = validate_skills(self.root, required_skills=("review-change",))
+        self.assertIn(
+            "review-change: Claude adapter duplicates canonical policy sections: "
+            "Findings format, Review dimensions",
+            errors,
+        )
+
+    def test_missing_no_optional_locks_contract_is_reported(self) -> None:
+        adapter = self.root / ".claude/agents/review-change.md"
+        adapter.write_text(
+            adapter.read_text(encoding="utf-8").replace(
+                "Set `GIT_OPTIONAL_LOCKS=0` and use `git --no-optional-locks` "
+                "for every Git command.\n",
+                "",
+            ),
+            encoding="utf-8",
+        )
+        errors = validate_skills(self.root, required_skills=("review-change",))
+        self.assertIn(
+            "review-change: Claude adapter must disable optional Git locks", errors
+        )
+
+    def test_canonical_policy_must_disable_optional_locks(self) -> None:
+        skill = self.root / "skills/review-change/SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8").replace(
+                "Launch with `GIT_OPTIONAL_LOCKS=0`; use `git --no-optional-locks` "
+                "for Git reads.\n",
+                "Use read-only Git commands.\n",
+            ),
+            encoding="utf-8",
+        )
+        errors = validate_skills(self.root, required_skills=("review-change",))
+        self.assertIn(
+            "review-change: canonical skill must disable optional Git locks", errors
         )
 
 

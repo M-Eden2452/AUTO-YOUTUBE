@@ -80,19 +80,19 @@ source_paths:
   - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
   - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
+  - skills/review-change
+  - .claude/agents/review-change.md
 ---
 
 # Current State
 
 Проверено 2026-07-29 от clean HEAD `9f3ddba`. Код и Git имеют приоритет.
 
-Активный порядок задаёт [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); checkpoint —
-PLAN-6E, pending/not started после полного завершения PLAN-6D. PLAN-9B-2
-остаётся pending/not started и заблокирован PLAN-6E. PLAN-6D завершил permissions,
-read-only scope checker и правило Claude Code: root `skills/` не считается
-автоматически загруженным; вручную открывается релевантный `SKILL.md`, а фактическое
-состояние репозитория важнее предположений skill. `.claude/skills/` отсутствует;
-skill content не копировался, Codex discovery не описывался. Точные действия — в плане.
+Активный порядок задаёт [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); PLAN-6E завершён 2026-08-02.
+Canonical policy — `skills/review-change/SKILL.md`; тонкие Claude/Codex adapters не дублируют её.
+Controlled Cases A/B/C приняли immutable/safe изменения и нашли synthetic BLOCKER; после lock repair все repositories byte-stable.
+PLAN-9B-2 pending/not started и заблокирован OD-P-1 и PLAN-L0; следующий маршрут — owner decision, затем salvage resolution.
+Новый implementation checkpoint без отдельного задания не активирован; `.claude/skills/` отсутствует. Точные действия — в плане.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и
