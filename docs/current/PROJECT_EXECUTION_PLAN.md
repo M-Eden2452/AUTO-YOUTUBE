@@ -6,8 +6,8 @@ updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-08-02
-current_checkpoint: PLAN-L0
-next_exact_action: execute PLAN-L0 salvage resolution
+current_checkpoint: PLAN-9B-PRODUCER
+next_exact_action: await separate owner-issued implementation prompt for PLAN-9B-PRODUCER
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,14 +47,18 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-L0 pending / not started.** PLAN-6E завершён
-  2026-08-02; owner decision **OD-P-1 принят** 2026-08-02 docs-only слайсом.
+- **Текущий шаг:** **PLAN-9B-PRODUCER pending / not started.** PLAN-L0 завершён
+  2026-08-02 docs-only слайсом: Knowledge Salvage Gate закрыт, salvage записан в
+  `CLEANUP_REGISTRY.md`. PLAN-6E завершён 2026-08-02; owner decision
+  **OD-P-1 принят** 2026-08-02 docs-only слайсом.
 - **PLAN-9B-PRODUCER:** scheduled решением OD-P-1, pending / not started;
-  выполняется отдельным bounded implementation slice только после completed
-  PLAN-L0 и отдельного owner-issued implementation prompt.
-- **PLAN-9B-2:** остаётся pending / not started и blocked до completed PLAN-L0,
-  completed PLAN-9B-PRODUCER и отдельного owner-issued implementation prompt;
-  acceptance criteria, expansion ladder и retirement scope не менялись.
+  prerequisite PLAN-L0 выполнен. Выполняется отдельным bounded implementation
+  slice только после отдельного owner-issued implementation prompt. Закрытие
+  PLAN-L0 producer **не** реализует и его начало не разрешает.
+- **PLAN-9B-2:** остаётся pending / not started и **blocked** до completed
+  PLAN-9B-PRODUCER и отдельного owner-issued implementation prompt; PLAN-L0 как
+  зависимость закрыт, acceptance criteria, expansion ladder и retirement scope
+  не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -190,7 +194,7 @@ source_paths:
   Vision, TTS, paid API и render не выполнялись (2026-08-02).
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
   PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2,
-  PLAN-6D-2, PLAN-6D-3, PLAN-6E и PLAN-L0.**
+  PLAN-6D-2, PLAN-6D-3, PLAN-6E, PLAN-L0 и PLAN-9B-PRODUCER.**
   Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
@@ -209,12 +213,16 @@ source_paths:
   signatures, schema/layout и shared architecture boundary не менялись.
   `baseline_head` остаётся прежним.
 - Переход на PLAN-L0 — следствие завершённых PLAN-9B-5a, PLAN-9B-4, PLAN-6D,
-  PLAN-6E и принятого owner decision OD-P-1. PLAN-L0 не начат; docs-only
-  scheduling не является production HEAD и не реализует producer.
-  Утверждённый следующий порядок:
+  PLAN-6E и принятого owner decision OD-P-1. Утверждённый порядок:
   `PLAN-L0 → PLAN-9B-PRODUCER → PLAN-9B-2`.
   `baseline_head` не переписывается на незакоммиченный hash; Git log остаётся
   авторитетом commit evidence.
+- Переход на PLAN-9B-PRODUCER — следствие фактически выполненного docs-only
+  слайса PLAN-L0: Knowledge Salvage Gate закрыт до destructive retirement, как
+  требуют OD-1, OD-7 и OD-10. Full suite не запускался, потому что слайс
+  docs-only и не менял production contract, поэтому `baseline_head` не менялся.
+  Смена checkpoint **не** является разрешением начать producer: он остаётся
+  pending / not started до отдельного owner-issued implementation prompt.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
   завершённого PLAN-6D-1. Он не начинает PLAN-9B-2 и не меняет его acceptance
   criteria.
@@ -230,12 +238,15 @@ source_paths:
     2026-08-01;
   - **PLAN-9B-5a** — completed 2026-08-02; зависит от завершённого PLAN-9B-1;
   - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
-  - **PLAN-L0** — pending/not started; текущий checkpoint;
-  - **PLAN-9B-PRODUCER** — scheduled, pending/not started; зависит от
-    завершённого PLAN-9B-1 и completed PLAN-L0 согласно утверждённому порядку;
-  - **PLAN-9B-2** — pending/not started; PLAN-9B-4/PLAN-6D/PLAN-6E завершены,
-    но слайс заблокирован до completed PLAN-L0, completed
-    PLAN-9B-PRODUCER и отдельного owner-issued implementation prompt;
+  - **PLAN-L0** — completed 2026-08-02; salvage записан в
+    `CLEANUP_REGISTRY.md`, retirement не выполнялся;
+  - **PLAN-9B-PRODUCER** — scheduled, pending/not started; **текущий
+    checkpoint**; зависит от завершённого PLAN-9B-1 и completed PLAN-L0 —
+    обе зависимости закрыты, остаётся отдельный owner-issued implementation
+    prompt;
+  - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-6D/PLAN-6E
+    завершены, но слайс остаётся **blocked** до completed PLAN-9B-PRODUCER и
+    отдельного owner-issued implementation prompt;
   - **PLAN-6D-1** — completed 2026-08-02;
   - **PLAN-6D-2** — completed 2026-08-02;
   - **PLAN-6D-3** — completed 2026-08-02;
@@ -252,10 +263,12 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** выполнить PLAN-L0 salvage resolution.
+- **Следующее точное действие:** дождаться отдельного owner-issued
+  implementation prompt для PLAN-9B-PRODUCER.
 - **После PLAN-L0:** не начинать PLAN-9B-PRODUCER без отдельного implementation
   prompt; не начинать PLAN-9B-2 до completed PLAN-9B-PRODUCER и отдельного
-  implementation prompt.
+  implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не разрешены:
+  каждый остаётся отдельной retirement-веткой со своими gates.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -1165,10 +1178,10 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-L — retirement legacy content stack
 
-- **status:** pending · **зависимости:** зелёный PLAN-4. **PLAN-L0 — текущий
-  checkpoint и prerequisite PLAN-9B-PRODUCER/PLAN-9B-2; PLAN-L1…PLAN-L4
-  остаются отдельной retirement-веткой и напрямую prerequisite PLAN-9A не
-  являются.**
+- **status:** pending · **зависимости:** зелёный PLAN-4. **PLAN-L0 completed
+  2026-08-02 и закрывает prerequisite PLAN-9B-PRODUCER/PLAN-9B-2; PLAN-L1…PLAN-L4
+  остаются отдельной retirement-веткой, закрытием PLAN-L0 не разрешены и
+  напрямую prerequisite PLAN-9A не являются.**
 - **цель:** убрать крупнейший disposable блок репозитория до того, как он
   продолжит удерживать docs, packaging, tests и minimalism.
 - **evidence [FACT], 2026-07-31:** legacy content-стек — `pipeline.py` →
@@ -1191,9 +1204,36 @@ allowed zones и owner approvals не пересекаются; изменени
 
 #### PLAN-L0 — Knowledge Salvage Gate
 
-- **status:** pending / not started · **current checkpoint** · **обязателен до
-  PLAN-9B-PRODUCER и L3** · **зоны:** только
-  `docs/current/CLEANUP_REGISTRY.md`.
+- **status:** completed · **completed:** 2026-08-02 · **commit:** — (см. Git log,
+  trailer `Plan-Step: PLAN-L0`) · **обязателен до PLAN-9B-PRODUCER и L3** ·
+  **зоны:** `docs/current/CLEANUP_REGISTRY.md` (+ этот файл для
+  checkpoint/evidence по Execution protocol).
+- **фактический результат:** `Knowledge salvage log` в `CLEANUP_REGISTRY.md`
+  заполнен; placeholder-строка снята. Аудированы все обязательные families:
+  `channels/{psychology,quotes,survival,size_comparison}` и `content/` ·
+  20 движков корня `src/` (ровно `src/*.py` кроме `__init__.py`,
+  `media_library.py` и `utils.py`, суммарно 4903 строки) ·
+  `src/legacy_pipeline/workflow.py` · `config/video_style.json` · `legacy/` ·
+  `MOSS_TTS_Nano/` + `src/tts_providers/` + `scripts/test_moss_voices.py` ·
+  legacy test-модули · motion owners (`story_card_short_render`,
+  `generated_infographic`, `self_eval`, callers `moviepy`).
+- **обязательные находки подтверждены фактическим кодом:** все двенадцать —
+  C46, C47, C48, `self_eval`, thumbnail, YouTube metadata, size comparison,
+  Story Card, `generated_infographic`, `moviepy`, text overlay/title,
+  music-by-mood. Два уточнения записаны как измерения, не нормативы:
+  legacy test-модулей фактически семь, а не шесть, и legacy-callers `moviepy` —
+  шесть, а не три (**C55** по существу не меняется).
+- **границы соблюдены:** capability не мигрировалась, retirement не выполнялся,
+  tag и bundle не создавались, файлы не удалялись и не перемещались;
+  production-код, tests, configs, schemas, manifests, runtime и user data не
+  изменялись; сеть, provider search/download, model API, TTS, Vision и render не
+  выполнялись. Новый owner, ADR, schema, manifest, interface, package и
+  placeholder implementation не создавались. `baseline_head` не менялся.
+- **фактические проверки:** `tools.qa.check_task_scope` с двумя разрешёнными
+  exact paths — `OK`, exit code 0; `tools.qa.check_agent_docs` — exit code 0;
+  `git diff --check` — без замечаний. Full offline suite не запускался: слайс
+  docs-only, test discovery, runner и production contract не менялись
+  (Execution protocol, пункт 10).
 - **правило (OD-1):** отсутствие caller — **не** критерий отсутствия ценности.
   Ретайр legacy допускается только после salvage.
 - **scope gate — что проходит через L0.** KSG применяется к
