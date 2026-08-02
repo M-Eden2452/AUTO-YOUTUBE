@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .brief import apply_brief, parse_brief
+from .brief import apply_brief, parse_brief, produce_brief
 from .contract import VisualPlanner, VisualPlannerError, VisualPlannerUnavailableError
 from .legacy_format import to_legacy_visual_plan
 from .models import VisualPlanRequest, VisualPlanResult, VisualPlanValidationResult, rebuild_intents
@@ -63,6 +63,7 @@ def build_plan(
             f"Планировщик {requested_id!r} не может работать с этим сценарием.", planner=requested_id
         )
     result = engine.plan(request)
+    _produce_scene_briefs(result, request)
     _apply_scene_briefs(result, request.script)
     validation = validate_visual_plan(result, script=request.script, source_text=source_text)
     return VisualPlanning(
@@ -101,6 +102,37 @@ def _apply_scene_briefs(result: VisualPlanResult, script: dict[str, Any] | None)
         # The intents were built from the extracted fields; rebuild them so the query
         # actually carries the names the author insisted on.
         scene.intents = rebuild_intents(scene, language=result.language)
+
+
+def _produce_scene_briefs(result: VisualPlanResult, request: VisualPlanRequest) -> None:
+    """Produce automatic briefs before the existing author-override pass."""
+    raw_scenes = (
+        request.script.get("scenes")
+        if isinstance(request.script, dict)
+        else getattr(request.script, "scenes", None)
+    )
+    script_scenes = list(raw_scenes or [])
+    by_id: dict[str, Any] = {}
+    for raw in script_scenes:
+        scene_id = (
+            str(raw.get("scene_id") or "")
+            if isinstance(raw, dict)
+            else str(getattr(raw, "scene_id", "") or "")
+        )
+        if scene_id:
+            by_id[scene_id] = raw
+
+    for position, scene in enumerate(result.scenes):
+        script_scene = by_id.get(scene.scene_id)
+        if script_scene is None and position < len(script_scenes):
+            script_scene = script_scenes[position]
+        brief = produce_brief(
+            scene,
+            script_scene=script_scene,
+            claims=list(request.claims or []),
+        )
+        if not brief.is_empty:
+            scene.brief = brief
 
 
 __all__ = ["VisualPlanning", "VisualPlannerError", "build_plan"]

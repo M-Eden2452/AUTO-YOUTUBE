@@ -16,8 +16,11 @@ Nothing here is ever spoken. The brief lives beside the narration, never inside 
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
+
+from src.content.script_engine.text_analysis import STOPWORDS
 
 from .models import MEDIA_KINDS, SHOT_TYPES
 
@@ -25,6 +28,39 @@ from .models import MEDIA_KINDS, SHOT_TYPES
 # "negative_keywords"), so a brief reads like the model it overrides. "location" is
 # accepted as an alias because it is the word most people reach for.
 _PLACE_KEYS = ("place", "location")
+
+# The active remote providers all search English indexes. This producer does not
+# translate into English: it only packages English evidence that is already present
+# in the script, a planner's structured semantics, or a claim linked to the scene.
+_PROVIDER_LANGUAGE = "en"
+_MAX_PROVIDER_QUERIES = 3
+_MAX_PROVIDER_QUERY_TERMS = 8
+_PROVIDER_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9.'-]*")
+_CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
+
+# A query made only of production vocabulary is a plausible-looking substitute, not
+# evidence of what is in frame. Topic/domain nouns are deliberately absent here.
+_NON_FACTUAL_QUERY_TERMS = {
+    "broll",
+    "channel",
+    "cinematic",
+    "clip",
+    "content",
+    "footage",
+    "generic",
+    "image",
+    "images",
+    "nature",
+    "observation",
+    "photo",
+    "photos",
+    "scene",
+    "science",
+    "shot",
+    "topic",
+    "unknown",
+    "video",
+}
 
 
 @dataclass
@@ -170,6 +206,140 @@ def apply_brief(scene: Any, brief: VisualBrief) -> Any:
     if brief.notes:
         scene.notes = brief.notes
     return scene
+
+
+def produce_brief(
+    scene: Any,
+    *,
+    script_scene: Any = None,
+    claims: list[dict[str, Any]] | None = None,
+) -> VisualBrief:
+    """Package existing provider-language evidence into the existing brief.
+
+    This is intentionally not a translator or another visual planner. The scene has
+    already been planned; this function only exposes short English search candidates
+    that the evidence already contains. Topic/title/channel literals are not inputs,
+    narration is never copied wholesale, and insufficient evidence returns an empty
+    brief so the existing query adapter remains fail-closed.
+    """
+    queries = _provider_queries(scene, script_scene=script_scene, claims=claims or [])
+    if not queries:
+        return VisualBrief()
+
+    must_include = [str(item) for item in (getattr(scene, "must_include", None) or [])]
+    must_avoid = [str(item) for item in (getattr(scene, "must_avoid", None) or [])]
+    allowed_media = [
+        str(item)
+        for item in (getattr(scene, "allowed_media_kinds", None) or [])
+        if str(item) in MEDIA_KINDS
+    ]
+    shot_type = str(getattr(scene, "shot_type", "") or "")
+    return VisualBrief(
+        subject=_provider_field(getattr(scene, "subject", "")),
+        action=_provider_field(getattr(scene, "action", "")),
+        place=_provider_field(getattr(scene, "place", "")),
+        exact_entities=[item for item in must_include if _provider_field(item)],
+        must_include=must_include,
+        must_avoid=must_avoid,
+        shot_type=shot_type if shot_type in SHOT_TYPES else "",
+        media_types=allowed_media,
+        provider_queries={_PROVIDER_LANGUAGE: queries},
+    )
+
+
+def _provider_queries(
+    scene: Any,
+    *,
+    script_scene: Any,
+    claims: list[dict[str, Any]],
+) -> list[str]:
+    candidates: list[str] = []
+
+    # Structured scene semantics are the strongest automatic evidence: the planner
+    # has already separated subject/action/environment from narration.
+    for intent in getattr(scene, "intents", None) or []:
+        query = _query_from_values(list(getattr(intent, "terms", None) or []))
+        if query:
+            candidates.append(query)
+
+    # Prepared script keywords are the modern carrier for the legacy practice of
+    # keeping provider-ready visual keywords separate from narration.
+    keywords = _value(script_scene, "keywords")
+    if isinstance(keywords, (list, tuple)):
+        query = _query_from_values([str(item) for item in keywords])
+        if query:
+            candidates.append(query)
+
+    # Research is scene-local only when the script names the claim it came from.
+    claim_ids = {
+        str(item)
+        for item in (getattr(scene, "claim_ids", None) or [])
+        if str(item)
+    }
+    if claim_ids:
+        for claim in claims:
+            if not isinstance(claim, dict):
+                continue
+            if str(claim.get("claim_id") or "") not in claim_ids:
+                continue
+            if claim.get("safe_for_script") is False:
+                continue
+            query = _query_from_values(
+                [str(claim.get("source_excerpt") or claim.get("text") or "")]
+            )
+            if query:
+                candidates.append(query)
+
+    return _unique_queries(candidates)[:_MAX_PROVIDER_QUERIES]
+
+
+def _query_from_values(values: list[str]) -> str:
+    terms: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = " ".join(str(value or "").split())
+        if not text or _CYRILLIC_RE.search(text) or _looks_like_locator(text):
+            continue
+        for token in _PROVIDER_TOKEN_RE.findall(text):
+            key = token.casefold()
+            if key in STOPWORDS or key in _NON_FACTUAL_QUERY_TERMS or key in seen:
+                continue
+            seen.add(key)
+            terms.append(token)
+            if len(terms) >= _MAX_PROVIDER_QUERY_TERMS:
+                break
+        if len(terms) >= _MAX_PROVIDER_QUERY_TERMS:
+            break
+    # One word is usually a category or name with too little scene intent to search
+    # truthfully. Keeping the threshold at two also rejects generic slugs and labels.
+    return " ".join(terms) if len(terms) >= 2 else ""
+
+
+def _provider_field(value: Any) -> str:
+    text = " ".join(str(value or "").split())
+    if not text or _CYRILLIC_RE.search(text) or _looks_like_locator(text):
+        return ""
+    return text if _PROVIDER_TOKEN_RE.search(text) else ""
+
+
+def _looks_like_locator(value: str) -> bool:
+    lowered = value.casefold()
+    return any(marker in lowered for marker in ("://", "\\", "/", "_"))
+
+
+def _unique_queries(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        key = " ".join(value.casefold().split())
+        if key and key not in seen:
+            seen.add(key)
+            result.append(value)
+    return result
+
+
+def _value(source: Any, key: str) -> Any:
+    return source.get(key) if isinstance(source, dict) else getattr(source, key, None)
 
 
 def _as_list(value: Any) -> list[str]:

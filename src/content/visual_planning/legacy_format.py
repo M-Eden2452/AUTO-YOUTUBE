@@ -31,6 +31,7 @@ from src.assets.semantic_selection.models import (
     SCENE_RESEARCH_CONTEXT,
 )
 
+from .brief import parse_brief
 from .models import (
     INTENT_ALTERNATIVE,
     INTENT_PRIMARY,
@@ -192,14 +193,16 @@ def scene_to_legacy(
         data["visual_intents"] = [intent.to_dict() for intent in scene.intents]
         if scene.claim_ids:
             data["claim_ids"] = list(scene.claim_ids)
+        if scene.source_refs:
+            data["source_refs"] = list(scene.source_refs)
         if scene.period:
             data["period"] = scene.period
         if scene.warnings:
             data["planning_warnings"] = list(scene.warnings)
         if getattr(scene, "brief", None) is not None:
-            # Carried into the stored plan so the retrieval stage can see what the
-            # author actually asked for: the source class routes providers and the
-            # provider queries bypass query building entirely.
+            # Carried into the stored plan so retrieval sees the final brief after
+            # automatic production and the last-wins author overlay. Source class
+            # routes providers and provider queries bypass query building entirely.
             brief_data = scene.brief.to_dict()
             if brief_data:
                 data["visual_brief"] = brief_data
@@ -305,6 +308,12 @@ def from_legacy_visual_plan(data: dict[str, Any]) -> VisualPlanResult:
                     _intent_from_query(query, kind=INTENT_ALTERNATIVE, level=position, language=language)
                 )
 
+        raw_brief = raw.get("visual_brief")
+        brief_data = dict(raw_brief) if isinstance(raw_brief, dict) else {}
+        if raw.get("provider_queries") and not brief_data.get("provider_queries"):
+            brief_data["provider_queries"] = raw["provider_queries"]
+        brief = parse_brief(brief_data)
+
         scenes.append(
             SceneVisualPlan(
                 scene_id=str(raw.get("scene_id") or f"scene_{index:03d}"),
@@ -322,8 +331,10 @@ def from_legacy_visual_plan(data: dict[str, Any]) -> VisualPlanResult:
                 must_avoid=[str(item) for item in (semantic.get("must_not_include") or [])],
                 intents=intents,
                 claim_ids=[str(item) for item in (raw.get("claim_ids") or [])],
+                source_refs=[str(item) for item in (raw.get("source_refs") or [])],
                 duration_sec=float(raw.get("target_duration_sec") or 0.0),
                 warnings=[str(item) for item in (raw.get("planning_warnings") or [])],
+                brief=brief if not brief.is_empty else None,
             )
         )
 

@@ -6,8 +6,8 @@ updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-08-02
-current_checkpoint: PLAN-9B-PRODUCER
-next_exact_action: await separate owner-issued implementation prompt for PLAN-9B-PRODUCER
+current_checkpoint: PLAN-9B-2
+next_exact_action: await separate owner-issued implementation prompt for PLAN-9B-2
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,18 +47,16 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-9B-PRODUCER pending / not started.** PLAN-L0 завершён
-  2026-08-02 docs-only слайсом: Knowledge Salvage Gate закрыт, salvage записан в
-  `CLEANUP_REGISTRY.md`. PLAN-6E завершён 2026-08-02; owner decision
-  **OD-P-1 принят** 2026-08-02 docs-only слайсом.
-- **PLAN-9B-PRODUCER:** scheduled решением OD-P-1, pending / not started;
-  prerequisite PLAN-L0 выполнен. Выполняется отдельным bounded implementation
-  slice только после отдельного owner-issued implementation prompt. Закрытие
-  PLAN-L0 producer **не** реализует и его начало не разрешает.
-- **PLAN-9B-2:** остаётся pending / not started и **blocked** до completed
-  PLAN-9B-PRODUCER и отдельного owner-issued implementation prompt; PLAN-L0 как
-  зависимость закрыт, acceptance criteria, expansion ladder и retirement scope
-  не менялись.
+- **Текущий шаг:** **PLAN-9B-2 pending / not started.** PLAN-9B-PRODUCER
+  completed 2026-08-02 отдельным bounded offline implementation slice; PLAN-L0,
+  PLAN-6D и PLAN-6E завершены.
+- **PLAN-9B-PRODUCER:** completed; существующий visual-planning owner формирует
+  evidence-derived provider-language `VisualBrief`, explicit author brief
+  применяется последним, unknown intent остаётся fail-closed. Нового planner,
+  query owner, schema/layout, public surface, network/model/paid path нет.
+- **PLAN-9B-2:** pending / not started и **blocked** до отдельного owner-issued
+  implementation prompt. Его acceptance criteria, expansion ladder, hardcode
+  migration и retirement scope не начинались и не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -2526,8 +2524,8 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-PRODUCER — Provider-language VisualBrief producer
 
-- **status:** pending / not started; scheduled owner decision **OD-P-1**
-  2026-08-02. Этот docs-only scheduling slice producer не реализует.
+- **status:** completed · **completed:** 2026-08-02 · scheduled owner decision
+  **OD-P-1** 2026-08-02.
 - **dependencies:** completed **PLAN-9B-1**; completed **PLAN-L0** до начала
   execution согласно утверждённому порядку.
 - **owner:** `src/content/visual_planning/**`.
@@ -2539,12 +2537,11 @@ misleading/conflict · paid approval.
   осмысленный provider-ready visual brief/query; при недостатке evidence
   состояние остаётся честным, fail-closed и редактируемым, а explicit author
   brief всегда выигрывает.
-- **allowed zones будущего implementation:**
+- **implementation zones:**
   - `src/content/visual_planning/**`;
   - exact owning test modules, доказанные pre-implementation caller audit;
   - current docs только для checkpoint/evidence после фактического completion.
-  Зоны заранее не расширяются. Если code audit докажет необходимое изменение
-  caller вне них, implementation обязан **STOP** и запросить scope change.
+  Фактический diff остался в этих зонах; caller production вне owner не менялся.
 - **prohibited zones:** любой production owner вне
   `src/content/visual_planning/**`; `query_adapter`, provider implementations,
   script/research owners, public CLI/API, schemas, project/storage layout и
@@ -2615,13 +2612,32 @@ misleading/conflict · paid approval.
      schema/layout.
   5. Добавить multi-domain, explicit-author-override и fail-closed
      unknown-intent characterization/regression.
-- **verification будущего implementation:** characterization first; targeted
-  visual-planning tests; query_adapter/provider integration regression;
-  multi-domain regression; persisted visual-plan round-trip tests; explicit
-  author-override test; fail-closed unknown-intent test; task-scope checker;
-  docs QA; `git diff --check`; полный offline suite, потому что меняются shared
-  behavior и persisted content. Product tests этого списка в docs-only OD-P-1
-  slice не запускаются.
+- **реализованный механизм:** существующий `build_plan()` после planner и до
+  author overlay вызывает bounded producer существующего `brief.py`. Он берёт
+  только provider-language structured intents, отдельные script keywords и
+  связанные через `claim_ids` safe research excerpts; topic/title/channel не
+  являются query source. Строки нормализуются и ограничиваются восемью термами
+  и тремя candidates; Cyrillic/mixed, URL/slug, single-term и generic production
+  vocabulary fail closed. `query_adapter` остался consumer без изменений.
+- **override/round-trip:** automatic brief не записывается обратно в author
+  `ScriptScene.visual_brief`; explicit author brief применяется последним и
+  выигрывает. Existing writer сохраняет final `visual_brief` /
+  `provider_queries`, `claim_ids` и `source_refs`; tolerant reader теперь
+  восстанавливает existing `SceneVisualPlan.brief` и refs, а pre-Q2 missing
+  values продолжают читаться defaults. Schema version/layout/artifact не менялись.
+- **фактическая verification:** characterization-first red — 5 тестов, 4
+  failures + 1 error ожидаемо зафиксировали отсутствующий producer и потерю
+  round-trip; после реализации owning modules — 81 тест за 0.899 с, consumer /
+  script / manifest radius — 166 тестов за 38.876 с, canonical temporary manifest
+  — 4 теста за 102.235 с, все exit code 0. Первый full выявил только исходный
+  onboarding limit (`CURRENT_STATE.md` 282 > 280 строк); после обязательного
+  compact current-doc update onboarding — 3 теста за 0.214 с, финальный full
+  offline suite — 1561 тест за 356.026 с, exit code 0. Package network guard
+  активен; network/provider API/download/Vision/TTS/paid и реальный project
+  render не выполнялись; media-проверки full suite использовали только temporary
+  synthetic fixtures.
+  Task-scope checker, `git diff --check`, docs QA и onboarding docs test — exit
+  code 0. `baseline_head` остаётся без изменений.
 - **rollback:** один bounded implementation commit; revert этого commit.
   Миграции данных, нового artifact/layout и irreversible действий нет.
 - **relation to PLAN-L0 and PLAN-9B-2:** PLAN-L0 сохраняет knowledge, включая
@@ -2632,8 +2648,8 @@ misleading/conflict · paid approval.
 #### PLAN-9B-2 — expansion + hardcode migration
 
 - **status:** pending / not started; **blocked** до отдельного owner-issued
-  implementation prompt · **зависимости:** PLAN-9B-4, completed **PLAN-L0**,
-  completed **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E**.
+  implementation prompt · **зависимости:** completed PLAN-9B-4, **PLAN-L0**,
+  **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E**.
 - **цель:** контролируемая лестница расширения плюс снятие topic-specific
   hardcodes из shared engine.
 - **лестница запросов:** точный субъект → субъект и действие → субъект,

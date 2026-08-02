@@ -183,8 +183,8 @@ class SceneVisualPlan:
     duration_sec: float = 0.0
     notes: str = ""
     warnings: list[str] = field(default_factory=list)
-    # The author's explicit instruction, when they gave one. Set by the engine after
-    # the planner has run; ``None`` means the scene was planned by extraction alone.
+    # The final brief after automatic evidence packaging and the author's explicit
+    # last-wins overlay. ``None`` means neither path supplied usable brief content.
     brief: Any | None = None
 
     @property

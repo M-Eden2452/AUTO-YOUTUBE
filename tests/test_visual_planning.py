@@ -31,6 +31,7 @@ from src.content.visual_planning import (
     SceneVisualPlan,
     VisualPlanRequest,
     VisualPlanResult,
+    VisualPlannerCapabilities,
     VisualPlannerInputError,
     VisualPlannerUnavailableError,
     VisualSearchIntent,
@@ -249,6 +250,220 @@ class DeterministicPlannerTest(unittest.TestCase):
         self.assertEqual([scene.must_avoid for scene in plan.scenes], [[] for _ in plan.scenes])
 
 
+class _PreparedPlanner:
+    capabilities = VisualPlannerCapabilities(
+        planner_id="prepared_fixture",
+        display_name="Prepared evidence fixture",
+        requires_network=False,
+        requires_paid_api=False,
+        deterministic=True,
+    )
+
+    def __init__(self, result: VisualPlanResult) -> None:
+        self._result = result
+
+    def supports(self, request: VisualPlanRequest) -> bool:
+        return True
+
+    def plan(self, request: VisualPlanRequest) -> VisualPlanResult:
+        return self._result
+
+
+class ProviderLanguageBriefProducerTest(unittest.TestCase):
+    def _produce(
+        self,
+        *,
+        script_scene: ScriptScene,
+        planned_scene: SceneVisualPlan,
+        claims: list[dict] | None = None,
+        topic: str = "",
+    ) -> SceneVisualPlan:
+        script = ScriptResult(scenes=[script_scene], language="ru")
+        result = VisualPlanResult(
+            scenes=[planned_scene],
+            language="ru",
+            planner_id="prepared_fixture",
+        )
+        return build_plan(
+            VisualPlanRequest(
+                script=script,
+                language="ru",
+                topic=topic,
+                claims=claims or [],
+            ),
+            planner=_PreparedPlanner(result),
+        ).result.scenes[0]
+
+    def test_prepared_evidence_across_three_domains_produces_provider_language_briefs(self) -> None:
+        cases = (
+            {
+                "domain": "animals/wildlife",
+                "script": ScriptScene(
+                    scene_id="scene_001",
+                    index=1,
+                    role="hook",
+                    narration="Снежный барс преследует добычу в горах.",
+                    duration_sec=5.0,
+                    claim_ids=["animal_claim"],
+                    source_refs=["animal_source"],
+                ),
+                "plan": SceneVisualPlan(
+                    scene_id="scene_001",
+                    index=1,
+                    meaning="Снежный барс преследует добычу в горах.",
+                    subject="snow leopard",
+                    action="stalking prey",
+                    place="Himalayan ridge",
+                    must_avoid=["domestic cat"],
+                    intents=[
+                        VisualSearchIntent(
+                            subject="snow leopard",
+                            modifiers=["stalking prey"],
+                            context=["Himalayan ridge"],
+                            language="en",
+                            fallback_level=1,
+                        )
+                    ],
+                    claim_ids=["animal_claim"],
+                    source_refs=["animal_source"],
+                ),
+                "claims": [],
+                "expected": "snow leopard",
+                "avoid": "domestic cat",
+            },
+            {
+                "domain": "energy/technology",
+                "script": ScriptScene(
+                    scene_id="scene_001",
+                    index=1,
+                    role="development",
+                    narration="Станция накапливает энергию для вечерней нагрузки.",
+                    duration_sec=5.0,
+                    keywords=["solar farm", "battery storage", "desert transmission grid"],
+                    claim_ids=["energy_claim"],
+                    source_refs=["energy_source"],
+                ),
+                "plan": SceneVisualPlan(
+                    scene_id="scene_001",
+                    index=1,
+                    meaning="Станция накапливает энергию для вечерней нагрузки.",
+                    subject="станция",
+                    action="накапливает",
+                    place="пустыня",
+                    must_avoid=["coal smoke"],
+                    intents=[VisualSearchIntent(subject="станция", language="ru")],
+                    claim_ids=["energy_claim"],
+                    source_refs=["energy_source"],
+                ),
+                "claims": [],
+                "expected": "solar farm",
+                "avoid": "coal smoke",
+            },
+            {
+                "domain": "geography/infrastructure",
+                "script": ScriptScene(
+                    scene_id="scene_001",
+                    index=1,
+                    role="development",
+                    narration="Шлюзы поднимают грузовые суда через перешеек.",
+                    duration_sec=5.0,
+                    claim_ids=["geo_claim"],
+                    source_refs=["geo_source"],
+                ),
+                "plan": SceneVisualPlan(
+                    scene_id="scene_001",
+                    index=1,
+                    meaning="Шлюзы поднимают грузовые суда через перешеек.",
+                    subject="шлюзы",
+                    action="поднимают",
+                    place="перешеек",
+                    must_avoid=["Suez Canal"],
+                    intents=[VisualSearchIntent(subject="шлюзы", language="ru")],
+                    claim_ids=["geo_claim"],
+                    source_refs=["geo_source"],
+                ),
+                "claims": [
+                    {
+                        "claim_id": "geo_claim",
+                        "text": "Panama Canal locks lift cargo ships across the isthmus.",
+                        "source_excerpt": "Panama Canal locks lift cargo ships across the isthmus.",
+                        "safe_for_script": True,
+                    }
+                ],
+                "expected": "Panama Canal",
+                "avoid": "Suez Canal",
+            },
+        )
+
+        for case in cases:
+            with self.subTest(domain=case["domain"]):
+                scene = self._produce(
+                    script_scene=case["script"],
+                    planned_scene=case["plan"],
+                    claims=case["claims"],
+                )
+                self.assertIsNotNone(scene.brief)
+                queries = scene.brief.provider_queries["en"]
+                self.assertTrue(any(case["expected"] in query for query in queries))
+                self.assertTrue(all(not any("Ѐ" <= char <= "ӿ" for char in query) for query in queries))
+                self.assertIn(case["avoid"], scene.brief.must_avoid)
+                self.assertEqual(scene.claim_ids, [case["script"].claim_ids[0]])
+                self.assertEqual(scene.source_refs, [case["script"].source_refs[0]])
+                self.assertEqual(case["script"].visual_brief, {})
+
+    def test_unknown_source_language_intent_stays_without_an_automatic_brief(self) -> None:
+        scene = self._produce(
+            script_scene=ScriptScene(
+                scene_id="scene_001",
+                index=1,
+                role="hook",
+                narration="Кваркозавр мерцает возле флуксатора.",
+                duration_sec=5.0,
+                claim_ids=["unknown_claim"],
+            ),
+            planned_scene=SceneVisualPlan(
+                scene_id="scene_001",
+                index=1,
+                meaning="Кваркозавр мерцает возле флуксатора.",
+                subject="кваркозавр",
+                action="мерцает",
+                place="флуксатор",
+                intents=[VisualSearchIntent(subject="кваркозавр", language="ru")],
+                claim_ids=["unknown_claim"],
+            ),
+            topic="cinematic alien reactor footage",
+        )
+        self.assertIsNone(scene.brief)
+
+    def test_explicit_author_brief_is_applied_after_automatic_production(self) -> None:
+        author_queries = ["author exact geothermal turbine"]
+        scene = self._produce(
+            script_scene=ScriptScene(
+                scene_id="scene_001",
+                index=1,
+                role="hook",
+                narration="Турбина работает на геотермальной станции.",
+                duration_sec=5.0,
+                keywords=["automatic geothermal plant", "steam turbine"],
+                visual_brief={
+                    "subject": "author geothermal turbine",
+                    "must_avoid": ["coal power plant"],
+                    "provider_queries": {"en": author_queries},
+                },
+            ),
+            planned_scene=SceneVisualPlan(
+                scene_id="scene_001",
+                index=1,
+                meaning="Турбина работает на геотермальной станции.",
+                subject="турбина",
+                intents=[VisualSearchIntent(subject="турбина", language="ru")],
+            ),
+        )
+        self.assertEqual(scene.subject, "author geothermal turbine")
+        self.assertEqual(scene.brief.provider_queries, {"en": author_queries})
+        self.assertEqual(scene.must_avoid, ["coal power plant"])
+
+
 class RegistryTest(unittest.TestCase):
     def test_the_default_planner_is_registered(self) -> None:
         self.assertEqual(list_planner_ids(), ["deterministic_local"])
@@ -461,6 +676,24 @@ class LegacyFormatTest(unittest.TestCase):
         self.assertEqual(restored.scene_ids, original.scene_ids)
         for before, after in zip(original.scenes, restored.scenes, strict=True):
             self.assertEqual([intent.terms for intent in after.intents], [intent.terms for intent in before.intents])
+
+    def test_round_trip_restores_existing_brief_claim_and_source_references(self) -> None:
+        script = _script(["Снежный барс пересекает горный склон."])
+        script.scenes[0].source_refs = ["source_001"]
+        script.scenes[0].visual_brief = {
+            "subject": "snow leopard",
+            "action": "crossing mountain slope",
+            "must_avoid": ["domestic cat"],
+            "provider_queries": {"en": ["snow leopard crossing mountain slope"]},
+        }
+        original = build_plan(_request(script=script)).result
+        stored = to_legacy_visual_plan(original, language="ru")
+        restored = from_legacy_visual_plan(stored)
+
+        self.assertEqual(restored.scenes[0].claim_ids, original.scenes[0].claim_ids)
+        self.assertEqual(restored.scenes[0].source_refs, ["source_001"])
+        self.assertIsNotNone(restored.scenes[0].brief)
+        self.assertEqual(restored.scenes[0].brief.to_dict(), original.scenes[0].brief.to_dict())
 
     def test_the_stored_plan_is_serialisable(self) -> None:
         json.loads(json.dumps(self._stored(), ensure_ascii=False))

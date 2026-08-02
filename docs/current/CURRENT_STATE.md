@@ -89,12 +89,8 @@ source_paths:
 Проверено 2026-07-29 от clean HEAD `9f3ddba`. Код и Git имеют приоритет.
 
 Активный порядок задаёт [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); PLAN-6E завершён 2026-08-02.
-Canonical policy — `skills/review-change/SKILL.md`; тонкие Claude/Codex adapters не дублируют её.
-Controlled Cases A/B/C приняли immutable/safe изменения и нашли synthetic BLOCKER; после lock repair все repositories byte-stable.
-OD-P-1 принят 2026-08-02; PLAN-L0 completed. Текущий checkpoint — PLAN-9B-PRODUCER,
-pending/not started; producer implementation не начиналась. PLAN-9B-2 pending/not started
-и blocked до completed PLAN-9B-PRODUCER и отдельного implementation prompt; `.claude/skills/`
-отсутствует. Точное следующее действие — в плане.
+Canonical policy — `skills/review-change/SKILL.md`; тонкие adapters не дублируют её. Controlled Cases A/B/C приняли safe изменения и нашли synthetic BLOCKER; после lock repair repositories byte-stable.
+PLAN-9B-PRODUCER completed 2026-08-02: bounded offline producer заполняет существующий `VisualBrief` из structured/script/claim evidence, author override остаётся последним, unknown fail closed; schema/layout и query owner не менялись. Текущий checkpoint — PLAN-9B-2 pending/not started, blocked до отдельного owner prompt. `.claude/skills/` отсутствует.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и

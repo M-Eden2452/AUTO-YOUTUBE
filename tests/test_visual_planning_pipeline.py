@@ -26,9 +26,11 @@ import unittest
 from pathlib import Path
 
 from src.assets.semantic_selection import analyze_scene, ordered_queries
+from src.assets.query_adapter import SOURCE_EXPLICIT, build_scene_queries
 from src.content.script_engine import from_legacy_script
 from src.content.visual_planning import from_legacy_visual_plan, validate_visual_plan
 from src.content_creation.cli import main
+from src.news.asset_manager import build_news_asset_manifest
 from src.news.models import INPUT_MODE_TEXT, NewsJob
 from src.news.research_engine import build_research
 from src.news.script_generator import build_script
@@ -178,6 +180,46 @@ class AssetLayerIntegrationTest(unittest.TestCase):
     def test_visual_type_stays_in_the_vocabulary_routing_understands(self) -> None:
         for scene in self.plan["scenes"]:
             self.assertIn(scene["visual_type"], {"video", "image", "animated_image", "diagram"})
+
+    def test_canonical_wrapper_produces_a_brief_consumed_by_query_adapter(self) -> None:
+        script = {
+            "title": "Grid-scale solar storage",
+            "language": "ru",
+            "scenes": [
+                {
+                    "scene_id": "scene_001",
+                    "role": "hook",
+                    "narration": "Солнечная станция заряжает аккумуляторное хранилище.",
+                    "target_duration_sec": 5.0,
+                    "keywords": ["solar farm", "battery storage", "electrical grid"],
+                    "claim_ids": ["claim_001"],
+                    "source_refs": ["source_001"],
+                }
+            ],
+        }
+        plan = build_visual_plan(script, language="ru", research={"claims": []})
+        scene = plan["scenes"][0]
+
+        self.assertEqual(scene["claim_ids"], ["claim_001"])
+        self.assertEqual(scene["source_refs"], ["source_001"])
+        self.assertIn("solar farm", scene["visual_brief"]["provider_queries"]["en"][0])
+        queries = build_scene_queries(
+            scene,
+            providers=["pexels"],
+            intent_language=plan["intent_language"],
+        ).for_provider("pexels")
+        self.assertTrue(queries)
+        self.assertEqual(queries[0].source, SOURCE_EXPLICIT)
+        self.assertIn("solar farm", queries[0].query)
+
+        manifest = build_news_asset_manifest(
+            visual_plan=plan,
+            user_assets=[],
+            dry_run=True,
+            project_id="provider-brief-copy",
+        )
+        self.assertEqual(manifest["scenes"][0]["visual_brief"], scene["visual_brief"])
+        self.assertIn("query_plan", manifest["scenes"][0])
 
     def test_the_plan_never_claims_an_asset_is_licensed_or_chosen(self) -> None:
         """Selecting and clearing an asset is a later stage and stays there."""
