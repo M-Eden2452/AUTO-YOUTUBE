@@ -6,7 +6,7 @@ updated_at: 2026-08-02
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-07-31
-current_checkpoint: PLAN-6D-2
+current_checkpoint: PLAN-6D-3
 next_exact_action: git status --short --branch
 source_paths:
   - AGENTS.md
@@ -45,9 +45,8 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** PLAN-6D-2, pending/not started. Владелец явно разрешил
-  prerequisite rerouting от заблокированного PLAN-9B-2 и завершение только
-  PLAN-6D-1; PLAN-6D-2 в завершённом слайсе не начинался.
+- **Текущий шаг:** PLAN-6D-3, pending/not started после завершения PLAN-6D-2.
+  PLAN-6D в целом не завершён.
 - **PLAN-9B-2:** остаётся pending/not started и заблокирован незавершёнными
   PLAN-6D/PLAN-6E; acceptance criteria и scope не менялись.
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
@@ -109,6 +108,15 @@ source_paths:
   push покрыты deny; обычные push/remote-add/stash/amend, прямые WebFetch/
   WebSearch и перечисленные recursive cleanup primitives требуют approval.
   Scope-controlled и mixed directories broad path rules не получили.
+- **PLAN-6D-2** — добавлен локальный read-only checker
+  `tools/qa/check_task_scope.py`. Конкретная задача передаёт повторяемые
+  `--allow` exact paths и/или явные `--allow-dir` directory scopes; checker
+  сравнивает их с `git --no-optional-locks status --porcelain=v1 -z
+  --untracked-files=all --renames`, учитывает обе колонки staged/unstaged,
+  untracked, add/delete и обе стороны rename. Словарь результата — ровно
+  `OK`, `STOP_REQUIRED`, `INVALID_INPUT`; exit codes — 0, 1, 2 соответственно.
+  Модуль не читает содержимое изменённых файлов, не меняет index/worktree и не
+  хранит глобальный PLAN allowlist.
 - **Зелёные проверки:** `tools.qa.check_agent_docs`;
   `tests.test_voice_profile_resolution` — targeted-модуль, exit code 0 в двух
   последовательных прогонах (2026-08-01);
@@ -151,9 +159,17 @@ source_paths:
   `tools.qa.check_agent_docs` и `tests.test_stage2_agent_onboarding` — exit
   code 0; `git diff --check` — без замечаний (2026-08-02). Сеть, providers,
   download, Vision, TTS, paid API и render не выполнялись.
+  PLAN-6D-2: `tests.test_check_task_scope` — 26 тестов, exit code 0;
+  `check_task_scope --help`, docs QA, onboarding tests и `compileall tools\qa`
+  — exit code 0. Smoke текущего разрешённого diff вернул `OK/0`; smoke во
+  временном Git repository с unexpected untracked path вернул
+  `STOP_REQUIRED/1`. `git diff --check` — без замечаний. Production code,
+  hooks, agents, skills и runtime/user data не менялись; сеть и платные
+  действия не выполнялись (2026-08-02). Число тестов и длительность —
+  измерения, не нормативы.
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
-  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2 и
-  PLAN-6D-2.**
+  PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2,
+  PLAN-6D-2 и PLAN-6D-3.**
   Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
@@ -178,7 +194,10 @@ source_paths:
   авторитетом commit evidence.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
   завершённого PLAN-6D-1. Он не начинает PLAN-9B-2 и не меняет его acceptance
-  criteria; PLAN-6D-2 остаётся pending/not started до отдельного задания.
+  criteria.
+- Переход на PLAN-6D-3 — следствие зелёного локального read-only scope
+  checker PLAN-6D-2. Он не начинает PLAN-9B-2/PLAN-6E и не означает завершение
+  PLAN-6D.
 - **Текущие зависимости и блокеры (модель ревизии 2.1 — risk-based, не
   линейная цепочка):**
   - **PLAN-9B-1** — completed 2026-08-01; prerequisite-цепочка
@@ -189,7 +208,8 @@ source_paths:
   - **PLAN-9B-2** — pending/not started; зависит от
     завершённого PLAN-9B-4 и незавершённых PLAN-6D/PLAN-6E;
   - **PLAN-6D-1** — completed 2026-08-02;
-  - **PLAN-6D-2** — текущий checkpoint, pending/not started;
+  - **PLAN-6D-2** — completed 2026-08-02;
+  - **PLAN-6D-3** — текущий checkpoint, pending/not started;
   - **PLAN-6D** — в целом не завершён и остаётся blocker **первого
     multi-owner implementation slice** (PLAN-9B-2);
   - **PLAN-6E** — blocker **первого destructive retirement / high-risk
@@ -204,7 +224,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующая точная команда:** `git status --short --branch`
-- **После проверки Git:** не начинать PLAN-6D-2 без отдельного задания
+- **После проверки Git:** не начинать PLAN-6D-3 без отдельного задания
   владельца; PLAN-9B-2 также не начинать до закрытия его gates.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
@@ -1606,8 +1626,8 @@ allowed zones и owner approvals не пересекаются; изменени
 
 ### PLAN-6D — scope control foundation
 
-- **status:** pending; PLAN-6D-1 completed, PLAN-6D-2 pending/not started ·
-  **completed:** — · **commit:** —
+- **status:** pending; PLAN-6D-1 and PLAN-6D-2 completed, PLAN-6D-3
+  pending/not started · **completed:** — · **commit:** —
 - **цель:** перевести защиту от выхода за scope и от порчи пользовательских
   данных с уровня «агент помнит правило» на уровень технического ограничения.
 - **роль в ревизии 2.1:** **BLOCKER первого multi-owner implementation slice**
@@ -1707,31 +1727,62 @@ allowed zones и owner approvals не пересекаются; изменени
 
 #### PLAN-6D-2 — task-scope checker
 
-  - **6D-2 — `tools/qa/check_task_scope.py`.** Allowlist передаётся конкретной
-    задачей; сравнивается с фактическим `git diff --name-only` с учётом add,
-    rename и delete; неожиданный файл даёт понятный `STOP_REQUIRED`; модуль
-    ничего не исправляет автоматически; постоянного глобального списка файлов
-    всех задач он не хранит; активный execution plan считается разрешённым
-    только когда его изменение входит в протокол шага. Tests обязаны покрывать
-    случаи allowed, unexpected, rename, delete и empty diff.
-    *Owner:* пакет `tools/qa` уже является владельцем QA. Модуль
-    `check_agent_docs.py` расширить нельзя: у него другой вход (статические
-    инварианты репозитория против allowlist конкретной задачи) и другой
-    lifecycle. Прецедент sibling-модуля уже утверждён в PLAN-6B
-    (`check_repository_minimalism.py`), поэтому второго source of truth не
-    возникает. *Exit condition:* модуль удаляется, если scope-контроль станет
-    частью harness.
-  - **6D-3 — `CLAUDE.md`.** Одно предложение о том, что `skills/` не
-    загружаются автоматически и релевантный `SKILL.md` нужно открыть перед
-    задачей. Содержимое skills не дублируется. `.claude/skills/` не создаётся:
-    это был бы второй набор skills и нарушение ADR 0001.
-    **Границы утверждения:** формулировка про отсутствие auto-discovery
-    доказана для Claude Code [FACT]. Утверждение о поведении Codex в
-    `CLAUDE.md` не записывается до skills discovery verification PLAN-6C/6E:
-    оно пока имеет статус **[ПРЕДП]**.
+- **status:** completed 2026-08-02.
+- **CLI:** `python -m tools.qa.check_task_scope [--root REPO] --allow PATH
+  [--allow PATH ...] [--allow-dir DIR ...]`. `--allow` означает exact
+  repository path; `--allow-dir` — явный component-bounded directory scope.
+- **contract:** allowlist передаётся конкретной задачей; рабочее дерево
+  читается через `git --no-optional-locks status --porcelain=v1 -z
+  --untracked-files=all --renames`. Учитываются staged и unstaged изменения,
+  untracked, add, delete и rename; rename разрешён только когда разрешены old и
+  new path. Неожиданный путь даёт `STOP_REQUIRED` и требует остановки/owner
+  decision. Статусы `OK` / `STOP_REQUIRED` / `INVALID_INPUT` имеют exit codes
+  0 / 1 / 2. Порядок rules, changes и unexpected paths стабилен.
+- **path policy:** `\` и `/`, `.` и duplicate separators нормализуются;
+  сравнение на Windows case-insensitive. Абсолютный путь принимается только
+  внутри repository root; traversal, drive-relative path, путь вне root и
+  разрешение всего root отклоняются. Простого строкового prefix нет:
+  `src/news` не разрешает `src/news_backup`. Glob patterns не реализованы.
+- **read-only boundary:** checker не читает содержимое изменённых файлов, не
+  исправляет diff, не меняет index/worktree, не выполняет staging/commit и не
+  хранит постоянного глобального списка файлов всех задач. Активный execution
+  plan разрешён только когда вызывающая задача передала его путь.
+- **residual limitations:** это working-tree scope checker, не commit-range
+  reviewer PLAN-6E; он вызывается явно, а не hook/harness; ignored paths не
+  входят в change set, который Git сообщает как working-tree status; rename
+  classification использует read-only Git rename detection.
+- **verification evidence:** `tests.test_check_task_scope` — 26 тестов,
+  exit code 0: empty/allowed/unexpected, modified/added/deleted/renamed,
+  staged/unstaged/untracked, обе стороны rename, stable multi-path output,
+  Windows separators/case, boundary, traversal, inside/outside absolute paths,
+  duplicate rules, Git failure, CLI statuses/exit codes и побайтовая
+  неизменность временного `.git/index`. Current-diff smoke — `OK/0`; synthetic
+  temporary Git smoke с unexpected path — `STOP_REQUIRED/1`; CLI help, docs
+  QA, onboarding tests, `compileall tools\qa` и `git diff --check` — exit code
+  0. Full offline suite не запускался: production/runtime behavior не менялся.
+
+  *Owner:* пакет `tools/qa` уже является владельцем QA. Модуль
+  `check_agent_docs.py` расширить нельзя: у него другой вход (статические
+  инварианты репозитория против allowlist конкретной задачи) и другой
+  lifecycle. Прецедент sibling-модуля уже утверждён в PLAN-6B
+  (`check_repository_minimalism.py`), поэтому второго source of truth не
+  возникает. *Exit condition:* модуль удаляется, если scope-контроль станет
+  частью harness.
+
+#### PLAN-6D-3 — Claude skill loading note
+
+- **status:** pending/not started.
+- **scope:** `CLAUDE.md`. Одно предложение о том, что `skills/` не
+  загружаются автоматически и релевантный `SKILL.md` нужно открыть перед
+  задачей. Содержимое skills не дублируется. `.claude/skills/` не создаётся:
+  это был бы второй набор skills и нарушение ADR 0001.
+  **Границы утверждения:** формулировка про отсутствие auto-discovery
+  доказана для Claude Code [FACT]. Утверждение о поведении Codex в
+  `CLAUDE.md` не записывается до skills discovery verification PLAN-6C/6E:
+  оно пока имеет статус **[ПРЕДП]**.
 - **измеримый результат:** deny/ask отражают проверенные пути и не блокируют ни
   один tracked versioned-файл; `check_task_scope` возвращает `STOP_REQUIRED` на
-  неожиданный файл и молчит на разрешённый; `CLAUDE.md` объясняет загрузку
+  неожиданный файл и `OK` на разрешённый; `CLAUDE.md` объясняет загрузку
   skills; ни одного нового hook, agent или документа не создано.
 - **required verification:** targeted tests `check_task_scope`, docs QA,
   `git diff --check`.

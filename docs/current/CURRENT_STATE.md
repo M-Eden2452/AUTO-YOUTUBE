@@ -87,12 +87,12 @@ source_paths:
 Проверено 2026-07-29 от clean HEAD `9f3ddba`. Код и Git имеют
 приоритет.
 
-Активный порядок работ задаёт
-[PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); текущий checkpoint —
-PLAN-6D-2, pending/not started после завершения PLAN-6D-1; PLAN-9B-2 остаётся
-pending/not started и заблокирован PLAN-6D/6E. Точные checkpoint/next action
-берутся из самого плана. Исторический
-`docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` порядок работ не задаёт.
+Активный порядок задаёт [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); checkpoint —
+PLAN-6D-3, pending/not started после PLAN-6D-2. PLAN-9B-2 остаётся
+pending/not started и заблокирован PLAN-6D/6E. Завершённый PLAN-6D-2 добавил
+read-only `python -m tools.qa.check_task_scope`: task-specific exact/directory
+scope проверяет staged/unstaged/untracked add/delete/rename; контракт — `OK/0`,
+`STOP_REQUIRED/1`, `INVALID_INPUT/2`. Точные действия берутся из плана; исторический `docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md` текущий порядок не задаёт.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и

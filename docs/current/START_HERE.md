@@ -40,8 +40,10 @@ AI-YouTube — локальная offline-first платформа создан�
 
 Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
 Он задаёт порядок работ; выполняется только его `current_checkpoint` — сейчас
-PLAN-6D-2, pending / не начат после завершения PLAN-6D-1. PLAN-9B-2 остаётся
-pending / не начат и заблокирован незавершёнными gates PLAN-6D/6E.
+PLAN-6D-3, pending / не начат после завершения PLAN-6D-2. Локальный checker
+`python -m tools.qa.check_task_scope` принимает task-specific `--allow` /
+`--allow-dir` и возвращает `OK/0`, `STOP_REQUIRED/1` или `INVALID_INPUT/2`.
+PLAN-9B-2 остаётся pending / не начат и заблокирован PLAN-6D/6E.
 Точное значение и следующее действие всегда
 берутся из самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
