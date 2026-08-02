@@ -1,3 +1,25 @@
+"""Test classification: LEGACY ANCHOR
+
+Protects:
+- реализацию legacy documentary-движков на канале ``survival``: построение
+  многоклиповых сцен, музыкальный план под озвучку, стратегию монтажа,
+  cinematic preview profile, адаптивный ритм, манифест озвучки с кэшем и
+  fallback между TTS-провайдерами, приоритет ручных ассетов, relevance boost и
+  правила self-eval.
+
+Does not prove:
+- что documentary существует как продуктовая возможность: gate 8E (ADR 0013)
+  подтвердил отсутствие application и шаблона, ``longform`` остаётся
+  planned/disabled;
+- что эти движки являются владельцами соответствующих ответственностей в
+  активном продукте — там ими владеют ``src.assets``, ``src.audio``,
+  ``src.news.final_renderer``;
+- что модуль защищает нужное поведение от изменения. Класс — LEGACY ANCHOR
+  (``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»): он
+  замораживает ретайримую архитектуру, полезные проверки извлекает Knowledge
+  Salvage Gate, gate — PLAN-L0 → PLAN-L3.
+"""
+
 from __future__ import annotations
 
 import unittest

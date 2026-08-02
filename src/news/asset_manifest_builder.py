@@ -1,3 +1,54 @@
+"""Canonical boundary сборки ``assets_manifest`` workflow ``news_to_short``.
+
+Оркестратор стадии ``asset_search``: проходит сцены визуального плана и
+собирает для каждой один манифестный ответ. Модуль появился при разделении 6A и
+остаётся app-specific orchestration поверх shared contracts ``src.assets``;
+``src.news.asset_manager`` сохранён как compatibility facade.
+
+Responsibilities:
+- по каждой сцене: приоритет пользовательских ассетов, локальная библиотека,
+  провайдерский поиск, ранжирование, отбор, скачивание с повторами и сборка
+  ``SceneVisualAssembly``;
+- запись фактических попыток: provider attempts, routing decision, query plan,
+  download attempts и причины отказа кандидатов;
+- video-first покрытие сцены и учёт повторного использования через
+  существующий ``ReuseLedger``;
+- контролируемые fallback-ступени, когда материал не найден, и список
+  ``missing_scenes``;
+- итоговый манифест со schema-версией, сводками и visual review bundle.
+
+Does not own:
+- контракт провайдера, модели ассета, скачивание и техническую валидацию —
+  ``src.assets``;
+- состав автоматического набора провайдеров — ``src.providers.registry``;
+- права: ``apply_policy_to_candidate`` / ``with_policy_decision``
+  ``src.assets.license_policy`` остаются единственным авторитетом;
+- лестницу завершённости и словарь причин — ``src.assets.completion``;
+- semantic evidence и решение об отборе — ``src.assets.semantic_selection``,
+  ``src.assets.semantic_visual_service``;
+- формирование строки запроса к провайдеру — ``src.assets.query_adapter``;
+- визуальный план как таковой и порядок стадий — ``src.news.pipeline``.
+
+Inputs: визуальный план, пользовательские ассеты, media index, список
+провайдеров, режим завершённости и настройки отбора.
+
+Outputs: dict манифеста, который ``pipeline`` записывает в
+``assets/assets_manifest.json``, плюс скачанные файлы внутри проекта.
+
+Important invariants:
+- сцена без пригодного материала остаётся честно пустой и попадает в
+  ``missing_scenes``; правдоподобная подмена субъекта не создаётся;
+- пользовательский ассет имеет приоритет над найденным;
+- ``dry_run`` не выполняет ни одного сетевого запроса и ни одного скачивания;
+- ни один кандидат не попадает в манифест без provider, source, лицензии и
+  контрольной суммы;
+- сборщик не решает вопрос прав сам и не переопределяет решение политики;
+- второй asset pipeline, второй selector и второй manifest owner не создаются.
+
+See also: ``src/news/asset_manager.py``, ``src/news/asset_scene_completion.py``,
+``src/news/asset_manifest_summaries.py``, ``src/assets/README.md``.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

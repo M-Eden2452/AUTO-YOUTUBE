@@ -1,3 +1,24 @@
+"""Test classification: LEGACY ANCHOR
+
+Protects:
+- снимок разделения 6F: root ``pipeline.py`` остаётся compatibility facade,
+  чьи ``parse_args``, ``run_maintenance_command`` и workflow-функции — те же
+  объекты, что и в ``src.legacy_pipeline``, и чей ``--skip-render`` прогон
+  продолжает проходить через прежние module-level patch-points без render,
+  TTS и сети.
+
+Does not prove:
+- что root ``pipeline.py`` является поддерживаемым пользовательским входом:
+  канонический CLI — ``python -m ai_youtube`` (ADR 0007), а root facade
+  назначен к удалению последним в PLAN-L4;
+- что legacy workflow даёт корректный продуктовый результат: проверяется
+  тождество функций и порядок делегации, а не качество ролика;
+- что модуль должен пережить носителя. Класс — LEGACY ANCHOR
+  (``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»):
+  characterization своё назначение выполнила — рефакторинг 6F завершён, —
+  поэтому модуль ретайрится вместе с носителем по gate PLAN-L3 / PLAN-L4.
+"""
+
 from __future__ import annotations
 
 import contextlib

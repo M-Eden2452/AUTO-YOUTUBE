@@ -1,3 +1,53 @@
+"""Canonical boundary перевода пользовательского ввода в запрос создания.
+
+Единственное место, где аргументы CLI и состояние Wizard превращаются в
+``ContentCreationRequest``. Оба публичных входа — ``from_cli_namespace`` и
+``from_wizard_state`` — собирают один и тот же контракт, поэтому канонический
+CLI, compatibility CLI и Wizard не расходятся в семантике входа.
+
+Responsibilities:
+- сборка ``ContentCreationRequest`` и его вложенных конфигураций голоса,
+  субтитров, музыки, тайминга, рендера и флагов выполнения;
+- нормализация источника материала: ``--source-text`` / ``--source-text-file``
+  и сохранённые aliases ``--pasted-script`` / ``--script-file`` отображаются в
+  существующие поля ``pasted_script`` / ``script_path`` и существующие modes
+  ``pasted_script`` / ``script_file``;
+- проверка единственности authoritative source и совместимости явного
+  ``--input-mode`` с выбранным источником;
+- загрузка визуальных брифов из файла в поле запроса.
+
+Does not own:
+- определения аргументов и парсер — ``src.ai_youtube.cli`` и
+  ``src.content_creation.cli``;
+- модель запроса — ``src.content_creation.models``;
+- правила валидации текста и файла сценария —
+  ``src.content_creation.input_validation``;
+- разрешение шаблона, канала и контекстную валидацию —
+  ``src.content_creation.service``;
+- сам script engine: модуль даёт вход, а не создаёт сценарий.
+
+Inputs: разобранный ``argparse.Namespace`` либо состояние Wizard, плюс
+разрешённые корни проектов и каналов.
+
+Outputs: ``ContentCreationRequest``. Ни одного файла модуль не создаёт; он
+только читает файл визуальных брифов, если путь передан.
+
+Important invariants:
+- ровно один authoritative источник материала на запрос; несколько
+  одновременно — ``ContentCreationError``, а не молчаливый приоритет;
+- явный ``--input-mode``, противоречащий выбранному источнику, отвергается до
+  начала работы;
+- новые публичные флаги остаются aliases того же parser destination: прежние
+  имена продолжают работать и второй вход не создаётся;
+- модуль не решает, выполним ли запрос по каналу и шаблону — эту ошибку
+  формулирует service, поэтому неудачное предразрешение voice profile здесь не
+  становится отказом.
+
+See also: ``src/content_creation/service.py``,
+``src/content_creation/input_validation.py``,
+``src/content_creation/__init__.py``.
+"""
+
 from __future__ import annotations
 
 from argparse import Namespace

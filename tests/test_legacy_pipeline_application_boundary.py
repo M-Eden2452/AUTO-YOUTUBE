@@ -1,3 +1,23 @@
+"""Test classification: LEGACY ANCHOR
+
+Protects:
+- снимок slice 8D: стабильность root command/workflow surface, форму
+  ``LegacyPipelineArtifacts``, переиспользование существующих engine
+  patch-points вместо новых, делегацию ``apps.youtube_pipeline`` в root facade
+  и то, что canonical adapter ``src.ai_youtube.apps.legacy_pipeline`` лениво
+  переэкспортирует существующие функции, а не дублирует их.
+
+Does not prove:
+- что legacy pipeline остаётся поддерживаемым приложением: adapter создавался
+  ради переноса границы, а не ради продления жизни стека;
+- что ``apps.youtube_pipeline`` обещан пользователю — он назначен к удалению в
+  PLAN-L4;
+- что модуль должен пережить носителя. Класс — LEGACY ANCHOR
+  (``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»):
+  characterization этапа 8D своё назначение выполнила, поэтому модуль
+  ретайрится вместе с носителем по gate PLAN-L3 / PLAN-L4.
+"""
+
 from __future__ import annotations
 
 import inspect

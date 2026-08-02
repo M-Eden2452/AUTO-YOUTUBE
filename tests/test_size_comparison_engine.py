@@ -1,3 +1,24 @@
+"""Test classification: LEGACY ANCHOR
+
+Protects:
+- реализацию ``src.size_comparison_engine``: чтение данных с сохранением
+  disclaimer-пометок о мифических объектах, адаптивные стадии камеры вместо
+  одного линейного масштаба, удаление белого и плоского цветного фона
+  силуэта, приоритет abyss-фона над референсными изображениями и допуск
+  warning-ов о fallback, когда рендер прошёл валидацию.
+
+Does not prove:
+- что формат сравнения размеров существует в активном продукте: движок входит
+  в legacy content stack (C30, C33) и не имеет шаблона ``content_creator``;
+- что capability исчезает вместе с движком: сам формат помечен как отдельный
+  будущий product slice на новом canonical core (OD-10), и внутри PLAN-L он
+  **не** мигрируется;
+- что модуль защищает нужное поведение от изменения. Класс — LEGACY ANCHOR
+  (``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»): алгоритм,
+  visual logic, edge cases и полезные проверки сохраняет Knowledge Salvage
+  Gate, после чего движок и его тест удаляются; gate — PLAN-L0 → PLAN-L3.
+"""
+
 from __future__ import annotations
 
 import csv

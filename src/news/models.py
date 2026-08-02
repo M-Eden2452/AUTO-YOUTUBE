@@ -1,3 +1,42 @@
+"""Canonical boundary данных задания ``news_to_short``: контракт ``NewsJob``.
+
+Модуль описывает форму того, что хранится в ``job.json``, и словарь стадий
+активного workflow. Он ничего не читает и не пишет: persistence принадлежит
+``src.news.project_store``, порядок исполнения — ``src.news.pipeline``.
+
+Responsibilities:
+- ``NewsJob`` и вложенные ``StageState``, ``LocalizationState``, ``AssetRights``;
+- ``NEWS_JOB_SCHEMA_VERSION`` и tolerant чтение задания без версии (ADR 0004);
+- ``NEWS_TO_SHORT_STAGES`` — единственный список стадий активного workflow;
+- словарь прав ``RIGHTS_*`` и ``ALLOWED_RENDER_RIGHTS`` — какие статусы вообще
+  допускают попадание материала в рендер;
+- нормализация completion-настроек задания поверх существующего словаря
+  ``src.assets.completion``.
+
+Does not own:
+- запись, atomic replace, lock и валидацию выходов стадии —
+  ``src.news.project_store``;
+- исполнение стадий, resume и force-stage — ``src.news.pipeline``;
+- решение о правах конкретного кандидата — ``src.assets.license_policy``
+  остаётся авторитетом; здесь только словарь допустимых статусов;
+- словарь состояний завершённости — ``src.assets.completion.modes``;
+- JSON-схему на диске — ``schemas/job.schema.json``.
+
+Important invariants:
+- новые payload ``to_dict()`` содержат ``schema_version``; ``job.json``,
+  записанный до появления поля, читается как v1 без миграции;
+- ``title`` отделён от ``topic``: первый — имя ролика для человека, второй —
+  вход pipeline; задание без ``title`` загружается без изменений;
+- ``strict`` остаётся режимом по умолчанию, а ``draft_complete`` включает
+  лёгкую адаптацию сценария только пока вызывающая сторона не отключила её явно;
+- порядок ``NEWS_TO_SHORT_STAGES`` — это объявленный порядок, а не гарантия
+  достижимости каждой стадии: известное расхождение ``preview_render`` записано
+  как C58 в ``docs/current/CLEANUP_REGISTRY.md`` и здесь не дублируется.
+
+See also: ``src/news/__init__.py``, ``src/news/project_store.py``,
+``docs/adr/0004-news-job-schema-version.md``, ``schemas/job.schema.json``.
+"""
+
 from __future__ import annotations
 
 import dataclasses

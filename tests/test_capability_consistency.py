@@ -1,9 +1,30 @@
-"""Guards against the capability layer drifting away from what actually runs.
+"""Test classification: ARCHITECTURE INVARIANT
+
+Guards against the capability layer drifting away from what actually runs.
 
 Every assertion here corresponds to a concrete defect found in the 2026-07-25
 architecture audit (docs/handoff/AUTONOMOUS_ARCHITECTURE_AUDIT.md). These are
 consistency checks over the in-memory catalog and the on-disk channel files -
 no network, no paid provider, no writes.
+
+Protects:
+- границу, которую мы держим намеренно: каталог и слой capabilities обязаны
+  описывать одно и то же. Включённый формат имеет включённый шаблон; шаблон
+  указывает на зарегистрированные формат, приложение и известный workflow; его
+  render preset либо пуст, либо лежит на диске; канал объявляет свою
+  пригодность; legacy-каналы ``pipeline.py`` не предлагаются для создания
+  контента; только production-статус заявляет о готовности.
+
+Does not prove:
+- что объявленная возможность действительно даёт качественный результат:
+  проверяется согласованность объявлений, а не поведение рендера;
+- что каталог правдив во всём. Известное расхождение объявленных export
+  targets с фактическим поведением зафиксировано как C44 в
+  ``docs/current/CLEANUP_REGISTRY.md`` и этим модулем не ловится.
+
+Класс подтверждён явным non-anchor контрастом в
+``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»: этот модуль
+менять без отдельного решения нельзя.
 """
 
 from __future__ import annotations

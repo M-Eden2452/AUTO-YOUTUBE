@@ -1,3 +1,57 @@
+"""Canonical boundary получения semantic evidence по кандидатам сцены.
+
+Слой между review-манифестом проекта и сменным semantic backend. Он готовит
+запрос по кандидату, отвечает за кэш и записывает evidence обратно в
+существующий ``assets/review/visual_review_manifest.json``. Evidence-провайдер,
+а не второй selector: окончательный выбор кандидата остаётся у существующего
+владельца решения в ``src.assets.semantic_selection``.
+
+Responsibilities:
+- ``load_semantic_visual_config`` — конфигурация с tolerant чтением
+  ``config/semantic_visual.json`` поверх встроенных значений по умолчанию;
+- ``create_semantic_visual_backend`` — выбор backend (``mock``, ``openai``,
+  внешний) по имени;
+- ``analyse_semantic_visual_for_project`` — проход по сценам и bounded
+  shortlist, кэшированный вызов backend, запись результата и semantic rank,
+  сводка выполнения;
+- ``inspect_semantic_visual_project`` — read-only состояние без вызовов.
+
+Does not own:
+- сам backend и его протокол — ``semantic_visual_backend`` и реализации
+  ``semantic_visual_mock`` / ``semantic_visual_openai`` /
+  ``semantic_visual_external``;
+- ключ и хранение кэша — ``semantic_visual_cache``;
+- форму review-манифеста и его запись — ``review_bundle``;
+- решение об отборе кандидата — ``src.assets.semantic_selection``;
+- права и лицензии — ``src.assets.license_policy``;
+- поиск, скачивание и сборку манифеста ассетов — ``src.assets``, ``src.news``;
+- offline dataset, метрики и отчёты калибровки —
+  ``src.assets.semantic_visual_evaluation*``.
+
+Inputs: корень проекта, идентификатор проекта, сцена или ``all_scenes``, имя
+backend либо готовый backend, флаги ``offline`` / ``refresh`` и лимиты
+кандидатов и кадров.
+
+Outputs: обновлённый review-манифест и сводка — обработанные сцены и
+кандидаты, попадания и промахи кэша, число вызовов backend, hard rejects и
+число случаев, требующих проверки человеком.
+
+Important invariants:
+- модуль даёт evidence, а не финальный выбор; неожиданная смена уже выбранного
+  кандидата фиксируется как ``selection_warning``, а не выполняется молча;
+- ``offline`` не выполняет ни одного вызова backend: промах кэша даёт явный
+  ``offline_cache_miss``, а не тихий успех;
+- анализ ограничен bounded shortlist и лимитом кадров, поэтому объём вызовов
+  предсказуем до запуска;
+- сбой backend и низкая уверенность приводят к ``review_required``, а не к
+  молчаливому пропуску кандидата (fail-closed);
+- повторный запуск с включённым кэшем не тратит вызовы заново;
+- второй semantic stack, второй selector и второй manifest не создаются.
+
+See also: ``src/assets/README.md``, ``src/assets/semantic_selection/__init__.py``,
+``src/assets/semantic_visual_cache.py``, ``docs/current/PRODUCT_PLAN.md``.
+"""
+
 from __future__ import annotations
 
 import copy

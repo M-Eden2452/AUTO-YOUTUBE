@@ -1,3 +1,25 @@
+"""Test classification: ARCHITECTURE INVARIANT
+
+Protects:
+- границу, которую мы держим намеренно: ``frame_sampling`` и
+  ``perceptual_similarity`` зависят только от общего
+  ``src.assets.frame_primitives`` и не импортируют друг друга — встречные
+  static edges устранены слайсом 6G и не должны вернуться;
+- прежние публичные import paths ``SampledFrame``, ``sha256_file`` и
+  ``image_perceptual_hash``, включая package export ``src.assets.SampledFrame``;
+- поведение sampling и подписи изображения при выносе примитивов.
+
+Does not prove:
+- что примитивы дают продуктово правильный результат отбора: это проверяется
+  на уровне semantic/selection, а не здесь;
+- что любые другие модули ``src.assets`` свободны от циклов — проверяются
+  ровно эти три.
+
+Класс подтверждён явным non-anchor контрастом в
+``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»: этот модуль
+менять без отдельного решения нельзя.
+"""
+
 from __future__ import annotations
 
 import ast

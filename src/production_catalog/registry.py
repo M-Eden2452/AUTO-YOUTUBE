@@ -1,3 +1,43 @@
+"""Canonical boundary хранения записей каталога: четыре in-memory реестра.
+
+Модуль отвечает за то, **как** каталог хранится и опрашивается, а не за то,
+**что** в нём объявлено: состав задаёт ``src.production_catalog.catalog``.
+Второй каталог приложений, форматов или шаблонов не создаётся.
+
+Responsibilities:
+- ``ApplicationRegistry``, ``FormatCatalog``, ``TemplateRegistry`` и
+  ``ExportTargetCatalog``: регистрация, поиск, перечисление и сериализация;
+- отказ от повторной регистрации одного идентификатора;
+- разрешение legacy alias шаблона в canonical ``template_id`` и защита от
+  столкновения alias с существующим идентификатором;
+- понятная ``CatalogValidationError`` с перечнем известных идентификаторов
+  вместо голого ``KeyError``.
+
+Does not own:
+- состав каталога и объявленные статусы — ``src.production_catalog.catalog``;
+- формы записей — ``src.production_catalog.models``;
+- выбор шаблона под конкретный запрос — ``src.content_creation.service``;
+- реализацию workflow и рендереров: реестр хранит только их объявленные имена.
+
+Inputs: объекты определений, переданные при сборке каталога.
+
+Outputs: те же объекты и их ``to_dict()``-представления. Ни одного файла модуль
+не читает и не пишет.
+
+Important invariants:
+- реестры детерминированы и хранят порядок регистрации;
+- идентификатор регистрируется ровно один раз; повторная регистрация — ошибка,
+  а не молчаливая перезапись;
+- legacy alias разрешается в canonical идентификатор, но собственной записью не
+  становится;
+- обращение к неизвестному идентификатору всегда завершается
+  ``CatalogValidationError``, а не пустым результатом;
+- реестры не зависят от окружения, файловой системы и сети.
+
+See also: ``src/production_catalog/catalog.py``,
+``src/production_catalog/models.py``, ``src/production_catalog/__init__.py``.
+"""
+
 from __future__ import annotations
 
 from typing import Any

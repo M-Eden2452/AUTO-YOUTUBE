@@ -1,3 +1,22 @@
+"""Test classification: LEGACY ANCHOR
+
+Protects:
+- чтение legacy-каналов ``quotes`` и ``survival`` через ``config_loader`` и
+  ``channel_loader``: раскладку выходных путей, поля ``video_task`` и
+  построение quote/scene/metadata планов легаси-движками;
+- поведение старого ``config/video_style.json`` без ``channel_id``.
+
+Does not prove:
+- что описанное является продуктовым контрактом активного продукта: эти каналы
+  не поддерживаются ни одним шаблоном ``content_creator`` (gate 8E, ADR 0013);
+- что содержимое каналов и ``content/`` — пользовательские данные: реестр
+  относит их к fixtures легаси-стека (N04);
+- что эти проверки должны пережить ретайр. Класс — LEGACY ANCHOR
+  (``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»): полезные
+  проверки извлекает Knowledge Salvage Gate, после чего модуль ретайрится
+  вместе со стеком по gate PLAN-L0 → PLAN-L3.
+"""
+
 from __future__ import annotations
 
 import unittest
