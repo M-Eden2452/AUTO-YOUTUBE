@@ -1,8 +1,9 @@
 # Claude Code adapter
 
-Канонические модельно-независимые инструкции находятся в [AGENTS.md](AGENTS.md).
-Сначала прочитай их, затем [docs/current/START_HERE.md](docs/current/START_HERE.md).
+@AGENTS.md
 
+Канонические инструкции — AGENTS.md (импортирован выше). Затем прочитай
+[docs/current/START_HERE.md](docs/current/START_HERE.md).
 Репозиторные skills находятся в корневом каталоге `skills/` и не считаются
 автоматически загруженными только потому, что присутствуют в репозитории. Перед
 специализированной задачей Claude Code вручную открывает релевантный

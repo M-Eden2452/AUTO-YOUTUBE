@@ -10,9 +10,13 @@
 3. Для архитектурной работы открой
    [docs/current/SYSTEM_MAP.md](docs/current/SYSTEM_MAP.md); для статуса —
    [docs/current/CURRENT_STATE.md](docs/current/CURRENT_STATE.md).
-4. Если задача продолжает текущую программу работ, полностью прочитай
-   [docs/current/PROJECT_EXECUTION_PLAN.md](docs/current/PROJECT_EXECUTION_PLAN.md)
-   и выполняй только его `current_checkpoint`.
+4. Если задача продолжает текущую программу работ и это обычный bounded slice,
+   достаточно прочитать `current_checkpoint` и релевантный раздел конкретного
+   PLAN-ID в [docs/current/PROJECT_EXECUTION_PLAN.md](docs/current/PROJECT_EXECUTION_PLAN.md),
+   а затем canonical owner, callers и tests. Полное чтение всего документа
+   обязательно только для широкого архитектурного аудита, plan reconciliation,
+   пересмотра execution route или когда нужный owner/checkpoint нельзя
+   определить точечно.
    [docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md](docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md)
    остаётся историческим контекстом и текущий порядок выполнения не задаёт;
    при расхождении по порядку работ верен активный execution plan.
@@ -25,7 +29,8 @@
 - Не используй bare `python`, `pip` или `pytest`: системный Python может иметь другую версию.
 - Сначала добавляй characterization test, затем меняй поведение.
 - Запускай только targeted tests текущего изменения. Full offline suite нужен на границе
-  крупного этапа или по явному запросу.
+  крупного этапа или по явному запросу; каноническая команда:
+  `.\venv\Scripts\python.exe -B -m unittest discover -s tests -p "test_*.py"`.
 - Не смешивай массовое форматирование, cleanup и функциональное изменение.
 - После изменения документации запускай
   `.\venv\Scripts\python.exe -m tools.qa.check_agent_docs`.
