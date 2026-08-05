@@ -53,8 +53,8 @@ AI-YouTube — локальная offline-first платформа создан�
 Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM». PLAN-STAB-1 (`f0b69db`), PLAN-STAB-2
 (`0eea5be`) и PLAN-STAB-3 (`9222519`) завершены 2026-08-05 и independently reviewed — verdicts ACCEPT WITH
 MINOR, ACCEPT, ACCEPT WITH MINOR; все три commit pushed (owner-provided external review evidence, не
-отдельный Git commit). Текущий checkpoint — PLAN-STAB-4 pending / not started (fail-closed runtime
-network/paid boundary), blocked до отдельного owner-issued implementation prompt. PLAN-9B-2 остаётся
+отдельный Git commit). PLAN-STAB-4 implementation completed 2026-08-06 — runtime-сеть fail-closed по умолчанию
+(`src/runtime_network.py`); checkpoint остаётся PLAN-STAB-4, review pending. PLAN-9B-2 остаётся
 pending / not started и deferred за stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`,
 `68acdb2`) вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run
 `31039985187`, 1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16

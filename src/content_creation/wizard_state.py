@@ -3,6 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from src.runtime_network import (
+    NETWORK_ACTION_ARTICLE_FETCH,
+    NETWORK_ACTION_ASSET_DOWNLOAD,
+    NETWORK_ACTION_PREVIEW_DOWNLOAD,
+    NETWORK_ACTION_PROVIDER_SEARCH,
+    NETWORK_ACTION_VOICE_PREFLIGHT,
+)
+
 from src.content_creation.models import ContentCreationRequest
 from src.content_creation.request_builder import from_wizard_state
 
@@ -125,6 +133,36 @@ class WizardState:
     dry_run: bool = False
     approve_paid_generation: bool = False
     prepare_only: bool = False
+    # Explicit network approval for this run, in the same shape the CLI's
+    # repeatable --allow-network produces. Empty means deny, and it stays empty
+    # unless the user answers the network step - reviewed only records that the
+    # question was already put, so a two-phase paid run does not ask twice.
+    allow_network: tuple[str, ...] = ()
+    network_access_reviewed: bool = False
+
+
+def required_network_actions(state: WizardState) -> tuple[str, ...]:
+    """Which network classes this particular wizard run would actually reach.
+
+    The wizard asks about exactly these and nothing more, so answering "yes"
+    never approves a class the run has no use for. A dry run only ever reaches
+    article ingestion: the asset stage builds an empty provider set for it
+    (see src.news.asset_manager.build_news_asset_manifest).
+    """
+    actions: list[str] = []
+    if state.content_input_mode == "article_url" or state.source_url:
+        actions.append(NETWORK_ACTION_ARTICLE_FETCH)
+    if state.template_id == "fullscreen_voiceover_v1" and not state.dry_run:
+        actions.extend(
+            (
+                NETWORK_ACTION_PROVIDER_SEARCH,
+                NETWORK_ACTION_ASSET_DOWNLOAD,
+                NETWORK_ACTION_PREVIEW_DOWNLOAD,
+            )
+        )
+    if state.voice_provider == "elevenlabs" and not state.dry_run:
+        actions.append(NETWORK_ACTION_VOICE_PREFLIGHT)
+    return tuple(dict.fromkeys(actions))
 
 
 def build_request(
@@ -148,5 +186,6 @@ __all__ = [
     "WizardState",
     "build_request",
     "profiles_for_language",
+    "required_network_actions",
     "voice_profile_label",
 ]

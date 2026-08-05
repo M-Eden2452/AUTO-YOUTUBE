@@ -6,12 +6,19 @@ from typing import Any
 
 import requests
 
+from src.runtime_network import (
+    NETWORK_ACTION_VOICE_PREFLIGHT,
+    NetworkAccessDeniedError,
+    require_network,
+)
+
 from .base_provider import TTSProvider
 from .env import load_elevenlabs_env
 from .models import SOURCE_GENERATED, TTSRequest, TTSResult, VoicePreflightPlan
 
 
 ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1"
+ELEVENLABS_API_HOST = "api.elevenlabs.io"
 
 
 class ElevenLabsProvider(TTSProvider):
@@ -75,6 +82,14 @@ class ElevenLabsProvider(TTSProvider):
         if not self.api_key:
             plan.errors.append("ELEVENLABS_API_KEY is not configured.")
             return plan
+        # A configured key is not an approval. Report the denial as a preflight
+        # error so callers keep a well-formed plan (and ready_for_final_generation
+        # stays False) instead of getting a traceback.
+        try:
+            require_network(NETWORK_ACTION_VOICE_PREFLIGHT, detail=ELEVENLABS_API_HOST)
+        except NetworkAccessDeniedError as exc:
+            plan.errors.append(str(exc))
+            return plan
         headers = {"xi-api-key": self.api_key}
         try:
             subscription = self.http.get(f"{ELEVENLABS_API_BASE}/user/subscription", headers=headers, timeout=20)
@@ -118,6 +133,7 @@ class ElevenLabsProvider(TTSProvider):
     def list_voices(self) -> list[dict[str, Any]]:
         if not self.api_key:
             return []
+        require_network(NETWORK_ACTION_VOICE_PREFLIGHT, detail=ELEVENLABS_API_HOST)
         response = self.http.get(f"{ELEVENLABS_API_BASE}/voices", headers={"xi-api-key": self.api_key}, timeout=20)
         response.raise_for_status()
         return response.json().get("voices", [])

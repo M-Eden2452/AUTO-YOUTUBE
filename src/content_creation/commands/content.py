@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from src.runtime_network import NETWORK_ACTIONS, NETWORK_ACTION_DESCRIPTIONS
+
 
 def register_commands(
     subparsers: argparse._SubParsersAction,
@@ -157,6 +159,23 @@ def add_create_arguments(parser: argparse.ArgumentParser) -> None:
         "--approve-paid-generation",
         action="store_true",
         help="Explicitly allow paid ElevenLabs synthesis.",
+    )
+    parser.add_argument(
+        "--allow-network",
+        dest="allow_network",
+        action="append",
+        default=None,
+        choices=list(NETWORK_ACTIONS),
+        metavar="ACTION",
+        help=(
+            "Explicitly approve ONE class of runtime network access; repeat the flag "
+            "per class. Nothing is approved by default - a configured API key, a "
+            "default-on provider and --approve-paid-generation are not approvals. "
+            + " ".join(
+                f"{action}: {NETWORK_ACTION_DESCRIPTIONS[action]}"
+                for action in NETWORK_ACTIONS
+            )
+        ),
     )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(

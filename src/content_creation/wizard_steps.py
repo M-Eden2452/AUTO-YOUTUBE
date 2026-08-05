@@ -6,6 +6,8 @@ import inspect
 from pathlib import Path
 from typing import Any
 
+from src.runtime_network import NETWORK_ACTION_DESCRIPTIONS
+
 from src.content_creation import capabilities, input_validation, languages
 from src.content_creation.models import (
     ContentCreationError,
@@ -27,6 +29,7 @@ from src.content_creation.wizard_state import (
     WizardState,
     build_request,
     profiles_for_language,
+    required_network_actions,
     voice_profile_label,
 )
 from src.production_catalog.catalog import get_default_catalog
@@ -804,6 +807,46 @@ class Wizard(WizardPresentation):
         except WizardCancelled:
             pass
 
+    def confirm_network_access(self, state: WizardState) -> None:
+        """Ask once for exactly the network classes this run would reach.
+
+        The wizard's counterpart to the CLI's repeatable --allow-network. Asked
+        before the first create call, so nothing reaches the network on the
+        strength of a configured key, a default-on provider or a later paid
+        approval. Declining is a complete answer: the run continues offline and
+        the workflow reports each blocked action.
+        """
+        if state.network_access_reviewed:
+            return
+        state.network_access_reviewed = True
+        needed = required_network_actions(state)
+        if not needed:
+            state.allow_network = ()
+            return
+        print(
+            tag(
+                self.icons,
+                "warning",
+                "Этому запуску нужен доступ в сеть:",
+            )
+        )
+        for action in needed:
+            print(f"   - {action}: {NETWORK_ACTION_DESCRIPTIONS[action]}")
+        print(
+            tag(
+                self.icons,
+                "warning",
+                "Без разрешения эти действия будут отклонены. Наличие "
+                "API-ключа разрешением не является.",
+            )
+        )
+        approved = self._confirm(
+            "warning",
+            "Разрешить перечисленные сетевые действия?",
+            default=False,
+        )
+        state.allow_network = needed if approved else ()
+
     def confirm_paid_generation(self, state: WizardState) -> None:
         if state.dry_run or state.voice_provider != "elevenlabs":
             state.approve_paid_generation = False
@@ -859,6 +902,10 @@ class Wizard(WizardPresentation):
         self,
         state: WizardState,
     ) -> ContentCreationResult | None:
+        # Every wizard path - new, resume and the two-phase paid flow - reaches
+        # creation through here, so this is the one place the network question
+        # has to be asked to keep CLI and Wizard at parity.
+        self.confirm_network_access(state)
         try:
             supports_progress = (
                 "progress_callback"

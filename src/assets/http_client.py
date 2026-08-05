@@ -4,8 +4,15 @@ import hashlib
 import time
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 import requests
+
+from src.runtime_network import (
+    NETWORK_ACTION_ASSET_DOWNLOAD,
+    NETWORK_ACTION_PROVIDER_SEARCH,
+    require_network,
+)
 
 from .provider_contract import (
     ProviderAuthenticationError,
@@ -46,7 +53,9 @@ class ProviderHttpClient:
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
         timeout: float | None = None,
+        network_action: str = NETWORK_ACTION_PROVIDER_SEARCH,
     ) -> dict[str, Any]:
+        require_network(network_action, detail=_host(url))
         response = self._request("GET", url, headers=headers, params=params, timeout=timeout)
         try:
             data = response.json()
@@ -65,7 +74,9 @@ class ProviderHttpClient:
         max_bytes: int = 500 * 1024 * 1024,
         min_bytes: int = 1024,
         timeout: float | None = None,
+        network_action: str = NETWORK_ACTION_ASSET_DOWNLOAD,
     ) -> dict[str, Any]:
+        require_network(network_action, detail=_host(url))
         target_path = Path(target)
         part_path = target_path.with_suffix(target_path.suffix + ".part")
         last_error: ProviderError | None = None
@@ -171,6 +182,14 @@ class ProviderHttpClient:
                 path.unlink()
         except OSError:
             return
+
+
+def _host(url: str) -> str:
+    """Host only: a denial message must never echo query params or tokens."""
+    try:
+        return urlparse(str(url or "")).netloc
+    except ValueError:
+        return ""
 
 
 def _parse_retry_after(value: Any) -> float | None:

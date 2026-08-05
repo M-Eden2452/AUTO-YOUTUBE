@@ -10,6 +10,27 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 
+def _voice_preflight_approved():
+    """Grant only the voice_preflight class for a test that owns preflight.
+
+    The legacy voice CLI has no approval flag of its own, so PLAN-STAB-4 leaves
+    it fail-closed in production; tests that exercise its mechanics on fakes
+    grant the class explicitly instead of weakening the boundary.
+    """
+    from src.runtime_network import (
+        NETWORK_ACTION_VOICE_PREFLIGHT,
+        approval_for_actions,
+        network_approval_scope,
+    )
+
+    return network_approval_scope(
+        approval_for_actions(
+            [NETWORK_ACTION_VOICE_PREFLIGHT],
+            granted_by="test_voice_workflow",
+        )
+    )
+
+
 class VoiceWorkflowTests(unittest.TestCase):
     def test_tts_cache_key_changes_for_voice_model_language_text_and_settings(self) -> None:
         from src.audio.tts.models import TTSRequest, compute_tts_cache_key
@@ -113,7 +134,11 @@ class VoiceWorkflowTests(unittest.TestCase):
             model_id="eleven_multilingual_v2",
         )
 
-        plan = ElevenLabsProvider(api_key="test-key", http_client=http).preflight(request)
+        # This test owns "preflight is read-only", not the PLAN-STAB-4 gate, so
+        # it grants the one class preflight belongs to. That preflight is denied
+        # without the grant is covered by tests/test_runtime_network_boundary.py.
+        with _voice_preflight_approved():
+            plan = ElevenLabsProvider(api_key="test-key", http_client=http).preflight(request)
 
         self.assertTrue(plan.api_key_present)
         self.assertTrue(plan.voice_available)
@@ -241,7 +266,10 @@ class VoiceWorkflowTests(unittest.TestCase):
             fake_http.get.side_effect = fake_get
             fake_http.post.return_value = Mock(status_code=200, content=b"RIFF....WAVEfmt ")
 
-            with patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls:
+            # The audition path runs a preflight first, so this test grants the
+            # voice_preflight class it exercises. The paid synthesis itself stays
+            # governed by the existing VoiceApproval owner, unchanged.
+            with _voice_preflight_approved(), patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls:
                 from src.audio.tts.elevenlabs_provider import ElevenLabsProvider as RealProvider
 
                 provider_cls.return_value = RealProvider(api_key="test-key", http_client=fake_http)
@@ -268,7 +296,7 @@ class VoiceWorkflowTests(unittest.TestCase):
             self.assertEqual(fake_http.post.call_count, 1)
 
             # Re-running the same audition must hit the cached preview file, not call again.
-            with patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls2:
+            with _voice_preflight_approved(), patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls2:
                 provider_cls2.return_value = RealProvider(api_key="test-key", http_client=fake_http)
                 with redirect_stdout(StringIO()):
                     run_voice_cli(

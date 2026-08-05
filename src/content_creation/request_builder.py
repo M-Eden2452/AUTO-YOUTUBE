@@ -14,7 +14,10 @@ Responsibilities:
   ``pasted_script`` / ``script_file``;
 - проверка единственности authoritative source и совместимости явного
   ``--input-mode`` с выбранным источником;
-- загрузка визуальных брифов из файла в поле запроса.
+- загрузка визуальных брифов из файла в поле запроса;
+- нормализация явного сетевого разрешения ``--allow-network`` /
+  ``state.allow_network`` в одно поле ``network`` запроса, одинаково для CLI и
+  Wizard.
 
 Does not own:
 - определения аргументов и парсер — ``src.ai_youtube.cli`` и
@@ -41,7 +44,11 @@ Important invariants:
   имена продолжают работать и второй вход не создаётся;
 - модуль не решает, выполним ли запрос по каналу и шаблону — эту ошибку
   формулирует service, поэтому неудачное предразрешение voice profile здесь не
-  становится отказом.
+  становится отказом;
+- сетевое разрешение только переносится, но не выдаётся: пустое значение по
+  умолчанию означает полный запрет, и ни credentials, ни ``--resume``, ни
+  ``--approve-paid-generation`` его не создают. Владелец решения —
+  ``src.runtime_network``.
 
 See also: ``src/content_creation/service.py``,
 ``src/content_creation/input_validation.py``,
@@ -53,12 +60,15 @@ from __future__ import annotations
 from argparse import Namespace
 from typing import Any
 
+from src.runtime_network import NETWORK_ACTIONS
+
 from src.content_creation import capabilities, input_validation
 from src.content_creation.models import (
     ContentCreationError,
     ContentCreationRequest,
     ExecutionFlags,
     MusicRequestConfig,
+    NetworkRequestConfig,
     RenderRequestConfig,
     SubtitleRequestConfig,
     TimingRequestConfig,
@@ -126,6 +136,11 @@ def from_cli_namespace(
         music=MusicRequestConfig(mode=args.music_mode, path=args.music_path),
         timing=TimingRequestConfig(mode=args.timing_mode),
         render=RenderRequestConfig(quality=args.quality),
+        network=NetworkRequestConfig(
+            allowed_actions=normalize_network_actions(
+                getattr(args, "allow_network", None),
+            ),
+        ),
         execution=ExecutionFlags(
             dry_run=args.dry_run,
             prepare_only=args.prepare_only,
@@ -226,6 +241,11 @@ def from_wizard_state(
         subtitles=SubtitleRequestConfig(style=state.subtitle_style),
         music=MusicRequestConfig(mode=state.music_mode, path=state.music_path),
         timing=TimingRequestConfig(mode=state.timing_mode),
+        network=NetworkRequestConfig(
+            allowed_actions=normalize_network_actions(
+                getattr(state, "allow_network", None),
+            ),
+        ),
         execution=ExecutionFlags(
             dry_run=state.dry_run,
             prepare_only=state.prepare_only,
@@ -235,6 +255,34 @@ def from_wizard_state(
         script_adaptation="light" if video_first else "",
         project_overrides=dict(project_overrides or {}),
     )
+
+
+def normalize_network_actions(actions: Any) -> tuple[str, ...]:
+    """Normalize an explicit network approval into the request contract shape.
+
+    CLI (`--allow-network`, repeatable) and Wizard (`state.allow_network`) both
+    land here, so neither entry point can approve something the other cannot.
+    Order and duplicates are dropped; an unknown id is rejected here rather than
+    silently ignored, because a typo must never read as "approved" nor as a
+    quietly empty approval that fails much deeper in the run.
+    """
+    if not actions:
+        return ()
+    if isinstance(actions, str):
+        actions = [actions]
+    selected: list[str] = []
+    for item in actions:
+        name = str(item or "").strip()
+        if not name or name in selected:
+            continue
+        if name not in NETWORK_ACTIONS:
+            raise ContentCreationError(
+                f"--allow-network {name!r} is not a known network action; "
+                "expected one of " + ", ".join(NETWORK_ACTIONS) + ".",
+                reason="unknown_network_action",
+            )
+        selected.append(name)
+    return tuple(selected)
 
 
 def load_visual_briefs(path: str) -> dict[str, dict]:
@@ -247,4 +295,9 @@ def load_visual_briefs(path: str) -> dict[str, dict]:
     return input_validation.load_visual_briefs(path)
 
 
-__all__ = ["from_cli_namespace", "from_wizard_state", "load_visual_briefs"]
+__all__ = [
+    "from_cli_namespace",
+    "from_wizard_state",
+    "load_visual_briefs",
+    "normalize_network_actions",
+]

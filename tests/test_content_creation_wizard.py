@@ -23,11 +23,19 @@ class ScriptedAdapter:
     """Mock prompt adapter for tests: feeds canned answers, never touches a real
     terminal or keyboard, and records every select() call for assertions."""
 
-    def __init__(self, answers: list, *, auto_title: bool = True) -> None:
+    def __init__(
+        self,
+        answers: list,
+        *,
+        auto_title: bool = True,
+        auto_network: bool = True,
+    ) -> None:
         self._answers = list(answers)
         self._auto_title = auto_title
+        self._auto_network = auto_network
         self.select_calls: list[tuple[str, list[tuple[str, str]]]] = []
         self.text_calls: list[tuple[str, str]] = []
+        self.confirm_calls: list[str] = []
 
     def _next(self):
         if not self._answers:
@@ -49,6 +57,13 @@ class ScriptedAdapter:
         return self._next()
 
     def confirm(self, message: str, default: bool = False) -> bool:
+        self.confirm_calls.append(message)
+        if self._auto_network and "сетевые действия" in message:
+            # PLAN-STAB-4 added an explicit network step before creation. Like the
+            # pre-filled title above, answering it here keeps every existing canned
+            # script valid; tests that care about the answer pass auto_network=False
+            # and script it themselves.
+            return True
         return self._next()
 
     @property

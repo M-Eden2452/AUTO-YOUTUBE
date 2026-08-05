@@ -14,6 +14,8 @@ from urllib.parse import unquote, urlparse
 import imageio_ffmpeg
 from PIL import Image
 
+from src.runtime_network import NETWORK_ACTION_PREVIEW_DOWNLOAD
+
 from .frame_sampling import SampledFrame, ffprobe_media_info, sample_frames, sha256_file
 from .http_client import ProviderHttpClient
 from .models import AssetCandidate, utc_now_iso
@@ -497,6 +499,7 @@ def _materialize_preview(
         max_bytes=cache.max_preview_size_bytes,
         min_bytes=64,
         timeout=float(config.get("download_timeout_sec", 20)),
+        network_action=NETWORK_ACTION_PREVIEW_DOWNLOAD,
     )
     record = _record_for_file(preview.cache_key, target, media_type=media_type, source_url=preview.preview_source_url, cache_status="stored")
     record.sha256 = result.get("checksum_sha256") or record.sha256

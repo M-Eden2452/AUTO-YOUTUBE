@@ -2,12 +2,12 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-05
-baseline_head: 68acdb2
+updated_at: 2026-08-06
+baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-4
-next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-4
+next_exact_action: independent review of the PLAN-STAB-4 implementation commit
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,11 +47,23 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-4 pending / not started** — fail-closed runtime
-  network/paid boundary, четвёртый слайс «POST-AUDIT STABILIZATION PROGRAM».
-  Это единственный current checkpoint; любой другой шаг, названный текущим
-  где-либо ещё, устарел. Blocked до отдельного owner-issued implementation
-  prompt.
+- **Текущий шаг:** **PLAN-STAB-4 — implementation completed, independent review
+  pending.** Это единственный current checkpoint; любой другой шаг, названный
+  текущим где-либо ещё, устарел. Checkpoint остаётся PLAN-STAB-4 до получения
+  review verdict; PLAN-STAB-5 этим не начат и stabilization gate не закрыт.
+  Реализация 2026-08-06: canonical owner `src/runtime_network.py` объявляет
+  runtime-сеть fail-closed по умолчанию — `ContextVar` со значением `DENY_ALL`,
+  явное поимённое разрешение классов `provider_search`, `asset_download`,
+  `preview_download`, `article_fetch`, `voice_preflight`, проверка
+  `require_network` до первого socket/HTTP. Разрешение выдаётся один раз в
+  `create_content` из поля `network` запроса, а запрос собирается общим
+  request builder одинаково для CLI (`--allow-network`, повторяемый, без
+  wildcard) и Wizard (явный шаг подтверждения). Наличие API-ключа, включённый
+  по умолчанию keyless-провайдер, `--approve-paid-generation`, `--resume` и
+  `--force-stage` разрешением **не являются**; `--dry-run` и `--prepare-only`
+  остаются offline. Network approval и paid approval разделены: платное
+  разрешение не открывает provider search, article ingestion, preview download
+  и preflight.
 - **PLAN-STAB-3:** completed 2026-08-05 (commit `9222519`); `tests/network_guard.py` получил
   `network_guard_scope()` context manager, восстанавливающий guard к состоянию
   до входа в scope даже при исключении, и 9 raw install/uninstall call sites
@@ -315,8 +327,9 @@ source_paths:
     review выполнен, verdict ACCEPT WITH MINOR; commit pushed. Review
     PLAN-STAB-1/2/3 — owner-provided external review evidence, не отдельный
     Git commit;
-  - **PLAN-STAB-4** — pending/not started; **текущий checkpoint**; остаётся
-    отдельный owner-issued implementation prompt;
+  - **PLAN-STAB-4** — implementation completed 2026-08-06; **текущий
+    checkpoint**; independent review pending, поэтому blocking gate для
+    PLAN-9B-2 ещё не satisfied;
   - **PLAN-STAB-5…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
     порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
     PROGRAM»;
@@ -345,9 +358,8 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** дождаться отдельного owner-issued
-  implementation prompt для PLAN-STAB-4 (fail-closed runtime network/paid
-  boundary).
+- **Следующее точное действие:** independent review PLAN-STAB-4 implementation
+  commit в отдельном чате. PLAN-STAB-5 до получения verdict не начинается.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1159,7 +1171,8 @@ repair/re-review при findings.
    `0eea5be`, independent review verdict ACCEPT, pushed;
 3. PLAN-STAB-3 completed and independently accepted — **satisfied**: commit
    `9222519`, independent review verdict ACCEPT WITH MINOR, pushed;
-4. PLAN-STAB-4 completed and independently accepted;
+4. PLAN-STAB-4 completed and independently accepted — **не satisfied**:
+   implementation completed 2026-08-06, independent review **pending**;
 5. PLAN-STAB-5 completed and independently accepted;
 6. PLAN-STAB-6 completed **либо** владелец формально принимает
    документированный residual risk;
@@ -1395,8 +1408,10 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-4 — fail-closed runtime network/paid boundary
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** characterization PLAN-STAB-3 (completed).
+- **status:** implementation completed 2026-08-06 · **independent review:**
+  pending · **blocking для PLAN-9B-2:** да, gate ещё **не** satisfied —
+  требуется review verdict · **зависимости:** characterization PLAN-STAB-3
+  (completed).
 - **цель:** единый runtime owner запрещает внешние и платные вызовы в offline
   или неодобренном режиме.
 - **user impact:** случайный платный или сетевой вызов перестаёт быть возможен
@@ -1416,6 +1431,66 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 - **required tests:** offline-режим блокирует каждый класс вызова; явное
   approval пропускает ровно один класс; отсутствие approval при настроенном
   провайдере остаётся отказом.
+- **фактический canonical owner (2026-08-06):** `src/runtime_network.py` —
+  один модуль, один механизм. `ContextVar` со значением `DENY_ALL` делает
+  default deny свойством конструкции, а не проверкой, которую можно забыть:
+  `NetworkApproval` (frozen) хранит поимённый набор классов и метку источника,
+  `network_approval_scope` восстанавливает предыдущее значение через token даже
+  при исключении, `require_network` вызывается до первого socket/HTTP,
+  неизвестное имя класса — ошибка, а не молчаливое разрешение.
+  `NetworkApproval.to_dict()` отдаёт только имена классов и `granted_by`,
+  поэтому ключ или токен не может попасть в manifests и approval artifacts.
+  Второй guard на провайдера не создавался: все пять сетевых провайдеров ходят
+  через общий `ProviderHttpClient` и не менялись.
+- **фактически закрытые network families:** `provider_search` и
+  `asset_download` — `src/assets/http_client.py` (`get_json` и
+  `download_stream`, проверка до `_request` и до создания `.part`, в тексте
+  отказа только host без query-параметров); `preview_download` —
+  `src/assets/visual_preview.py` передаёт свой класс в тот же
+  `download_stream`; `article_fetch` — `src/news/article_ingestor.py` до
+  `requests.get`, отказ транслируется в существующий `ArticleIngestionError`
+  с `reason="network_approval_required"`, который намеренно не входит в
+  `_RETRYABLE_ARTICLE_REASONS`; `voice_preflight` —
+  `src/audio/tts/elevenlabs_provider.py` в `preflight` и `list_voices`, причём
+  отказ в `preflight` возвращает корректный план с классифицированной ошибкой,
+  поэтому `ready_for_final_generation` остаётся False и traceback не возникает.
+- **как пользователь даёт разрешение:** повторяемый `--allow-network <класс>`
+  (`choices` из `NETWORK_ACTIONS`, wildcard-значения нет) проходит через общий
+  `request_builder` в поле `network` запроса; Wizard задаёт явный вопрос
+  `confirm_network_access`, перечисляя ровно те классы, которых требует именно
+  этот прогон (`required_network_actions`). Оба входа заполняют одно и то же
+  поле, поэтому parity выполняется по построению, а `create_content` —
+  единственное место установки scope на оба шаблона.
+- **явно принятые residual risks:** OpenAI Vision (`semantic_visual_openai.py`)
+  в scope не входил и остаётся под существующей защитой —
+  `config/semantic_visual.json` с `enabled:false`, `backend:"mock"`,
+  `openai.enabled:false`, `allow_paid_vision:false` плюс `VisionBudgetGuard` с
+  обязательной фразой подтверждения и budget cap. Legacy
+  `pipeline.py --provider-diagnostics --live` и `pipeline.py --voice-action
+  preflight/audition` идут через закрытые границы и потому становятся
+  fail-closed без собственного approval-флага: это намеренное default-deny для
+  путей вне канонического workflow, а не регрессия канонического CLI.
+  Платный POST ElevenLabs (`synthesize`) остаётся под существующим
+  каноническим paid-owner — hash-bound `VoiceApproval` на диске плюс gates в
+  `narration_workflow` и `TTSProviderManager`; отдельного network approval он
+  не требует. Информационная строка «Сетевые действия» в
+  `wizard_presentation.py` перечисляет не все семейства — предсуществующее
+  поведение, в scope PLAN-STAB-4 не входило.
+- **фактические проверки (2026-08-06, ветка `governance-reset`):** новый
+  `tests/test_runtime_network_boundary.py` — 34 теста, покрывающие default deny
+  для каждого класса, keyless default-on провайдеров, article ingestion до
+  HTTP, preview download отдельным классом, preflight без GET при настроенном
+  ключе, paid approval без network approval, разрешение ровно одного класса,
+  dry-run/prepare-only/resume/force-stage offline, отсутствие secrets в
+  approval artifact и CLI ↔ Wizard parity. Обновлены owning tests
+  `test_asset_foundation_http_download`, `test_voice_workflow` и
+  `test_content_creation_wizard` (общий `ScriptedAdapter` также используется
+  `test_project_naming_and_resume`): им выдаётся явный scope нужного класса,
+  существующий `tests/network_guard.py` не ослаблялся. Полный offline suite —
+  1623 теста (1589 + 34), exit code 0; docs QA — exit code 0;
+  `git diff --check` — exit code 0. Числа являются измерениями, не нормативами.
+  Сеть, provider/model API, download, Vision, TTS, paid calls и реальный `.env`
+  не читались и не выполнялись.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-5 — C50 rights-review preservation

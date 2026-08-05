@@ -5,6 +5,12 @@ from typing import Any
 
 import requests
 
+from src.runtime_network import (
+    NETWORK_ACTION_ARTICLE_FETCH,
+    NetworkAccessDeniedError,
+    require_network,
+)
+
 from .article_parser import extract_article_images, parse_article_html
 from .models import INPUT_MODE_TEXT, INPUT_MODE_TOPIC, INPUT_MODE_URL, NewsJob
 
@@ -13,7 +19,8 @@ class ArticleIngestionError(RuntimeError):
     """reason is a short machine-readable tag consumed by
     src.content_creation.service to classify the failure for CLI/wizard callers
     (e.g. "http_429", "timeout", "connection_error", "empty_article",
-    "invalid_content") without either side depending on `requests` types."""
+    "invalid_content", "network_approval_required") without either side
+    depending on `requests` types."""
 
     def __init__(self, message: str, *, reason: str = "unknown") -> None:
         super().__init__(message)
@@ -25,6 +32,12 @@ def ingest_article(job: NewsJob, *, timeout_sec: int = 20) -> tuple[dict[str, An
         if not job.source_urls:
             raise ArticleIngestionError("URL input mode requires at least one source URL.", reason="missing_url")
         url = job.source_urls[0]
+        # Fail closed before the socket, not after: an approved article fetch is
+        # the only thing that may reach the network from this stage.
+        try:
+            require_network(NETWORK_ACTION_ARTICLE_FETCH, detail=_host(url))
+        except NetworkAccessDeniedError as exc:
+            raise ArticleIngestionError(str(exc), reason=exc.reason) from exc
         try:
             response = requests.get(url, timeout=timeout_sec, headers={"User-Agent": "AI-YouTube/0.1"})
             response.raise_for_status()
@@ -75,6 +88,16 @@ def _article_from_text(title: str, text: str, *, language: str, source_type: str
         "links": [],
         "primary_source_candidate": "",
     }
+
+
+def _host(url: str) -> str:
+    """Host only: a denial message must never echo query params or tokens."""
+    from urllib.parse import urlparse
+
+    try:
+        return urlparse(str(url or "")).netloc
+    except ValueError:
+        return ""
 
 
 def load_text_file(path: str | Path) -> str:

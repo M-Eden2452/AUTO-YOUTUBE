@@ -11,7 +11,9 @@ Responsibilities:
 - маршрутизация в
   ``src.ai_youtube.apps.content_creator.workflows.story_card`` или
   ``...workflows.fullscreen_voiceover``;
-- явная ошибка для шаблона, который каталог знает, но реализации у него нет.
+- явная ошибка для шаблона, который каталог знает, но реализации у него нет;
+- установка сетевого разрешения запроса на время одного создания — одна точка
+  для обоих шаблонов и обоих входов.
 
 Does not own:
 - сами workflow, их стадии, project state и рендер;
@@ -34,7 +36,11 @@ Important invariants:
 - import pipeline остаётся ленивым внутри use case, чтобы граница CLI не тянула
   весь workflow;
 - ``fullscreen_voiceover_use_case`` и ``story_card_use_case`` в этом пакете —
-  compatibility wrappers; новая логика добавляется в canonical boundaries.
+  compatibility wrappers; новая логика добавляется в canonical boundaries;
+- сетевое разрешение только **переносится** из запроса: решение о допустимости
+  конкретного вызова принимает ``src.runtime_network``, и пустое разрешение по
+  умолчанию означает полный запрет для всего создания, включая ``resume`` и
+  ``--force-stage``.
 
 See also: ``src/content_creation/__init__.py``,
 ``docs/adr/0009-fullscreen-voiceover-application-boundary.md``,
@@ -42,6 +48,8 @@ See also: ``src/content_creation/__init__.py``,
 """
 
 from __future__ import annotations
+
+from src.runtime_network import approval_for_actions, network_approval_scope
 
 from src.content_creation import input_validation
 from src.ai_youtube.apps.content_creator.workflows.fullscreen_voiceover.use_case import (
@@ -150,14 +158,25 @@ def create_content(
     _validate_music_request(request)
     canonical_template_id = template.template_id
 
-    if canonical_template_id == STORY_CARD_CANONICAL_TEMPLATE_ID:
-        return _create_story_card(request, template, progress_callback)
-    if canonical_template_id == FULLSCREEN_VOICEOVER_TEMPLATE_ID:
-        return _create_fullscreen_voiceover(
-            request,
-            template,
-            progress_callback,
+    # One scope for the whole creation: every network call the workflow can
+    # reach - provider search, download, preview, article fetch, voice preflight
+    # - is checked against exactly what the user approved on this request. The
+    # default is an empty approval, so dry-run, prepare-only, resume and
+    # --force-stage stay offline unless the user said otherwise.
+    with network_approval_scope(
+        approval_for_actions(
+            request.network.allowed_actions,
+            granted_by="content_creation_request",
         )
+    ):
+        if canonical_template_id == STORY_CARD_CANONICAL_TEMPLATE_ID:
+            return _create_story_card(request, template, progress_callback)
+        if canonical_template_id == FULLSCREEN_VOICEOVER_TEMPLATE_ID:
+            return _create_fullscreen_voiceover(
+                request,
+                template,
+                progress_callback,
+            )
     raise ContentCreationError(
         f"template {canonical_template_id!r} is registered in the production "
         f"catalog (implementation_status={template.implementation_status!r}) "

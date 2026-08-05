@@ -50,6 +50,27 @@ class FlakySession:
 
 
 class AssetHttpDownloadTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # These tests own HTTP retry/streaming mechanics, not the PLAN-STAB-4
+        # boundary, so they grant exactly the two classes they exercise. The
+        # default-deny behaviour itself is covered by
+        # tests/test_runtime_network_boundary.py.
+        from src.runtime_network import (
+            NETWORK_ACTION_ASSET_DOWNLOAD,
+            NETWORK_ACTION_PROVIDER_SEARCH,
+            approval_for_actions,
+            network_approval_scope,
+        )
+
+        scope = network_approval_scope(
+            approval_for_actions(
+                [NETWORK_ACTION_PROVIDER_SEARCH, NETWORK_ACTION_ASSET_DOWNLOAD],
+                granted_by="test_asset_foundation_http_download",
+            )
+        )
+        scope.__enter__()
+        self.addCleanup(scope.__exit__, None, None, None)
+
     def test_http_client_retries_timeout_429_and_5xx_then_returns_json(self) -> None:
         from src.assets.http_client import ProviderHttpClient
 

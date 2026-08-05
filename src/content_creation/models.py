@@ -91,6 +91,23 @@ class RenderRequestConfig:
 
 
 @dataclass
+class NetworkRequestConfig:
+    """Which classes of runtime network access the user explicitly approved.
+
+    allowed_actions holds src.runtime_network.NETWORK_ACTIONS ids. Empty is the
+    default and means "deny every network action": a configured API key, a
+    default-on provider, --resume, --force-stage and --approve-paid-generation
+    are none of them an approval. The single source is explicit user input -
+    `--allow-network` on the CLI, the wizard's network step interactively.
+    """
+
+    allowed_actions: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"allowed_actions": list(self.allowed_actions)}
+
+
+@dataclass
 class ExecutionFlags:
     dry_run: bool = False
     prepare_only: bool = False
@@ -134,6 +151,7 @@ class ContentCreationRequest:
     music: MusicRequestConfig = field(default_factory=MusicRequestConfig)
     timing: TimingRequestConfig = field(default_factory=TimingRequestConfig)
     render: RenderRequestConfig = field(default_factory=RenderRequestConfig)
+    network: NetworkRequestConfig = field(default_factory=NetworkRequestConfig)
     execution: ExecutionFlags = field(default_factory=ExecutionFlags)
     # Explicit per-scene "what to show", keyed by 1-based scene number or scene_id.
     # The single supported entry point for a visual brief - see the `--visual-brief`
@@ -170,6 +188,7 @@ class ContentCreationRequest:
             "music": self.music.to_dict(),
             "timing": self.timing.to_dict(),
             "render": self.render.to_dict(),
+            "network": self.network.to_dict(),
             "execution": self.execution.to_dict(),
             "project_overrides": dict(self.project_overrides),
         }

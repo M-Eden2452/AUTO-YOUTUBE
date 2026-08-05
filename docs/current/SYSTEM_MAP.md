@@ -40,6 +40,7 @@ source_paths:
   - src/assets
   - src/providers
   - src/providers/registry.py
+  - src/runtime_network.py
   - src/production_plan/youtube_shorts.py
   - src/production_plan/solar_vs_nuclear_render.py
   - src/audio
@@ -95,6 +96,7 @@ source_paths:
 | Ассеты | `src/assets/`, `src/news/asset_*.py` | shared selection/preview/completion contracts и app-specific manifest orchestration/adapters |
 | Semantic evaluation | `src/assets/semantic_visual_evaluation*.py` | compatibility facade, offline dataset/metrics/report tooling и controlled live runtime |
 | Providers | `src/assets/provider_contract.py`, `src/providers/` | единый `StockProvider` contract, canonical registry и provider adapters |
+| Runtime network | `src/runtime_network.py` | единственный владелец разрешения на сетевое действие: default deny, поимённые классы, проверка до первого socket/HTTP |
 | Audio/music | `src/audio/`, `src/localization/`, legacy `src/music_*` | canonical voice/TTS manifests/timeline; music ownership ещё требует 9B consolidation |
 | Субтитры | `src/subtitles/` | единственный subtitle engine |
 | Legacy/maintenance | `src/ai_youtube/apps/legacy_pipeline/`, `pipeline.py`, `src/legacy_pipeline/`, `apps/youtube_pipeline/` | canonical lazy adapter, root compatibility namespace, parser, maintenance handlers и legacy workflow |
@@ -233,8 +235,6 @@ modules и legacy/shared music paths запрещены. PLAN-STAB-1 (`f0b69db`)
 PLAN-STAB-3 (`9222519`) завершены: атомарный final-output promotion, resume/explicit `stage=` skip
 для завершённого `final_render` и восстанавливающий `network_guard_scope()`/credential isolation
 соответственно; review-verdicts ACCEPT WITH MINOR, ACCEPT, ACCEPT WITH MINOR, все три commit pushed
-(owner-provided evidence, не отдельный Git commit). Текущий checkpoint — PLAN-STAB-4, pending/not
-started; требуется отдельный owner-issued implementation prompt. PLAN-9B-2 deferred за post-audit
-stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) вернул `.github/workflows/offline-tests.yml`
+(owner-provided evidence, не отдельный Git commit). PLAN-STAB-4 implementation completed 2026-08-06: разрешение на рантайм-сеть получило единственного владельца (строка «Runtime network» выше), провайдеры не менялись и второй guard на провайдера не создавался, network approval отделён от paid approval; текущий checkpoint остаётся PLAN-STAB-4 — independent review pending. PLAN-9B-2 deferred за post-audit stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) вернул `.github/workflows/offline-tests.yml`
 в зелёное состояние (GitHub Actions run `31039985187`, 1/1 checks, OK; local suite — 1589 тестов, OK);
 PLAN-STAB-16 частично выполнена — green CI baseline готов, остальное pending/non-blocking. Финальная цель — один physical `src/ai_youtube` package и один owner business logic на capability; это цель плана, а не текущее состояние кода.
