@@ -39,7 +39,10 @@ Important invariants:
 - длительность приводится к политике конца, а не растяжением речи:
   ``audio_time_stretched=False`` и ``speech_tempo=1.0``;
 - субтитры вшиваются одним слоем; при их отсутствии мастер — копия варианта
-  без субтитров.
+  без субтитров;
+- мастер пишется во временный файл рядом с ним, проверяется ``ffprobe`` и только
+  затем занимает финальный путь через ``os.replace``: готовый ролик переживает
+  сбой render, validation и самой замены.
 
 Известные ограничения foundation (кадровая частота, зашитая в фильтрах,
 отсутствие per-scene fingerprint и visual regression) зафиксированы в
@@ -53,6 +56,7 @@ See also: ``src/news/pipeline.py``, ``src/production_catalog/catalog.py``,
 from __future__ import annotations
 
 import math
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -67,6 +71,7 @@ from src.assets.completion.modes import (
     evaluate_usability,
     normalize_mode,
 )
+from src.assets.frame_sampling import ffprobe_media_info
 from src.audio.end_tail_policy import (
     DEFAULT_TAIL_SEC,
     END_POLICY_NARRATION_PLUS_TAIL,
@@ -175,13 +180,20 @@ def render_final_video(
     subtitle_path = subtitles_manifest.get("ass_path") or ""
     render_subtitle_path = ""
     subtitles_embedded = False
-    if subtitle_path and Path(subtitle_path).exists():
-        subtitle_source = Path(subtitle_path)
-        render_subtitle_path = str(subtitle_source)
-        _burn_ass_subtitles(no_subtitles, subtitle_source, master)
-        subtitles_embedded = True
-    else:
-        shutil.copyfile(no_subtitles, master)
+    # The finished video the user already has is not a scratch file: this attempt
+    # writes next to it and only takes its place once ffprobe has accepted the result.
+    master_attempt = _temporary_output_path(master)
+    try:
+        if subtitle_path and Path(subtitle_path).exists():
+            subtitle_source = Path(subtitle_path)
+            render_subtitle_path = str(subtitle_source)
+            _burn_ass_subtitles(no_subtitles, subtitle_source, master_attempt)
+            subtitles_embedded = True
+        else:
+            shutil.copyfile(no_subtitles, master_attempt)
+        _promote_final_output(master_attempt, master)
+    finally:
+        _discard_temporary_output(master_attempt)
     outputs = _copy_platform_outputs(master, no_subtitles, output_dir, draft=is_draft)
     return {
         "status": "completed",
@@ -225,6 +237,38 @@ def render_final_video(
         "response_hold_sec": 0.0,
         "duration_floor_sec": 0.0,
     }
+
+
+def _temporary_output_path(final: Path) -> Path:
+    """Write target of the current attempt: hidden, same directory, same container.
+
+    Same directory keeps the promoting ``os.replace`` on one filesystem, and the
+    suffix is preserved because FFmpeg picks the container from it.
+    """
+    return final.parent / f".{final.stem}.partial{final.suffix}"
+
+
+def _promote_final_output(attempt: Path, final: Path) -> None:
+    """Validate this attempt, then let it take the final path atomically.
+
+    Validation reuses ``src.assets.frame_sampling.ffprobe_media_info`` - the same
+    probe owner ``src.audio.audio_assembler`` already promotes narration through -
+    so a truncated or unreadable render is rejected *before* the previous output is
+    replaced instead of after it is already gone.
+    """
+    info = ffprobe_media_info(attempt)
+    duration = float(info.get("duration_sec") or 0.0)
+    if info.get("status") != "passed" or duration <= 0:
+        raise RuntimeError(f"Final render produced an invalid video file: {info}")
+    os.replace(attempt, final)
+
+
+def _discard_temporary_output(attempt: Path) -> None:
+    """Drop this attempt's leftover, never masking the error that caused it."""
+    try:
+        attempt.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def _create_scene_segments(

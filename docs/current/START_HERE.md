@@ -50,12 +50,13 @@ AI-YouTube — локальная offline-first платформа создан�
 Для Claude Code root `skills/` не считается автоматически загруженным:
 перед специализированной задачей нужно вручную открыть релевантный
 `skills/<skill-name>/SKILL.md`. PLAN-6E, PLAN-L0 и PLAN-9B-PRODUCER завершены.
-Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM»: текущий
-checkpoint — PLAN-STAB-1 pending / not started (atomic final-output
-preservation), blocked до отдельного owner-issued implementation prompt.
-PLAN-9B-2 остаётся pending / not started и deferred за stabilization gate;
-expansion, hardcode migration и retirement не начинались. Точное значение
-и следующее действие всегда берутся из самого плана, а не отсюда.
+Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM».
+PLAN-STAB-1 завершён 2026-08-05: готовый финальный ролик переживает сбой
+повторного render, потому что мастер повышается через проверенный временный
+файл. Текущий checkpoint — PLAN-STAB-2 pending / not started (final-render
+resume/idempotency guard), blocked до отдельного owner-issued implementation
+prompt. PLAN-9B-2 остаётся pending / not started и deferred за stabilization
+gate. Точное значение и следующее действие берутся из самого плана, а не отсюда.
 [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
 остаётся историческим контекстом и текущий порядок выполнения не задаёт.
 

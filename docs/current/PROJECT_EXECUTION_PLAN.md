@@ -6,8 +6,8 @@ updated_at: 2026-08-05
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-1
-next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-1
+current_checkpoint: PLAN-STAB-2
+next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-2
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,10 +47,14 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-1 pending / not started** — atomic
-  final-output preservation, первый слайс «POST-AUDIT STABILIZATION PROGRAM».
+- **Текущий шаг:** **PLAN-STAB-2 pending / not started** — final-render
+  resume/idempotency guard, второй слайс «POST-AUDIT STABILIZATION PROGRAM».
   Это единственный current checkpoint; любой другой шаг, названный текущим
   где-либо ещё, устарел.
+- **PLAN-STAB-1:** completed 2026-08-05; финальный мастер пишется во временный
+  файл рядом с целью, проверяется каноническим `ffprobe_media_info` и только
+  затем занимает свой путь через `os.replace`. Independent review этого commit
+  ещё не выполнен, поэтому пункт 1 blocking gate не закрыт.
 - **PLAN-9B-PRODUCER:** completed 2026-08-02; существующий visual-planning owner
   формирует evidence-derived provider-language `VisualBrief`, explicit author
   brief применяется последним, unknown intent остаётся fail-closed. Нового
@@ -248,9 +252,12 @@ source_paths:
     `CLEANUP_REGISTRY.md`, retirement не выполнялся;
   - **PLAN-9B-PRODUCER** — completed 2026-08-02; зависел от завершённых
     PLAN-9B-1 и PLAN-L0, обе зависимости были закрыты до начала;
-  - **PLAN-STAB-1** — pending/not started; **текущий checkpoint**;
-    зависимостей нет, остаётся отдельный owner-issued implementation prompt;
-  - **PLAN-STAB-2…PLAN-STAB-17** — pending/not started; состав, порядок и
+  - **PLAN-STAB-1** — completed 2026-08-05; independent review этого commit
+    ещё не выполнен, поэтому blocking gate он ещё не закрывает;
+  - **PLAN-STAB-2** — pending/not started; **текущий checkpoint**; зависит от
+    завершённого PLAN-STAB-1, остаётся отдельный owner-issued implementation
+    prompt;
+  - **PLAN-STAB-3…PLAN-STAB-17** — pending/not started; состав, порядок и
     blocking-статус каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
   - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-9B-PRODUCER/
     PLAN-6D/PLAN-6E завершены, но слайс **deferred** за stabilization gate и
@@ -272,7 +279,7 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующее точное действие:** дождаться отдельного owner-issued
-  implementation prompt для PLAN-STAB-1 (atomic final-output preservation).
+  implementation prompt для PLAN-STAB-2 (final-render resume/idempotency guard).
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1151,8 +1158,10 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-1 — atomic final-output preservation
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** — · **current checkpoint**.
+- **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
+  trailer `Plan-Step: PLAN-STAB-1` · **blocking для PLAN-9B-2:** да —
+  пункт 1 gate требует ещё и independent review, который не выполнен ·
+  **зависимости:** —.
 - **цель:** новый финальный MP4 создаётся отдельно, валидируется и только затем
   заменяет предыдущий результат.
 - **user impact:** прерванный или неудачный повторный render перестаёт
@@ -1170,12 +1179,29 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   существующего output неизменным; успешный путь заменяет output ровно один
   раз; temporary файлы не остаются после успеха и после сбоя.
 - **не входит:** resume orchestration — это PLAN-STAB-2.
+- **фактический результат:** `render_final_video` пишет мастер во временный
+  `.<имя>.partial.mp4` в той же директории, проверяет его существующим
+  `src.assets.frame_sampling.ffprobe_media_info` (тем же probe owner, через
+  который повышает нарратив `src.audio.audio_assembler`) и только затем
+  выполняет `os.replace`. Временный файл текущей попытки удаляется best-effort
+  и не маскирует исходную ошибку. Второй renderer, второй validator, новый
+  backup-механизм и правка resume/persisted contracts не создавались; public
+  сигнатура и render manifest не менялись.
+- **фактические проверки:** новый targeted модуль
+  `tests.test_final_renderer_atomic_output` — 10 тестов, все падают на
+  неизменённом HEAD `389e1c2`; targeted radius
+  (`test_final_renderer_atomic_output`, `test_final_renderer_end_tail`,
+  `test_news_to_short_renderer`, `test_autonomous_completion_core`) — 53 теста
+  за 57.358 секунды, exit code 0; полный offline suite — 1571 тест за 326.965
+  секунды, exit code 0; docs QA — exit code 0. Числа и длительности являются
+  измерениями, не нормативами. Сеть, provider/model API, download, Vision, TTS
+  и paid calls не выполнялись.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-2 — final-render resume/idempotency guard
 
 - **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** PLAN-STAB-1.
+  **зависимости:** PLAN-STAB-1 (completed) · **current checkpoint**.
 - **цель:** обычный `resume` не перезапускает уже успешно завершённый
   `final_render` без явного force/owner intent.
 - **user impact:** продолжение проекта перестаёт молча переснимать готовый

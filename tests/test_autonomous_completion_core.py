@@ -1139,6 +1139,13 @@ class MultiSlotRendererTests(unittest.TestCase):
                     ],
                 ),
                 patch("src.news.final_renderer._run_ffmpeg", side_effect=fake_ffmpeg),
+                # This module checks draft naming, not video validity; the promotion
+                # probe would reject the fake bytes above. Preservation semantics are
+                # owned by tests/test_final_renderer_atomic_output.py.
+                patch(
+                    "src.news.final_renderer.ffprobe_media_info",
+                    return_value={"status": "passed", "duration_sec": 2.0},
+                ),
             ):
                 manifest = render_final_video(
                     project_root=root,
