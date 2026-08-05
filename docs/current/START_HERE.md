@@ -50,17 +50,17 @@ AI-YouTube — локальная offline-first платформа создан�
 Для Claude Code root `skills/` не считается автоматически загруженным:
 перед специализированной задачей нужно вручную открыть релевантный
 `skills/<skill-name>/SKILL.md`. PLAN-6E, PLAN-L0 и PLAN-9B-PRODUCER завершены.
-Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM».
-PLAN-STAB-1 завершён 2026-08-05: мастер переживает сбой повторного render через проверенный
-временный файл. PLAN-STAB-2 завершён 2026-08-05: resume и explicit `stage=` dispatch пропускают
-уже завершённый `final_render`; `--force-stage` по-прежнему пересобирает его. PLAN-STAB-3
-завершён 2026-08-05: guard не остаётся выключенным после scoped exception, credentials не
-заменяются `.env`. Текущий checkpoint — PLAN-STAB-4 pending / not started (fail-closed runtime
-network/paid boundary), blocked до отдельного owner-issued implementation prompt. PLAN-9B-2
-остаётся pending / not started и deferred за stabilization gate. Точное значение и следующее
-действие — в самом плане.
-[PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
-остаётся историческим контекстом и текущий порядок выполнения не задаёт.
+Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM». PLAN-STAB-1 (`f0b69db`), PLAN-STAB-2
+(`0eea5be`) и PLAN-STAB-3 (`9222519`) завершены 2026-08-05 и independently reviewed — verdicts ACCEPT WITH
+MINOR, ACCEPT, ACCEPT WITH MINOR; все три commit pushed (owner-provided external review evidence, не
+отдельный Git commit). Текущий checkpoint — PLAN-STAB-4 pending / not started (fail-closed runtime
+network/paid boundary), blocked до отдельного owner-issued implementation prompt. PLAN-9B-2 остаётся
+pending / not started и deferred за stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`,
+`68acdb2`) вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run
+`31039985187`, 1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16
+этим частично выполнена — green CI baseline готов, secret scan/dependency audit/lint/type-check остаются
+pending/non-blocking. Точное значение и следующее действие — в самом плане.
+[PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md) остаётся историческим контекстом и текущий порядок выполнения не задаёт.
 
 Продуктовое направление: [PRODUCT_PLAN.md](PRODUCT_PLAN.md). Разделение простое:
 execution plan отвечает за **порядок реализации** (checkpoint, статусы,

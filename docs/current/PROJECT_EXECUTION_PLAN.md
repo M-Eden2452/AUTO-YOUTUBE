@@ -3,7 +3,7 @@ status: active
 plan_revision: 2.1
 created_at: 2026-07-30
 updated_at: 2026-08-05
-baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
+baseline_head: 68acdb2
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-4
@@ -52,7 +52,7 @@ source_paths:
   Это единственный current checkpoint; любой другой шаг, названный текущим
   где-либо ещё, устарел. Blocked до отдельного owner-issued implementation
   prompt.
-- **PLAN-STAB-3:** completed 2026-08-05; `tests/network_guard.py` получил
+- **PLAN-STAB-3:** completed 2026-08-05 (commit `9222519`); `tests/network_guard.py` получил
   `network_guard_scope()` context manager, восстанавливающий guard к состоянию
   до входа в scope даже при исключении, и 9 raw install/uninstall call sites
   в трёх owning test-модулях переведены на него — устранена утечка, при
@@ -60,18 +60,34 @@ source_paths:
   тестов процесса. `src/audio/tts/env.py::load_elevenlabs_env` больше не даёт
   локальному `.env` заменить test-owned fake `ELEVENLABS_API_KEY`, когда
   `tests/__init__.py` заранее установил test isolation lock и fake credential;
-  production override=True semantics вне test isolation не менялись. Independent
-  review этого commit ещё не выполнен, поэтому пункт 3 blocking gate не закрыт.
-- **PLAN-STAB-2:** completed 2026-08-05; обычный resume/явный `stage=` dispatch
+  production override=True semantics вне test isolation не менялись.
+  Independent review выполнен, verdict ACCEPT WITH MINOR; commit pushed;
+  пункт 3 blocking gate satisfied.
+- **PLAN-STAB-2:** completed 2026-08-05 (commit `0eea5be`); обычный resume/явный `stage=` dispatch
   пропускает уже завершённый `final_render` при наличии обязательного
   final-артефакта; существующий `force_stage` по-прежнему пересобирает его;
   completed status без артефакта продолжает считаться незавершённым через уже
-  действующий `NewsProjectStore.is_stage_completed`. Independent review этого
-  commit ещё не выполнен, поэтому пункт 2 blocking gate не закрыт.
-- **PLAN-STAB-1:** completed 2026-08-05; финальный мастер пишется во временный
+  действующий `NewsProjectStore.is_stage_completed`. Independent review
+  выполнен, verdict ACCEPT; commit pushed; пункт 2 blocking gate satisfied.
+- **PLAN-STAB-1:** completed 2026-08-05 (commit `f0b69db`); финальный мастер пишется во временный
   файл рядом с целью, проверяется каноническим `ffprobe_media_info` и только
-  затем занимает свой путь через `os.replace`. Independent review этого commit
-  ещё не выполнен, поэтому пункт 1 blocking gate не закрыт.
+  затем занимает свой путь через `os.replace`. Independent review выполнен,
+  verdict ACCEPT WITH MINOR; commit pushed; пункт 1 blocking gate satisfied.
+  Review PLAN-STAB-1/2/3 — owner-provided external review evidence, не
+  отдельный Git commit.
+- **CI repair (PLAN-STAB-16, часть 1):** commits `9f9b6f2`, `bcf6c2a`,
+  `8ca755f`, `68acdb2` вернули `.github/workflows/offline-tests.yml` в
+  зелёное состояние — GitHub Actions run `31039985187`,
+  `offline-tests / unittest` — success, 1/1 checks, failures=0, errors=0;
+  локальный полный offline suite на `68acdb2` — 1589 тестов, OK. Срочный
+  bounded end-to-end repair по прямому owner decision; исходный scope
+  расширен владельцем после новых подтверждённых CI failures — authorized,
+  не самовольное расширение. Готовые видео, пользовательские проекты,
+  downloaded assets и project outputs в Git не добавлялись; тест теперь
+  генерирует synthetic temporary MP4 вместо personal-machine fixture.
+  PLAN-STAB-16 остаётся **частично** выполнена: secret scan, dependency
+  audit, lint baseline и type-check baseline — pending/non-blocking. Ни
+  current checkpoint, ни PLAN-STAB-4 этим не менялись.
 - **PLAN-9B-PRODUCER:** completed 2026-08-02; существующий visual-planning owner
   формирует evidence-derived provider-language `VisualBrief`, explicit author
   brief применяется последним, unknown intent остаётся fail-closed. Нового
@@ -250,6 +266,27 @@ source_paths:
   PLAN-9B-2. Смена checkpoint не является разрешением начать PLAN-STAB-1: он
   остаётся pending / not started до отдельного owner-issued implementation
   prompt. `baseline_head` этим docs-only слайсом не менялся.
+- **`baseline_head` обновлён на 68acdb2 после PLAN-STAB-1/2/3 и CI repair.**
+  PLAN-STAB-1 (`f0b69db`), PLAN-STAB-2 (`0eea5be`) и PLAN-STAB-3 (`9222519`)
+  каждый запускал полный offline suite на своём HEAD (1571, затем 1577, затем
+  1589 тестов, exit code 0) и получил independent review — verdict ACCEPT WITH
+  MINOR, ACCEPT, ACCEPT WITH MINOR соответственно; все три commit pushed.
+  CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`, trailer
+  `Plan-Step: PLAN-STAB-16`) — срочный bounded end-to-end repair по прямому
+  owner decision после новых подтверждённых CI failures в GitHub Actions;
+  scope расширен владельцем, это не самовольное расширение. Result: GitHub
+  Actions run `31039985187`, `offline-tests / unittest` — success, 1/1 checks,
+  failures=0, errors=0; локальный полный offline suite на `68acdb2` — 1589
+  тестов, OK. Готовые видео, пользовательские проекты, downloaded assets и
+  project outputs в Git не добавлялись; тест, ранее ссылавшийся на
+  personal-machine fixture, теперь генерирует synthetic temporary MP4.
+  `baseline_head` обновлён на фактически проверенный `68acdb2` — последний
+  commit с зелёным полным offline suite и зелёным GitHub Actions run.
+  PLAN-STAB-16 этим **частично** выполнена: первая часть (reproducible green
+  offline CI baseline) завершена; secret scan, dependency audit, lint baseline,
+  type-check baseline и остальные подпункты остаются pending/non-blocking для
+  PLAN-9B-2. Ни один из четырёх commits не меняет current checkpoint: он
+  остаётся PLAN-STAB-4 pending / not started, и PLAN-STAB-4 этим не начат.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
   завершённого PLAN-6D-1. Он не начинает PLAN-9B-2 и не меняет его acceptance
   criteria.
@@ -269,17 +306,26 @@ source_paths:
     `CLEANUP_REGISTRY.md`, retirement не выполнялся;
   - **PLAN-9B-PRODUCER** — completed 2026-08-02; зависел от завершённых
     PLAN-9B-1 и PLAN-L0, обе зависимости были закрыты до начала;
-  - **PLAN-STAB-1** — completed 2026-08-05; independent review этого commit
-    ещё не выполнен, поэтому blocking gate он ещё не закрывает;
-  - **PLAN-STAB-2** — completed 2026-08-05; зависел от завершённого
-    PLAN-STAB-1; independent review этого commit ещё не выполнен, поэтому
-    blocking gate он ещё не закрывает;
-  - **PLAN-STAB-3** — completed 2026-08-05; independent review этого commit
-    ещё не выполнен, поэтому blocking gate он ещё не закрывает;
+  - **PLAN-STAB-1** — completed 2026-08-05 (commit `f0b69db`); independent
+    review выполнен, verdict ACCEPT WITH MINOR; commit pushed;
+  - **PLAN-STAB-2** — completed 2026-08-05 (commit `0eea5be`); зависел от
+    завершённого PLAN-STAB-1; independent review выполнен, verdict ACCEPT;
+    commit pushed;
+  - **PLAN-STAB-3** — completed 2026-08-05 (commit `9222519`); independent
+    review выполнен, verdict ACCEPT WITH MINOR; commit pushed. Review
+    PLAN-STAB-1/2/3 — owner-provided external review evidence, не отдельный
+    Git commit;
   - **PLAN-STAB-4** — pending/not started; **текущий checkpoint**; остаётся
     отдельный owner-issued implementation prompt;
-  - **PLAN-STAB-5…PLAN-STAB-17** — pending/not started; состав, порядок и
-    blocking-статус каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
+  - **PLAN-STAB-5…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
+    порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
+    PROGRAM»;
+  - **PLAN-STAB-16** — pending/not started как полный слайс, но **частично
+    выполнена**: CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) закрыл
+    первую часть success criteria (green offline suite в GitHub Actions —
+    run `31039985187`, 1/1 checks, failures=0, errors=0); secret scan,
+    dependency audit, lint baseline и type-check baseline остаются
+    pending/non-blocking;
   - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-9B-PRODUCER/
     PLAN-6D/PLAN-6E завершены, но слайс **deferred** за stabilization gate и
     требует отдельного owner-issued implementation prompt;
@@ -811,9 +857,12 @@ EXIT CONDITION     когда пункт можно снять с учёта
    `Replaced-by:`, `Recovered-from:` (тег), `Salvaged:` (ссылка на решение
    PLAN-L0), `Exit:`;
 3. **таблица `Retired`** в `CLEANUP_REGISTRY.md`;
-4. **внешняя копия обязательна.** [FACT] `git remote -v` пуст, поэтому локальные
-   теги не защищены от потери диска: перед каждым ретайром выполняется
-   `git bundle create` тега во внешний workspace.
+4. **внешняя копия обязательна.** [FACT, обновлено 2026-08-05] Приватный
+   remote теперь существует и `governance-reset`/`master` отправлены (OD-S-5);
+   это не отменяет правило, потому что retirement-теги не публикуются
+   обычным push и остаются локальными, если их не отправить отдельно: перед
+   каждым ретайром по-прежнему выполняется `git bundle create` тега во
+   внешний workspace.
 
 Archive branch не используется: ветки дрейфуют и требуют обслуживания.
 
@@ -1104,15 +1153,23 @@ repair/re-review при findings.
 
 **Blocking gate: что должно быть закрыто до возврата к PLAN-9B-2.**
 
-1. PLAN-STAB-1 completed and independently accepted;
-2. PLAN-STAB-2 completed and independently accepted;
-3. PLAN-STAB-3 completed and independently accepted;
+1. PLAN-STAB-1 completed and independently accepted — **satisfied**: commit
+   `f0b69db`, independent review verdict ACCEPT WITH MINOR, pushed;
+2. PLAN-STAB-2 completed and independently accepted — **satisfied**: commit
+   `0eea5be`, independent review verdict ACCEPT, pushed;
+3. PLAN-STAB-3 completed and independently accepted — **satisfied**: commit
+   `9222519`, independent review verdict ACCEPT WITH MINOR, pushed;
 4. PLAN-STAB-4 completed and independently accepted;
 5. PLAN-STAB-5 completed and independently accepted;
 6. PLAN-STAB-6 completed **либо** владелец формально принимает
    документированный residual risk;
-7. PLAN-STAB-7 — factual routing repair выполнен (слайсом PLAN-STAB-0) и
-   integrity tests зелёные;
+7. PLAN-STAB-7 — три отдельных, не взаимозаменяемых условия: (a) factual
+   routing repair, выполненный слайсом PLAN-STAB-0 — completed; (b) сам
+   PLAN-STAB-7 (checker extension + integrity tests) — **pending / not
+   started**, integrity tests ещё не существуют и не могут считаться
+   зелёными; (c) independent review этого будущего commit — не выполнен,
+   потому что commit ещё не создан. Пункт 7 закрывается только после (b) и
+   его independent review (c); (a) в одиночку пункт 7 не закрывает;
 8. отдельный **stabilization review** подтверждает четыре свойства:
    user-output preservation · offline/paid fail-closed behavior · rights
    safety · однозначный current routing.
@@ -1181,8 +1238,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 #### PLAN-STAB-1 — atomic final-output preservation
 
 - **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
-  trailer `Plan-Step: PLAN-STAB-1` · **blocking для PLAN-9B-2:** да —
-  пункт 1 gate требует ещё и independent review, который не выполнен ·
+  trailer `Plan-Step: PLAN-STAB-1` · **blocking для PLAN-9B-2:** пункт 1 gate
+  satisfied — independent review выполнен, verdict ACCEPT WITH MINOR, commit
+  pushed; overall blocking gate (пункты 4–8) остаётся открытым ·
   **зависимости:** —.
 - **цель:** новый финальный MP4 создаётся отдельно, валидируется и только затем
   заменяет предыдущий результат.
@@ -1223,8 +1281,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 #### PLAN-STAB-2 — final-render resume/idempotency guard
 
 - **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
-  trailer `Plan-Step: PLAN-STAB-2` · **blocking для PLAN-9B-2:** да —
-  пункт 2 gate требует ещё и independent review, который не выполнен ·
+  trailer `Plan-Step: PLAN-STAB-2` · **blocking для PLAN-9B-2:** пункт 2 gate
+  satisfied — independent review выполнен, verdict ACCEPT, commit pushed;
+  overall blocking gate (пункты 4–8) остаётся открытым ·
   **зависимости:** PLAN-STAB-1 (completed).
 - **цель:** обычный `resume` не перезапускает уже успешно завершённый
   `final_render` без явного force/owner intent.
@@ -1274,8 +1333,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 #### PLAN-STAB-3 — offline test guard и изоляция test credentials
 
 - **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
-  trailer `Plan-Step: PLAN-STAB-3` · **blocking для PLAN-9B-2:** да —
-  пункт 3 gate требует ещё и independent review, который не выполнен ·
+  trailer `Plan-Step: PLAN-STAB-3` · **blocking для PLAN-9B-2:** пункт 3 gate
+  satisfied — independent review выполнен, verdict ACCEPT WITH MINOR, commit
+  pushed; overall blocking gate (пункты 4–8) остаётся открытым ·
   **зависимости:** —.
 - **цель:** network guard нельзя случайно оставить выключенным на остаток test
   process, а test-injected credentials нельзя заменить значениями из `.env`.
@@ -1612,8 +1672,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-16 — CI и static controls baseline
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
-  **зависимости:** OD-S-5 (remote backup выполнен).
+- **status:** **partially completed** — первый milestone success criteria
+  закрыт, остальные подпункты pending · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** OD-S-5 (remote backup выполнен — satisfied).
 - **цель:** после появления remote включить реальные repository checks.
 - **user impact:** регрессия ловится до того, как владелец увидит её на своём
   проекте.
@@ -1628,6 +1689,23 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   baseline → type-check baseline; branch status check включается последним.
 - **required tests:** сам workflow является проверкой; локально —
   синтаксическая валидация и один зелёный прогон.
+- **фактический результат (CI repair, 2026-08-05):** четыре bounded commits —
+  `9f9b6f2` (pinned ffprobe на Windows runner), `bcf6c2a` (path identity
+  long/8.3 form на windows-latest), `8ca755f` (bundled DejaVu Sans для
+  детерминированных story-card text metrics), `68acdb2` (synthetic source
+  video вместо personal-machine fixture) — закрыли первый пункт success
+  criteria: existing offline suite фактически зелёный в GitHub Actions. Работа
+  выполнена по прямому owner decision как срочный bounded end-to-end repair;
+  исходный scope был расширен владельцем после появления новых подтверждённых
+  CI failures — это authorized расширение, не самовольное. Готовые видео,
+  пользовательские проекты, downloaded assets и project outputs в Git не
+  добавлялись. Второй workflow, secret scan, dependency audit, lint baseline,
+  type-check baseline и required status check этим слайсом не создавались и
+  остаются pending/non-blocking.
+- **фактические проверки:** GitHub Actions run `31039985187`,
+  `offline-tests / unittest` — success, 1/1 checks, failures=0, errors=0;
+  локальный полный offline suite на `68acdb2` — 1589 тестов, OK. Числа
+  являются измерениями, не нормативами.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-17 — cleanup registry и retirement ledger integrity
@@ -4312,6 +4390,15 @@ Secondary Deep Dive исправляет Proposal 2.1.
 - **2026-07-30** нет настроенного remote; действующего CI и доказательств его
   запусков нет; workflow для этого клона выполниться не мог. Локальный запуск
   `full` является основной проверкой.
+- **2026-08-05 [SUPERSEDED]** Оба факта выше устарели и не описывают текущее
+  состояние. Приватный remote существует, `governance-reset`/`master`
+  отправлены, `governance-reset` — default branch (OD-S-5). CI repair
+  (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`, `Plan-Step: PLAN-STAB-16`)
+  вернул `.github/workflows/offline-tests.yml` в доказанно зелёное состояние:
+  GitHub Actions run `31039985187`, `offline-tests / unittest` — success,
+  1/1 checks, failures=0, errors=0. Локальный полный offline suite остаётся
+  основной проверкой для non-CI-repair слайсов; для CI-репозитория теперь
+  существует и независимое GitHub Actions подтверждение.
 - **2026-07-30** PLAN-0 уже зафиксирован commit `4027269`; post-commit docs QA
   и `git diff --check` завершились с exit code 0, дерево чистое.
 - **2026-07-30** текущий `AGENTS.md` всё ещё направляет rescue-задачу в master

@@ -229,12 +229,12 @@ Ownership `src.news`, `src.templates.story_card`, `anime_factory`,
 9B-P01 зафиксировал два target engines ADR 0016 без изменения catalog status. Единого шага
 «9B-C01» больше нет: read-only ownership/caller gates разделены на PLAN-1A, PLAN-1B и PLAN-1C′,
 и до их закрытия move/delete package roots, wrappers, Anime project/transcription/subtitle/render
-modules и legacy/shared music paths запрещены. PLAN-STAB-1 завершён: `src/news/final_renderer.py`
-повышает мастер через проверенный временный файл и `os.replace`. PLAN-STAB-2 завершён:
-`src/news/pipeline.py` пропускает уже завершённый `final_render` также на explicit `stage=`
-dispatch; пункт 2 blocking gate остаётся открытым до ACCEPT. PLAN-STAB-3 завершён: `tests/network_guard.py`
-получил `network_guard_scope()` против утечки baseline guard, а `load_elevenlabs_env` больше не
-даёт `.env` заменить test-owned credential при активном isolation lock; пункт 3 остаётся открытым
-до ACCEPT. Текущий checkpoint — PLAN-STAB-4, pending/not started; требуется отдельный owner-issued
-implementation prompt. PLAN-9B-2 deferred за post-audit stabilization gate. Финальная цель — один
-physical `src/ai_youtube` package и один owner business logic на capability; это цель плана, а не текущее состояние кода.
+modules и legacy/shared music paths запрещены. PLAN-STAB-1 (`f0b69db`), PLAN-STAB-2 (`0eea5be`) и
+PLAN-STAB-3 (`9222519`) завершены: атомарный final-output promotion, resume/explicit `stage=` skip
+для завершённого `final_render` и восстанавливающий `network_guard_scope()`/credential isolation
+соответственно; review-verdicts ACCEPT WITH MINOR, ACCEPT, ACCEPT WITH MINOR, все три commit pushed
+(owner-provided evidence, не отдельный Git commit). Текущий checkpoint — PLAN-STAB-4, pending/not
+started; требуется отдельный owner-issued implementation prompt. PLAN-9B-2 deferred за post-audit
+stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) вернул `.github/workflows/offline-tests.yml`
+в зелёное состояние (GitHub Actions run `31039985187`, 1/1 checks, OK; local suite — 1589 тестов, OK);
+PLAN-STAB-16 частично выполнена — green CI baseline готов, остальное pending/non-blocking. Финальная цель — один physical `src/ai_youtube` package и один owner business logic на capability; это цель плана, а не текущее состояние кода.
