@@ -31,6 +31,7 @@ from src.assets.completion.replacement import (
     replace_visual_slot,
 )
 from src.assets.download import sha256_file, validate_local_asset
+from tests.path_identity import resolved
 from src.assets.semantic_selection.decision import (
     DECISION_KEY,
     FRAMING_VERTICAL_READY,
@@ -324,8 +325,8 @@ class ManualAssetReplacementTests(unittest.TestCase):
             self.assertEqual(sha256_file(imported_proof), sha256_file(proof))
             self.assertEqual(validate_local_asset(imported, "image")["status"], "passed")
             self.assertEqual(
-                imported.parent,
-                project / "assets" / "replacements" / "scene_001" / "scene_001_slot_002",
+                resolved(imported.parent),
+                resolved(project / "assets" / "replacements" / "scene_001" / "scene_001_slot_002"),
             )
 
             manifest = _read(project / "assets" / "assets_manifest.json")

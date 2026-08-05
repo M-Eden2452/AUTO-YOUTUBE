@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.path_identity import resolved
+
 
 class ExistingProjectsRootContractTests(unittest.TestCase):
     def test_explicit_projects_root_remains_authoritative(self) -> None:
@@ -88,10 +90,10 @@ class ApplicationPathResolutionTests(unittest.TestCase):
                 repository_root=repository,
             )
 
-        self.assertEqual(configured.workspace.root, root / "configured")
-        self.assertEqual(environment.workspace.root, root / "environment")
-        self.assertEqual(cli.workspace.root, root / "cli")
-        self.assertEqual(legacy.workspace.root, repository)
+        self.assertEqual(resolved(configured.workspace.root), resolved(root / "configured"))
+        self.assertEqual(resolved(environment.workspace.root), resolved(root / "environment"))
+        self.assertEqual(resolved(cli.workspace.root), resolved(root / "cli"))
+        self.assertEqual(resolved(legacy.workspace.root), resolved(repository))
 
     def test_config_can_name_workspace_subdirectories(self) -> None:
         from src.config_resolver import resolve_application_paths
@@ -118,8 +120,8 @@ class ApplicationPathResolutionTests(unittest.TestCase):
                 repository_root=repository,
             )
 
-        self.assertEqual(paths.projects_root, root / "runtime" / "jobs")
-        self.assertEqual(paths.outputs_root, root / "runtime" / "deliveries")
+        self.assertEqual(resolved(paths.projects_root), resolved(root / "runtime" / "jobs"))
+        self.assertEqual(resolved(paths.outputs_root), resolved(root / "runtime" / "deliveries"))
 
     def test_existing_output_falls_back_to_repository_outputs(self) -> None:
         from src.config_resolver import resolve_application_paths
@@ -138,7 +140,7 @@ class ApplicationPathResolutionTests(unittest.TestCase):
 
             found = paths.find_output(Path("old") / "final.mp4")
 
-        self.assertEqual(found, legacy_output)
+        self.assertEqual(resolved(found), resolved(legacy_output))
 
     def test_default_application_resources_do_not_depend_on_cwd(self) -> None:
         from src.assets.license_policy import load_license_policy
@@ -214,7 +216,7 @@ class LegacyProjectFallbackTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(output.getvalue())["project_id"], "workspace-project")
-        self.assertEqual(args.projects_root, str(workspace / "projects"))
+        self.assertEqual(resolved(args.projects_root), resolved(workspace / "projects"))
         self.assertTrue(args.project_fallback_roots)
 
     def test_new_news_project_is_written_only_to_selected_workspace(self) -> None:
@@ -239,7 +241,7 @@ class LegacyProjectFallbackTests(unittest.TestCase):
             manifest_projects_root = manifest.parent.parent
 
         self.assertTrue(manifest_exists)
-        self.assertEqual(manifest_projects_root, workspace / "projects")
+        self.assertEqual(resolved(manifest_projects_root), resolved(workspace / "projects"))
 
 
 if __name__ == "__main__":
