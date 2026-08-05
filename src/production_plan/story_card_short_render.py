@@ -18,6 +18,12 @@ DEFAULT_STORY_CARD_PRESET_PATH = repository_path(
     "config", "render_presets", "story_card_short_v1.json"
 )
 
+_BUNDLED_FONT_DIR = repository_path("config", "fonts", "dejavu")
+_BUNDLED_FONTS = {
+    "DejaVuSans.ttf": _BUNDLED_FONT_DIR / "DejaVuSans.ttf",
+    "DejaVuSans-Bold.ttf": _BUNDLED_FONT_DIR / "DejaVuSans-Bold.ttf",
+}
+
 
 def load_story_card_preset(path: str | Path = DEFAULT_STORY_CARD_PRESET_PATH) -> dict[str, Any]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -491,13 +497,18 @@ def _write_channel_icon(path: Path, size: int) -> None:
 
 
 def _load_font(name: str, size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont:
-    candidates = []
+    candidates: list[str | Path] = []
     if bold:
+        candidates.append(_BUNDLED_FONTS["DejaVuSans-Bold.ttf"])
         candidates.extend(["DejaVuSans-Bold.ttf", "arialbd.ttf", "C:/Windows/Fonts/arialbd.ttf"])
+    bundled = _BUNDLED_FONTS.get(name)
+    if bundled is not None:
+        candidates.append(bundled)
+    candidates.append(_BUNDLED_FONTS["DejaVuSans.ttf"])
     candidates.extend([name, "DejaVuSans.ttf", "arial.ttf", "C:/Windows/Fonts/arial.ttf"])
     for candidate in candidates:
         try:
-            return ImageFont.truetype(candidate, size=size)
+            return ImageFont.truetype(str(candidate), size=size)
         except OSError:
             continue
     return ImageFont.load_default()
