@@ -6,8 +6,8 @@ updated_at: 2026-08-06
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-4
-next_exact_action: independent review of the PLAN-STAB-4 implementation commit
+current_checkpoint: PLAN-STAB-5
+next_exact_action: prepare a bounded implementation slice for PLAN-STAB-5 (C50 rights-review preservation); implementation has not started
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,10 +47,25 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-4 — implementation completed, independent review
-  pending.** Это единственный current checkpoint; любой другой шаг, названный
-  текущим где-либо ещё, устарел. Checkpoint остаётся PLAN-STAB-4 до получения
-  review verdict; PLAN-STAB-5 этим не начат и stabilization gate не закрыт.
+- **Текущий шаг:** **PLAN-STAB-5 — pending / not started.** Это единственный
+  current checkpoint; любой другой шаг, названный текущим где-либо ещё,
+  устарел. PLAN-STAB-4 completed and independently accepted; пункт 4 blocking
+  gate satisfied (см. ниже). Checkpoint сдвинут на PLAN-STAB-5; сама
+  implementation PLAN-STAB-5 этим не начата, и stabilization gate целиком не
+  закрыт (пункты 5–8 blocking gate остаются открытыми).
+- **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
+  выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
+  job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
+  `OK (skipped=6)`, failures=0, errors=0; HEAD == `origin/governance-reset`,
+  worktree clean на момент review. Два findings review — non-blocking residual
+  evidence, не исправлены этим слайсом: (1)
+  `tests/test_runtime_network_boundary.py:324-329` содержит тавтологический
+  assertion (`assertTrue(callable(prepare_final))`) вместо полной проверки
+  denial → readiness; (2) `wizard_presentation.py` показывает неполную
+  информационную сводку сетевых действий и не использует
+  `required_network_actions()` — это то же предсуществующее поведение, которое
+  сам PLAN-STAB-4 уже зафиксировал как не входящее в scope. Commit pushed;
+  пункт 4 blocking gate satisfied.
   Реализация 2026-08-06: canonical owner `src/runtime_network.py` объявляет
   runtime-сеть fail-closed по умолчанию — `ContextVar` со значением `DENY_ALL`,
   явное поимённое разрешение классов `provider_search`, `asset_download`,
@@ -327,10 +342,14 @@ source_paths:
     review выполнен, verdict ACCEPT WITH MINOR; commit pushed. Review
     PLAN-STAB-1/2/3 — owner-provided external review evidence, не отдельный
     Git commit;
-  - **PLAN-STAB-4** — implementation completed 2026-08-06; **текущий
-    checkpoint**; independent review pending, поэтому blocking gate для
-    PLAN-9B-2 ещё не satisfied;
-  - **PLAN-STAB-5…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
+  - **PLAN-STAB-4** — completed 2026-08-06 (commit `0947e51`); independent
+    review выполнен, verdict ACCEPT WITH MINOR (GitHub Actions run
+    `31053545804`, offline suite 1623 tests OK); commit pushed; пункт 4
+    blocking gate satisfied; два findings review зафиксированы как
+    non-blocking residual evidence и не исправлены;
+  - **PLAN-STAB-5** — pending/not started; **текущий checkpoint**;
+    implementation не начата;
+  - **PLAN-STAB-6…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
     порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
     PROGRAM»;
   - **PLAN-STAB-16** — pending/not started как полный слайс, но **частично
@@ -358,8 +377,10 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** independent review PLAN-STAB-4 implementation
-  commit в отдельном чате. PLAN-STAB-5 до получения verdict не начинается.
+- **Следующее точное действие:** подготовить bounded implementation slice для
+  PLAN-STAB-5 (C50 rights-review preservation) в отдельном чате.
+  PLAN-STAB-4 completed and independently accepted; implementation
+  PLAN-STAB-5 этим checkpoint move не начата.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1171,8 +1192,10 @@ repair/re-review при findings.
    `0eea5be`, independent review verdict ACCEPT, pushed;
 3. PLAN-STAB-3 completed and independently accepted — **satisfied**: commit
    `9222519`, independent review verdict ACCEPT WITH MINOR, pushed;
-4. PLAN-STAB-4 completed and independently accepted — **не satisfied**:
-   implementation completed 2026-08-06, independent review **pending**;
+4. PLAN-STAB-4 completed and independently accepted — **satisfied**: commit
+   `0947e51`, independent review verdict ACCEPT WITH MINOR, pushed; два
+   findings зафиксированы как non-blocking residual evidence (см. раздел
+   PLAN-STAB-4) и не исправлены этим слайсом;
 5. PLAN-STAB-5 completed and independently accepted;
 6. PLAN-STAB-6 completed **либо** владелец формально принимает
    документированный residual risk;
@@ -1408,10 +1431,22 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-4 — fail-closed runtime network/paid boundary
 
-- **status:** implementation completed 2026-08-06 · **independent review:**
-  pending · **blocking для PLAN-9B-2:** да, gate ещё **не** satisfied —
-  требуется review verdict · **зависимости:** characterization PLAN-STAB-3
+- **status:** completed 2026-08-06 · **independent review:** выполнен,
+  verdict **ACCEPT WITH MINOR** (commit `0947e51`; GitHub Actions run
+  `31053545804`, job `offline-tests / unittest` — success, `Ran 1623 tests in
+  329.132s`, `OK (skipped=6)`, failures=0, errors=0) · **blocking для
+  PLAN-9B-2:** пункт 4 gate satisfied; overall blocking gate (пункты 5–8)
+  остаётся открытым · **зависимости:** characterization PLAN-STAB-3
   (completed).
+- **non-blocking residual findings review (не исправлены этим слайсом):**
+  (1) `tests/test_runtime_network_boundary.py:324-329` —
+  `test_preflight_denial_is_not_reported_as_ready_for_generation` содержит
+  только `assertTrue(callable(prepare_final))`, тавтологический assertion
+  вместо полной проверки denial → readiness; (2) `wizard_presentation.py`
+  показывает неполную информационную сводку сетевых действий и не использует
+  `required_network_actions()`. Оба зафиксированы как residual evidence по
+  independent review; исправление — отдельный будущий слайс, не PLAN-STAB-4 и
+  не PLAN-STAB-5.
 - **цель:** единый runtime owner запрещает внешние и платные вызовы в offline
   или неодобренном режиме.
 - **user impact:** случайный платный или сетевой вызов перестаёт быть возможен
@@ -1495,8 +1530,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-5 — C50 rights-review preservation
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** —.
+- **status:** pending / not started · **текущий checkpoint** (после completion
+  и independent accept PLAN-STAB-4); implementation этим checkpoint move не
+  начата · **blocking для PLAN-9B-2:** да · **зависимости:** —.
 - **цель:** явный `review_required` и owner-review evidence не теряются при
   преобразовании records/candidates и не становятся `allowed` из-за другого
   fallback.

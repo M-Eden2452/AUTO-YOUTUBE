@@ -52,15 +52,15 @@ AI-YouTube — локальная offline-first платформа создан�
 `skills/<skill-name>/SKILL.md`. PLAN-6E, PLAN-L0 и PLAN-9B-PRODUCER завершены.
 Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM». PLAN-STAB-1 (`f0b69db`), PLAN-STAB-2
 (`0eea5be`) и PLAN-STAB-3 (`9222519`) завершены 2026-08-05 и independently reviewed — verdicts ACCEPT WITH
-MINOR, ACCEPT, ACCEPT WITH MINOR; все три commit pushed (owner-provided external review evidence, не
-отдельный Git commit). PLAN-STAB-4 implementation completed 2026-08-06 — runtime-сеть fail-closed по умолчанию
-(`src/runtime_network.py`); checkpoint остаётся PLAN-STAB-4, review pending. PLAN-9B-2 остаётся
-pending / not started и deferred за stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`,
-`68acdb2`) вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run
-`31039985187`, 1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16
-этим частично выполнена — green CI baseline готов, secret scan/dependency audit/lint/type-check остаются
-pending/non-blocking. Точное значение и следующее действие — в самом плане.
-[PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md) остаётся историческим контекстом и текущий порядок выполнения не задаёт.
+MINOR, ACCEPT, ACCEPT WITH MINOR (owner-provided external review evidence, не отдельный Git commit).
+PLAN-STAB-4 (`0947e51`, runtime-сеть fail-closed, `src/runtime_network.py`) completed 2026-08-06,
+independently reviewed, verdict ACCEPT WITH MINOR (два findings non-blocking, не исправлены); gate
+пункт 4 satisfied. Checkpoint — PLAN-STAB-5 (C50 rights-review preservation), pending / not started.
+PLAN-9B-2 остаётся deferred за stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`)
+вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run `31039985187`,
+1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16 частично
+выполнена — green CI baseline готов, secret scan/dependency audit/lint/type-check остаются pending.
+Точное значение и следующее действие — в самом плане. [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md) остаётся историческим контекстом и текущий порядок выполнения не задаёт.
 
 Продуктовое направление: [PRODUCT_PLAN.md](PRODUCT_PLAN.md). Разделение простое:
 execution plan отвечает за **порядок реализации** (checkpoint, статусы,
