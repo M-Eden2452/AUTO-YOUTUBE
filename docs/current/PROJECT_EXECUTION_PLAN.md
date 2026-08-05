@@ -2,12 +2,12 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-02
+updated_at: 2026-08-05
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
-owner_decisions_date: 2026-08-02
-current_checkpoint: PLAN-9B-2
-next_exact_action: await separate owner-issued implementation prompt for PLAN-9B-2
+owner_decisions_date: 2026-08-05
+current_checkpoint: PLAN-STAB-1
+next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-1
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,16 +47,19 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-9B-2 pending / not started.** PLAN-9B-PRODUCER
-  completed 2026-08-02 отдельным bounded offline implementation slice; PLAN-L0,
-  PLAN-6D и PLAN-6E завершены.
-- **PLAN-9B-PRODUCER:** completed; существующий visual-planning owner формирует
-  evidence-derived provider-language `VisualBrief`, explicit author brief
-  применяется последним, unknown intent остаётся fail-closed. Нового planner,
-  query owner, schema/layout, public surface, network/model/paid path нет.
-- **PLAN-9B-2:** pending / not started и **blocked** до отдельного owner-issued
-  implementation prompt. Его acceptance criteria, expansion ladder, hardcode
-  migration и retirement scope не начинались и не менялись.
+- **Текущий шаг:** **PLAN-STAB-1 pending / not started** — atomic
+  final-output preservation, первый слайс «POST-AUDIT STABILIZATION PROGRAM».
+  Это единственный current checkpoint; любой другой шаг, названный текущим
+  где-либо ещё, устарел.
+- **PLAN-9B-PRODUCER:** completed 2026-08-02; существующий visual-planning owner
+  формирует evidence-derived provider-language `VisualBrief`, explicit author
+  brief применяется последним, unknown intent остаётся fail-closed. Нового
+  planner, query owner, schema/layout, public surface, network/model/paid path
+  нет. Текущим checkpoint он больше не является.
+- **PLAN-9B-2:** pending / not started и **deferred за post-audit stabilization
+  gate** (OD-S-1). Это не отмена Visual Planning work: acceptance criteria,
+  expansion ladder, hardcode migration и retirement scope не начинались и не
+  менялись. Условия возврата — раздел «POST-AUDIT STABILIZATION PROGRAM».
 - **Выполнено:** PLAN-0 — создан этот план; ветка `governance-reset`.
   STEP 0 — архитектурная ревизия перенесена в этот файл и в
   `CLEANUP_REGISTRY.md`. **PLAN-REV-2.1** — ревизия 2.1 канонизирована
@@ -192,7 +195,7 @@ source_paths:
   Vision, TTS, paid API и render не выполнялись (2026-08-02).
 - **Почему checkpoint сместился с PLAN-1A на PLAN-1D, затем на PLAN-2,
   PLAN-3, PLAN-4, PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4, PLAN-9B-2,
-  PLAN-6D-2, PLAN-6D-3, PLAN-6E, PLAN-L0 и PLAN-9B-PRODUCER.**
+  PLAN-6D-2, PLAN-6D-3, PLAN-6E, PLAN-L0, PLAN-9B-PRODUCER и PLAN-STAB-1.**
   Смещение на 1D было
   **не** признаком
   выполненной работы: ревизия 2 разделила монолитный PLAN-1 на три capability
@@ -219,8 +222,13 @@ source_paths:
   слайса PLAN-L0: Knowledge Salvage Gate закрыт до destructive retirement, как
   требуют OD-1, OD-7 и OD-10. Full suite не запускался, потому что слайс
   docs-only и не менял production contract, поэтому `baseline_head` не менялся.
-  Смена checkpoint **не** является разрешением начать producer: он остаётся
-  pending / not started до отдельного owner-issued implementation prompt.
+- Переход на PLAN-STAB-1 — следствие owner decision 2026-08-05 по read-only
+  AI-practices audit от clean HEAD `e4cad2a`: подтверждённые safety findings
+  получают исполняемых owners раньше следующего product slice. Это **не**
+  оценка качества PLAN-9B-PRODUCER, который завершён и принят, и **не** отмена
+  PLAN-9B-2. Смена checkpoint не является разрешением начать PLAN-STAB-1: он
+  остаётся pending / not started до отдельного owner-issued implementation
+  prompt. `baseline_head` этим docs-only слайсом не менялся.
 - Переход на PLAN-6D-2 — owner-approved prerequisite rerouting и следствие
   завершённого PLAN-6D-1. Он не начинает PLAN-9B-2 и не меняет его acceptance
   criteria.
@@ -238,13 +246,15 @@ source_paths:
   - **PLAN-9B-4** — completed 2026-08-02; зависит от завершённого PLAN-9B-5a;
   - **PLAN-L0** — completed 2026-08-02; salvage записан в
     `CLEANUP_REGISTRY.md`, retirement не выполнялся;
-  - **PLAN-9B-PRODUCER** — scheduled, pending/not started; **текущий
-    checkpoint**; зависит от завершённого PLAN-9B-1 и completed PLAN-L0 —
-    обе зависимости закрыты, остаётся отдельный owner-issued implementation
-    prompt;
-  - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-6D/PLAN-6E
-    завершены, но слайс остаётся **blocked** до completed PLAN-9B-PRODUCER и
-    отдельного owner-issued implementation prompt;
+  - **PLAN-9B-PRODUCER** — completed 2026-08-02; зависел от завершённых
+    PLAN-9B-1 и PLAN-L0, обе зависимости были закрыты до начала;
+  - **PLAN-STAB-1** — pending/not started; **текущий checkpoint**;
+    зависимостей нет, остаётся отдельный owner-issued implementation prompt;
+  - **PLAN-STAB-2…PLAN-STAB-17** — pending/not started; состав, порядок и
+    blocking-статус каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
+  - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-9B-PRODUCER/
+    PLAN-6D/PLAN-6E завершены, но слайс **deferred** за stabilization gate и
+    требует отдельного owner-issued implementation prompt;
   - **PLAN-6D-1** — completed 2026-08-02;
   - **PLAN-6D-2** — completed 2026-08-02;
   - **PLAN-6D-3** — completed 2026-08-02;
@@ -262,11 +272,11 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующее точное действие:** дождаться отдельного owner-issued
-  implementation prompt для PLAN-9B-PRODUCER.
-- **После PLAN-L0:** не начинать PLAN-9B-PRODUCER без отдельного implementation
-  prompt; не начинать PLAN-9B-2 до completed PLAN-9B-PRODUCER и отдельного
-  implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не разрешены:
-  каждый остаётся отдельной retirement-веткой со своими gates.
+  implementation prompt для PLAN-STAB-1 (atomic final-output preservation).
+- **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
+  gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
+  без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
+  разрешены: каждый остаётся отдельной retirement-веткой со своими gates.
 - **Что нельзя повторять:**
   - закрывать шаг без зелёной обязательной проверки;
   - записывать число тестов, длительность прогона или accuracy как норму;
@@ -947,7 +957,8 @@ PLAN-1A · PLAN-1B · PLAN-1C′  · capability owner gates
 ```
 основная продуктовая последовательность:
   PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4
-  → PLAN-L0 → PLAN-9B-PRODUCER → PLAN-9B-2
+  → PLAN-L0 → PLAN-9B-PRODUCER
+  → [stabilization gate: PLAN-STAB-1…7 + stabilization review] → PLAN-9B-2
 
   PLAN-9B-3   — отдельный cleanup/destructive path после PLAN-9B-2
   PLAN-9B-5b  — отдельный destructive retirement path после миграции
@@ -1023,6 +1034,501 @@ PLAN-9B-1 становится первым слайсом, меняющим pro
 Независимые под-slices могут меняться местами только когда их зависимости,
 allowed zones и owner approvals не пересекаются; изменение порядка
 фиксируется здесь до работы, а не задним числом.
+
+### POST-AUDIT STABILIZATION PROGRAM (PLAN-STAB-*)
+
+- **owner decision date:** 2026-08-05.
+- **audit baseline:** clean HEAD `e4cad2a` (read-only AI-practices audit,
+  переданный владельцем). Аудит в репозиторий не копируется: здесь остаются
+  только executable contracts и disposition. Severity сохраняется по
+  фактическому user/security/rights impact и не повышается ради маршрутизации.
+- **цель:** подтверждённые audit gaps получают исполняемых owners раньше
+  следующего product slice, но не реализуются одним большим diff.
+- **чем это не является:** отменой Visual Planning work, новым диагностическим
+  этапом, вторым планом и разрешением начать любой из слайсов ниже без
+  отдельного owner-issued implementation prompt.
+
+Owner decisions программы:
+
+| # | Решение |
+|---|---|
+| **OD-S-1** | `PLAN-9B-2` **deferred** за stabilization gate. Это не отмена: статус остаётся pending / not started, acceptance criteria не менялись |
+| **OD-S-2** | Каждый PLAN-STAB-слайс — bounded: один canonical owner, один commit, targeted tests, explicit scope, независимый immutable-commit review, отдельный repair/re-review при findings |
+| **OD-S-3** | Обязательный блокирующий набор до возврата к `PLAN-9B-2` — PLAN-STAB-1…7 плюс отдельный stabilization review |
+| **OD-S-4** | Остальные подтверждённые MAJOR findings попадают в план, но индивидуально `PLAN-9B-2` не блокируют; выполняются после gate либо параллельно при непересекающихся owners |
+| **OD-S-5** | Git backup — **completed manual owner action**: private remote существует, `governance-reset` и `master` отправлены, `governance-reset` — default branch. Задача «создать remote» как pending не создаётся |
+| **OD-S-6** | Legacy findings не дублируются — см. «No-action и уже покрытые findings» |
+| **OD-S-7** | `COMMANDS.md` **удаляется**, а не сокращается; replacement command document запрещён. Контракт PLAN-7 скорректирован ниже |
+| **OD-S-8** | Docs freshness не чинится заменой даты: нужен Git-aware contract (PLAN-STAB-8) |
+| **OD-S-9** | Не каждый audit finding является BLOCKER; routing не меняет severity |
+
+**Общие требования ко всем PLAN-STAB-слайсам** (не повторяются в каждом):
+один bounded commit с trailer `Plan-Step: <ID>`; production-код вне
+названного canonical owner — prohibited zone; `docs/current/` входит в allowed
+zone только для checkpoint/status/evidence после фактического завершения;
+характеризация до изменения наблюдаемого поведения; сеть, provider/model API,
+download, Vision, TTS, paid calls и реальный render не выполняются без
+отдельного owner approval на конкретное действие; **rollback** — revert одного
+commit без миграций данных; **independent review** — обязательный read-only
+review одного immutable commit по `skills/review-change/SKILL.md`, с отдельным
+repair/re-review при findings.
+
+**Blocking gate: что должно быть закрыто до возврата к PLAN-9B-2.**
+
+1. PLAN-STAB-1 completed and independently accepted;
+2. PLAN-STAB-2 completed and independently accepted;
+3. PLAN-STAB-3 completed and independently accepted;
+4. PLAN-STAB-4 completed and independently accepted;
+5. PLAN-STAB-5 completed and independently accepted;
+6. PLAN-STAB-6 completed **либо** владелец формально принимает
+   документированный residual risk;
+7. PLAN-STAB-7 — factual routing repair выполнен (этим commit) и integrity
+   tests зелёные;
+8. отдельный **stabilization review** подтверждает четыре свойства:
+   user-output preservation · offline/paid fail-closed behavior · rights
+   safety · однозначный current routing.
+
+**Non-blocking follow-up.** PLAN-STAB-9…PLAN-STAB-17 находятся в обязательном
+stabilization backlog, но индивидуально `PLAN-9B-2` не блокируют.
+PLAN-STAB-8 и PLAN-7 желательно завершить до возврата; они могут идти
+параллельно, если не пересекаются с production safety owners.
+
+**Accepted manual owner actions** (новыми code slices не становятся):
+Git backup (OD-S-5, выполнен); изменения `.claude/settings.local.json`, который
+намеренно gitignored и остаётся под контролем владельца (PLAN-STAB-6, часть B).
+
+**No-action и уже покрытые findings.** Новый слайс не создаётся:
+
+| Finding | Disposition |
+|---|---|
+| legacy `src/video_renderer.py` удаляет output до успеха | уже **PLAN-L3** (удаляет root `src/`-модули кроме `media_library.py`/`utils.py`); единственный caller — legacy `size_comparison_engine` |
+| legacy asset/download stack | уже **PLAN-L0 → PLAN-L4** |
+| root compatibility shims (`pipeline.py`, `apps/youtube_pipeline/`, `scripts/`, `legacy/`) | существующие retirement-слайсы **PLAN-L3/PLAN-L4** |
+| отсутствие MCP | no action |
+| недостижимые Git blobs | optional maintenance, не product action |
+| `refs/codex/**` | no product action |
+| два render stacks (FFmpeg и MoviePy Story Card) | автоматически не объединяются; owner направления — OD-M-4/OD-M-8 и unscheduled `MOTION-CS1/CS2` после отдельного product/format audit |
+| размер execution plan | уже **PLAN-8** + правило 12 Execution protocol |
+| Git backup | completed manual action (OD-S-5) |
+
+**Порядок возврата к PLAN-9B-2.** Закрытый blocking gate → отдельный
+stabilization review с ACCEPT → отдельный owner-issued implementation prompt
+для PLAN-9B-2. Ни закрытие отдельного PLAN-STAB-слайса, ни этот amendment
+разрешением начать PLAN-9B-2 не являются.
+
+#### PLAN-STAB-0 — post-audit stabilization plan amendment
+
+- **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
+  trailer `Plan-Step: PLAN-STAB-0` (собственный hash внутри того же commit не
+  записывается, см. Execution protocol, пункт 3).
+- **blocking для PLAN-9B-2:** нет — это сам owner-decision слайс, а не safety
+  fix · **зависимости:** —.
+- **цель:** канонизировать owner decisions последнего read-only AI-practices
+  audit; создать PLAN-STAB-1…17; исправить current routing; отложить
+  PLAN-9B-2 за stabilization gate.
+- **user impact:** косвенный — подтверждённые safety findings получают
+  исполняемых owners и однозначный порядок, а новый агент получает ровно один
+  current checkpoint.
+- **canonical owner:** `docs/current/PROJECT_EXECUTION_PLAN.md`.
+- **changed zones:** current execution plan и его routing mirrors
+  (`START_HERE.md`, `CURRENT_STATE.md`, `SYSTEM_MAP.md`).
+- **prohibited zones (соблюдены):** production-код, tests, tools, README,
+  `COMMANDS.md`, skills, contracts, settings, registry, schemas, configs,
+  manifests, GitHub workflow.
+- **измеримый результат:** PLAN-STAB-1…17 определены по одному разу и
+  разрешаются; blocking gate и no-action disposition записаны; единственный
+  current checkpoint — PLAN-STAB-1.
+- **implementation safety slices этим шагом не начинались:** PLAN-STAB-1…17
+  остаются pending / not started, PLAN-9B-2 остаётся pending / not started и
+  deferred.
+- **фактические проверки:** docs QA, `tests.test_check_agent_docs`,
+  `tests.test_stage2_agent_onboarding`, `check_task_scope` по exact allowed
+  paths и `git diff --check` — exit code 0. Сеть, providers, download, Vision,
+  TTS, paid API и render не выполнялись.
+- **rollback:** revert одного commit.
+
+#### PLAN-STAB-1 — atomic final-output preservation
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
+  **зависимости:** — · **current checkpoint**.
+- **цель:** новый финальный MP4 создаётся отдельно, валидируется и только затем
+  заменяет предыдущий результат.
+- **user impact:** прерванный или неудачный повторный render перестаёт
+  уничтожать уже готовое видео пользователя.
+- **canonical owner:** `src/news/final_renderer.py`.
+- **allowed zones:** `src/news/final_renderer.py` и его owning test-модули.
+- **prohibited zones:** `src/news/pipeline.py` и stage orchestration; resume
+  semantics; второй renderer; новый artifact, manifest, layout или public flag;
+  изменение production render contracts/layout без отдельного owner decision.
+- **success criteria:** прежний final output переживает любой сбой render;
+  temp-файл лежит на той же файловой системе, что и цель; валидация выполняется
+  **до** promotion; promotion атомарный — `os.replace` либо доказанный
+  эквивалент; удаляется только temporary output.
+- **required tests:** strict и draft режимы; injected failure оставляет hash
+  существующего output неизменным; успешный путь заменяет output ровно один
+  раз; temporary файлы не остаются после успеха и после сбоя.
+- **не входит:** resume orchestration — это PLAN-STAB-2.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-2 — final-render resume/idempotency guard
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
+  **зависимости:** PLAN-STAB-1.
+- **цель:** обычный `resume` не перезапускает уже успешно завершённый
+  `final_render` без явного force/owner intent.
+- **user impact:** продолжение проекта перестаёт молча переснимать готовый
+  финальный ролик и тратить время пользователя.
+- **canonical owner:** `src/news/pipeline.py` (stage guard ADR 0006).
+- **allowed zones:** `src/news/pipeline.py`, минимально необходимый вызывающий
+  canonical workflow, owning test-модули.
+- **prohibited zones:** порядок стадий; состав `NEWS_TO_SHORT_STAGES`; renderer
+  internals; persisted schema; новый public flag без owner approval.
+- **success criteria:** characterization фиксирует текущее поведение до правки;
+  completed-stage guard действует и на explicit `stage=` path; explicit force
+  по-прежнему пересобирает; отсутствующий или непригодный prior output
+  запускает render; ранее провалившийся output не считается completed.
+- **required tests:** normal resume · force · missing output · failed prior
+  output · batch-режим не регрессирует.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-3 — offline test guard и изоляция test credentials
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
+  **зависимости:** —.
+- **цель:** network guard нельзя случайно оставить выключенным на остаток test
+  process, а test-injected credentials нельзя заменить значениями из `.env`.
+- **user impact:** offline-обещание проекта перестаёт зависеть от порядка
+  запуска модулей; реальные ключи владельца не попадают в тестовый прогон.
+- **canonical owner:** `tests/network_guard.py`; для credential-пути —
+  `src/audio/tts/env.py`.
+- **allowed zones:** `tests/network_guard.py`, test-модули со scoped
+  exception, `src/audio/tts/env.py` и его owning tests.
+- **prohibited zones:** production TTS/provider поведение вне загрузки env;
+  чтение `.env` и реальных ключей тестами; второй guard-механизм; расширение
+  guard на subprocess boundary (остаётся открытым вопросом PLAN-6B).
+- **success criteria:** characterization фиксирует фактическое число uninstall
+  paths (**измерение**, на 2026-08-05 — 11 вызовов в трёх модулях, не
+  инвариант); после scoped exception guard восстанавливается; module
+  cleanup/context-manager contract явный; `load_dotenv(..., override=True)` не
+  заменяет заранее заданный test key; отсутствие `.env` не меняет результат.
+- **required tests:** guard активен в модуле, выполняемом после модуля со
+  scoped exception; scoped exception восстанавливает guard при исключении;
+  заранее заданный `ELEVENLABS_API_KEY` переживает загрузку env.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-4 — fail-closed runtime network/paid boundary
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
+  **зависимости:** characterization PLAN-STAB-3.
+- **цель:** единый runtime owner запрещает внешние и платные вызовы в offline
+  или неодобренном режиме.
+- **user impact:** случайный платный или сетевой вызов перестаёт быть возможен
+  «по умолчанию»; отказ честный и объяснимый.
+- **canonical owner:** определяется owner audit **до** реализации; второй guard
+  на провайдера не создаётся.
+- **обязательный owner audit до implementation:** ElevenLabs · OpenAI/Vision ·
+  stock providers · downloads · будущие model calls.
+- **allowed zones:** выбранный canonical boundary и его owning tests;
+  минимальные call sites перечисленных путей.
+- **prohibited zones:** дублирующий guard в каждом провайдере; новый
+  provider contract; изменение provider selection; реальные сетевые вызовы в
+  тестах.
+- **success criteria:** один canonical boundary; approval явный и на конкретное
+  действие; budget/cap там, где применимо; default fail-closed; **наличие API
+  key не является approval**; поведение проверяется без реальной сети.
+- **required tests:** offline-режим блокирует каждый класс вызова; явное
+  approval пропускает ровно один класс; отсутствие approval при настроенном
+  провайдере остаётся отказом.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-5 — C50 rights-review preservation
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
+  **зависимости:** —.
+- **цель:** явный `review_required` и owner-review evidence не теряются при
+  преобразовании records/candidates и не становятся `allowed` из-за другого
+  fallback.
+- **user impact:** ассет, помеченный человеком на ревью, не может молча попасть
+  в готовое видео. Класс `[HARD]` rights correctness.
+- **canonical owner:** `apply_policy_to_candidate` / `with_policy_decision`
+  в `src/assets/license_policy.py`.
+- **отношение к registry:** это **исполняемый owner finding C50**. Второй
+  независимый owner C50 не создаётся; нормализация ссылки в
+  `CLEANUP_REGISTRY.md` относится к PLAN-STAB-17, потому что registry не входит
+  в allowed zone этого docs-only amendment.
+- **allowed zones:** `src/assets/license_policy.py`, минимально необходимые
+  rights call sites, owning tests.
+- **prohibited zones:** копирование rights gate в legacy loaders; изменение
+  `modes.blocking_reasons`; PLAN-10D architectural convergence; новая persisted
+  schema.
+- **success criteria:** точный C50 mapping зафиксирован; canonical rights
+  vocabulary используется; author/user-owned evidence сохраняется; поведение
+  local library определено явно; strict и draft gates согласованы; persisted
+  совместимость сохранена.
+- **required tests:** negative-тесты — explicit `review_required=True` не
+  становится `allowed`; отсутствие evidence не даёт fallback-разрешения;
+  старые persisted записи читаются без миграции.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-6 — Claude permission hardening
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** да —
+  **либо** формально принятый документированный residual risk ·
+  **зависимости:** —.
+- **цель:** минимизировать возможность агента читать secrets, обходить
+  destructive Git rules, менять governance и коммитить широким wildcard.
+- **user impact:** ошибка или сбой агента не превращается в потерю работы
+  владельца и незамеченное изменение правил.
+- **canonical owner (A, tracked):** `.claude/settings.json`.
+- **canonical owner (B, local):** `.claude/settings.local.json` — намеренно
+  gitignored, поэтому его правка **manual owner action**, а не code slice.
+- **allowed zones:** `.claude/settings.json`; при возможности — tracked
+  permission-contract checker и его tests.
+- **prohibited zones:** production-код; правка gitignored local settings от
+  имени агента; утверждение, что hooks сильнее permission system.
+- **success criteria:** effective merged settings проверены; wildcard-грант
+  `python -c`, `python -`, `git add *`, `git commit *` удалён или вынесен в
+  manual cleanup list; защищены `AGENTS.md`, `CLAUDE.md`, `skills/**`,
+  `.claude/**`, `tools/qa/**`; destructive Git matching не зависит от
+  необязательных флагов.
+- **required tests:** checker tracked permission contract там, где выполнимо;
+  иначе — записанная воспроизводимая ручная проверка.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-7 — current-routing и reference integrity
+
+- **status:** factual repair выполнен этим commit; automation — pending / not
+  started · **blocking для PLAN-9B-2:** да (repair + зелёные integrity tests) ·
+  **зависимости:** —.
+- **цель:** current checkpoint, next action, mirrors и referenced IDs не могут
+  молча разойтись.
+- **user impact:** новый чат или агент получает ровно одно текущее задание, а
+  не три конкурирующих.
+- **canonical owner:** `tools/qa/check_agent_docs.py` (расширение существующего
+  checker; второй QA framework не создаётся).
+- **allowed zones:** `tools/qa/check_agent_docs.py`, его owning tests,
+  `docs/current/` для checkpoint/evidence.
+- **prohibited zones:** переписывание historical evidence и completed records;
+  второй plan; изменение production-кода.
+- **success criteria:** ровно один authoritative current checkpoint;
+  `START_HERE.md`, `CURRENT_STATE.md`, `SYSTEM_MAP.md` и план согласованы;
+  completed шаг не выглядит pending/current; PLAN- и registry-ссылки
+  разрешаются; bullet-only слайс не может быть current checkpoint без
+  собственного heading.
+- **required tests:** duplicate/stale checkpoint statement — error; ссылка на
+  несуществующий PLAN-ID — error; heading-less current checkpoint — error.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-8 — Git-aware documentation freshness
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет
+  (желателен до возврата) · **зависимости:** —.
+- **цель:** документ считается current по проверенному Git baseline и
+  изменениям в релевантных source paths, а не по декоративному hex string.
+- **user impact:** «свежая» метка перестаёт скрывать документ, разошедшийся с
+  кодом.
+- **canonical owner:** `tools/qa/check_agent_docs.py`.
+- **отношение к PLAN-6A:** PLAN-6A остаётся owner расширения `CURRENT_DOCS` и
+  governance-правил docs QA; PLAN-STAB-8 отвечает только за семантику
+  freshness. Дублирующего checker не создаётся; при пересечении зон слайсы
+  выполняются последовательно, а не параллельно.
+- **allowed zones:** `tools/qa/check_agent_docs.py`, его owning tests,
+  синтетические Git-фикстуры.
+- **prohibited zones:** автоматическое обновление metadata без content review;
+  массовая правка `last_verified_*` в документах; production-код.
+- **success criteria:** semantics baseline self-reference-safe (N−1 либо
+  доказанный эквивалент); используется `merge-base --is-ancestor`;
+  учитываются изменения в объявленных `source_paths` после baseline; calendar
+  age остаётся advisory; coverage расширен на фактические current authority
+  docs; design contract фиксируется до реализации.
+- **required tests:** синтетические Git-репозитории (ancestor / не-ancestor /
+  изменения после baseline / без изменений); один вызов на реальном репозитории.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-9 — shared rights vocabulary owner
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** PLAN-STAB-5.
+- **цель:** убрать независимые списки допустимых rights statuses у выживающих
+  production-модулей.
+- **user impact:** rights-решение одинаково во всех точках, где его видит
+  пользователь.
+- **canonical owner:** один существующий модуль (кандидат —
+  `src/assets/models.py`), выбирается caller audit слайса.
+- **allowed zones:** выбранный owner, его consumers, owning tests.
+- **prohibited zones:** legacy-модули под retirement PLAN-L; новая persisted
+  schema; расширение словаря без отдельного решения.
+- **success criteria:** один canonical список; намеренные расширения
+  документированы отдельно; persisted reader остаётся tolerant; дублирующих
+  строковых списков нет.
+- **required tests:** divergence-тест — расхождение словарей падает.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-10 — canonical timestamp formats
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** —.
+- **цель:** именованные timestamp contracts вместо нескольких `utc_now_iso`
+  с разной точностью.
+- **user impact:** сортировка и сравнение записей проекта перестают зависеть от
+  того, какой модуль их записал.
+- **canonical owner:** один существующий helpers-модуль, выбирается caller
+  audit.
+- **allowed zones:** выбранный owner и модули с дублирующими helpers, owning
+  tests.
+- **prohibited zones:** миграция persisted данных без отдельного owner
+  approval; новый формат в persisted полях без tolerant reader.
+- **success criteria:** различены instant/timestamp и date-only project
+  naming; сохранена persisted совместимость; явно решено, где нужен lexical
+  sort, а где parsed datetime; миграция не требуется, если tolerant readers
+  достаточно.
+- **required tests:** round-trip старых записей обоих форматов; стабильность
+  сортировки.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-11 — channel manifest convergence
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** —.
+- **цель:** `channel.json` и `channel_config.json` не образуют два
+  несовместимых current contracts.
+- **user impact:** канал без «правильного» файла перестаёт молча терять
+  настройки голоса и workflow.
+- **canonical owner:** `src/config_resolver/layers.py` совместно с фактическим
+  reader `src/news/pipeline.py`.
+- **allowed zones:** названные readers, `src/channel_loader.py`, owning tests.
+- **prohibited zones:** удаление или переписывание существующих
+  `channels/**` без отдельного owner approval; второй registry каналов.
+- **success criteria:** owner/caller inventory зафиксирован; canonical формат
+  выбран; определена compatibility/migration strategy; все существующие каналы
+  читаются; молчаливый `{}` fallback заменён честным диагностируемым
+  состоянием.
+- **required tests:** по одному тесту на каждое существующее семейство каналов;
+  отсутствующий и нечитаемый файл дают явный результат, а не пустой конфиг.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-12 — scene-duration owner enforcement
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** —.
+- **цель:** все живые readers используют общий `scene_timeline` contract либо
+  доказанно адаптируются через одного owner.
+- **user impact:** длительность сцены в рендере, отчётах и субтитрах перестаёт
+  расходиться.
+- **canonical owner:** `src/audio/scene_timeline.py`.
+- **allowed zones:** `src/audio/scene_timeline.py`, `src/news/final_renderer.py`,
+  reports/completion readers, legacy format adapter, owning tests.
+- **prohibited zones:** изменение persisted полей длительности; новый timeline
+  owner; изменение render layout.
+- **success criteria:** final renderer, отчёты и legacy adapter согласованы по
+  floor/fallback semantics; фактическая длительность озвучки по-прежнему
+  выигрывает у плановой; persisted совместимость сохранена.
+- **required tests:** timeline parity — один и тот же проект даёт одинаковые
+  длительности у всех readers.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-13 — workspace/media-library resolution
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** —.
+- **цель:** `--workspace` и настроенные пути определяют один и тот же
+  media-library owner.
+- **user impact:** выбранный пользователем workspace действительно используется,
+  а не подменяется корнем checkout.
+- **canonical owner:** `src/config_resolver/paths.py` (`WorkspacePaths`) как
+  источник корня; `src/media_library.py` — consumer.
+- **отношение к registry:** связано с существующим C29 (`outputs/` артефакт
+  того же модуля). Конкурирующий owner не создаётся; C29 остаётся за PLAN-L4.
+- **allowed zones:** `src/media_library.py`, его callers
+  (`src/news/asset_manifest_builder.py`, `src/providers/local_library_provider.py`,
+  `src/news/asset_provider_adapters.py`, `src/news/asset_manager.py`), owning tests.
+- **prohibited zones:** физический перенос runtime/медиа; изменение
+  `media_index.json` layout; удаление legacy fallback без отдельного gate.
+- **success criteria:** на каноническом CLI-пути нет hardcode корня checkout;
+  Local Library provider и `media_index` разрешаются от одного корня;
+  определена migration/compatibility strategy; legacy default сохранён.
+- **required tests:** прогон с non-default workspace находит библиотеку там,
+  где её объявил пользователь; default workspace не регрессирует.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-14 — persisted schema round-trip protection
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** —.
+- **цель:** unknown persisted keys и старые формы не уничтожаются молча при
+  read-modify-write.
+- **user impact:** проект, записанный более новой или более старой версией, не
+  теряет данные при обычном продолжении работы.
+- **canonical owner:** `src/news/models.py` и `src/news/project_store.py`.
+- **allowed zones:** названные модули, реальные старые фикстуры, owning tests.
+- **prohibited zones:** превращение всех schemas в runtime validation без
+  отдельного impact audit; массовая миграция persisted данных.
+- **success criteria:** используются **реальные старые** фикстуры; отношение
+  schema ↔ runtime зафиксировано; readers остаются tolerant; решение о
+  сохранении unknown keys принято явно и записано; вложенные state-объекты не
+  падают на незнакомом ключе.
+- **required tests:** round-trip старого `job.json` не теряет поля;
+  рукописный current payload полноценной legacy-фикстурой не считается.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-15 — concurrent project execution guard
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** PLAN-STAB-2.
+- **цель:** два `resume`/`render` одного проекта не могут одновременно писать
+  одни артефакты.
+- **user impact:** случайный второй запуск не портит проект и не смешивает два
+  результата.
+- **canonical owner:** `src/project_foundation/storage.py` (`project_lock`).
+- **allowed zones:** названный owner, точки входа выполнения проекта, owning
+  tests.
+- **prohibited zones:** новый lock-механизм рядом с существующим; блокировка
+  read-only status-операций; изменение layout проекта.
+- **success criteria:** определён lock scope уровня выполнения, а не одной
+  записи; есть ownership token; есть heartbeat либо обоснованный timeout;
+  длительность render заведомо больше stale threshold учтена; crash recovery
+  определён; read-only операции не блокируются.
+- **required tests:** параллельный запуск — второй получает честный отказ;
+  brutal-kill владельца освобождает проект по определённому правилу.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-16 — CI и static controls baseline
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** OD-S-5 (remote backup выполнен).
+- **цель:** после появления remote включить реальные repository checks.
+- **user impact:** регрессия ловится до того, как владелец увидит её на своём
+  проекте.
+- **canonical owner:** существующий `.github/workflows/offline-tests.yml`;
+  второй workflow того же назначения не создаётся.
+- **allowed zones:** `.github/workflows/**` и минимально необходимые config
+  files.
+- **prohibited zones:** массовое переформатирование; немедленный глобальный
+  strict typing; required status check до доказанного зелёного прогона.
+- **success criteria:** поэтапное внедрение — существующий offline suite
+  фактически зелёный в GitHub Actions → secret scan → dependency audit → lint
+  baseline → type-check baseline; branch status check включается последним.
+- **required tests:** сам workflow является проверкой; локально —
+  синтаксическая валидация и один зелёный прогон.
+- **rollback / review:** по общим требованиям программы.
+
+#### PLAN-STAB-17 — cleanup registry и retirement ledger integrity
+
+- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
+  **зависимости:** —.
+- **цель:** registry однозначно определяет status, owner, impact, exit
+  condition и фактическое завершение retirement.
+- **user impact:** косвенный — решения о удалении принимаются по достоверной
+  записи, а не по памяти.
+- **canonical owner:** `docs/current/CLEANUP_REGISTRY.md`.
+- **allowed zones:** `docs/current/CLEANUP_REGISTRY.md`.
+- **prohibited zones:** переписывание historical evidence; изобретение
+  несуществующих PLAN-ID; production-код.
+- **success criteria:** завершённые D-слайсы отражены в retired ledger; все
+  ссылки разрешаются (включая ссылку C50 → PLAN-STAB-5 и C29 → PLAN-L4);
+  минимальный набор полей нормализован; принятая история сохранена.
+- **required tests:** docs QA; проверка разрешимости ссылок из PLAN-STAB-7.
+- **rollback / review:** по общим требованиям программы.
 
 ### PLAN-0 — versioned execution plan
 
@@ -2021,22 +2527,36 @@ allowed zones и owner approvals не пересекаются; изменени
   `pipeline.py` в `COMMANDS.md` исчезают как факт, а не переписываются. Если L4
   выполнен раньше PLAN-7 — сверять по фактическому `--help`, а не по этому
   списку.
-- **язык (OD-5).** `README.md` и `COMMANDS.md` сокращаются с 1086 до ~300 строк;
-  русская редакция получается **побочно при переписывании**, отдельным
-  переводом это не оформляется и mass-diff не создаёт. Правило: не переводить
-  filenames, directory names, identifiers, CLI/API, JSON/YAML keys, точные
-  команды, имена библиотек, литералы, блоки кода, third-party licenses и
-  historical artifacts. Каталоги `docs/archive/`, `docs/audits/` и
-  `docs/implementation/` в scope перевода не входят как historical.
-- **разрешённые зоны:** `README.md`, `COMMANDS.md`,
+- **язык (OD-5).** `README.md` сокращается примерно до 150 строк; русская
+  редакция получается **побочно при переписывании**, отдельным переводом это не
+  оформляется и mass-diff не создаёт. Правило: не переводить filenames,
+  directory names, identifiers, CLI/API, JSON/YAML keys, точные команды, имена
+  библиотек, литералы, блоки кода, third-party licenses и historical artifacts.
+  Каталоги `docs/archive/`, `docs/audits/` и `docs/implementation/` в scope
+  перевода не входят как historical.
+- **исправлено owner decision 2026-08-05 (OD-S-7).** Прежнее требование
+  «`COMMANDS.md` — 100–150 строк» отменено: файл **удаляется**, а не
+  сокращается. Новый контракт:
+  - canonical command reference — `python -m ai_youtube --help`;
+  - quick start — `README.md` (около 150 строк: фактический продукт,
+    active/planned/disabled, быстрый старт);
+  - workflows — существующие `skills/`;
+  - contracts — канонический CLI;
+  - `COMMANDS.md` — deletion target;
+  - **replacement command document запрещён**: второй каталог команд не
+    создаётся ни под каким именем;
+  - краткая semantics `project rights-report` переносится в существующий
+    `skills/replace-visual-slot/SKILL.md`;
+  - historical archive/audit evidence массово не переписывается.
+- **разрешённые зоны:** `README.md`, `COMMANDS.md` (только удаление),
   `skills/create-short-video-first/SKILL.md`, `skills/resume-project/SKILL.md`,
   `skills/replace-visual-slot/SKILL.md`,
   `docs/contracts/STAGE1_PUBLIC_CONTRACTS.md`.
-- **запрещено:** production-код, **удаление старых entrypoints**.
-- **требования:** `COMMANDS.md` — 100–150 строк, основные команды и ссылка на
-  `--help`; `README.md` — около 150 строк, фактический продукт,
-  active/planned/disabled и быстрый старт. Команды сверять с фактическим
-  `--help`, а не по памяти.
+- **запрещено:** production-код, **удаление старых entrypoints**, создание
+  нового command-каталога взамен `COMMANDS.md`.
+- **требования:** команды сверять с фактическим `--help`, а не по памяти; после
+  удаления `COMMANDS.md` ни один оставшийся документ не должен на него
+  ссылаться как на current source.
 - **измеренный масштаб расхождения** (Foundation audit, [FACT] от `4ca3655`):
   `README.md` — 405 строк, упоминаний `ai_youtube` **0**, учит bare `python`
   и `pip` вопреки `AGENTS.md`; `COMMANDS.md` — 681 строка, упоминаний
@@ -3479,7 +3999,9 @@ gates и проверки остаются в соответствующих р�
 | PLAN-9B-0 / 9B-1 | **Первый product-этап:** зафиксировано фактическое поведение до правки; произвольная тема получает несколько provider-ready queries без topic-hardcode, fail-closed сохранён. |
 | PLAN-6A / 6D / 6E | Короткие единые правила с классами `[HARD]/[ARCH]/[HINT]`, приоритет цели над предписанным методом, технический scope-контроль и один независимый read-only reviewer, ловящий в том числе «unmet objective / premature stop». 6A параллелен; 6D — gate первого multi-owner слайса; 6E — gate первого destructive слайса, плюс PLAN-9A и PLAN-9C. |
 | PLAN-6B / 6C | Ранний отчёт о мусоре и дублях с зафиксированными кандидатами fitness-проверок; проверенная карта dependency/toolchain ownership. Параллельны product-работе. |
-| PLAN-7 | README, COMMANDS и рабочие skills обучают только каноническому `python -m ai_youtube`; старые entrypoints пока лишь совместимы. |
+| PLAN-STAB-1…7 | Закрыт blocking stabilization gate: готовый финальный ролик переживает сбой и обычный resume; offline/paid граница fail-closed; явный rights-review не теряется; permissions ужесточены либо residual risk принят; current routing однозначен. |
+| PLAN-STAB-8…17 | Обязательный stabilization backlog: честная docs freshness, один owner rights-словаря, timestamps, channel manifests, длительностей сцен, workspace/media-library, persisted round-trip, lock выполнения, CI baseline и целостный registry. Индивидуально PLAN-9B-2 не блокируют. |
+| PLAN-7 | README и рабочие skills обучают только каноническому `python -m ai_youtube`; `COMMANDS.md` удалён без замены, canonical reference — `--help`; старые entrypoints пока лишь совместимы. |
 | PLAN-8 | Отдельный `PRODUCT_PLAN.md` с приоритетами, evidence gates и roadmap двух engines; execution plan становится короче. |
 | PLAN-9 | Честный источник сценария и канонический вход «исходный текст»; универсальные provider-ready queries без topic-hardcode; сохранение best-so-far, переносимое через resume; semantic evidence доходит до существующего decision layer и включается только opt-in. |
 | PLAN-10 | Ограниченный и объяснимый search loop с ledger, stop reasons, pagination и adaptive budget; глобальная локальная библиотека сведена к одной capability с одной rights/provenance семантикой и сохранённым diversity reserve. |

@@ -227,8 +227,12 @@ Ownership `src.news`, `src.templates.story_card`, `anime_factory`,
 `pipeline.py` и `src.legacy_pipeline` при этом не считался физически
 перенесённым. Этап 9A завершил D01/D02 compatibility retirement и D03
 placeholder deletion. 9B-P01 зафиксировал два target engines ADR 0016 без
-изменения catalog status. Следующий read-only checkpoint 9B-C01 должен
-зафиксировать package roots, wrappers, callers, Anime project/transcription/
-subtitle/render modules и legacy/shared music paths до любого move/delete.
-Финальная цель — один physical `src/ai_youtube` package и один owner business
-logic на capability; это цель плана, а не текущее состояние кода.
+изменения catalog status. Единого шага «9B-C01» больше нет: read-only
+ownership/caller gates разделены на PLAN-1A, PLAN-1B и PLAN-1C′, и до их
+закрытия move/delete package roots, wrappers, Anime project/transcription/
+subtitle/render modules и legacy/shared music paths запрещены. Текущий
+checkpoint активного execution plan — PLAN-STAB-1 (atomic final-output
+preservation), pending/not started; PLAN-9B-2 deferred за post-audit
+stabilization gate. Финальная цель — один physical `src/ai_youtube` package и
+один owner business logic на capability; это цель плана, а не текущее
+состояние кода.
