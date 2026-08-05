@@ -19,6 +19,34 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - uses: actions/checkout@v4
+      - name: Install FFmpeg (ffmpeg-full 8.1.2, pinned via Chocolatey)
+        shell: pwsh
+        run: |
+          choco install ffmpeg-full --version=8.1.2 --confirm --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) {
+            throw "choco install ffmpeg-full --version=8.1.2 failed with exit code $LASTEXITCODE"
+          }
+      - name: Preflight - verify ffmpeg and ffprobe are on PATH
+        shell: pwsh
+        run: |
+          $ffmpegCmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+          $ffprobeCmd = Get-Command ffprobe -ErrorAction SilentlyContinue
+          if (-not $ffmpegCmd) {
+            throw "ffmpeg was not found on PATH after installing ffmpeg-full 8.1.2"
+          }
+          if (-not $ffprobeCmd) {
+            throw "ffprobe was not found on PATH after installing ffmpeg-full 8.1.2"
+          }
+          Write-Host "ffmpeg resolved to: $($ffmpegCmd.Source)"
+          Write-Host "ffprobe resolved to: $($ffprobeCmd.Source)"
+          & ffmpeg -version
+          if ($LASTEXITCODE -ne 0) {
+            throw "ffmpeg -version failed with exit code $LASTEXITCODE"
+          }
+          & ffprobe -version
+          if ($LASTEXITCODE -ne 0) {
+            throw "ffprobe -version failed with exit code $LASTEXITCODE"
+          }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
