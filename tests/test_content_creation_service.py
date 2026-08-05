@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import imageio_ffmpeg
 from PIL import Image
 
 from src.content_creation.models import (
@@ -16,6 +18,34 @@ from src.content_creation.models import (
     VoiceRequestConfig,
 )
 from src.content_creation.service import create_content
+
+
+def _make_synthetic_source_video(root: Path) -> Path:
+    """A tiny, deterministic, valid MP4 built on the fly - no repository fixture needed."""
+    frames_dir = root / "synthetic_frames"
+    frames_dir.mkdir(parents=True, exist_ok=True)
+    for index in range(6):
+        Image.new("RGB", (320, 180), (40 + index * 10, 60, 90)).save(frames_dir / f"frame_{index:03d}.png")
+    output = root / "synthetic_source.mp4"
+    command = [
+        imageio_ffmpeg.get_ffmpeg_exe(),
+        "-y",
+        "-v",
+        "error",
+        "-framerate",
+        "6",
+        "-i",
+        str(frames_dir / "frame_%03d.png"),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:v",
+        "libx264",
+        str(output),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr)
+    return output
 
 
 class MusicValidationServiceTests(unittest.TestCase):
@@ -99,12 +129,13 @@ class StoryCardCreateTests(unittest.TestCase):
 
     def test_prepare_only_renders_nothing_but_writes_render_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
+            source = _make_synthetic_source_video(Path(tmp))
             request = ContentCreationRequest(
                 channel_id="nature_pulse",
                 template_id="story_card_text_only_v1",
                 language="ru",
                 text={"top": "Тестовый заголовок"},
-                source_asset_path="projects/story_card_owl_test/final_test.mp4",
+                source_asset_path=str(source),
                 execution=ExecutionFlags(prepare_only=True),
                 project_overrides={"projects_root": tmp},
             )
