@@ -544,6 +544,7 @@ class FullscreenVoiceoverUseCase:
             projects_root=self.projects_root,
             job_id=self.job.job_id,
             stage="final_render",
+            force_stage=bool(self.request.execution.force_stage),
         )
         final_manifest_path = (
             self.root / "render" / "final_render_manifest.json"

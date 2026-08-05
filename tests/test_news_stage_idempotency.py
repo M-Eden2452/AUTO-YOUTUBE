@@ -254,6 +254,172 @@ class NewsDownstreamStageIdempotencyTests(unittest.TestCase):
                 self.assertEqual(dispatch.call_count, 1)
 
 
+class FinalRenderExplicitStageDispatchTests(unittest.TestCase):
+    """PLAN-STAB-2: the render/export phase always dispatches final_render as an
+    explicit ``stage="final_render"`` call (see
+    ``FullscreenVoiceoverUseCase._render_and_export``), never via ``until_stage``.
+    The generic ``DOWNSTREAM_STAGE_FAMILIES`` tests above only exercise
+    ``until_stage=`` and force paths, so they never caught that this exact call
+    shape used to skip the completed-stage guard entirely.
+    """
+
+    def test_completed_final_render_skips_on_explicit_stage_dispatch(self) -> None:
+        from src.news.pipeline import run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job, project_root = _completed_project(root, "final_render")
+            store = NewsProjectStore(root)
+            artifact_path = _artifact_path(project_root, job.language, "final_render")
+            output_path = Path(
+                store.read_json(artifact_path)["output_path"]
+            )
+            before_manifest_bytes = artifact_path.read_bytes()
+            before_output_bytes = output_path.read_bytes()
+            before_mtime_ns = output_path.stat().st_mtime_ns
+            before_state = store.load_job(job.job_id).stages["final_render"]
+
+            with patch(
+                "src.news.pipeline._dispatch_stage",
+                side_effect=AssertionError("final_render unexpectedly re-executed"),
+            ) as dispatch:
+                result = run_news_to_short_job(
+                    projects_root=root,
+                    job_id=job.job_id,
+                    stage="final_render",
+                )
+                dispatch.assert_not_called()
+
+            self.assertNotIn("final_render", result.completed_stages)
+            self.assertEqual(output_path.read_bytes(), before_output_bytes)
+            self.assertEqual(output_path.stat().st_mtime_ns, before_mtime_ns)
+            self.assertEqual(artifact_path.read_bytes(), before_manifest_bytes)
+
+            after_state = store.load_job(job.job_id).stages["final_render"]
+            self.assertEqual(after_state.status, "completed")
+            self.assertEqual(after_state.finished_at, before_state.finished_at)
+            self.assertEqual(after_state.attempts, before_state.attempts)
+
+    def test_force_stage_reexecutes_completed_final_render_on_explicit_stage_dispatch(
+        self,
+    ) -> None:
+        from src.news.pipeline import run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job, project_root = _completed_project(root, "final_render")
+            store = NewsProjectStore(root)
+            artifact_path = _artifact_path(project_root, job.language, "final_render")
+
+            with patch(
+                "src.news.pipeline._dispatch_stage",
+                side_effect=_synthetic_dispatch,
+            ) as dispatch:
+                result = run_news_to_short_job(
+                    projects_root=root,
+                    job_id=job.job_id,
+                    stage="final_render",
+                    force_stage=True,
+                )
+
+            self.assertIn("final_render", result.completed_stages)
+            self.assertEqual(dispatch.call_count, 1)
+            self.assertTrue(artifact_path.is_file())
+            self.assertEqual(
+                store.load_job(job.job_id).stages["final_render"].status,
+                "completed",
+            )
+
+    def test_completed_final_render_with_missing_artifact_reexecutes_on_explicit_stage_dispatch(
+        self,
+    ) -> None:
+        from src.news.pipeline import run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job, project_root = _completed_project(root, "final_render")
+            store = NewsProjectStore(root)
+            artifact_path = _artifact_path(project_root, job.language, "final_render")
+            output_path = Path(store.read_json(artifact_path)["output_path"])
+            output_path.unlink()
+
+            with patch(
+                "src.news.pipeline._dispatch_stage",
+                side_effect=_synthetic_dispatch,
+            ) as dispatch:
+                result = run_news_to_short_job(
+                    projects_root=root,
+                    job_id=job.job_id,
+                    stage="final_render",
+                )
+
+            self.assertIn("final_render", result.completed_stages)
+            self.assertEqual(dispatch.call_count, 1)
+            self.assertTrue(output_path.is_file())
+
+    def test_not_yet_completed_final_render_executes_on_explicit_stage_dispatch(
+        self,
+    ) -> None:
+        from src.news.pipeline import run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # Completed only through quality_check: final_render has never run.
+            job, project_root = _completed_project(root, "quality_check")
+            store = NewsProjectStore(root)
+
+            with patch(
+                "src.news.pipeline._dispatch_stage",
+                side_effect=_synthetic_dispatch,
+            ) as dispatch:
+                result = run_news_to_short_job(
+                    projects_root=root,
+                    job_id=job.job_id,
+                    stage="final_render",
+                )
+
+            self.assertIn("final_render", result.completed_stages)
+            self.assertEqual(dispatch.call_count, 1)
+            self.assertEqual(
+                store.load_job(job.job_id).stages["final_render"].status,
+                "completed",
+            )
+
+    def test_forced_final_render_failure_is_not_recorded_as_completed(self) -> None:
+        from src.news.pipeline import run_news_to_short_job
+        from src.news.project_store import NewsProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job, project_root = _completed_project(root, "final_render")
+            store = NewsProjectStore(root)
+            artifact_path = _artifact_path(project_root, job.language, "final_render")
+            output_path = Path(store.read_json(artifact_path)["output_path"])
+            before_output_bytes = output_path.read_bytes()
+
+            with patch(
+                "src.news.pipeline.render_final_video",
+                side_effect=RuntimeError("synthetic renderer failure"),
+            ):
+                with self.assertRaises(RuntimeError):
+                    run_news_to_short_job(
+                        projects_root=root,
+                        job_id=job.job_id,
+                        stage="final_render",
+                        force_stage=True,
+                    )
+
+            reloaded = store.load_job(job.job_id)
+            self.assertEqual(reloaded.stages["final_render"].status, "failed")
+            # PLAN-STAB-1 atomic preservation: a failed forced re-render never
+            # touches the previously promoted output.
+            self.assertEqual(output_path.read_bytes(), before_output_bytes)
+
+
 def _completed_project(projects_root: Path, target_stage: str):
     from src.news.models import NEWS_TO_SHORT_STAGES
     from src.news.pipeline import create_news_to_short_job

@@ -35,8 +35,9 @@ Important invariants:
   фактического output; ``input`` и потенциально сетевой ``article_ingestion``
   в эту policy намеренно не входят (ADR 0006);
 - завершённая стадия пропускается при обычном повторе и при ``resume``;
-  перезапустить её можно через ``force_stage`` либо явно запрошенной ``stage``
-  без ``resume``;
+  ``final_render`` также пропускается на явно запрошенной
+  ``stage="final_render"`` при validated completed state; перезапустить
+  завершённую стадию можно через ``force_stage``;
 - стадия, чей JSON-результат содержит ``status="blocked"``, отмечается
   ``blocked``, а не ``completed``;
 - ``strict`` требует ``quality_report.status == "passed"`` до финального
@@ -207,7 +208,16 @@ def run_news_to_short_job(
                 terminal_status = REASON_VOICE_REQUIRED
                 break
             continue
-        if not force_stage and stage_name in completed and not stage:
+        # final_render is expensive (re-encodes the whole video) and is always
+        # dispatched as an explicit single stage by the render/export phase, on
+        # every resume - so it must honour the same completed-stage skip as the
+        # rest of the pipeline instead of only skipping when no explicit `stage`
+        # was requested.
+        if (
+            not force_stage
+            and stage_name in completed
+            and (not stage or stage_name == "final_render")
+        ):
             if stage_name == stop_stage:
                 break
             continue

@@ -6,8 +6,8 @@ updated_at: 2026-08-05
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-2
-next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-2
+current_checkpoint: PLAN-STAB-3
+next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-3
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,10 +47,16 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-2 pending / not started** — final-render
-  resume/idempotency guard, второй слайс «POST-AUDIT STABILIZATION PROGRAM».
+- **Текущий шаг:** **PLAN-STAB-3 pending / not started** — offline test guard и
+  изоляция test credentials, третий слайс «POST-AUDIT STABILIZATION PROGRAM».
   Это единственный current checkpoint; любой другой шаг, названный текущим
   где-либо ещё, устарел.
+- **PLAN-STAB-2:** completed 2026-08-05; обычный resume/явный `stage=` dispatch
+  пропускает уже завершённый `final_render` при наличии обязательного
+  final-артефакта; существующий `force_stage` по-прежнему пересобирает его;
+  completed status без артефакта продолжает считаться незавершённым через уже
+  действующий `NewsProjectStore.is_stage_completed`. Independent review этого
+  commit ещё не выполнен, поэтому пункт 2 blocking gate не закрыт.
 - **PLAN-STAB-1:** completed 2026-08-05; финальный мастер пишется во временный
   файл рядом с целью, проверяется каноническим `ffprobe_media_info` и только
   затем занимает свой путь через `os.replace`. Independent review этого commit
@@ -254,10 +260,12 @@ source_paths:
     PLAN-9B-1 и PLAN-L0, обе зависимости были закрыты до начала;
   - **PLAN-STAB-1** — completed 2026-08-05; independent review этого commit
     ещё не выполнен, поэтому blocking gate он ещё не закрывает;
-  - **PLAN-STAB-2** — pending/not started; **текущий checkpoint**; зависит от
-    завершённого PLAN-STAB-1, остаётся отдельный owner-issued implementation
-    prompt;
-  - **PLAN-STAB-3…PLAN-STAB-17** — pending/not started; состав, порядок и
+  - **PLAN-STAB-2** — completed 2026-08-05; зависел от завершённого
+    PLAN-STAB-1; independent review этого commit ещё не выполнен, поэтому
+    blocking gate он ещё не закрывает;
+  - **PLAN-STAB-3** — pending/not started; **текущий checkpoint**; остаётся
+    отдельный owner-issued implementation prompt;
+  - **PLAN-STAB-4…PLAN-STAB-17** — pending/not started; состав, порядок и
     blocking-статус каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
   - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-9B-PRODUCER/
     PLAN-6D/PLAN-6E завершены, но слайс **deferred** за stabilization gate и
@@ -279,7 +287,8 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующее точное действие:** дождаться отдельного owner-issued
-  implementation prompt для PLAN-STAB-2 (final-render resume/idempotency guard).
+  implementation prompt для PLAN-STAB-3 (offline test guard и изоляция test
+  credentials).
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1200,8 +1209,10 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-2 — final-render resume/idempotency guard
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** PLAN-STAB-1 (completed) · **current checkpoint**.
+- **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
+  trailer `Plan-Step: PLAN-STAB-2` · **blocking для PLAN-9B-2:** да —
+  пункт 2 gate требует ещё и independent review, который не выполнен ·
+  **зависимости:** PLAN-STAB-1 (completed).
 - **цель:** обычный `resume` не перезапускает уже успешно завершённый
   `final_render` без явного force/owner intent.
 - **user impact:** продолжение проекта перестаёт молча переснимать готовый
@@ -1217,12 +1228,40 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   запускает render; ранее провалившийся output не считается completed.
 - **required tests:** normal resume · force · missing output · failed prior
   output · batch-режим не регрессирует.
+- **фактический результат:** `run_news_to_short_job`'s completed-stage skip
+  (`src/news/pipeline.py`) применялся только когда вызывающий не указывал
+  явный `stage=`; production render/export фаза
+  (`FullscreenVoiceoverUseCase._render_and_export`) всегда вызывает
+  `run_news_to_short_job(..., stage="final_render")` без `resume`/`force_stage`,
+  поэтому каждый resume безусловно перезапускал `final_render`. Skip-условие
+  расширено ровно на `stage_name == "final_render"`, не затрагивая explicit-stage
+  диспетчеризацию voice/subtitles/preview_render/quality_check/export и не
+  меняя `NEWS_TO_SHORT_STAGES`, persisted schema или renderer. Существующий
+  `--force-stage` → `ExecutionFlags.force_stage` контракт довязан в тот же
+  `stage="final_render"` вызов, поэтому явный force по-прежнему пересобирает
+  именно final_render. Missing/invalid artifact продолжает обрабатываться уже
+  действующим `NewsProjectStore.is_stage_completed`/`validate_stage_output`
+  (ADR 0006) без нового механизма. `src/news/final_renderer.py` не менялся.
+- **фактические проверки:** новый класс
+  `tests.test_news_stage_idempotency.FinalRenderExplicitStageDispatchTests` —
+  5 тестов (completed+valid skip, force reexecutes, missing-artifact
+  reexecutes, not-yet-completed still executes, forced failure not recorded
+  completed) плюс новый wiring-тест
+  `test_force_stage_flows_from_request_to_the_final_render_resume_call` в
+  `tests.test_content_creation_service`; targeted radius (idempotency,
+  pipeline, renderer, delivery, autonomous completion, manual asset
+  replacement, atomic output, end-tail, content-creation service, fullscreen
+  boundary, voice adapter, subtitle integration, scene timing) — 116 тестов за
+  166.565 секунды, exit code 0; полный offline suite — 1577 тестов за
+  317.742 секунды, exit code 0; docs QA — exit code 0. Числа и длительности
+  являются измерениями, не нормативами. Сеть, provider/model API, download,
+  Vision, TTS и paid calls не выполнялись.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-3 — offline test guard и изоляция test credentials
 
 - **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** —.
+  **зависимости:** — · **current checkpoint**.
 - **цель:** network guard нельзя случайно оставить выключенным на остаток test
   process, а test-injected credentials нельзя заменить значениями из `.env`.
 - **user impact:** offline-обещание проекта перестаёт зависеть от порядка

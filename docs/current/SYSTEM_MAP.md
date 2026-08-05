@@ -230,10 +230,11 @@ placeholder deletion. 9B-P01 зафиксировал два target engines ADR 
 изменения catalog status. Единого шага «9B-C01» больше нет: read-only
 ownership/caller gates разделены на PLAN-1A, PLAN-1B и PLAN-1C′, и до их
 закрытия move/delete package roots, wrappers, Anime project/transcription/
-subtitle/render modules и legacy/shared music paths запрещены. PLAN-STAB-1
-завершён: `src/news/final_renderer.py` повышает мастер через проверенный
-временный файл и `os.replace`. Текущий checkpoint активного execution plan —
-PLAN-STAB-2, pending/not started; PLAN-9B-2 deferred за post-audit
-stabilization gate. Финальная цель — один physical `src/ai_youtube` package и
-один owner business logic на capability; это цель плана, а не текущее
-состояние кода.
+subtitle/render modules и legacy/shared music paths запрещены. PLAN-STAB-1 завершён:
+`src/news/final_renderer.py` повышает мастер через проверенный временный файл и `os.replace`.
+PLAN-STAB-2 завершён: `src/news/pipeline.py` пропускает уже завершённый `final_render` также на
+explicit `stage=` dispatch; independent acceptance не объявлена, пункт 2 blocking gate остаётся
+открытым до ACCEPT. Текущий checkpoint активного execution plan — PLAN-STAB-3, pending/not
+started; требуется отдельный owner-issued implementation prompt. PLAN-9B-2 deferred за
+post-audit stabilization gate. Финальная цель — один physical `src/ai_youtube` package и один
+owner business logic на capability; это цель плана, а не текущее состояние кода.

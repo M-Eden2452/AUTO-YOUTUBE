@@ -373,6 +373,46 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
             )
             self.assertTrue(asset_search_call.kwargs.get("force_stage"))
 
+    def test_force_stage_flows_from_request_to_the_final_render_resume_call(self) -> None:
+        """PLAN-STAB-2 wiring test: the render/export phase's explicit
+        ``stage="final_render"`` call must also receive ``ExecutionFlags.force_stage``,
+        the same existing contract already wired to the asset_search resume call above,
+        otherwise --force-stage would have no way to force a completed final_render to
+        re-run."""
+        from src.news.pipeline import create_news_to_short_job
+
+        with tempfile.TemporaryDirectory() as tmp:
+            projects_root = Path(tmp)
+            with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]):
+                job = create_news_to_short_job(
+                    projects_root=projects_root,
+                    channel_id="nature_science_news_ru",
+                    topic="Почему у зебр полосы",
+                    language="ru",
+                )
+            request = ContentCreationRequest(
+                project_id=job.job_id,
+                channel_id="nature_science_news_ru",
+                template_id="fullscreen_voiceover_v1",
+                language="ru",
+                execution=ExecutionFlags(resume=True, force_stage=True),
+                project_overrides={"projects_root": str(projects_root)},
+            )
+            with patch("src.news.asset_manager.create_default_asset_providers", return_value=[]), patch(
+                "src.news.pipeline.run_news_to_short_job"
+            ) as mocked:
+                mocked.return_value.completed_stages = []
+                mocked.return_value.status = "in_progress"
+                try:
+                    create_content(request)
+                except Exception:
+                    pass  # only the call arguments matter for this test
+
+            final_render_call = next(
+                call for call in mocked.call_args_list if call.kwargs.get("stage") == "final_render"
+            )
+            self.assertTrue(final_render_call.kwargs.get("force_stage"))
+
     def test_explicit_profile_resolves_globally_for_channel_without_voices_yaml(self) -> None:
         # This is the exact bug report: nature_pulse has no voices.yaml of its own, but
         # the user explicitly passed --voice-profile ru_dom (registered in
