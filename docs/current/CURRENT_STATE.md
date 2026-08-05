@@ -90,7 +90,7 @@ source_paths:
 
 Активный порядок задаёт [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); PLAN-6E завершён 2026-08-02.
 Canonical policy — `skills/review-change/SKILL.md`; тонкие adapters не дублируют её. Controlled Cases A/B/C приняли safe изменения и нашли synthetic BLOCKER; после lock repair repositories byte-stable.
-PLAN-9B-PRODUCER completed 2026-08-02: bounded offline producer заполняет существующий `VisualBrief` из structured/script/claim evidence, author override остаётся последним, unknown fail closed; schema/layout и query owner не менялись. Owner decision 2026-08-05 открыл «POST-AUDIT STABILIZATION PROGRAM»: текущий checkpoint — PLAN-STAB-1 pending/not started (atomic final-output preservation), PLAN-9B-2 deferred за stabilization gate. Ни один PLAN-STAB-слайс не реализован. `.claude/skills/` отсутствует.
+PLAN-9B-PRODUCER completed 2026-08-02: bounded offline producer заполняет существующий `VisualBrief` из structured/script/claim evidence, author override остаётся последним, unknown fail closed; schema/layout и query owner не менялись. Owner decision 2026-08-05 открыл «POST-AUDIT STABILIZATION PROGRAM»: текущий checkpoint — PLAN-STAB-1 pending/not started (atomic final-output preservation), PLAN-9B-2 deferred за stabilization gate. Реализация ни одного PLAN-STAB-слайса не начиналась; для PLAN-STAB-7 выполнен только factual routing repair current docs, completed он не объявлен. `.claude/skills/` отсутствует.
 
 - Rescue stages 0–8, включая подэтапы 6A–6G, завершены. Этап 8 перенёс
   vertical slices `fullscreen_voiceover`, `story_card`, `anime_clipper` и

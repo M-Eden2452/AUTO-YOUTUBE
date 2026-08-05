@@ -1082,8 +1082,8 @@ repair/re-review при findings.
 5. PLAN-STAB-5 completed and independently accepted;
 6. PLAN-STAB-6 completed **либо** владелец формально принимает
    документированный residual risk;
-7. PLAN-STAB-7 — factual routing repair выполнен (этим commit) и integrity
-   tests зелёные;
+7. PLAN-STAB-7 — factual routing repair выполнен (слайсом PLAN-STAB-0) и
+   integrity tests зелёные;
 8. отдельный **stabilization review** подтверждает четыре свойства:
    user-output preservation · offline/paid fail-closed behavior · rights
    safety · однозначный current routing.
@@ -1101,7 +1101,7 @@ Git backup (OD-S-5, выполнен); изменения `.claude/settings.loca
 
 | Finding | Disposition |
 |---|---|
-| legacy `src/video_renderer.py` удаляет output до успеха | уже **PLAN-L3** (удаляет root `src/`-модули кроме `media_library.py`/`utils.py`); единственный caller — legacy `size_comparison_engine` |
+| legacy `src/video_renderer.py` удаляет output до успеха | уже **PLAN-L3** (удаляет root `src/`-модули кроме `media_library.py`/`utils.py`); production callers — legacy `size_comparison_engine` и root `pipeline.py` через compatibility patch-point `legacy_pipeline.workflow` |
 | legacy asset/download stack | уже **PLAN-L0 → PLAN-L4** |
 | root compatibility shims (`pipeline.py`, `apps/youtube_pipeline/`, `scripts/`, `legacy/`) | существующие retirement-слайсы **PLAN-L3/PLAN-L4** |
 | отсутствие MCP | no action |
@@ -1138,9 +1138,11 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 - **измеримый результат:** PLAN-STAB-1…17 определены по одному разу и
   разрешаются; blocking gate и no-action disposition записаны; единственный
   current checkpoint — PLAN-STAB-1.
-- **implementation safety slices этим шагом не начинались:** PLAN-STAB-1…17
-  остаются pending / not started, PLAN-9B-2 остаётся pending / not started и
-  deferred.
+- **implementation safety slices этим шагом не начинались:** PLAN-STAB-1…6 и
+  PLAN-STAB-8…17 остаются pending / not started. Для PLAN-STAB-7 этим шагом
+  выполнен только factual routing repair в current docs; его integrity checker и
+  остальная implementation не начинались, и completed PLAN-STAB-7 не объявляется.
+  PLAN-9B-2 остаётся pending / not started и deferred.
 - **фактические проверки:** docs QA, `tests.test_check_agent_docs`,
   `tests.test_stage2_agent_onboarding`, `check_task_scope` по exact allowed
   paths и `git diff --check` — exit code 0. Сеть, providers, download, Vision,
@@ -1207,8 +1209,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   чтение `.env` и реальных ключей тестами; второй guard-механизм; расширение
   guard на subprocess boundary (остаётся открытым вопросом PLAN-6B).
 - **success criteria:** characterization фиксирует фактическое число uninstall
-  paths (**измерение**, на 2026-08-05 — 11 вызовов в трёх модулях, не
-  инвариант); после scoped exception guard восстанавливается; module
+  paths (**измерение**, на baseline 2026-08-05 — 9 вызовов в трёх test modules;
+  **не инвариант и не acceptance criterion**, число перепроверяется заново перед
+  implementation); после scoped exception guard восстанавливается; module
   cleanup/context-manager contract явный; `load_dotenv(..., override=True)` не
   заменяет заранее заданный test key; отсутствие `.env` не меняет результат.
 - **required tests:** guard активен в модуле, выполняемом после модуля со
@@ -1297,9 +1300,10 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-7 — current-routing и reference integrity
 
-- **status:** factual repair выполнен этим commit; automation — pending / not
-  started · **blocking для PLAN-9B-2:** да (repair + зелёные integrity tests) ·
-  **зависимости:** —.
+- **status:** pending / not started. Factual routing repair в current docs
+  выполнен слайсом PLAN-STAB-0; automation и остальная implementation не
+  начинались, completed слайс не объявляется · **blocking для PLAN-9B-2:** да
+  (repair + зелёные integrity tests) · **зависимости:** —.
 - **цель:** current checkpoint, next action, mirrors и referenced IDs не могут
   молча разойтись.
 - **user impact:** новый чат или агент получает ровно одно текущее задание, а
@@ -2787,7 +2791,9 @@ misleading/conflict · paid approval.
 
   ```
   PLAN-9B-0 → PLAN-9B-1 → PLAN-9B-5a → PLAN-9B-4
-  → PLAN-L0 → PLAN-9B-PRODUCER → PLAN-9B-2 → PLAN-9B-3
+  → PLAN-L0 → PLAN-9B-PRODUCER
+  → [post-audit stabilization gate: PLAN-STAB-1…7
+     + independent stabilization review] → PLAN-9B-2 → PLAN-9B-3
   PLAN-9B-5b — после успешной миграции capability и готовности его
                destructive gates
   ```
@@ -3167,9 +3173,12 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-2 — expansion + hardcode migration
 
-- **status:** pending / not started; **blocked** до отдельного owner-issued
+- **status:** pending / not started; **deferred за post-audit stabilization
+  gate** (OD-S-1, состав — OD-S-3 и раздел «Blocking gate: что должно быть
+  закрыто до возврата к PLAN-9B-2») и **blocked** до отдельного owner-issued
   implementation prompt · **зависимости:** completed PLAN-9B-4, **PLAN-L0**,
-  **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E**.
+  **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E** — это technical prerequisites
+  слайса, и их completed status PLAN-9B-2 автоматически не открывает.
 - **цель:** контролируемая лестница расширения плюс снятие topic-specific
   hardcodes из shared engine.
 - **лестница запросов:** точный субъект → субъект и действие → субъект,
@@ -3199,8 +3208,10 @@ misleading/conflict · paid approval.
   запланировал PLAN-9B-PRODUCER внутри существующего visual-planning ownership.
   Он не добавлен в scope PLAN-9B-2: producer и лестница расширения остаются
   двумя независимо проверяемыми user outcome, а PLAN-9B-2 по-прежнему
-  пересекает multi-owner, persisted и destructive boundary. PLAN-9B-2 не
-  начинается до completed PLAN-L0, completed PLAN-9B-PRODUCER и отдельного
+  пересекает multi-owner, persisted и destructive boundary. Completed PLAN-L0 и
+  completed PLAN-9B-PRODUCER достаточным условием не являются: PLAN-9B-2 не
+  начинается до закрытого post-audit stabilization gate, отдельного
+  independent stabilization review с ACCEPT и отдельного owner-issued
   implementation prompt.
 - **тесты deep-dive:** — (T3 перенесён в PLAN-9B-1 вместе с исправлением
   `source_is_latin`, registry C36; тест не потерян и нового тестового этапа не
