@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
-from typing import Any
+from typing import Any, Iterator
 
 
 ALLOW_LIVE_ENV_VARS = ("AI_YOUTUBE_ALLOW_LIVE_TESTS", "AI_YOUTUBE_RUN_LIVE_TESTS")
@@ -39,6 +40,30 @@ def uninstall_network_guard() -> None:
     socket.create_connection = _original_create_connection  # type: ignore[assignment]
     socket.getaddrinfo = _original_getaddrinfo  # type: ignore[assignment]
     _installed = False
+
+
+@contextlib.contextmanager
+def network_guard_scope() -> Iterator[None]:
+    """Install the guard for this scope and restore the pre-existing install
+    state on exit - success, exception or otherwise.
+
+    Raw ``install_network_guard()``/``uninstall_network_guard()`` pairs are
+    unsafe when a module-level baseline guard (see ``tests/__init__.py``) is
+    already active: an unconditional ``uninstall_network_guard()`` in a
+    ``finally`` block would disable that baseline for the remainder of the
+    process instead of merely undoing this scope's own install. This helper
+    only turns the guard off if it was off before the scope started.
+    """
+    was_installed = _installed
+    install_network_guard()
+    try:
+        yield
+    finally:
+        if was_installed:
+            if not _installed:
+                install_network_guard()
+        else:
+            uninstall_network_guard()
 
 
 def _guarded_connect(self: socket.socket, address: Any) -> Any:

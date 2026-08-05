@@ -8,7 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from tests.network_guard import install_network_guard, uninstall_network_guard
+from tests.network_guard import network_guard_scope
 
 
 def _fixture_script() -> dict:
@@ -100,8 +100,7 @@ class NewsVoiceAdapterTests(unittest.TestCase):
     def test_execute_true_without_approval_falls_back_to_stub_no_network(self) -> None:
         from src.news.voice_stage import build_or_generate_voice_manifest
 
-        install_network_guard()
-        try:
+        with network_guard_scope():
             script = _fixture_script()
             channel_config = _fixture_channel_config()
             with tempfile.TemporaryDirectory() as tmp:
@@ -111,8 +110,6 @@ class NewsVoiceAdapterTests(unittest.TestCase):
                     job_id="job_001", execute=True,
                 )
                 self.assertEqual(manifest["status"], "provider_selection_required")
-        finally:
-            uninstall_network_guard()
 
     def test_execute_true_with_approval_generates_completed_manifest_via_fake_http(self) -> None:
         from src.audio.tts.models import compute_settings_hash, compute_text_hash

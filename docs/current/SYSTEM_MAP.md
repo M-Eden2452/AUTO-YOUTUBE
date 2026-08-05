@@ -225,16 +225,16 @@ contract и прямые live provider/TTS paths без application approval bou
 Documentary migration не выполнялась, этап 8 boundary migration закрыт.
 Ownership `src.news`, `src.templates.story_card`, `anime_factory`,
 `pipeline.py` и `src.legacy_pipeline` при этом не считался физически
-перенесённым. Этап 9A завершил D01/D02 compatibility retirement и D03
-placeholder deletion. 9B-P01 зафиксировал два target engines ADR 0016 без
-изменения catalog status. Единого шага «9B-C01» больше нет: read-only
-ownership/caller gates разделены на PLAN-1A, PLAN-1B и PLAN-1C′, и до их
-закрытия move/delete package roots, wrappers, Anime project/transcription/
-subtitle/render modules и legacy/shared music paths запрещены. PLAN-STAB-1 завершён:
-`src/news/final_renderer.py` повышает мастер через проверенный временный файл и `os.replace`.
-PLAN-STAB-2 завершён: `src/news/pipeline.py` пропускает уже завершённый `final_render` также на
-explicit `stage=` dispatch; independent acceptance не объявлена, пункт 2 blocking gate остаётся
-открытым до ACCEPT. Текущий checkpoint активного execution plan — PLAN-STAB-3, pending/not
-started; требуется отдельный owner-issued implementation prompt. PLAN-9B-2 deferred за
-post-audit stabilization gate. Финальная цель — один physical `src/ai_youtube` package и один
-owner business logic на capability; это цель плана, а не текущее состояние кода.
+перенесённым. Этап 9A завершил D01/D02 compatibility retirement и D03 placeholder deletion.
+9B-P01 зафиксировал два target engines ADR 0016 без изменения catalog status. Единого шага
+«9B-C01» больше нет: read-only ownership/caller gates разделены на PLAN-1A, PLAN-1B и PLAN-1C′,
+и до их закрытия move/delete package roots, wrappers, Anime project/transcription/subtitle/render
+modules и legacy/shared music paths запрещены. PLAN-STAB-1 завершён: `src/news/final_renderer.py`
+повышает мастер через проверенный временный файл и `os.replace`. PLAN-STAB-2 завершён:
+`src/news/pipeline.py` пропускает уже завершённый `final_render` также на explicit `stage=`
+dispatch; пункт 2 blocking gate остаётся открытым до ACCEPT. PLAN-STAB-3 завершён: `tests/network_guard.py`
+получил `network_guard_scope()` против утечки baseline guard, а `load_elevenlabs_env` больше не
+даёт `.env` заменить test-owned credential при активном isolation lock; пункт 3 остаётся открытым
+до ACCEPT. Текущий checkpoint — PLAN-STAB-4, pending/not started; требуется отдельный owner-issued
+implementation prompt. PLAN-9B-2 deferred за post-audit stabilization gate. Финальная цель — один
+physical `src/ai_youtube` package и один owner business logic на capability; это цель плана, а не текущее состояние кода.

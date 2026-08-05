@@ -6,8 +6,8 @@ updated_at: 2026-08-05
 baseline_head: 84bdd8b4f64c7adaf7582bdb39b15b18163253fb
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-3
-next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-3
+current_checkpoint: PLAN-STAB-4
+next_exact_action: await separate owner-issued implementation prompt for PLAN-STAB-4
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,10 +47,21 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-3 pending / not started** — offline test guard и
-  изоляция test credentials, третий слайс «POST-AUDIT STABILIZATION PROGRAM».
+- **Текущий шаг:** **PLAN-STAB-4 pending / not started** — fail-closed runtime
+  network/paid boundary, четвёртый слайс «POST-AUDIT STABILIZATION PROGRAM».
   Это единственный current checkpoint; любой другой шаг, названный текущим
-  где-либо ещё, устарел.
+  где-либо ещё, устарел. Blocked до отдельного owner-issued implementation
+  prompt.
+- **PLAN-STAB-3:** completed 2026-08-05; `tests/network_guard.py` получил
+  `network_guard_scope()` context manager, восстанавливающий guard к состоянию
+  до входа в scope даже при исключении, и 9 raw install/uninstall call sites
+  в трёх owning test-модулях переведены на него — устранена утечка, при
+  которой снятие guard одним тестом отключало baseline-защиту для остальных
+  тестов процесса. `src/audio/tts/env.py::load_elevenlabs_env` больше не даёт
+  локальному `.env` заменить test-owned fake `ELEVENLABS_API_KEY`, когда
+  `tests/__init__.py` заранее установил test isolation lock и fake credential;
+  production override=True semantics вне test isolation не менялись. Independent
+  review этого commit ещё не выполнен, поэтому пункт 3 blocking gate не закрыт.
 - **PLAN-STAB-2:** completed 2026-08-05; обычный resume/явный `stage=` dispatch
   пропускает уже завершённый `final_render` при наличии обязательного
   final-артефакта; существующий `force_stage` по-прежнему пересобирает его;
@@ -263,9 +274,11 @@ source_paths:
   - **PLAN-STAB-2** — completed 2026-08-05; зависел от завершённого
     PLAN-STAB-1; independent review этого commit ещё не выполнен, поэтому
     blocking gate он ещё не закрывает;
-  - **PLAN-STAB-3** — pending/not started; **текущий checkpoint**; остаётся
+  - **PLAN-STAB-3** — completed 2026-08-05; independent review этого commit
+    ещё не выполнен, поэтому blocking gate он ещё не закрывает;
+  - **PLAN-STAB-4** — pending/not started; **текущий checkpoint**; остаётся
     отдельный owner-issued implementation prompt;
-  - **PLAN-STAB-4…PLAN-STAB-17** — pending/not started; состав, порядок и
+  - **PLAN-STAB-5…PLAN-STAB-17** — pending/not started; состав, порядок и
     blocking-статус каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
   - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-9B-PRODUCER/
     PLAN-6D/PLAN-6E завершены, но слайс **deferred** за stabilization gate и
@@ -287,8 +300,8 @@ source_paths:
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
 - **Следующее точное действие:** дождаться отдельного owner-issued
-  implementation prompt для PLAN-STAB-3 (offline test guard и изоляция test
-  credentials).
+  implementation prompt для PLAN-STAB-4 (fail-closed runtime network/paid
+  boundary).
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1260,8 +1273,10 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-3 — offline test guard и изоляция test credentials
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** — · **current checkpoint**.
+- **status:** completed · **completed:** 2026-08-05 · **commit:** Git log —
+  trailer `Plan-Step: PLAN-STAB-3` · **blocking для PLAN-9B-2:** да —
+  пункт 3 gate требует ещё и independent review, который не выполнен ·
+  **зависимости:** —.
 - **цель:** network guard нельзя случайно оставить выключенным на остаток test
   process, а test-injected credentials нельзя заменить значениями из `.env`.
 - **user impact:** offline-обещание проекта перестаёт зависеть от порядка
@@ -1282,12 +1297,46 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 - **required tests:** guard активен в модуле, выполняемом после модуля со
   scoped exception; scoped exception восстанавливает guard при исключении;
   заранее заданный `ELEVENLABS_API_KEY` переживает загрузку env.
+- **фактический результат:** 9 raw `install_network_guard()`/
+  `uninstall_network_guard()` call sites (baseline measurement подтверждена)
+  в трёх owning test-модулях (`tests/test_localization_voice_integration.py`,
+  `tests/test_news_voice_adapter.py`, `tests/test_production_catalog_foundation.py`)
+  безусловно снимали process-wide baseline guard, который `tests/__init__.py`
+  устанавливает один раз при импорте пакета: любой такой `finally: uninstall_
+  network_guard()` отключал защиту для всех тестов, выполняющихся после него в
+  том же процессе. `tests/network_guard.py` получил `network_guard_scope()`
+  context manager, который восстанавливает guard к состоянию **до входа** в
+  scope (успех, исключение или уже-выключенный baseline) вместо безусловного
+  uninstall; все 9 call sites переведены на него. Для credential-пути
+  `src/audio/tts/env.py::load_elevenlabs_env` всегда вызывал
+  `load_dotenv(env_path, override=True)`, включая пути, где api_key передаётся
+  явно (`ElevenLabsProvider.__init__` вызывает `load_elevenlabs_env()`
+  безусловно) — реальный `.env`, если он существует, заменял бы любой
+  test-owned fake `ELEVENLABS_API_KEY` в `os.environ`. Добавлен sentinel
+  `TEST_CREDENTIAL_ISOLATION_ENV_VAR`; `override` теперь `not
+  _test_credentials_isolated()`, а `tests/__init__.py` устанавливает sentinel и
+  fake `ELEVENLABS_API_KEY` до импорта любого test-модуля. Production
+  `override=True` semantics вне test isolation не менялись; `src/config_resolver`,
+  providers, TTS/Vision/renderer/rights/resume не менялись.
+- **фактические проверки (2026-08-05, ветка `governance-reset`):** новые
+  `tests.test_test_network_guard.NetworkGuardScopeTests` (5 тестов) и
+  `tests.test_tts_env_credential_isolation` (7 тестов); targeted regression —
+  `test_localization_voice_integration` + `test_news_voice_adapter` +
+  `test_production_catalog_foundation` (72 теста) и TTS/dotenv/provider radius
+  (`test_voice_workflow`, `test_config_resolver`, `test_documentary_visual_engine`,
+  `test_narration_workflow`, `test_scene_voice_generator`,
+  `test_provider_foundation_hardening`, `test_content_creation_service`,
+  `test_news_to_short_assets`, 145 тестов) — exit code 0; docs QA — exit code 0;
+  полный offline suite — 1589 тестов (1577 + 12 новых), exit code 0. Числа и
+  длительности являются измерениями, не нормативами. Сеть, provider/model API,
+  download, Vision, TTS, paid calls и реальный `.env` не читались и не
+  выполнялись; тесты используют только синтетические временные `.env`-файлы.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-4 — fail-closed runtime network/paid boundary
 
 - **status:** pending / not started · **blocking для PLAN-9B-2:** да ·
-  **зависимости:** characterization PLAN-STAB-3.
+  **зависимости:** characterization PLAN-STAB-3 (completed).
 - **цель:** единый runtime owner запрещает внешние и платные вызовы в offline
   или неодобренном режиме.
 - **user impact:** случайный платный или сетевой вызов перестаёт быть возможен

@@ -25,7 +25,7 @@ import unittest
 import wave
 from pathlib import Path
 
-from tests.network_guard import install_network_guard, uninstall_network_guard
+from tests.network_guard import network_guard_scope
 
 CHANNELS_DIR = Path("channels")
 NEWS_TEMPLATE = "fullscreen_voiceover_v1"
@@ -307,11 +307,8 @@ class SecretTests(unittest.TestCase):
     def test_missing_secret_applies_the_declared_fallback_without_network(self) -> None:
         from src.localization import NARRATION_SOURCE_MANUAL_AUDIO, STATUS_AWAITING_SOURCE
 
-        install_network_guard()
-        try:
+        with network_guard_scope():
             resolved = _resolve(channel_id="nature_science_news_ru", language="ru", secret_probe=_NO_SECRET)
-        finally:
-            uninstall_network_guard()
         self.assertEqual(resolved.fallback_policy, "manual_audio")
         self.assertTrue(resolved.fallback_applied)
         self.assertEqual(resolved.narration_source, NARRATION_SOURCE_MANUAL_AUDIO)
@@ -346,8 +343,7 @@ class NarrationSourceTests(unittest.TestCase):
     def test_manual_audio_does_not_call_tts(self) -> None:
         from src.localization import NARRATION_SOURCE_MANUAL_AUDIO, STATUS_MANUAL_AUDIO_READY
 
-        install_network_guard()
-        try:
+        with network_guard_scope():
             with tempfile.TemporaryDirectory() as tmp:
                 manual = Path(tmp) / "manual.wav"
                 _write_wav(manual)
@@ -358,8 +354,6 @@ class NarrationSourceTests(unittest.TestCase):
                     manual_audio_path=str(manual),
                     secret_probe=_HAS_SECRET,
                 )
-        finally:
-            uninstall_network_guard()
         self.assertEqual(resolved.narration_source, NARRATION_SOURCE_MANUAL_AUDIO)
         self.assertEqual(resolved.status, STATUS_MANUAL_AUDIO_READY)
         self.assertFalse(resolved.tts_allowed)
@@ -375,8 +369,7 @@ class NarrationSourceTests(unittest.TestCase):
     def test_existing_artifact_is_reused_and_does_not_call_tts(self) -> None:
         from src.localization import NARRATION_SOURCE_EXISTING_ARTIFACT, STATUS_COMPLETED
 
-        install_network_guard()
-        try:
+        with network_guard_scope():
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 narration = root / "localizations" / "ru" / "voice" / "narration.wav"
@@ -388,8 +381,6 @@ class NarrationSourceTests(unittest.TestCase):
                     project_root=root,
                     secret_probe=_HAS_SECRET,
                 )
-        finally:
-            uninstall_network_guard()
         self.assertEqual(resolved.narration_source, NARRATION_SOURCE_EXISTING_ARTIFACT)
         self.assertEqual(resolved.status, STATUS_COMPLETED)
         self.assertTrue(resolved.reuse_existing_narration)
@@ -466,8 +457,7 @@ class VoiceStageTests(unittest.TestCase):
     """The stage that actually writes voice_manifest.json."""
 
     def test_resolved_selection_is_written_into_the_stub_manifest(self) -> None:
-        install_network_guard()
-        try:
+        with network_guard_scope():
             with _TwoLanguageChannel(), tempfile.TemporaryDirectory() as tmp:
                 from src.news.voice_stage import build_safe_voice_manifest
 
@@ -475,8 +465,6 @@ class VoiceStageTests(unittest.TestCase):
                 manifest = build_safe_voice_manifest(
                     project_root=tmp, language="en", script=_script(), localization=resolved
                 )
-        finally:
-            uninstall_network_guard()
         self.assertEqual(manifest["selection"]["voice_profile"], "en_voice")
         self.assertEqual(manifest["selection"]["voice_id"], "en-voice-id")
         self.assertEqual(manifest["locale"], "en-US")
@@ -504,8 +492,7 @@ class VoiceStageTests(unittest.TestCase):
 
     def test_existing_narration_is_not_overwritten_by_the_stage(self) -> None:
         """Защита B3: повторный проход стадии не превращает готовый манифест в заглушку."""
-        install_network_guard()
-        try:
+        with network_guard_scope():
             with tempfile.TemporaryDirectory() as tmp:
                 from src.news.voice_stage import build_or_generate_voice_manifest
 
@@ -542,12 +529,9 @@ class VoiceStageTests(unittest.TestCase):
                 self.assertEqual(manifest_path.read_bytes(), before)
                 self.assertEqual(returned["status"], "completed")
                 self.assertEqual(returned["audio_path"], str(narration))
-        finally:
-            uninstall_network_guard()
 
     def test_execute_without_secret_never_reaches_a_provider(self) -> None:
-        install_network_guard()
-        try:
+        with network_guard_scope():
             with tempfile.TemporaryDirectory() as tmp:
                 from src.news.voice_stage import build_or_generate_voice_manifest
 
@@ -566,8 +550,6 @@ class VoiceStageTests(unittest.TestCase):
                     execute=True,
                     localization=resolved,
                 )
-        finally:
-            uninstall_network_guard()
         self.assertEqual(manifest["status"], "provider_selection_required")
         self.assertIs(manifest["paid_call_performed"], False)
         self.assertEqual(manifest["tts_blocked_reason"], "secret_missing")
@@ -786,15 +768,13 @@ class WizardAndCliTests(unittest.TestCase):
         secret = "sk-cli-must-not-print-9999"
         previous = os.environ.get("ELEVENLABS_API_KEY")
         os.environ["ELEVENLABS_API_KEY"] = secret
-        install_network_guard()
         buffer = io.StringIO()
         try:
-            with contextlib.redirect_stdout(buffer):
+            with network_guard_scope(), contextlib.redirect_stdout(buffer):
                 code = main(
                     ["voices", "explain", "--channel", "nature_science_news_ru", "--language", "ru", "--json"]
                 )
         finally:
-            uninstall_network_guard()
             if previous is None:
                 os.environ.pop("ELEVENLABS_API_KEY", None)
             else:

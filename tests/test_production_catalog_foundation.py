@@ -7,7 +7,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from tests.network_guard import install_network_guard, uninstall_network_guard
+from tests.network_guard import network_guard_scope
 
 
 class ProductionCatalogModelTests(unittest.TestCase):
@@ -274,11 +274,8 @@ class ProductionCatalogCliTests(unittest.TestCase):
         self.assertNotEqual(exit_code, 0)
 
     def test_read_only_cli_does_not_call_network(self) -> None:
-        install_network_guard()
-        try:
+        with network_guard_scope():
             exit_code, _ = self._run_cli(["templates", "list"])
-        finally:
-            uninstall_network_guard()
         self.assertEqual(exit_code, 0)
 
     def test_no_project_or_render_files_created_by_catalog_commands(self) -> None:
