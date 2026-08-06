@@ -6,8 +6,8 @@ updated_at: 2026-08-06
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-7
-next_exact_action: PLAN-STAB-7 (current-routing and reference integrity) and PLAN-STAB-8 (Git-aware documentation freshness) are implemented as one coordinated bounded slice - a single commit whose trailer is Plan-Step PLAN-STAB-7, with PLAN-STAB-8 recorded in the commit body and in this plan because the repository has neither an additional trailer contract nor a trailer validator; tools/qa/check_agent_docs.py stays the single owner of both contracts and now enforces current-routing integrity (one authoritative current_checkpoint that must have its own heading, three routing mirrors that cannot silently drift, a next_exact_action that must name the checkpoint and may reference only defined plan steps, and a completed step that cannot be the current checkpoint) and Git-aware documentation freshness (every last_verified_commit and baseline_head must be a real commit and an ancestor of HEAD, declared source_paths drift after the baseline is reported as a NOTE advisory and never as an error because mass last_verified_* edits are a prohibited zone, absent Git and shallow clones fail closed, and calendar age is measured against the HEAD commit date instead of a frozen test constant); .github/workflows/offline-tests.yml now checks out with fetch-depth 0 so CI can resolve commit ancestry, without a second workflow or a second checkout step; the two PLAN-IDs stay separate historical steps with separate contracts and are not merged; next exact action is one independent coordinated review, in a new chat, of that single commit covering PLAN-STAB-7 and PLAN-STAB-8 together; blocking gate items 6, 7 and 8 remain open and item 7 closes only after that review is accepted; PLAN-STAB-6 is not started
+current_checkpoint: PLAN-STAB-6
+next_exact_action: PLAN-STAB-7 (current-routing and reference integrity) and PLAN-STAB-8 (Git-aware documentation freshness) are closed 2026-08-06 - implementation commit 42fa741, repair commit 8357402 fixed independent-review findings F1-F4 without changing either contract; initial independent review verdict ACCEPT WITH MINOR, repair re-review verdict ACCEPT WITH MINOR with blocking findings 0; CI run 31101208366 (headSha 42fa741, 1693 tests OK) and repair CI run 31110155685 (headSha 8357402, 1702 tests OK) both green, HEAD == origin/governance-reset, worktree clean; blocking gate item 7 is satisfied, and PLAN-STAB-8 stays closed and non-blocking with its own separate contract; per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 (closed) -> PLAN-STAB-7 + PLAN-STAB-8 (closed) -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint moves to PLAN-STAB-6 (Claude permission hardening); next exact action is reviewing the effective merged .claude/settings.json against the contract's success criteria - locate the wildcard grants for python -c, python -, git add *, git commit * and decide removal versus a manual cleanup-list entry, and confirm AGENTS.md, CLAUDE.md, skills/**, .claude/**, and tools/qa/** stay protected and destructive Git matching does not depend on optional flags - before any settings.json edit is made; PLAN-STAB-6 implementation has not started; blocking gate item 6 remains open until PLAN-STAB-6 completes or the owner formally accepts a documented residual risk
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,48 +47,44 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-7 — implementation совместного слайса
-  PLAN-STAB-7 + PLAN-STAB-8 выполнена 2026-08-06; ожидается independent
-  coordinated review обоих PLAN-ID.** Это единственный current checkpoint;
-  любой другой шаг, названный текущим где-либо ещё, устарел. Шаг остаётся
-  открытым до принятого review: пункт 7 blocking gate требует и (b)
-  implementation, и (c) его independent review. PLAN-STAB-9 (shared rights
-  vocabulary owner) closed
-  2026-08-06: implementation completed (commit `ed4604d`, trailer
-  `Plan-Step: PLAN-STAB-9`), independently reviewed, verdict **ACCEPT WITH
-  MINOR** (blocking findings: нет; один non-blocking wording finding —
-  исправлен этим docs-only closure слайсом, см. раздел PLAN-STAB-9 ниже),
-  GitHub Actions reviewed headSha `ed4604d` — job «Validate agent docs and
-  skills governance» success, job «Run offline unit and integration suite»
-  success, общий workflow result success, failures=0, errors=0, HEAD ==
-  `origin/governance-reset`, worktree clean. PLAN-STAB-9 остаётся
-  **non-blocking** для PLAN-9B-2 и не добавляется в blocking gate задним
-  числом. Словарь допустимых rights statuses остаётся с единственным
-  владельцем `src/assets/models.py`; независимая копия
-  `ALLOWED_RENDER_RIGHTS` в `src/news/models.py` удалена, а её import paths
-  сохранены как compatibility re-exports того же объекта. PLAN-STAB-5 (C50
-  rights-review preservation) completed 2026-08-06, independently reviewed,
-  verdict **ACCEPT** (findings: нет), GitHub Actions run `31084873522` —
-  offline suite зелёный (`Ran 1646 tests in 273.522s`, `OK (skipped=6)`,
-  failures=0, errors=0); пункт 5 blocking gate **satisfied**. Пункты 6, 7 и 8
-  blocking gate остаются открытыми; stabilization gate целиком не закрыт.
+- **Текущий шаг:** **PLAN-STAB-6 — pending / not started (Claude permission
+  hardening).** Это единственный current checkpoint; любой другой шаг,
+  названный текущим где-либо ещё, устарел. PLAN-STAB-7 (current-routing и
+  reference integrity) и PLAN-STAB-8 (Git-aware documentation freshness)
+  **closed 2026-08-06**: implementation commit `42fa741` (совместный слайс,
+  trailer `Plan-Step: PLAN-STAB-7`), repair commit `8357402` исправил все
+  четыре finding F1-F4 исходного independent review, не меняя ни один
+  contract. Initial independent review verdict **ACCEPT WITH MINOR**, repair
+  re-review verdict **ACCEPT WITH MINOR** (blocking findings: 0); GitHub
+  Actions run `31101208366` (headSha `42fa741`) — offline suite зелёный
+  (1693 tests, `OK (skipped=6)`, failures=0, errors=0); repair GitHub Actions
+  run `31110155685` (headSha `8357402`) — offline suite зелёный (1702 tests,
+  `OK (skipped=6)`, failures=0, errors=0); commits pushed. Пункт 7 blocking
+  gate **satisfied**. PLAN-STAB-8 закрыт тем же координированным review и
+  остаётся **non-blocking** для PLAN-9B-2; PLAN-ID и contracts
+  PLAN-STAB-7/PLAN-STAB-8 остаются раздельными (детали — в их собственных
+  разделах ниже). PLAN-STAB-9 (shared rights vocabulary owner) остаётся
+  closed и non-blocking (commit `ed4604d`, verdict ACCEPT WITH MINOR).
+  PLAN-STAB-5 (C50 rights-review preservation) completed 2026-08-06,
+  independently reviewed, verdict **ACCEPT** (findings: нет), GitHub Actions
+  run `31084873522` — offline suite зелёный (`Ran 1646 tests in 273.522s`,
+  `OK (skipped=6)`, failures=0, errors=0); пункт 5 blocking gate
+  **satisfied**. Пункты 6 и 8 blocking gate остаются открытыми; stabilization
+  gate целиком не закрыт.
 
   **Утверждённый активный execution route (owner decision 2026-08-06):**
-  PLAN-STAB-5 → PLAN-STAB-9 (closed) → **PLAN-STAB-7 + PLAN-STAB-8** →
-  PLAN-STAB-6 или явное residual-risk decision → отдельный stabilization
-  review → PLAN-9B-2. PLAN-STAB-7 и PLAN-STAB-8 выполняются как один
-  координированный bounded slice execution order (routing/reference
-  integrity + Git-aware docs freshness запускаются вместе); это объединение
-  относится только к порядку выполнения и совместной реализации и **не
-  сливает** исторические PLAN-ID PLAN-STAB-7 и PLAN-STAB-8 или их отдельные
-  contracts/success criteria/allowed zones, описанные в их собственных
-  разделах ниже. Implementation этого совместного слайса **выполнена**
-  2026-08-06 одним commit с trailer `Plan-Step: PLAN-STAB-7`; PLAN-STAB-8
-  зафиксирован в commit body и в собственном разделе ниже, потому что
-  дополнительного trailer contract и trailer validator в репозитории нет
-  (`Related-Plan-Step` не встречается ни в одном commit и не изобретается).
-  Следующее точное действие — один independent coordinated review этого
-  commit, покрывающий оба PLAN-ID.
+  PLAN-STAB-5 → PLAN-STAB-9 (closed) → PLAN-STAB-7 + PLAN-STAB-8 (closed) →
+  **PLAN-STAB-6** или явное residual-risk decision → отдельный stabilization
+  review → PLAN-9B-2. PLAN-STAB-6 (Claude permission hardening) implementation
+  **не начиналась**. Следующее точное действие — обзор effective merged
+  `.claude/settings.json` (canonical owner A, tracked) по success criteria
+  контракта: найти wildcard-гранты `python -c`, `python -`, `git add *`,
+  `git commit *` и решить, удалить их или вынести в manual cleanup list;
+  подтвердить, что `AGENTS.md`, `CLAUDE.md`, `skills/**`, `.claude/**` и
+  `tools/qa/**` защищены и destructive Git matching не зависит от
+  необязательных флагов — это обзор перед правкой, а не сама implementation.
+  `.claude/settings.local.json` (canonical owner B, local) остаётся gitignored
+  manual owner action и не редактируется от имени агента.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
   выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
   job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
@@ -392,16 +388,22 @@ source_paths:
     verdict ACCEPT WITH MINOR (non-blocking wording finding, исправлен); GitHub
     Actions reviewed headSha `ed4604d` зелёный; non-blocking follow-up для
     PLAN-9B-2; не текущий checkpoint;
-  - **PLAN-STAB-7** — **текущий checkpoint**; implementation completed
-    2026-08-06 (совместный commit, trailer `Plan-Step: PLAN-STAB-7`);
-    independent coordinated review **pending**; пункт 7 blocking gate остаётся
-    открытым до принятого review;
-  - **PLAN-STAB-8** — implementation completed 2026-08-06 тем же совместным
-    commit; independent coordinated review **pending**; PLAN-ID и contract
-    остаются отдельными от PLAN-STAB-7;
-  - **PLAN-STAB-6, PLAN-STAB-10…PLAN-STAB-15, PLAN-STAB-17** —
-    pending/not started; состав, порядок и blocking-статус каждого — раздел
-    «POST-AUDIT STABILIZATION PROGRAM»;
+  - **PLAN-STAB-7** — completed 2026-08-06 (implementation commit `42fa741`,
+    repair commit `8357402`); independent review verdict ACCEPT WITH MINOR,
+    repair re-review verdict ACCEPT WITH MINOR (blocking findings: 0); CI run
+    `31101208366` (headSha `42fa741`, 1693 tests OK) и repair CI run
+    `31110155685` (headSha `8357402`, 1702 tests OK) оба зелёные; commits
+    pushed; пункт 7 blocking gate satisfied; не текущий checkpoint;
+  - **PLAN-STAB-8** — closed 2026-08-06 тем же координированным review, что и
+    PLAN-STAB-7 (implementation commit `42fa741`, repair commit `8357402`);
+    non-blocking follow-up для PLAN-9B-2; PLAN-ID и contract остаются
+    отдельными от PLAN-STAB-7;
+  - **PLAN-STAB-6** — **текущий checkpoint**; pending/not started;
+    implementation не начиналась; следующее действие — обзор effective merged
+    `.claude/settings.json` по success criteria контракта;
+  - **PLAN-STAB-10…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
+    порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
+    PROGRAM»;
   - **PLAN-STAB-16** — pending/not started как полный слайс, но **частично
     выполнена**: CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) закрыл
     первую часть success criteria (green offline suite в GitHub Actions —
@@ -427,12 +429,13 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** один independent coordinated review в новом
-  чате, покрывающий совместный commit PLAN-STAB-7 + PLAN-STAB-8
-  (current-routing/reference integrity + Git-aware docs freshness).
-  Implementation обоих выполнена 2026-08-06; их PLAN-ID и contracts остаются
-  раздельными. PLAN-STAB-9 closed 2026-08-06 (verdict ACCEPT WITH MINOR,
-  non-blocking) и остаётся non-blocking follow-up для PLAN-9B-2.
+- **Следующее точное действие:** PLAN-STAB-7 и PLAN-STAB-8 closed 2026-08-06
+  (implementation commit `42fa741`, repair commit `8357402`; independent
+  review verdict ACCEPT WITH MINOR, repair re-review verdict ACCEPT WITH
+  MINOR, blocking findings: 0; пункт 7 blocking gate satisfied). Следующий
+  шаг — обзор effective merged `.claude/settings.json` по success criteria
+  PLAN-STAB-6 (Claude permission hardening); implementation PLAN-STAB-6 не
+  начата. PLAN-STAB-9 остаётся closed и non-blocking follow-up для PLAN-9B-2.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1257,29 +1260,32 @@ repair/re-review при findings.
    документированный residual risk;
 7. PLAN-STAB-7 — три отдельных, не взаимозаменяемых условия: (a) factual
    routing repair, выполненный слайсом PLAN-STAB-0 — completed; (b) сам
-   PLAN-STAB-7 (checker extension + integrity tests) — **implementation
-   completed 2026-08-06**, integrity tests существуют
+   PLAN-STAB-7 (checker extension + integrity tests) — implementation
+   completed 2026-08-06, integrity tests существуют
    (`tests/test_docs_routing_and_freshness.py`) и зелёные; (c) independent
-   review этого commit — **не выполнен**. Пункт 7 остаётся **открытым** и
-   закрывается только после принятого review (c); (a) и (b) вместе пункт 7 не
-   закрывают;
+   review этого commit — выполнен: initial verdict ACCEPT WITH MINOR (commit
+   `42fa741`, CI run `31101208366`, 1693 tests OK), repair commit `8357402`
+   закрыл все четыре finding F1-F4, repair re-review verdict ACCEPT WITH
+   MINOR с blocking findings 0 (CI run `31110155685`, 1702 tests OK) —
+   **satisfied**: (a), (b) и (c) выполнены;
 8. отдельный **stabilization review** подтверждает четыре свойства:
    user-output preservation · offline/paid fail-closed behavior · rights
    safety · однозначный current routing.
 
 **Утверждённый активный execution route (owner decision 2026-08-06).** После
-закрытия PLAN-STAB-5 и PLAN-STAB-9 приоритетный порядок выполнения —
-**PLAN-STAB-7 + PLAN-STAB-8** → PLAN-STAB-6 или явное residual-risk decision →
+закрытия PLAN-STAB-5, PLAN-STAB-9 и PLAN-STAB-7 + PLAN-STAB-8 приоритетный
+порядок выполнения — **PLAN-STAB-6** или явное residual-risk decision →
 stabilization review → PLAN-9B-2 (детали — раздел «Current checkpoint» выше).
 Это owner-prioritized порядок выполнения, а не blocking dependency:
-PLAN-STAB-9 остаётся non-blocking для PLAN-9B-2 и не входит в blocking gate
-задним числом, а содержание и нумерация пунктов 5–8 blocking gate этим
-решением не менялись.
+PLAN-STAB-9 и PLAN-STAB-8 остаются non-blocking для PLAN-9B-2 и не входят в
+blocking gate задним числом, а содержание и нумерация пунктов 5–8 blocking
+gate этим решением не менялись.
 
 **Non-blocking follow-up.** PLAN-STAB-9…PLAN-STAB-17 находятся в обязательном
 stabilization backlog, но индивидуально `PLAN-9B-2` не блокируют.
-PLAN-STAB-8 и PLAN-7 желательно завершить до возврата; они могут идти
-параллельно, если не пересекаются с production safety owners.
+PLAN-STAB-8 closed 2026-08-06 (non-blocking, см. выше). PLAN-7 желательно
+завершить до возврата; он может идти параллельно, если не пересекается с
+production safety owners.
 
 **Accepted manual owner actions** (новыми code slices не становятся):
 Git backup (OD-S-5, выполнен); изменения `.claude/settings.local.json`, который
@@ -1698,12 +1704,17 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-7 — current-routing и reference integrity
 
-- **status:** implementation completed 2026-08-06 (совместный commit с
-  PLAN-STAB-8, trailer `Plan-Step: PLAN-STAB-7`); independent coordinated
-  review **pending**, поэтому шаг остаётся текущим checkpoint и completed не
-  объявляется. Factual routing repair в current docs был выполнен ранее
-  слайсом PLAN-STAB-0 · **blocking для PLAN-9B-2:** да (repair + зелёные
-  integrity tests + принятый review) · **зависимости:** —.
+- **status:** completed 2026-08-06 — implementation commit `42fa741`
+  (совместный слайс с PLAN-STAB-8, trailer `Plan-Step: PLAN-STAB-7`), repair
+  commit `8357402` закрыл все четыре finding F1-F4 независимого review без
+  изменения контракта. Independent review verdict **ACCEPT WITH MINOR**,
+  repair re-review verdict **ACCEPT WITH MINOR** (blocking findings: 0);
+  GitHub Actions run `31101208366` (headSha `42fa741`) — offline suite
+  зелёный (1693 tests OK); repair GitHub Actions run `31110155685` (headSha
+  `8357402`) — offline suite зелёный (1702 tests OK); commits pushed. Factual
+  routing repair в current docs был выполнен ранее слайсом PLAN-STAB-0 ·
+  **blocking для PLAN-9B-2:** да — **satisfied**, пункт 7 blocking gate
+  закрыт · **зависимости:** —.
 - **цель:** current checkpoint, next action, mirrors и referenced IDs не могут
   молча разойтись.
 - **user impact:** новый чат или агент получает ровно одно текущее задание, а
@@ -1747,11 +1758,13 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-8 — Git-aware documentation freshness
 
-- **status:** implementation completed 2026-08-06 (тот же совместный commit,
-  что и PLAN-STAB-7; собственного отдельного commit у слайса нет по решению
-  владельца об одном координированном bounded slice); independent coordinated
-  review **pending** · **blocking для PLAN-9B-2:** нет (желателен до возврата) ·
-  **зависимости:** —.
+- **status:** closed 2026-08-06 (тот же совместный commit, что и PLAN-STAB-7,
+  `42fa741`, и та же repair commit `8357402`; собственного отдельного commit у
+  слайса нет по решению владельца об одном координированном bounded slice).
+  Independent review этого commit выполнен вместе с PLAN-STAB-7: verdict
+  **ACCEPT WITH MINOR**, repair re-review verdict **ACCEPT WITH MINOR**
+  (blocking findings: 0); GitHub Actions run `31101208366` и repair run
+  `31110155685` зелёные · **blocking для PLAN-9B-2:** нет · **зависимости:** —.
 - **цель:** документ считается current по проверенному Git baseline и
   изменениям в релевантных source paths, а не по декоративному hex string.
 - **user impact:** «свежая» метка перестаёт скрывать документ, разошедшийся с
