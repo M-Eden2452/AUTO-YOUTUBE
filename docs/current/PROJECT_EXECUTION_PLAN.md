@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-6
-next_exact_action: PLAN-STAB-7 (current-routing and reference integrity) and PLAN-STAB-8 (Git-aware documentation freshness) are closed 2026-08-06 - implementation commit 42fa741, repair commit 8357402 fixed independent-review findings F1-F4 without changing either contract; initial independent review verdict ACCEPT WITH MINOR, repair re-review verdict ACCEPT WITH MINOR with blocking findings 0; CI run 31101208366 (headSha 42fa741, 1693 tests OK) and repair CI run 31110155685 (headSha 8357402, 1702 tests OK) both green, HEAD == origin/governance-reset, worktree clean; blocking gate item 7 is satisfied, and PLAN-STAB-8 stays closed and non-blocking with its own separate contract; per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 (closed) -> PLAN-STAB-7 + PLAN-STAB-8 (closed) -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint moves to PLAN-STAB-6 (Claude permission hardening); next exact action is reviewing the effective merged .claude/settings.json against the contract's success criteria - locate the wildcard grants for python -c, python -, git add *, git commit * and decide removal versus a manual cleanup-list entry, and confirm AGENTS.md, CLAUDE.md, skills/**, .claude/**, and tools/qa/** stay protected and destructive Git matching does not depend on optional flags - before any settings.json edit is made; PLAN-STAB-6 implementation has not started; blocking gate item 6 remains open until PLAN-STAB-6 completes or the owner formally accepts a documented residual risk
+next_exact_action: PLAN-STAB-6 (Claude permission hardening) implementation is completed 2026-08-06 and awaits independent review; that review is the next exact action, and it must judge the implementation commit only - it does not close the step. Delivered in this slice - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, the nine protected governance zones (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply is replaced by six confirmed pipeline.py entrypoint prefixes, destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, and network plus package installation require confirmation. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions. The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 remains open until the independent review of PLAN-STAB-6 lands or the owner formally accepts a documented residual risk; PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,8 +47,9 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-6 — pending / not started (Claude permission
-  hardening).** Это единственный current checkpoint; любой другой шаг,
+- **Текущий шаг:** **PLAN-STAB-6 — implementation completed 2026-08-06,
+  independent review pending (Claude permission hardening).** Это единственный
+  current checkpoint; любой другой шаг,
   названный текущим где-либо ещё, устарел. PLAN-STAB-7 (current-routing и
   reference integrity) и PLAN-STAB-8 (Git-aware documentation freshness)
   **closed 2026-08-06**: implementation commit `42fa741` (совместный слайс,
@@ -76,13 +77,14 @@ source_paths:
   PLAN-STAB-5 → PLAN-STAB-9 (closed) → PLAN-STAB-7 + PLAN-STAB-8 (closed) →
   **PLAN-STAB-6** или явное residual-risk decision → отдельный stabilization
   review → PLAN-9B-2. PLAN-STAB-6 (Claude permission hardening) implementation
-  **не начиналась**. Следующее точное действие — обзор effective merged
-  `.claude/settings.json` (canonical owner A, tracked) по success criteria
-  контракта: найти wildcard-гранты `python -c`, `python -`, `git add *`,
-  `git commit *` и решить, удалить их или вынести в manual cleanup list;
-  подтвердить, что `AGENTS.md`, `CLAUDE.md`, `skills/**`, `.claude/**` и
-  `tools/qa/**` защищены и destructive Git matching не зависит от
-  необязательных флагов — это обзор перед правкой, а не сама implementation.
+  **завершена 2026-08-06** и ожидает independent review. Следующее точное
+  действие — сам independent review этого implementation commit; он оценивает
+  слайс, но шаг не закрывает. Обзор effective merged settings, который прежде
+  стоял здесь, выполнен: семь опасных local grants (`git add *`,
+  `git commit *`, `python -c`, три варианта `python.exe -c`, `python -`)
+  владелец удалил вручную до слайса, read-only precheck подтвердил их
+  отсутствие, а versioned `.claude/settings.json` (canonical owner A, tracked)
+  переписан этим слайсом.
   `.claude/settings.local.json` (canonical owner B, local) остаётся gitignored
   manual owner action и не редактируется от имени агента.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
@@ -398,9 +400,9 @@ source_paths:
     PLAN-STAB-7 (implementation commit `42fa741`, repair commit `8357402`);
     non-blocking follow-up для PLAN-9B-2; PLAN-ID и contract остаются
     отдельными от PLAN-STAB-7;
-  - **PLAN-STAB-6** — **текущий checkpoint**; pending/not started;
-    implementation не начиналась; следующее действие — обзор effective merged
-    `.claude/settings.json` по success criteria контракта;
+  - **PLAN-STAB-6** — **текущий checkpoint**; implementation completed
+    2026-08-06, independent review pending; следующее действие — сам
+    independent review implementation commit, шаг им не закрывается;
   - **PLAN-STAB-10…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
     порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
     PROGRAM»;
@@ -433,9 +435,9 @@ source_paths:
   (implementation commit `42fa741`, repair commit `8357402`; independent
   review verdict ACCEPT WITH MINOR, repair re-review verdict ACCEPT WITH
   MINOR, blocking findings: 0; пункт 7 blocking gate satisfied). Следующий
-  шаг — обзор effective merged `.claude/settings.json` по success criteria
-  PLAN-STAB-6 (Claude permission hardening); implementation PLAN-STAB-6 не
-  начата. PLAN-STAB-9 остаётся closed и non-blocking follow-up для PLAN-9B-2.
+  шаг — independent review implementation commit PLAN-STAB-6 (Claude permission
+  hardening); implementation PLAN-STAB-6 завершена 2026-08-06, шаг остаётся
+  открытым. PLAN-STAB-9 остаётся closed и non-blocking follow-up для PLAN-9B-2.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1679,9 +1681,10 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-6 — Claude permission hardening
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** да —
-  **либо** формально принятый документированный residual risk ·
-  **зависимости:** —.
+- **status:** implementation completed 2026-08-06, independent review pending ·
+  **blocking для PLAN-9B-2:** да —
+  **либо** формально принятый документированный residual risk; пункт 6 gate
+  остаётся **open** до independent review · **зависимости:** —.
 - **цель:** минимизировать возможность агента читать secrets, обходить
   destructive Git rules, менять governance и коммитить широким wildcard.
 - **user impact:** ошибка или сбой агента не превращается в потерю работы
@@ -1700,7 +1703,106 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   необязательных флагов.
 - **required tests:** checker tracked permission contract там, где выполнимо;
   иначе — записанная воспроизводимая ручная проверка.
-- **rollback / review:** по общим требованиям программы.
+- **manual owner prerequisite (выполнен):** владелец вручную удалил из
+  gitignored `.claude/settings.local.json` семь опасных grants —
+  `Bash(git add *)`, `Bash(git commit *)`, `Bash(python -c ' *)`,
+  `Bash(./venv/Scripts/python.exe -c ' *)`,
+  `Bash(./venv/Scripts/python.exe -B -c ' *)`,
+  `Bash(G:/Projects/AI-YouTube/venv/Scripts/python.exe -B -c ' *)`,
+  `Bash(python -)`. Read-only precheck перед слайсом подтвердил **0**
+  совпадений по всем семи; файл целиком не читался и не выводился. Агент
+  local settings не правил — это canonical owner B и manual owner action.
+- **выполнено (implementation 2026-08-06):**
+  - **Versioned contract.** `.claude/settings.json` остаётся deny/ask-only:
+    `permissions.allow` отсутствует полностью, top-level ключи — только
+    `$schema` и `permissions`, поэтому secret values в versioned файл
+    структурно не помещаются.
+  - **Protected governance zones** требуют подтверждения на `Edit` и `Write`:
+    `AGENTS.md`, `CLAUDE.md`, `skills/**`, `tools/qa/**`,
+    `.github/workflows/**`, `docs/current/PROJECT_EXECUTION_PLAN.md`,
+    `docs/archive/**`, `docs/handoff/**` и сам `.claude/settings.json`.
+    `Read` не ограничивается: агент, который не может прочитать `AGENTS.md`,
+    не может ему следовать. Широкое правило на `docs/current/**`
+    намеренно не добавлено — обычные docs-only слайсы должны оставаться
+    рабочими, а подтверждение на каждый current document кликалось бы не
+    глядя и контролем не является.
+  - **Project-local settings** закрыты агенту: `Read`, `Write` и `Edit` по
+    `./.claude/settings.local.json` — в `deny`.
+  - **Secret `.env.*`.** Добавлены точные имена `.env.local`,
+    `.env.development(.local)`, `.env.production(.local)`,
+    `.env.staging(.local)`, `.env.test(.local)`, `.env.bak`, `.env.backup`,
+    `.env.old`, `.env.save` для Read/Write/Edit в корне и рекурсивно.
+    Общий `./.env.*` **не** используется: механизма исключения в deny нет, а
+    tracked `.env.example` — secret-free template, для которого PLAN-6D-1
+    зафиксировал «0 deny matches». Owner decision 2026-08-06 сохранил это
+    свойство; checker отдельно отвергает и blanket-pattern, и любое правило,
+    накрывающее `.env.example`.
+  - **Destructive Git разделён** (owner decision 2026-08-06). `deny` —
+    необратимая порча работы владельца или истории: `reset --hard`, `clean`,
+    force push, `filter-branch`, `reflog delete/expire`, `update-ref -d`,
+    `gc --prune`. `ask` — восстановимое через index/reflog либо нужное самому
+    владельцу: `checkout --`, `restore`, `rm`, `branch -D`,
+    `worktree remove`. Цена ask-варианта записана честно: одного
+    подтверждения достаточно, чтобы стереть незакоммиченную работу.
+  - **Leading wildcard удалён.** Правило `Bash(*media-library
+    migrate*--apply*)` заменено шестью подтверждёнными entrypoint prefixes
+    `pipeline.py` (positional `media-library` → `migrate`; флаг `--apply`
+    объявлен в `src/legacy_pipeline/cli.py`). Checker отвергает любое правило
+    с ведущим `*`.
+  - **Сеть и установка пакетов** переведены в `ask`: `curl`, `wget`,
+    `Invoke-WebRequest`, `pip install`, `python -m pip install`, venv-форма,
+    `npm install`, `npm ci`. `WebFetch`/`WebSearch` остаются `ask`. Локальные
+    offline test-команды не затронуты.
+  - **Recursive delete** дополнен `rm -fr`, `Remove-Item -Force -Recurse` и
+    `Remove-Item -Recurse -Force`. `Bash(*)` и общий запрет shell не
+    добавлялись.
+  - **Validator.** `validate_claude_permissions` в
+    `tools/qa/check_agent_docs.py` — тот же canonical owner, второй QA
+    framework и отдельный executable checker не создавались. Существующий CI
+    step `python -B -m tools.qa.check_agent_docs` покрывает контракт без
+    второго workflow и второго step. Checker read-only, offline,
+    детерминирован, **никогда не открывает** `settings.local.json` и смотрит
+    только его Git-статус. `git check-ignore` вызывается с
+    `-c core.excludesFile=`: без этого ответ зависел бы от профиля
+    разработчика — на этой машине глобальный `~/.config/git/ignore` уже
+    покрывает файл, и репозиторий выглядел бы защищённым локально, оставаясь
+    незащищённым в CI.
+- **evidence:** `tests/test_claude_permission_contract.py` (27 tests OK):
+  валидный контракт; отсутствие файла; malformed JSON; появившийся
+  `permissions.allow`; каждый из восьми запрещённых broad grants; ведущий
+  wildcard; правило не формы `Tool(pattern)`; каждая из девяти protected zones
+  × `Edit`/`Write` по отдельности; покрытие zone через `deny` вместо `ask`;
+  каждый tool local-settings deny; пропавшее env-правило; `.env.example` под
+  deny; blanket env pattern; перенос каждого destructive-Git правила между
+  корзинами; непересечение двух Git-наборов; синтетический Git-репозиторий
+  (ignored / не ignored / tracked); реальный репозиторий; неизменность
+  worktree. Отдельно зафиксировано, что env-покрытие требует только
+  Read/Write/Edit и ни одного `Bash(...)` правила — полная Bash-защита не
+  заявляется.
+- **residual limitations (не закрыты этим слайсом):**
+  - точная matcher wildcard semantics и precedence корзин эмпирически не
+    доказаны; path-правила в `ask` — inference по грамматике файла, а не
+    проверенное runtime-поведение. **Наблюдение слайса:** после записи новых
+    `ask`-правил в той же сессии выполнялись `Edit` по `tools/qa/**` и по
+    самому execution plan, и подтверждение не запрашивалось. Причина не
+    установлена: settings, вероятно, читаются на старте сессии и mid-session
+    не перечитываются, но вариант «path-правила в `ask` не применяются» этим
+    наблюдением не исключён. Проверка требует нового сеанса и в этом слайсе
+    не выполнялась — заявлять срабатывание правил нельзя. Versioned `allow`
+    отсутствует, а local settings не содержат ни одного `Write`/`Edit`
+    гранта, поэтому эти правила сегодня работают как declared intent и защита
+    от будущего широкого local allow, а не как единственный барьер;
+  - **Bash не защищён** path-based правилами: глобальные Git options
+    (`git -c …`), shell aliases и произвольный интерпретатор остаются вне
+    контракта. Абсолютная защита Bash не заявляется;
+  - перечисление `.env.*` заведомо неполно: имя вне списка не покрыто. Маски
+    внутри имени файла (`./.env.*.local`) не использованы — их синтаксис по
+    фактическим settings не подтверждён, а изобретать его запрещено;
+  - effective merged user/managed/local configuration лежит вне репозитория,
+    различается по средам и **защищённой не объявляется**; checker проверяет
+    только versioned contract.
+- **rollback / review:** по общим требованиям программы. Слайс не закрывает
+  шаг: пункт 6 blocking gate остаётся open до independent review.
 
 #### PLAN-STAB-7 — current-routing и reference integrity
 

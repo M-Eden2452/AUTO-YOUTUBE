@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import re
 import subprocess
 from dataclasses import dataclass
@@ -219,6 +220,126 @@ FRESHNESS_FIELDS = (
 # Making it an error would demand a repository-wide rewrite of last_verified_*
 # on every code commit — exactly the mass edit PLAN-STAB-8 forbids.
 SOURCE_DRIFT_SAMPLE = 5
+
+# --- Claude permission contract (PLAN-STAB-6) ------------------------------
+#
+# Only the versioned repository contract is validated. The effective merged
+# configuration also includes user, managed and project-local settings, which
+# live outside the repository and differ per machine; asserting anything about
+# them in CI would be a claim the repository cannot verify.
+#
+# What the contract can and cannot do is recorded honestly in the execution
+# plan: the exact matcher wildcard semantics and bucket precedence are not
+# proven by this checker, and Bash is not path-restricted at all, so a global
+# Git option, a shell alias or an arbitrary interpreter can still reach a
+# protected path. These rules raise the cost of an accident; they are not a
+# sandbox.
+CLAUDE_SETTINGS = Path(".claude/settings.json")
+CLAUDE_LOCAL_SETTINGS = Path(".claude/settings.local.json")
+CLAUDE_LOCAL_SETTINGS_RULE_PATH = "./.claude/settings.local.json"
+CLAUDE_SETTINGS_TOP_LEVEL_KEYS = frozenset({"$schema", "permissions"})
+CLAUDE_PERMISSION_KEYS = frozenset({"defaultMode", "ask", "deny"})
+CLAUDE_CONFIRMATION_BUCKETS = ("ask", "deny")
+# A rule is either a bare tool name ("WebFetch") or Tool(pattern).
+PERMISSION_RULE_RE = re.compile(
+    r"^(?P<tool>[A-Za-z][A-Za-z0-9_]*)(?:\((?P<pattern>.*)\))?$"
+)
+
+# Governance zones an agent must not change silently. Read stays open on
+# purpose: an agent that cannot read AGENTS.md cannot follow it.
+PROTECTED_GOVERNANCE_PATHS = (
+    "./AGENTS.md",
+    "./CLAUDE.md",
+    "./skills/**",
+    "./tools/qa/**",
+    "./.github/workflows/**",
+    "./docs/current/PROJECT_EXECUTION_PLAN.md",
+    "./docs/archive/**",
+    "./docs/handoff/**",
+    "./.claude/settings.json",
+)
+PROTECTED_GOVERNANCE_TOOLS = ("Edit", "Write")
+# The whole of docs/current/** is deliberately absent: ordinary docs-only
+# slices must stay workable, and a confirmation on every current document
+# would be routinely clicked through, which is not a control.
+
+SECRET_FILE_TOOLS = ("Read", "Write", "Edit")
+LOCAL_SETTINGS_DENIED_TOOLS = ("Read", "Write", "Edit")
+# Exact names, never a blanket `./.env.*`. The deny list has no exception
+# mechanism, and `.env.example` is a tracked, secret-free template that
+# PLAN-6D-1 verified to have zero deny matches. Owner decision 2026-08-06:
+# keep that property and accept the residual risk that a name outside this
+# list is not covered.
+SECRET_ENV_NAMES = (
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.development.local",
+    ".env.production",
+    ".env.production.local",
+    ".env.staging",
+    ".env.staging.local",
+    ".env.test",
+    ".env.test.local",
+    ".env.bak",
+    ".env.backup",
+    ".env.old",
+    ".env.save",
+)
+SECRET_ENV_EXEMPT_NAMES = (".env.example",)
+BLANKET_ENV_PATTERNS = ("./.env.*", "./**/.env.*")
+
+# Irreversible destruction of the owner's work or of history.
+DESTRUCTIVE_GIT_DENY = (
+    "Bash(git reset --hard)",
+    "Bash(git reset --hard *)",
+    "Bash(git reset * --hard)",
+    "Bash(git reset * --hard *)",
+    "Bash(git clean)",
+    "Bash(git clean *)",
+    "Bash(git push --force*)",
+    "Bash(git push * --force*)",
+    "Bash(git push -f)",
+    "Bash(git push -f *)",
+    "Bash(git push * -f)",
+    "Bash(git push * -f *)",
+    "Bash(git filter-branch)",
+    "Bash(git filter-branch *)",
+    "Bash(git reflog delete *)",
+    "Bash(git reflog expire *)",
+    "Bash(git update-ref -d *)",
+    "Bash(git update-ref --no-deref -d *)",
+    "Bash(git gc --prune*)",
+    "Bash(git gc * --prune*)",
+)
+# Recoverable through the index or the reflog, or legitimately needed by the
+# owner, so these stay a confirmation rather than a wall the owner has to
+# dismantle to do ordinary work (owner decision 2026-08-06).
+DESTRUCTIVE_GIT_ASK = (
+    "Bash(git checkout --)",
+    "Bash(git checkout -- *)",
+    "Bash(git checkout * -- *)",
+    "Bash(git restore)",
+    "Bash(git restore *)",
+    "Bash(git rm)",
+    "Bash(git rm *)",
+    "Bash(git branch -D)",
+    "Bash(git branch -D *)",
+    "Bash(git worktree remove)",
+    "Bash(git worktree remove *)",
+)
+# Grants the owner removed from local settings by hand on 2026-08-06. They must
+# not reappear in the versioned contract under any bucket.
+FORBIDDEN_BROAD_GRANTS = (
+    "Bash(*)",
+    "Bash(git add *)",
+    "Bash(git commit *)",
+    "Bash(python -c ' *)",
+    "Bash(python -)",
+    "Bash(./venv/Scripts/python.exe -c ' *)",
+    "Bash(./venv/Scripts/python.exe -B -c ' *)",
+    "Bash(G:/Projects/AI-YouTube/venv/Scripts/python.exe -B -c ' *)",
+)
 
 # Protects the DOC-CS1 result: these boundaries must stay documented in code.
 REQUIRED_PACKAGE_DOCSTRINGS = (
@@ -720,6 +841,198 @@ def validate_routing(root: Path) -> list[str]:
     return errors
 
 
+def _env_rules(names: Iterable[str]) -> tuple[str, ...]:
+    """Read/Write/Edit rules covering *names* at the root and recursively."""
+
+    return tuple(
+        f"{tool}({location}{name})"
+        for name in names
+        for tool in SECRET_FILE_TOOLS
+        for location in ("./", "./**/")
+    )
+
+
+def _permission_rules(permissions: dict[str, Any], bucket: str) -> list[str]:
+    values = permissions.get(bucket)
+    if not isinstance(values, list):
+        return []
+    return [value for value in values if isinstance(value, str) and value.strip()]
+
+
+def validate_claude_permissions(root: Path) -> list[str]:
+    """The versioned Claude permission contract, and only that contract.
+
+    Read-only and offline. The project-local settings file is never opened:
+    only its Git status is inspected, because its content is owner-managed,
+    machine-specific and deliberately outside the repository.
+    """
+
+    name = CLAUDE_SETTINGS.as_posix()
+    path = root / CLAUDE_SETTINGS
+    if not path.is_file():
+        return [f"missing versioned permission contract: {name}"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"{name}: cannot read permission contract ({exc})"]
+    if not isinstance(payload, dict):
+        return [f"{name}: permission contract must be a JSON object"]
+
+    errors: list[str] = []
+    unexpected = sorted(set(payload) - CLAUDE_SETTINGS_TOP_LEVEL_KEYS)
+    if unexpected:
+        errors.append(
+            f"{name}: unexpected top-level keys {', '.join(unexpected)}; the "
+            "versioned contract carries only $schema and permissions, so it "
+            "cannot hold environment values or secrets"
+        )
+
+    permissions = payload.get("permissions")
+    if not isinstance(permissions, dict):
+        errors.append(f"{name}: permissions must be an object")
+        return errors
+
+    if "allow" in permissions:
+        errors.append(
+            f"{name}: permissions.allow is forbidden in the versioned "
+            "contract; grants stay in owner-managed local settings"
+        )
+    unexpected = sorted(set(permissions) - CLAUDE_PERMISSION_KEYS - {"allow"})
+    if unexpected:
+        errors.append(
+            f"{name}: unexpected permissions keys {', '.join(unexpected)}"
+        )
+
+    buckets = {
+        bucket: _permission_rules(permissions, bucket)
+        for bucket in CLAUDE_CONFIRMATION_BUCKETS
+    }
+    for bucket in CLAUDE_CONFIRMATION_BUCKETS:
+        values = permissions.get(bucket, [])
+        if not isinstance(values, list):
+            errors.append(f"{name}: permissions.{bucket} must be a list of rules")
+        elif len(values) != len(buckets[bucket]):
+            errors.append(
+                f"{name}: permissions.{bucket} contains a rule that is not a "
+                "non-empty string"
+            )
+    ask = set(buckets["ask"])
+    deny = set(buckets["deny"])
+    confirmed = ask | deny
+
+    every_rule = [
+        value
+        for values in permissions.values()
+        if isinstance(values, list)
+        for value in values
+        if isinstance(value, str)
+    ]
+    for rule in sorted(set(every_rule)):
+        match = PERMISSION_RULE_RE.match(rule)
+        if not match:
+            errors.append(
+                f"{name}: rule {rule!r} is neither a bare tool name nor "
+                "Tool(pattern)"
+            )
+            continue
+        pattern = match.group("pattern")
+        if pattern is not None and pattern.startswith("*"):
+            errors.append(
+                f"{name}: rule {rule!r} starts with a leading wildcard, whose "
+                "matcher semantics are not established; express the rule with "
+                "the confirmed entrypoint prefixes instead"
+            )
+    for grant in FORBIDDEN_BROAD_GRANTS:
+        if grant in every_rule:
+            errors.append(
+                f"{name}: forbidden broad grant {grant} is back in the "
+                "versioned contract"
+            )
+
+    for protected in PROTECTED_GOVERNANCE_PATHS:
+        for tool in PROTECTED_GOVERNANCE_TOOLS:
+            if f"{tool}({protected})" not in confirmed:
+                errors.append(
+                    f"{name}: protected governance zone {protected} is not "
+                    f"covered by {tool}; it must require confirmation in "
+                    "permissions.ask or permissions.deny"
+                )
+
+    for tool in LOCAL_SETTINGS_DENIED_TOOLS:
+        rule = f"{tool}({CLAUDE_LOCAL_SETTINGS_RULE_PATH})"
+        if rule not in deny:
+            errors.append(
+                f"{name}: {rule} is missing from permissions.deny; project-local "
+                "settings are owner-managed and closed to the agent"
+            )
+
+    for rule in _env_rules(SECRET_ENV_NAMES):
+        if rule not in deny:
+            errors.append(f"{name}: {rule} is missing from permissions.deny")
+    for rule in _env_rules(SECRET_ENV_EXEMPT_NAMES):
+        if rule in deny:
+            errors.append(
+                f"{name}: {rule} denies a tracked, secret-free template; "
+                "PLAN-6D-1 verified it has no deny match and the owner kept "
+                "that decision"
+            )
+    for tool in SECRET_FILE_TOOLS:
+        for pattern in BLANKET_ENV_PATTERNS:
+            if f"{tool}({pattern})" in deny:
+                errors.append(
+                    f"{name}: {tool}({pattern}) is a blanket env rule; it also "
+                    "swallows the tracked .env.example, and the deny list has "
+                    "no exception mechanism"
+                )
+
+    for rule in DESTRUCTIVE_GIT_DENY:
+        if rule not in deny:
+            errors.append(
+                f"{name}: destructive Git rule {rule} is missing from "
+                "permissions.deny"
+            )
+    for rule in DESTRUCTIVE_GIT_ASK:
+        if rule not in ask:
+            errors.append(
+                f"{name}: destructive Git rule {rule} is missing from "
+                "permissions.ask"
+            )
+
+    errors.extend(_validate_local_settings_are_owner_managed(root))
+    return errors
+
+
+def _validate_local_settings_are_owner_managed(root: Path) -> list[str]:
+    """The local settings file stays outside Git. Its content is never read.
+
+    Skipped outside a Git checkout on purpose: `validate_freshness` already
+    fails closed on a missing or shallow repository, and repeating that
+    diagnosis here would only duplicate the message.
+    """
+
+    if _repository_root(root) != root.resolve():
+        return []
+    local_name = CLAUDE_LOCAL_SETTINGS.as_posix()
+    errors: list[str] = []
+    if _git_succeeds(root, "ls-files", "--error-unmatch", "--", local_name):
+        errors.append(
+            f"{local_name} is tracked by Git; project-local permissions are "
+            "machine-specific, owner-managed and must never enter the repository"
+        )
+    # `core.excludesFile=` empties the user's global ignore file for this call
+    # only. Without it the answer depends on the developer's profile: this
+    # machine's ~/.config/git/ignore already covers the file, so the repository
+    # would look protected locally and be unprotected in CI.
+    if not _git_succeeds(
+        root, "-c", "core.excludesFile=", "check-ignore", "--quiet", "--", local_name
+    ):
+        errors.append(
+            f"{local_name} is not ignored by this repository's own .gitignore; "
+            "a global ignore file on one machine does not protect the others"
+        )
+    return errors
+
+
 def validate_section_references(root: Path) -> list[str]:
     """Numeric self-references resolve to a section this document defines."""
 
@@ -1147,6 +1460,7 @@ def validate_repository(
 
     errors.extend(validate_routing(root))
     errors.extend(validate_freshness(root, advisories=advisories))
+    errors.extend(validate_claude_permissions(root))
     errors.extend(validate_section_references(root))
     errors.extend(validate_identifier_definitions(root))
     errors.extend(validate_adr_references(root))
