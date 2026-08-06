@@ -65,7 +65,9 @@
       "Edit(./docs/handoff/**)",
       "Write(./docs/handoff/**)",
       "Edit(./.claude/settings.json)",
-      "Write(./.claude/settings.json)"
+      "Write(./.claude/settings.json)",
+      "Edit(./.claude/agents/**)",
+      "Write(./.claude/agents/**)"
     ],
     "deny": [
       "Read(./.env)",

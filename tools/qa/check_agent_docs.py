@@ -237,6 +237,16 @@ SOURCE_DRIFT_SAMPLE = 5
 CLAUDE_SETTINGS = Path(".claude/settings.json")
 CLAUDE_LOCAL_SETTINGS = Path(".claude/settings.local.json")
 CLAUDE_LOCAL_SETTINGS_RULE_PATH = "./.claude/settings.local.json"
+# Every tracked file under this prefix is governance content and must require
+# confirmation before an agent changes it. The set is read from Git rather than
+# hardcoded, so a new tracked file cannot appear here unnoticed. The gitignored
+# local settings file never shows up in `git ls-files`, so the exact deny that
+# owns it is not weakened by, and does not compete with, this requirement.
+CLAUDE_TRACKED_GOVERNANCE_ROOT = ".claude/"
+# Tracked paths under that root that deliberately need no confirmation. Empty
+# today: an entry here is an explicit, reviewable exception, never a silent gap.
+CLAUDE_GOVERNANCE_EXEMPT_PATHS: tuple[str, ...] = ()
+TRACKED_GITIGNORE = Path(".gitignore")
 CLAUDE_SETTINGS_TOP_LEVEL_KEYS = frozenset({"$schema", "permissions"})
 CLAUDE_PERMISSION_KEYS = frozenset({"defaultMode", "ask", "deny"})
 CLAUDE_CONFIRMATION_BUCKETS = ("ask", "deny")
@@ -287,7 +297,15 @@ SECRET_ENV_NAMES = (
     ".env.save",
 )
 SECRET_ENV_EXEMPT_NAMES = (".env.example",)
-BLANKET_ENV_PATTERNS = ("./.env.*", "./**/.env.*")
+# Where the exempt template may legitimately sit. A deny rule is rejected when
+# the checker's own pattern model says it *could* reach one of these paths, so
+# `./.env*`, `./**/.env.example` and a blanket `./.env.*` all fail alike
+# instead of only the two spellings an enumerated blacklist happened to name.
+SECRET_ENV_EXEMPT_PROBE_PATHS = tuple(
+    f"{location}{name}"
+    for name in SECRET_ENV_EXEMPT_NAMES
+    for location in ("", "nested/", "nested/deeper/")
+)
 
 # Irreversible destruction of the owner's work or of history.
 DESTRUCTIVE_GIT_DENY = (
@@ -859,6 +877,59 @@ def _permission_rules(permissions: dict[str, Any], bucket: str) -> list[str]:
     return [value for value in values if isinstance(value, str) and value.strip()]
 
 
+def _permission_pattern_regex(pattern: str) -> re.Pattern[str]:
+    """The checker's own conservative model of a permission path pattern.
+
+    `**` spans directory separators, `*` and `?` do not, everything else is
+    literal, and a leading `./` is dropped. This is a **repository contract**,
+    not a proof of the runtime matcher: the exact semantics Claude applies are
+    not established here, and the model is deliberately generous about what a
+    rule *could* reach. A false alarm costs one rule rewrite; a miss costs the
+    PLAN-6D-1 property or an unguarded governance file.
+    """
+
+    text = pattern[2:] if pattern.startswith("./") else pattern
+    parts: list[str] = []
+    index = 0
+    while index < len(text):
+        if text.startswith("**/", index):
+            parts.append("(?:[^/]+/)*")
+            index += 3
+        elif text.startswith("**", index):
+            parts.append(".*")
+            index += 2
+        elif text[index] == "*":
+            parts.append("[^/]*")
+            index += 1
+        elif text[index] == "?":
+            parts.append("[^/]")
+            index += 1
+        else:
+            parts.append(re.escape(text[index]))
+            index += 1
+    return re.compile("^" + "".join(parts) + "$")
+
+
+def _pattern_can_match(pattern: str, candidate: str) -> bool:
+    """True when *pattern* may reach *candidate* under the model above."""
+
+    return bool(_permission_pattern_regex(pattern).match(candidate))
+
+
+def _path_rule_patterns(rules: Iterable[str], tool: str) -> list[str]:
+    """Patterns of every `tool(pattern)` rule in *rules*."""
+
+    patterns: list[str] = []
+    for rule in rules:
+        match = PERMISSION_RULE_RE.match(rule)
+        if match is None or match.group("tool") != tool:
+            continue
+        pattern = match.group("pattern")
+        if pattern is not None:
+            patterns.append(pattern)
+    return patterns
+
+
 def validate_claude_permissions(root: Path) -> list[str]:
     """The versioned Claude permission contract, and only that contract.
 
@@ -969,20 +1040,20 @@ def validate_claude_permissions(root: Path) -> list[str]:
     for rule in _env_rules(SECRET_ENV_NAMES):
         if rule not in deny:
             errors.append(f"{name}: {rule} is missing from permissions.deny")
-    for rule in _env_rules(SECRET_ENV_EXEMPT_NAMES):
-        if rule in deny:
-            errors.append(
-                f"{name}: {rule} denies a tracked, secret-free template; "
-                "PLAN-6D-1 verified it has no deny match and the owner kept "
-                "that decision"
-            )
     for tool in SECRET_FILE_TOOLS:
-        for pattern in BLANKET_ENV_PATTERNS:
-            if f"{tool}({pattern})" in deny:
+        for pattern in _path_rule_patterns(deny, tool):
+            reached = [
+                probe
+                for probe in SECRET_ENV_EXEMPT_PROBE_PATHS
+                if _pattern_can_match(pattern, probe)
+            ]
+            if reached:
                 errors.append(
-                    f"{name}: {tool}({pattern}) is a blanket env rule; it also "
-                    "swallows the tracked .env.example, and the deny list has "
-                    "no exception mechanism"
+                    f"{name}: deny rule {tool}({pattern}) can reach the "
+                    f"tracked, secret-free template {reached[0]}; PLAN-6D-1 "
+                    "verified .env.example has no deny match, the owner kept "
+                    "that decision, and the deny list has no exception "
+                    "mechanism. Deny the sensitive names exactly instead"
                 )
 
     for rule in DESTRUCTIVE_GIT_DENY:
@@ -998,12 +1069,112 @@ def validate_claude_permissions(root: Path) -> list[str]:
                 "permissions.ask"
             )
 
-    errors.extend(_validate_local_settings_are_owner_managed(root))
+    errors.extend(_validate_tracked_claude_governance(root, confirmed))
+    errors.extend(_validate_ignore_rules_are_tracked(root))
     return errors
 
 
-def _validate_local_settings_are_owner_managed(root: Path) -> list[str]:
-    """The local settings file stays outside Git. Its content is never read.
+def _validate_tracked_claude_governance(
+    root: Path, confirmed: set[str]
+) -> list[str]:
+    """Every tracked file under `.claude/` needs Edit and Write confirmation.
+
+    The set comes from `git ls-files`, not from a hardcoded list, so a newly
+    tracked governance file cannot slip in unguarded. `Read` stays open: an
+    agent that cannot read its own adapter cannot follow it.
+
+    Skipped outside a Git checkout on purpose: `validate_freshness` already
+    fails closed on a missing or shallow repository.
+    """
+
+    if _repository_root(root) != root.resolve():
+        return []
+    completed = _git(root, "ls-files", "--", CLAUDE_TRACKED_GOVERNANCE_ROOT)
+    if completed is None or completed.returncode != 0:
+        return []
+    name = CLAUDE_SETTINGS.as_posix()
+    errors: list[str] = []
+    for line in completed.stdout.splitlines():
+        tracked = line.strip()
+        if not tracked or tracked in CLAUDE_GOVERNANCE_EXEMPT_PATHS:
+            continue
+        for tool in PROTECTED_GOVERNANCE_TOOLS:
+            covered = any(
+                _pattern_can_match(pattern, tracked)
+                for pattern in _path_rule_patterns(confirmed, tool)
+            )
+            if not covered:
+                errors.append(
+                    f"{name}: tracked governance file {tracked} is not covered "
+                    f"by {tool}; every tracked file under "
+                    f"{CLAUDE_TRACKED_GOVERNANCE_ROOT} must require "
+                    "confirmation in permissions.ask or permissions.deny, or "
+                    "be listed in CLAUDE_GOVERNANCE_EXEMPT_PATHS with a reason"
+                )
+    return errors
+
+
+def _ignore_sources(root: Path, paths: Iterable[str]) -> dict[str, str]:
+    """Map each ignored path to the ignore file Git itself credits for it.
+
+    `core.excludesFile=` empties the user's global ignore for this call only,
+    and `--no-index` answers the pattern question for tracked paths too. What
+    matters is the *source*: a per-machine ignore file makes one checkout look
+    protected while CI and every other clone stay exposed.
+    """
+
+    probes = [path for path in paths if path]
+    if not probes:
+        return {}
+    completed = _git(
+        root,
+        "-c",
+        "core.excludesFile=",
+        "check-ignore",
+        "--verbose",
+        "--no-index",
+        "--",
+        *probes,
+    )
+    if completed is None:
+        return {}
+    sources: dict[str, str] = {}
+    for line in completed.stdout.splitlines():
+        head, separator, pathname = line.partition("\t")
+        if not separator:
+            continue
+        # `<source>:<linenum>:<pattern>` - split from the right so a Windows
+        # drive letter in an absolute source path cannot be mistaken for it.
+        fields = head.rsplit(":", 2)
+        if len(fields) != 3:
+            sources[pathname.strip()] = head
+            continue
+        source, _, pattern = fields
+        # `--verbose` also reports the negation that *un*-ignores a path, so a
+        # `!.env.example` line means the opposite of a match and must not be
+        # read as "this file is ignored".
+        if pattern.startswith("!"):
+            continue
+        sources[pathname.strip()] = source
+    return sources
+
+
+def _is_tracked_gitignore(root: Path, source: str) -> bool:
+    normalized = source.replace("\\", "/")
+    expected = TRACKED_GITIGNORE.as_posix()
+    if normalized != expected and not normalized.endswith(f"/{expected}"):
+        return False
+    return _git_succeeds(root, "ls-files", "--error-unmatch", "--", normalized)
+
+
+def _validate_ignore_rules_are_tracked(root: Path) -> list[str]:
+    """Local settings and sensitive env files are excluded by tracked rules.
+
+    Only the repository's own tracked `.gitignore` counts. A global
+    `core.excludesFile`, a user-level ignore and `.git/info/exclude` are all
+    per-machine: they protect the developer who happens to have them and leave
+    CI and every other clone unprotected. The files themselves are never
+    opened - only their Git ignore status and the source of that status.
 
     Skipped outside a Git checkout on purpose: `validate_freshness` already
     fails closed on a missing or shallow repository, and repeating that
@@ -1013,23 +1184,43 @@ def _validate_local_settings_are_owner_managed(root: Path) -> list[str]:
     if _repository_root(root) != root.resolve():
         return []
     local_name = CLAUDE_LOCAL_SETTINGS.as_posix()
+    gitignore_name = TRACKED_GITIGNORE.as_posix()
     errors: list[str] = []
+
     if _git_succeeds(root, "ls-files", "--error-unmatch", "--", local_name):
         errors.append(
             f"{local_name} is tracked by Git; project-local permissions are "
             "machine-specific, owner-managed and must never enter the repository"
         )
-    # `core.excludesFile=` empties the user's global ignore file for this call
-    # only. Without it the answer depends on the developer's profile: this
-    # machine's ~/.config/git/ignore already covers the file, so the repository
-    # would look protected locally and be unprotected in CI.
-    if not _git_succeeds(
-        root, "-c", "core.excludesFile=", "check-ignore", "--quiet", "--", local_name
-    ):
+    if not _git_succeeds(root, "ls-files", "--error-unmatch", "--", gitignore_name):
         errors.append(
-            f"{local_name} is not ignored by this repository's own .gitignore; "
-            "a global ignore file on one machine does not protect the others"
+            f"missing tracked {gitignore_name}: only a rule in the repository's "
+            "own tracked ignore file reaches every checkout and CI"
         )
+
+    required = (local_name, *SECRET_ENV_NAMES)
+    sources = _ignore_sources(root, (*required, *SECRET_ENV_EXEMPT_NAMES))
+    for probe in required:
+        source = sources.get(probe)
+        if source is None:
+            errors.append(
+                f"{probe} is not excluded by the tracked {gitignore_name}; add "
+                "the exact name there, because that is the only ignore rule "
+                "every checkout and CI share"
+            )
+        elif not _is_tracked_gitignore(root, source):
+            errors.append(
+                f"{probe} is excluded only by {source}, which is not a tracked "
+                f"{gitignore_name}; a per-machine ignore file protects one "
+                "checkout and leaves CI and every other clone exposed"
+            )
+    for probe in SECRET_ENV_EXEMPT_NAMES:
+        source = sources.get(probe)
+        if source is not None:
+            errors.append(
+                f"{probe} is ignored by {source}; it is a tracked, secret-free "
+                "template and must stay tracked"
+            )
     return errors
 
 

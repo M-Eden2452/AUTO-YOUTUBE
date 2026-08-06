@@ -1,6 +1,24 @@
 venv/
 MOSS_TTS_Nano/
 .env
+# Sensitive environment files, by exact name. A blanket `.env.*` is deliberately
+# not used: it would also swallow the tracked, secret-free `.env.example`, and
+# `!.env.example` below would then have to fight it. These names are kept in
+# step with SECRET_ENV_NAMES in tools/qa/check_agent_docs.py, which fails if one
+# of them is only excluded by a per-machine ignore file instead of this one.
+.env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.staging
+.env.staging.local
+.env.test
+.env.test.local
+.env.bak
+.env.backup
+.env.old
+.env.save
 outputs/*.mp4
 outputs/**/*.mp4
 outputs/**/*.png

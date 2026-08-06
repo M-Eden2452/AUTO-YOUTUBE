@@ -14,10 +14,19 @@ Protects:
 - каждая governance-зона требует подтверждения и на ``Edit``, и на ``Write``:
   исчезновение любой из них — ошибка, называющая зону и tool;
 - ``.claude/settings.local.json`` закрыт агенту на Read/Write/Edit и остаётся
-  untracked и ignored;
-- перечисленные секретные ``.env.*`` покрыты, а tracked ``.env.example``
-  намеренно **не** покрыт: свойство PLAN-6D-1 («0 deny matches») сохранено, и
-  общий blanket-pattern отвергается отдельной проверкой;
+  untracked и ignored **правилом tracked ``.gitignore``**: per-machine
+  ``.git/info/exclude`` и global excludesFile доказательством не считаются;
+- каждый tracked файл под ``.claude/`` требует подтверждения на ``Edit`` и
+  ``Write``; список берётся из ``git ls-files``, поэтому новый tracked
+  governance-файл не может появиться незамеченным;
+- перечисленные секретные ``.env.*`` покрыты и в deny, и в tracked
+  ``.gitignore``, а tracked ``.env.example`` намеренно **не** покрыт: свойство
+  PLAN-6D-1 («0 deny matches») сохранено, и отвергается **любое** deny-правило,
+  которое по модели checker'а может до него дотянуться, а не только два
+  перечисленных blanket-написания;
+- минимальный обязательный контракт зафиксирован литерально и **независимо**
+  от констант validator, поэтому одновременное сужение settings и константы
+  ловится;
 - destructive Git разделён на два непересекающихся набора, и перенос правила из
   одной корзины в другую — ошибка;
 - правило с ведущим wildcard отвергается;
@@ -45,6 +54,7 @@ import subprocess
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from tools.qa import check_agent_docs
 from tools.qa.check_agent_docs import validate_claude_permissions, validate_repository
@@ -55,6 +65,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SETTINGS = check_agent_docs.CLAUDE_SETTINGS
 LOCAL_SETTINGS = check_agent_docs.CLAUDE_LOCAL_SETTINGS
 LOCAL_RULE_PATH = check_agent_docs.CLAUDE_LOCAL_SETTINGS_RULE_PATH
+
+# Literal, and deliberately not `check_agent_docs.SECRET_ENV_NAMES`: this is the
+# minimum the repository must exclude, so it has to be stated independently of
+# the value the checker happens to hold today.
+GITIGNORE_SENSITIVE_ENV = (
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.development.local",
+    ".env.production",
+    ".env.production.local",
+    ".env.staging",
+    ".env.staging.local",
+    ".env.test",
+    ".env.test.local",
+    ".env.bak",
+    ".env.backup",
+    ".env.old",
+    ".env.save",
+)
 
 
 def _env_rules(names: tuple[str, ...]) -> list[str]:
@@ -226,8 +256,23 @@ class PermissionContractTests(unittest.TestCase):
         required = _env_rules(check_agent_docs.SECRET_ENV_NAMES)
         self.assertFalse([rule for rule in required if rule.startswith("Bash(")])
 
-    def test_tracked_env_example_must_not_be_denied(self) -> None:
-        for rule in _env_rules(check_agent_docs.SECRET_ENV_EXEMPT_NAMES):
+    def test_any_deny_rule_reaching_env_example_is_rejected(self) -> None:
+        """Written as literal spellings, not as a list the checker also owns.
+
+        The first two slipped past the previous two-pattern blacklist: the
+        rejection has to follow from what a rule can *match*, not from whether
+        somebody remembered to enumerate its spelling.
+        """
+
+        for rule in (
+            "Read(./.env*)",
+            "Read(./**/.env*)",
+            "Write(./.env.example)",
+            "Edit(./**/.env.example)",
+            "Read(./.env.*)",
+            "Edit(./**/.env.*)",
+            "Read(./**/.env.exampl?)",
+        ):
             with self.subTest(rule=rule):
                 settings = _valid_settings()
                 settings["permissions"]["deny"].append(rule)
@@ -237,16 +282,19 @@ class PermissionContractTests(unittest.TestCase):
                     any("secret-free template" in error for error in errors), errors
                 )
 
-    def test_blanket_env_pattern_is_rejected(self) -> None:
-        for pattern in check_agent_docs.BLANKET_ENV_PATTERNS:
-            with self.subTest(pattern=pattern):
-                settings = _valid_settings()
-                settings["permissions"]["deny"].append(f"Read({pattern})")
-                self._write(settings)
-                errors = validate_claude_permissions(self.root)
-                self.assertTrue(
-                    any("blanket env rule" in error for error in errors), errors
-                )
+    def test_exact_sensitive_env_rules_are_not_false_positives(self) -> None:
+        """The exempt-template check must not fire on the real deny rules.
+
+        `Read(./.env)`, `Read(./**/.env)` and every `.env.<name>` rule live in
+        the valid fixture; a model that flagged them would force the contract
+        to drop the coverage it exists to provide.
+        """
+
+        deny = self.settings["permissions"]["deny"]
+        self.assertIn("Read(./.env)", deny)
+        self.assertIn("Read(./**/.env)", deny)
+        self.assertIn("Edit(./**/.env.production.local)", deny)
+        self.assertEqual(self._errors(), [])
 
     def test_destructive_git_deny_rules_cannot_be_downgraded(self) -> None:
         for rule in check_agent_docs.DESTRUCTIVE_GIT_DENY:
@@ -302,7 +350,7 @@ def _git_env(home: Path) -> dict[str, str]:
     }
 
 
-class LocalSettingsStayOutsideGitTests(unittest.TestCase):
+class _SyntheticRepositoryTestCase(unittest.TestCase):
     """A synthetic local repository: no network, no global Git configuration."""
 
     def setUp(self) -> None:
@@ -316,9 +364,7 @@ class LocalSettingsStayOutsideGitTests(unittest.TestCase):
         self.env = _git_env(self.home)
         self._git("init", "--initial-branch=main")
         (self.root / SETTINGS.parent).mkdir(parents=True, exist_ok=True)
-        (self.root / SETTINGS).write_text(
-            json.dumps(_valid_settings(), indent=2), encoding="utf-8"
-        )
+        self._write_settings(_valid_settings())
         (self.root / LOCAL_SETTINGS).write_text(
             json.dumps({"permissions": {"allow": []}}), encoding="utf-8"
         )
@@ -335,21 +381,407 @@ class LocalSettingsStayOutsideGitTests(unittest.TestCase):
             env=self.env,
         )
 
-    def test_ignored_local_settings_pass(self) -> None:
-        (self.root / ".gitignore").write_text(
-            f"/{LOCAL_SETTINGS.as_posix()}\n", encoding="utf-8"
+    def _write_settings(self, payload: dict) -> None:
+        (self.root / SETTINGS).write_text(
+            json.dumps(payload, indent=2), encoding="utf-8"
         )
+
+    def _write_gitignore(
+        self,
+        *,
+        local_settings: bool = True,
+        env_names: tuple[str, ...] = GITIGNORE_SENSITIVE_ENV,
+        track: bool = True,
+    ) -> None:
+        lines = list(env_names)
+        if local_settings:
+            lines.append(f"/{LOCAL_SETTINGS.as_posix()}")
+        (self.root / ".gitignore").write_text(
+            "\n".join(lines) + "\n", encoding="utf-8"
+        )
+        if track:
+            self._git("add", "--", ".gitignore")
+            self._git("commit", "--no-gpg-sign", "-m", "ignore rules")
+
+
+class TrackedIgnoreRulesTests(_SyntheticRepositoryTestCase):
+    """Only the repository's own tracked .gitignore proves an exclusion.
+
+    A per-machine ignore file makes one checkout look protected while CI and
+    every other clone stay exposed, so `git check-ignore` alone is not an
+    answer: the *source* of the exclusion is what the contract requires.
+    """
+
+    def test_tracked_gitignore_rules_pass(self) -> None:
+        self._write_gitignore()
         self.assertEqual(validate_claude_permissions(self.root), [])
 
-    def test_unignored_local_settings_are_reported(self) -> None:
+    def test_untracked_gitignore_is_reported(self) -> None:
+        self._write_gitignore(track=False)
         errors = validate_claude_permissions(self.root)
-        self.assertTrue(any("is not ignored" in error for error in errors), errors)
+        self.assertTrue(
+            any("missing tracked .gitignore" in error for error in errors), errors
+        )
+
+    def test_local_settings_without_a_tracked_rule_are_reported(self) -> None:
+        self._write_gitignore(local_settings=False)
+        errors = validate_claude_permissions(self.root)
+        self.assertTrue(
+            any(
+                LOCAL_SETTINGS.as_posix() in error
+                and "not excluded by the tracked .gitignore" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_git_info_exclude_is_not_accepted(self) -> None:
+        """The exact hole the previous `check-ignore --quiet` call left open."""
+
+        self._write_gitignore(local_settings=False)
+        exclude = self.root / ".git" / "info" / "exclude"
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        exclude.write_text(f"/{LOCAL_SETTINGS.as_posix()}\n", encoding="utf-8")
+        errors = validate_claude_permissions(self.root)
+        self.assertTrue(
+            any(
+                "excluded only by" in error and "info/exclude" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_global_excludes_file_is_not_accepted(self) -> None:
+        self._write_gitignore(local_settings=False)
+        excludes = self.home / "global-ignore"
+        excludes.write_text(f"/{LOCAL_SETTINGS.as_posix()}\n", encoding="utf-8")
+        config = self.home / "global-gitconfig"
+        config.write_text(
+            f"[core]\n\texcludesFile = {excludes.as_posix()}\n", encoding="utf-8"
+        )
+        with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(config)}):
+            errors = validate_claude_permissions(self.root)
+        self.assertTrue(
+            any(
+                LOCAL_SETTINGS.as_posix() in error
+                and "not excluded by the tracked .gitignore" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_missing_sensitive_env_rule_is_reported(self) -> None:
+        kept = tuple(
+            name for name in GITIGNORE_SENSITIVE_ENV if name != ".env.production"
+        )
+        self._write_gitignore(env_names=kept)
+        errors = validate_claude_permissions(self.root)
+        self.assertTrue(
+            any(
+                error.startswith(".env.production is not excluded")
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_ignoring_the_tracked_template_is_reported(self) -> None:
+        self._write_gitignore(env_names=(*GITIGNORE_SENSITIVE_ENV, ".env.example"))
+        errors = validate_claude_permissions(self.root)
+        self.assertTrue(
+            any(error.startswith(".env.example is ignored by") for error in errors),
+            errors,
+        )
+
+    def test_negated_template_rule_is_not_read_as_an_exclusion(self) -> None:
+        """`!.env.example` means the opposite of a match, not an exclusion."""
+
+        self._write_gitignore(env_names=(*GITIGNORE_SENSITIVE_ENV, "!.env.example"))
+        errors = validate_claude_permissions(self.root)
+        self.assertEqual(errors, [])
 
     def test_tracked_local_settings_are_reported(self) -> None:
+        self._write_gitignore()
         self._git("add", "--force", "--", LOCAL_SETTINGS.as_posix())
         self._git("commit", "--no-gpg-sign", "-m", "track local settings")
         errors = validate_claude_permissions(self.root)
         self.assertTrue(any("is tracked by Git" in error for error in errors), errors)
+
+
+class TrackedClaudeGovernanceTests(_SyntheticRepositoryTestCase):
+    """Tracked files under .claude/ need Edit and Write confirmation.
+
+    The tracked set comes from `git ls-files`, so this fails for a governance
+    file nobody remembered to add to the contract - which is precisely how the
+    reviewer adapter went unguarded.
+    """
+
+    AGENT_FILE = ".claude/agents/review-change.md"
+
+    def _track_agent_file(self) -> None:
+        path = self.root / self.AGENT_FILE
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("adapter\n", encoding="utf-8")
+        self._git("add", "--", self.AGENT_FILE)
+        self._git("commit", "--no-gpg-sign", "-m", "track adapter")
+
+    def test_tracked_agent_file_without_confirmation_is_reported(self) -> None:
+        self._write_gitignore()
+        self._track_agent_file()
+        errors = validate_claude_permissions(self.root)
+        for tool in ("Edit", "Write"):
+            with self.subTest(tool=tool):
+                self.assertTrue(
+                    any(
+                        self.AGENT_FILE in error and f"not covered by {tool}" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+
+    def test_tracked_agent_file_with_confirmation_passes(self) -> None:
+        settings = _valid_settings()
+        settings["permissions"]["ask"].extend(
+            ["Edit(./.claude/agents/**)", "Write(./.claude/agents/**)"]
+        )
+        self._write_settings(settings)
+        self._write_gitignore()
+        self._track_agent_file()
+        self.assertEqual(validate_claude_permissions(self.root), [])
+
+    def test_new_tracked_claude_file_is_detected(self) -> None:
+        settings = _valid_settings()
+        settings["permissions"]["ask"].extend(
+            ["Edit(./.claude/agents/**)", "Write(./.claude/agents/**)"]
+        )
+        self._write_settings(settings)
+        self._write_gitignore()
+        self._track_agent_file()
+        (self.root / ".claude/hooks.json").write_text("{}", encoding="utf-8")
+        self._git("add", "--", ".claude/hooks.json")
+        self._git("commit", "--no-gpg-sign", "-m", "track hooks")
+        errors = validate_claude_permissions(self.root)
+        self.assertTrue(
+            any(".claude/hooks.json" in error for error in errors), errors
+        )
+
+    def test_gitignored_local_settings_is_not_tracked_governance(self) -> None:
+        """The exact deny owns it, so it must not also demand an ask rule."""
+
+        settings = _valid_settings()
+        settings["permissions"]["ask"].extend(
+            ["Edit(./.claude/agents/**)", "Write(./.claude/agents/**)"]
+        )
+        self._write_settings(settings)
+        self._write_gitignore()
+        self._track_agent_file()
+        errors = validate_claude_permissions(self.root)
+        self.assertFalse(
+            [error for error in errors if LOCAL_SETTINGS.as_posix() in error], errors
+        )
+
+
+class MinimumContractPinnedIndependentlyTests(unittest.TestCase):
+    """The minimum contract, stated literally and read from the real files.
+
+    Nothing here may come from ``PROTECTED_GOVERNANCE_PATHS``,
+    ``SECRET_ENV_NAMES``, ``DESTRUCTIVE_GIT_DENY``, ``DESTRUCTIVE_GIT_ASK`` or
+    ``FORBIDDEN_BROAD_GRANTS``. Every other test in this module derives its
+    expectations from those constants, so deleting a zone from the constant
+    *and* from ``settings.json`` in one edit stayed green: the fixture simply
+    stopped mentioning it. These tests are the second, independent statement
+    that makes such a simultaneous narrowing fail.
+
+    It is the *minimum*, not a byte-for-byte copy of ``settings.json``: rules
+    may be added freely, and only removing one of these breaks the build.
+    """
+
+    REQUIRED_CONFIRMED_PATHS = (
+        "./AGENTS.md",
+        "./CLAUDE.md",
+        "./skills/**",
+        "./tools/qa/**",
+        "./.github/workflows/**",
+        "./docs/current/PROJECT_EXECUTION_PLAN.md",
+        "./docs/archive/**",
+        "./docs/handoff/**",
+        "./.claude/settings.json",
+        "./.claude/agents/**",
+    )
+    REQUIRED_DENY = (
+        "Read(./.claude/settings.local.json)",
+        "Write(./.claude/settings.local.json)",
+        "Edit(./.claude/settings.local.json)",
+        "Bash(git reset --hard)",
+        "Bash(git reset --hard *)",
+        "Bash(git reset * --hard)",
+        "Bash(git reset * --hard *)",
+        "Bash(git clean)",
+        "Bash(git clean *)",
+        "Bash(git push --force*)",
+        "Bash(git push * --force*)",
+        "Bash(git push -f)",
+        "Bash(git push -f *)",
+        "Bash(git push * -f)",
+        "Bash(git push * -f *)",
+        "Bash(git filter-branch)",
+        "Bash(git filter-branch *)",
+        "Bash(git reflog delete *)",
+        "Bash(git reflog expire *)",
+        "Bash(git update-ref -d *)",
+        "Bash(git update-ref --no-deref -d *)",
+        "Bash(git gc --prune*)",
+        "Bash(git gc * --prune*)",
+    )
+    REQUIRED_ASK = (
+        "Bash(git checkout --)",
+        "Bash(git checkout -- *)",
+        "Bash(git checkout * -- *)",
+        "Bash(git restore)",
+        "Bash(git restore *)",
+        "Bash(git rm)",
+        "Bash(git rm *)",
+        "Bash(git branch -D)",
+        "Bash(git branch -D *)",
+        "Bash(git worktree remove)",
+        "Bash(git worktree remove *)",
+    )
+    FORBIDDEN_ANYWHERE = (
+        "Bash(*)",
+        "Bash(git add *)",
+        "Bash(git commit *)",
+        "Bash(python -c ' *)",
+        "Bash(python -)",
+        "Bash(./venv/Scripts/python.exe -c ' *)",
+        "Bash(./venv/Scripts/python.exe -B -c ' *)",
+        "Bash(G:/Projects/AI-YouTube/venv/Scripts/python.exe -B -c ' *)",
+    )
+    SENSITIVE_ENV_NAMES = GITIGNORE_SENSITIVE_ENV
+    EXEMPT_ENV_NAME = ".env.example"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.payload = json.loads(
+            (REPO_ROOT / ".claude/settings.json").read_text(encoding="utf-8")
+        )
+        cls.permissions = cls.payload["permissions"]
+        cls.ask = list(cls.permissions.get("ask", []))
+        cls.deny = list(cls.permissions.get("deny", []))
+        cls.confirmed = set(cls.ask) | set(cls.deny)
+
+    def test_versioned_contract_has_no_allow_bucket(self) -> None:
+        self.assertNotIn("allow", self.permissions)
+
+    def test_every_required_zone_is_confirmed_for_edit_and_write(self) -> None:
+        for path in self.REQUIRED_CONFIRMED_PATHS:
+            for tool in ("Edit", "Write"):
+                with self.subTest(path=path, tool=tool):
+                    self.assertIn(f"{tool}({path})", self.confirmed)
+
+    def test_every_tracked_claude_file_is_a_confirmed_governance_path(self) -> None:
+        completed = subprocess.run(
+            ["git", "--no-optional-locks", "ls-files", "--", ".claude/"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        tracked = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+        self.assertIn(".claude/agents/review-change.md", tracked)
+        self.assertIn(".claude/settings.json", tracked)
+        for path in tracked:
+            with self.subTest(path=path):
+                self.assertTrue(
+                    path == ".claude/settings.json"
+                    or path.startswith(".claude/agents/"),
+                    f"{path} is tracked under .claude/ but no literal rule here "
+                    "covers it; add the rule to settings.json and name it above",
+                )
+
+    def test_every_sensitive_env_name_is_denied_for_path_tools(self) -> None:
+        for env_name in self.SENSITIVE_ENV_NAMES:
+            for tool in ("Read", "Write", "Edit"):
+                for location in ("./", "./**/"):
+                    rule = f"{tool}({location}{env_name})"
+                    with self.subTest(rule=rule):
+                        self.assertIn(rule, self.deny)
+
+    def test_no_deny_rule_names_the_tracked_template(self) -> None:
+        self.assertFalse(
+            [rule for rule in self.deny if self.EXEMPT_ENV_NAME in rule]
+        )
+
+    def test_required_destructive_git_deny_rules_are_present(self) -> None:
+        for rule in self.REQUIRED_DENY:
+            with self.subTest(rule=rule):
+                self.assertIn(rule, self.deny)
+
+    def test_required_destructive_git_ask_rules_are_present(self) -> None:
+        for rule in self.REQUIRED_ASK:
+            with self.subTest(rule=rule):
+                self.assertIn(rule, self.ask)
+
+    def test_forbidden_broad_grants_are_absent_from_every_bucket(self) -> None:
+        every_rule = [
+            rule
+            for values in self.permissions.values()
+            if isinstance(values, list)
+            for rule in values
+        ]
+        for grant in self.FORBIDDEN_ANYWHERE:
+            with self.subTest(grant=grant):
+                self.assertNotIn(grant, every_rule)
+
+    def test_tracked_gitignore_lists_every_sensitive_env_name(self) -> None:
+        lines = [
+            line.strip()
+            for line in (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        ]
+        for env_name in self.SENSITIVE_ENV_NAMES:
+            with self.subTest(env_name=env_name):
+                self.assertIn(env_name, lines)
+        self.assertNotIn(self.EXEMPT_ENV_NAME, lines)
+        self.assertIn(f"/{LOCAL_SETTINGS.as_posix()}", lines)
+
+    def test_tracked_template_stays_tracked_and_unignored(self) -> None:
+        tracked = subprocess.run(
+            [
+                "git",
+                "--no-optional-locks",
+                "ls-files",
+                "--error-unmatch",
+                "--",
+                self.EXEMPT_ENV_NAME,
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        self.assertEqual(tracked.returncode, 0, tracked.stderr)
+        ignored = subprocess.run(
+            [
+                "git",
+                "--no-optional-locks",
+                "-c",
+                "core.excludesFile=",
+                "check-ignore",
+                "--quiet",
+                "--no-index",
+                "--",
+                self.EXEMPT_ENV_NAME,
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        self.assertNotEqual(ignored.returncode, 0, "the template must not be ignored")
 
 
 class RepositoryPermissionContractTests(unittest.TestCase):

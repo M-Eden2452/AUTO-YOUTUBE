@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-6
-next_exact_action: PLAN-STAB-6 (Claude permission hardening) implementation is completed 2026-08-06 and awaits independent review; that review is the next exact action, and it must judge the implementation commit only - it does not close the step. Delivered in this slice - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, the nine protected governance zones (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply is replaced by six confirmed pipeline.py entrypoint prefixes, destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, and network plus package installation require confirmation. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions. The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 remains open until the independent review of PLAN-STAB-6 lands or the owner formally accepts a documented residual risk; PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied
+next_exact_action: PLAN-STAB-6 (Claude permission hardening) implementation is completed 2026-08-06 and its five non-blocking review findings F1-F5 are repaired in a separate bounded repair commit; the next exact action is a short independent re-review of that repair commit only, and it does not close the step. The repair closes F1 (any deny rule that can reach the tracked .env.example is rejected positionally instead of by a two-spelling blacklist), F2 (the media-library record now states that the former leading-wildcard rule was deny while the six replacement entrypoint prefixes are ask, that coverage is limited to those six spellings, and that the real --apply barrier is the runtime confirm_apply contract in src/media_library.py), F3 (tracked governance under .claude/ requires Edit and Write confirmation via ./.claude/agents/** plus the existing exact ./.claude/settings.json, enumerated from git ls-files so a new tracked file cannot appear unguarded, with no broad ./.claude/** rule that would collide with the exact settings.local.json deny), F4 (a literal minimum contract pinned independently of PROTECTED_GOVERNANCE_PATHS, SECRET_ENV_NAMES, DESTRUCTIVE_GIT_DENY, DESTRUCTIVE_GIT_ASK and FORBIDDEN_BROAD_GRANTS, so narrowing settings.json and a constant together now fails) and F5 (only a rule in the tracked .gitignore proves an exclusion - .git/info/exclude, global core.excludesFile and user-level ignore are rejected - plus thirteen exact sensitive .env names added to the tracked .gitignore while .env.example stays tracked and unignored). CI for 3cedff10 is not confirmed green - run 31123722270 was cancelled twice before a windows-latest runner was assigned, with zero steps and zero logs, so neither required step ran; that is an infrastructure residual risk recorded by owner decision 2026-08-06 and CI success for 3cedff10 must not be claimed. Delivered in the implementation slice - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, the nine protected governance zones (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply is replaced by six confirmed pipeline.py entrypoint prefixes, destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, and network plus package installation require confirmation. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions. The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 remains open until the independent review of PLAN-STAB-6 lands or the owner formally accepts a documented residual risk; PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -1682,6 +1682,8 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 #### PLAN-STAB-6 — Claude permission hardening
 
 - **status:** implementation completed 2026-08-06, independent review pending ·
+  findings F1–F5 отремонтированы отдельным bounded repair commit 2026-08-06,
+  который сам ожидает короткого independent re-review ·
   **blocking для PLAN-9B-2:** да —
   **либо** формально принятый документированный residual risk; пункт 6 gate
   остаётся **open** до independent review · **зависимости:** —.
@@ -1744,11 +1746,33 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
     владельцу: `checkout --`, `restore`, `rm`, `branch -D`,
     `worktree remove`. Цена ask-варианта записана честно: одного
     подтверждения достаточно, чтобы стереть незакоммиченную работу.
-  - **Leading wildcard удалён.** Правило `Bash(*media-library
-    migrate*--apply*)` заменено шестью подтверждёнными entrypoint prefixes
-    `pipeline.py` (positional `media-library` → `migrate`; флаг `--apply`
-    объявлен в `src/legacy_pipeline/cli.py`). Checker отвергает любое правило
-    с ведущим `*`.
+  - **Leading wildcard удалён — с осознанным ослаблением корзины.** Правило
+    `Bash(*media-library migrate*--apply*)` находилось в **`deny`**; шесть
+    заменяющих entrypoint prefixes `pipeline.py` находятся в **`ask`**
+    (positional `media-library` → `migrate`; флаг `--apply` объявлен в
+    `src/legacy_pipeline/cli.py:116`). Это намеренная смена
+    `deny` → owner confirmation: прежнее правило опиралось на ведущий `*`,
+    чья matcher semantics не установлена, поэтому оно давало запрет, на
+    который нельзя было положиться; новое даёт подтверждение, на форму
+    которого положиться можно. Эквивалентности здесь нет — одного
+    подтверждения теперь достаточно.
+    **Покрытие ограничено перечисленными формами.** Шесть prefixes — это
+    `python`, `python -B`, `./venv/Scripts/python.exe`,
+    `./venv/Scripts/python.exe -B`, `venv/Scripts/python.exe`,
+    `venv/Scripts/python.exe -B`. Абсолютные пути (например
+    `G:/Projects/AI-YouTube/venv/Scripts/python.exe`), backslash-написание
+    `.\venv\Scripts\python.exe`, shell aliases, обёртки и произвольный
+    интерпретатор **не покрываются вовсе** — это частный случай общего
+    «Bash не защищён path-based правилами» ниже. Полное покрытие не
+    заявляется, и media-library rules этим repair не менялись: изменение
+    правил потребует нового evidence.
+    **Фактическая защита `--apply` лежит в runtime-контракте, а не в
+    permissions:** `src/media_library.py:289` бросает `PermissionError` без
+    `confirm_apply=True`, а `:291` требует явные `output_path` и
+    `backup_path`; CLI-флаг `--confirm-apply` объявлен в
+    `src/legacy_pipeline/cli.py:121`. Именно он, а не permission rule,
+    остаётся барьером для любого написания команды.
+    Checker отвергает любое правило с ведущим `*`.
   - **Сеть и установка пакетов** переведены в `ask`: `curl`, `wget`,
     `Invoke-WebRequest`, `pip install`, `python -m pip install`, venv-форма,
     `npm install`, `npm ci`. `WebFetch`/`WebSearch` остаются `ask`. Локальные
@@ -1762,23 +1786,79 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
     step `python -B -m tools.qa.check_agent_docs` покрывает контракт без
     второго workflow и второго step. Checker read-only, offline,
     детерминирован, **никогда не открывает** `settings.local.json` и смотрит
-    только его Git-статус. `git check-ignore` вызывается с
-    `-c core.excludesFile=`: без этого ответ зависел бы от профиля
-    разработчика — на этой машине глобальный `~/.config/git/ignore` уже
-    покрывает файл, и репозиторий выглядел бы защищённым локально, оставаясь
-    незащищённым в CI.
-- **evidence:** `tests/test_claude_permission_contract.py` (27 tests OK):
+    только его Git-статус.
+- **выполнено (repair 2026-08-06, findings F1–F5 independent review):**
+  - **F1 — `.env.example` защищён позиционно, а не списком написаний.**
+    Прежний checker отвергал только два перечисленных blanket-паттерна, из-за
+    чего `Read(./.env*)` проходил и перекрывал tracked template. Теперь
+    отвергается **любое** `Read`/`Write`/`Edit` deny-правило, которое по
+    собственной консервативной модели checker'а может дотянуться до
+    `.env.example` в корне или во вложенной директории. Модель описана честно:
+    `**` пересекает `/`, `*` и `?` — нет; это **repository contract, а не
+    доказательство runtime matcher'а**, и она намеренно щедра к тому, что
+    правило «может» задеть. На реальном deny-списке — ноль false positives.
+  - **F2 — media-library описан честно** (см. выше): корзина сменилась
+    `deny` → `ask`, покрытие ограничено шестью написаниями, фактический
+    барьер `--apply` — runtime `confirm_apply` contract. Правила не менялись.
+  - **F3 — tracked governance под `.claude/`.** Добавлены
+    `Edit`/`Write(./.claude/agents/**)`; вместе с существующим exact
+    `./.claude/settings.json` это покрывает оба tracked-файла, включая
+    reviewer adapter `.claude/agents/review-change.md`, который прежде
+    оставался без подтверждения. Широкое `./.claude/**` **намеренно не
+    использовано**: precedence между ним и exact deny на
+    `settings.local.json` не доказан, а изобретать гарантию запрещено.
+    Checker берёт список из `git ls-files -- .claude/`, поэтому новый tracked
+    файл без правила — ошибка; `CLAUDE_GOVERNANCE_EXEMPT_PATHS` пуст и служит
+    механизмом явного, обозреваемого исключения. Gitignored
+    `settings.local.json` в `ls-files` не попадает, поэтому конфликта с его
+    exact deny не возникает. `Read` остаётся открытым.
+  - **F4 — минимальный контракт зафиксирован независимо.** Новый класс
+    `MinimumContractPinnedIndependentlyTests` перечисляет **литерально** и
+    **не импортирует** `PROTECTED_GOVERNANCE_PATHS`, `SECRET_ENV_NAMES`,
+    `DESTRUCTIVE_GIT_DENY`, `DESTRUCTIVE_GIT_ASK`, `FORBIDDEN_BROAD_GRANTS`:
+    десять protected zones × `Edit`/`Write`, требование к tracked
+    `.claude/**`, точные sensitive `.env`-имена, оба destructive-Git набора,
+    восемь forbidden grants, отсутствие `permissions.allow` и точные записи
+    tracked `.gitignore`. Прежде одновременное удаление зоны из
+    `settings.json` **и** из константы оставляло suite зелёным.
+  - **F5 — источник ignore-правила теперь обязателен.** Checker требует, чтобы
+    исключение находилось именно в **tracked `.gitignore`**: `.gitignore`
+    обязан быть tracked, а источник, который Git приписывает исключению,
+    обязан быть tracked `.gitignore`. `.git/info/exclude`, global
+    `core.excludesFile` и user-level ignore доказательством больше не
+    считаются — все они per-machine и оставляют CI и остальные клоны
+    незащищёнными. `-c core.excludesFile=` сохранён; `--verbose --no-index`
+    даёт источник, а строка-негация (`!.env.example`) намеренно **не**
+    читается как исключение. Диагностика прямо называет требование tracked
+    `.gitignore`.
+  - **Sensitive `.env` в tracked `.gitignore`.** Добавлены тринадцать точных
+    имён (`.env.local`, `.env.development(.local)`, `.env.production(.local)`,
+    `.env.staging(.local)`, `.env.test(.local)`, `.env.bak`, `.env.backup`,
+    `.env.old`, `.env.save`); существующий `.env` сохранён, общий `.env.*`
+    не используется, `.env.example` остаётся tracked и не ignored. Checker
+    проверяет каждое имя поимённо и отдельно требует, чтобы template не был
+    ignored. Реальных secret-файлов не создавалось.
+- **evidence:** `tests/test_claude_permission_contract.py` (47 tests OK):
   валидный контракт; отсутствие файла; malformed JSON; появившийся
   `permissions.allow`; каждый из восьми запрещённых broad grants; ведущий
-  wildcard; правило не формы `Tool(pattern)`; каждая из девяти protected zones
+  wildcard; правило не формы `Tool(pattern)`; каждая из десяти protected zones
   × `Edit`/`Write` по отдельности; покрытие zone через `deny` вместо `ask`;
-  каждый tool local-settings deny; пропавшее env-правило; `.env.example` под
-  deny; blanket env pattern; перенос каждого destructive-Git правила между
-  корзинами; непересечение двух Git-наборов; синтетический Git-репозиторий
-  (ignored / не ignored / tracked); реальный репозиторий; неизменность
-  worktree. Отдельно зафиксировано, что env-покрытие требует только
-  Read/Write/Edit и ни одного `Bash(...)` правила — полная Bash-защита не
-  заявляется.
+  каждый tool local-settings deny; пропавшее env-правило; семь написаний
+  deny-правила, дотягивающегося до `.env.example`; отсутствие false positive
+  на реальных sensitive-правилах; перенос каждого destructive-Git правила
+  между корзинами; непересечение двух Git-наборов; синтетический Git-репозиторий
+  (tracked `.gitignore` / untracked `.gitignore` / отсутствующее правило /
+  `.git/info/exclude` / global `excludesFile` / пропавшее env-имя / ignored
+  template / негация / tracked local settings); tracked governance под
+  `.claude/` (без подтверждения / с подтверждением / новый tracked файл /
+  local settings не считается tracked governance); независимый литеральный
+  минимум контракта; реальный репозиторий; неизменность worktree. Отдельно
+  зафиксировано, что env-покрытие требует только Read/Write/Edit и ни одного
+  `Bash(...)` правила — полная Bash-защита не заявляется.
+  **Test effectiveness против pre-repair версии:** девять новых тестов
+  прогнаны против модуля из `3cedff10` — каждый падает; литеральный минимум
+  F4 отдельно отвергает сужение, сделанное одновременно в `settings.json` и в
+  константе.
 - **residual limitations (не закрыты этим слайсом):**
   - точная matcher wildcard semantics и precedence корзин эмпирически не
     доказаны; path-правила в `ask` — inference по грамматике файла, а не
@@ -1800,9 +1880,22 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
     фактическим settings не подтверждён, а изобретать его запрещено;
   - effective merged user/managed/local configuration лежит вне репозитория,
     различается по средам и **защищённой не объявляется**; checker проверяет
-    только versioned contract.
-- **rollback / review:** по общим требованиям программы. Слайс не закрывает
-  шаг: пункт 6 blocking gate остаётся open до independent review.
+    только versioned contract;
+  - модель паттернов checker'а (`_permission_pattern_regex`) — **repository
+    contract, а не runtime proof**: она описывает, какие правила репозиторий
+    считает опасными, и не утверждает, что Claude matcher разбирает их так же;
+  - **CI для `3cedff10` зелёным не подтверждён.** GitHub Actions run
+    `31123722270` дважды отменён до выдачи `windows-latest` runner (0 steps,
+    0 логов, ~15 минут очереди на попытку); ни один из двух обязательных
+    шагов не выполнялся, поэтому `failures`/`errors` не существуют. Это
+    инфраструктурный residual risk, а **не** падение commit. Локальное
+    evidence на том же дереве: full offline suite `Ran 1729 tests, OK` и
+    `tools.qa.check_agent_docs` exit 0. Owner decision 2026-08-06 разрешил
+    начать repair на этом основании; заявлять CI success для `3cedff10`
+    запрещено.
+- **rollback / review:** по общим требованиям программы. Ни implementation, ни
+  repair шаг не закрывают: пункт 6 blocking gate остаётся open до короткого
+  independent re-review repair commit.
 
 #### PLAN-STAB-7 — current-routing и reference integrity
 
