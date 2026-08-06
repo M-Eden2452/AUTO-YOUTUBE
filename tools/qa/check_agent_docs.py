@@ -174,11 +174,21 @@ ROUTING_MIRRORS = (
     Path("docs/current/CURRENT_STATE.md"),
     Path("docs/current/SYSTEM_MAP.md"),
 )
+# A current statement is recognised by a narrow current marker, never by the
+# bare presence of a PLAN-ID next to the word: the same paragraph legitimately
+# records closed steps ("предыдущий checkpoint — PLAN-STAB-9 закрыт"), and
+# reading those as current statements would report a conflict that does not
+# exist. So a qualifier that is not `текущий`/`current` makes the sentence
+# historical. `checkpoint` with no qualifier at all keeps its meaning, because
+# the noun itself is the routing subject; a bare `шаг`/`step` is an ordinary
+# word and is not read as routing at all.
 CHECKPOINT_STATEMENT_RE = re.compile(
-    r"checkpoint\s*[—–-]\s*\*{0,2}"
-    r"((?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*)",
+    r"(?:(?P<marker>[^\W\d_]+)\s+)?"
+    r"\b(?P<subject>checkpoint|шаг|step)\b\s*[—–-]\s*\*{0,2}"
+    r"(?P<identifier>(?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*)",
     re.IGNORECASE,
 )
+CURRENT_ROUTING_MARKERS = frozenset({"текущий", "current"})
 PLAN_REFERENCE_RE = re.compile(r"(?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*")
 # `PLAN-ID` reads like an identifier but is prose; it never defines a step.
 PLAN_PROSE_WORDS = frozenset({"PLAN-ID", "PLAN-IDs"})
@@ -598,11 +608,16 @@ def _plan_step_bullets(text: str) -> set[str]:
 
 
 def _step_status(text: str, identifier: str) -> str | None:
-    """First status verdict declared under the heading that defines *identifier*."""
+    """First status verdict declared under the heading that defines *identifier*.
 
-    lines = text.splitlines()
+    Read from prose only, exactly like every other definition parser here: a
+    heading or a status line shown as an example inside a fenced block or a
+    block quote is not part of the document's own structure, and letting it end
+    the section would hide the real status of a real step.
+    """
+
     inside = False
-    for line in lines:
+    for _, line in _prose_lines(text):
         match = PLAN_DEFINITION_RE.match(line)
         if match:
             inside = match.group(1) == identifier
@@ -615,6 +630,22 @@ def _step_status(text: str, identifier: str) -> str | None:
         if status:
             return status.group(1).strip().lstrip("*").strip()
     return None
+
+
+def _current_checkpoint_statements(text: str) -> list[tuple[int, str]]:
+    """Current-routing statements of a mirror as (line number, plan identifier)."""
+
+    statements: list[tuple[int, str]] = []
+    for number, line in _prose_lines(text):
+        for match in CHECKPOINT_STATEMENT_RE.finditer(line):
+            marker = (match.group("marker") or "").lower()
+            if marker:
+                if marker not in CURRENT_ROUTING_MARKERS:
+                    continue
+            elif match.group("subject").lower() != "checkpoint":
+                continue
+            statements.append((number, match.group("identifier")))
+    return statements
 
 
 def _referenced_plan_steps(value: str) -> set[str]:
@@ -673,11 +704,7 @@ def validate_routing(root: Path) -> list[str]:
         if not mirror.is_file():
             errors.append(f"missing current document: {mirror_name}")
             continue
-        found = [
-            (number, match.group(1))
-            for number, line in _prose_lines(mirror.read_text(encoding="utf-8"))
-            for match in CHECKPOINT_STATEMENT_RE.finditer(line)
-        ]
+        found = _current_checkpoint_statements(mirror.read_text(encoding="utf-8"))
         if not found:
             errors.append(
                 f"{mirror_name}: no current-checkpoint statement; this routing "

@@ -9,9 +9,14 @@
 Protects (PLAN-STAB-7, current-routing и reference integrity):
 - ровно один authoritative current checkpoint; три routing mirror-документа не
   могут молча разойтись с ``current_checkpoint`` активного execution plan;
+- конкурирующее актуальное утверждение распознаётся по узким маркерам
+  «текущий/current checkpoint» и «текущий/current шаг|step», а историческая
+  фраза («предыдущий checkpoint — … закрыт») текущим утверждением не считается;
 - ``next_exact_action`` не может ссылаться на несуществующий PLAN-ID и обязан
   называть текущий checkpoint;
-- completed шаг не может быть объявлен текущим checkpoint.
+- completed шаг не может быть объявлен текущим checkpoint, причём статус
+  читается по той же prose-модели, что и остальные парсеры: heading или
+  status-строка внутри fenced block либо цитаты разделом документа не является.
 
 Protects (PLAN-STAB-8, Git-aware documentation freshness):
 - ``last_verified_commit`` и ``baseline_head`` проверяются по фактическому Git,
@@ -262,7 +267,7 @@ source_paths:
 - **Текущий шаг:** **PLAN-STAB-7**.
 
 #### PLAN-STAB-7 — current-routing и reference integrity
-
+{prelude}
 - **status:** {status_seven}
 - **цель:** routing не расходится.
 
@@ -294,6 +299,32 @@ DEFAULT_ACTION = (
     "coordinated bounded implementation covering PLAN-STAB-7 and PLAN-STAB-8"
 )
 
+# Разметка, показанная как пример, а не как структура самого документа: heading
+# и status-строка внутри fenced block и внутри цитаты.
+FENCED_HEADING_PRELUDE = """
+```markdown
+#### PLAN-STAB-99 — heading, показанный как пример разметки
+
+- **status:** completed 2026-01-01
+```
+"""
+
+FENCED_STATUS_PRELUDE = """
+```markdown
+- **status:** completed 2026-01-01
+```
+"""
+
+QUOTED_HEADING_PRELUDE = """
+> Цитата из архивного плана:
+>
+> #### PLAN-STAB-99 — heading внутри цитаты
+>
+> - **status:** completed 2026-01-01
+"""
+
+PENDING_STATUS_SEVEN = "pending / not started. Completed слайс не объявляется."
+
 
 class RoutingTests(unittest.TestCase):
     """PLAN-STAB-7: one authoritative checkpoint, mirrors that cannot drift."""
@@ -312,8 +343,9 @@ class RoutingTests(unittest.TestCase):
         *,
         checkpoint: str = "PLAN-STAB-7",
         action: str = DEFAULT_ACTION,
-        status_seven: str = "pending / not started. Completed слайс не объявляется.",
+        status_seven: str = PENDING_STATUS_SEVEN,
         status_eight: str = "pending / not started",
+        prelude: str = "",
     ) -> None:
         _write(
             self.root,
@@ -323,11 +355,15 @@ class RoutingTests(unittest.TestCase):
                 action=action,
                 status_seven=status_seven,
                 status_eight=status_eight,
+                prelude=prelude,
             ),
         )
 
-    def _mirror(self, relative: Path, checkpoint: str) -> None:
-        _write(self.root, relative, MIRROR_TEMPLATE.format(checkpoint=checkpoint))
+    def _mirror(self, relative: Path, checkpoint: str, *, extra: str = "") -> None:
+        text = MIRROR_TEMPLATE.format(checkpoint=checkpoint)
+        if extra:
+            text = f"{text}\n{extra}\n"
+        _write(self.root, relative, text)
 
     def test_consistent_routing_produces_no_errors(self) -> None:
         self.assertEqual(validate_routing(self.root), [])
@@ -385,6 +421,103 @@ class RoutingTests(unittest.TestCase):
         errors = validate_routing(self.root)
         self.assertTrue(
             any("no current-checkpoint statement" in error for error in errors), errors
+        )
+
+    # --- narrow current markers -------------------------------------------
+    #
+    # Расхождение читается новым агентом как «два текущих задания», поэтому
+    # конкурирующее утверждение обязано находиться независимо от того, каким
+    # существительным оно записано. И ровно поэтому же историческая фраза
+    # текущим утверждением быть не должна.
+
+    def test_competing_current_step_statement_is_reported(self) -> None:
+        self._mirror(START_HERE, "PLAN-STAB-7", extra="Текущий шаг — PLAN-STAB-6.")
+        errors = validate_routing(self.root)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn(START_HERE.as_posix(), errors[0])
+        self.assertIn("PLAN-STAB-6", errors[0])
+        self.assertIn("PLAN-STAB-7", errors[0])
+
+    def test_competing_english_current_step_statement_is_reported(self) -> None:
+        self._mirror(CURRENT_STATE, "PLAN-STAB-7", extra="Current step — PLAN-STAB-6.")
+        errors = validate_routing(self.root)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn(CURRENT_STATE.as_posix(), errors[0])
+        self.assertIn("PLAN-STAB-6", errors[0])
+        self.assertIn("PLAN-STAB-7", errors[0])
+
+    def test_previous_checkpoint_sentence_is_not_a_current_statement(self) -> None:
+        self._mirror(
+            SYSTEM_MAP,
+            "PLAN-STAB-7",
+            extra="Предыдущий checkpoint — PLAN-STAB-9 закрыт.",
+        )
+        self.assertEqual(validate_routing(self.root), [])
+
+    def test_a_historical_statement_alone_is_still_a_missing_current_statement(
+        self,
+    ) -> None:
+        _write(
+            self.root,
+            SYSTEM_MAP,
+            MIRROR_TEMPLATE.format(checkpoint="PLAN-STAB-7").replace(
+                "Текущий checkpoint — **PLAN-STAB-7**: подробности в плане.",
+                "Предыдущий checkpoint — PLAN-STAB-9 закрыт.",
+            ),
+        )
+        errors = validate_routing(self.root)
+        self.assertTrue(
+            any("no current-checkpoint statement" in error for error in errors), errors
+        )
+
+    def test_two_agreeing_current_statements_are_not_a_conflict(self) -> None:
+        self._mirror(START_HERE, "PLAN-STAB-7", extra="Текущий шаг — PLAN-STAB-7.")
+        self.assertEqual(validate_routing(self.root), [])
+
+    # --- status parsing ----------------------------------------------------
+    #
+    # Разметка, показанная как пример, разделом документа не является: иначе
+    # пример обрывает поиск и настоящий статус настоящего шага не находится.
+
+    def test_a_heading_inside_a_fenced_block_does_not_end_the_status_search(
+        self,
+    ) -> None:
+        self._plan(prelude=FENCED_HEADING_PRELUDE)
+        plan = (self.root / EXECUTION_PLAN).read_text(encoding="utf-8")
+        self.assertEqual(
+            check_agent_docs._step_status(plan, "PLAN-STAB-7"), PENDING_STATUS_SEVEN
+        )
+        self.assertEqual(validate_routing(self.root), [])
+
+    def test_a_status_line_inside_a_fenced_block_is_not_the_step_status(self) -> None:
+        self._plan(prelude=FENCED_STATUS_PRELUDE)
+        plan = (self.root / EXECUTION_PLAN).read_text(encoding="utf-8")
+        self.assertEqual(
+            check_agent_docs._step_status(plan, "PLAN-STAB-7"), PENDING_STATUS_SEVEN
+        )
+        self.assertEqual(validate_routing(self.root), [])
+
+    def test_a_quoted_example_heading_does_not_end_the_status_search(self) -> None:
+        self._plan(prelude=QUOTED_HEADING_PRELUDE)
+        plan = (self.root / EXECUTION_PLAN).read_text(encoding="utf-8")
+        self.assertEqual(
+            check_agent_docs._step_status(plan, "PLAN-STAB-7"), PENDING_STATUS_SEVEN
+        )
+        self.assertEqual(validate_routing(self.root), [])
+
+    def test_a_real_next_heading_still_ends_the_status_search(self) -> None:
+        self._plan(status_eight="completed 2026-01-01 (commit `abc1234`)")
+        path = self.root / EXECUTION_PLAN
+        plan = "".join(
+            f"{line}\n"
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line != f"- **status:** {PENDING_STATUS_SEVEN}"
+        )
+        path.write_text(plan, encoding="utf-8")
+        self.assertIsNone(check_agent_docs._step_status(plan, "PLAN-STAB-7"))
+        errors = validate_routing(self.root)
+        self.assertTrue(
+            any("has no status line" in error for error in errors), errors
         )
 
     def test_next_exact_action_pointing_at_an_unknown_step_is_reported(self) -> None:

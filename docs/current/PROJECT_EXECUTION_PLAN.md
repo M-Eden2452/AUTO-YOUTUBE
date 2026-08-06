@@ -1785,7 +1785,8 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   требование равенства было бы невыполнимо по построению.
 - **source_paths drift — advisory, не error.** Печатается как `NOTE:` и не
   меняет exit code. Обоснование фактическое, а не стилистическое: с `9f3ddba`
-  до HEAD изменились 123 файла, входящие в `source_paths` всех трёх docs;
+  до HEAD изменился 101 файл из объявленных `source_paths` трёх current docs,
+  а всего по репозиторию за тот же интервал — 125 файлов;
   hard error потребовал бы массовой правки `last_verified_*`, которая прямо
   входит в prohibited zones этого слайса.
 - **calendar age:** отсчитывается от даты HEAD commit, а не от системных
