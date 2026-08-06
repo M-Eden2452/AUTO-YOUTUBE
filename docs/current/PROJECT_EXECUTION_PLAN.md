@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-7
-next_exact_action: PLAN-STAB-9 (shared rights vocabulary owner) is closed 2026-08-06 - implementation commit ed4604d, independently reviewed, verdict ACCEPT WITH MINOR (blocking findings none, one non-blocking wording finding about divergence-guard coverage, corrected by this docs-only slice), GitHub Actions reviewed headSha ed4604d green (failures=0, errors=0), HEAD == origin/governance-reset, worktree clean; PLAN-STAB-9 stays non-blocking for PLAN-9B-2 and is not retroactively added to the blocking gate; per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 (closed) -> PLAN-STAB-7 + PLAN-STAB-8 -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint moves to PLAN-STAB-7; next exact action is preparing one coordinated bounded implementation covering PLAN-STAB-7 (current-routing and reference integrity) and PLAN-STAB-8 (Git-aware documentation freshness) as a single execution-order slice - this joins their execution order and implementation only, it does not merge the two historical PLAN-IDs or their separate contracts/success criteria; implementation of PLAN-STAB-7/PLAN-STAB-8 has not started; blocking gate items 6, 7, 8 remain open
+next_exact_action: PLAN-STAB-7 (current-routing and reference integrity) and PLAN-STAB-8 (Git-aware documentation freshness) are implemented as one coordinated bounded slice - a single commit whose trailer is Plan-Step PLAN-STAB-7, with PLAN-STAB-8 recorded in the commit body and in this plan because the repository has neither an additional trailer contract nor a trailer validator; tools/qa/check_agent_docs.py stays the single owner of both contracts and now enforces current-routing integrity (one authoritative current_checkpoint that must have its own heading, three routing mirrors that cannot silently drift, a next_exact_action that must name the checkpoint and may reference only defined plan steps, and a completed step that cannot be the current checkpoint) and Git-aware documentation freshness (every last_verified_commit and baseline_head must be a real commit and an ancestor of HEAD, declared source_paths drift after the baseline is reported as a NOTE advisory and never as an error because mass last_verified_* edits are a prohibited zone, absent Git and shallow clones fail closed, and calendar age is measured against the HEAD commit date instead of a frozen test constant); .github/workflows/offline-tests.yml now checks out with fetch-depth 0 so CI can resolve commit ancestry, without a second workflow or a second checkout step; the two PLAN-IDs stay separate historical steps with separate contracts and are not merged; next exact action is one independent coordinated review, in a new chat, of that single commit covering PLAN-STAB-7 and PLAN-STAB-8 together; blocking gate items 6, 7 and 8 remain open and item 7 closes only after that review is accepted; PLAN-STAB-6 is not started
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,10 +47,13 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-7 — подготовка совместного bounded
-  implementation PLAN-STAB-7 + PLAN-STAB-8 (pending / not started).** Это
-  единственный current checkpoint; любой другой шаг, названный текущим
-  где-либо ещё, устарел. PLAN-STAB-9 (shared rights vocabulary owner) closed
+- **Текущий шаг:** **PLAN-STAB-7 — implementation совместного слайса
+  PLAN-STAB-7 + PLAN-STAB-8 выполнена 2026-08-06; ожидается independent
+  coordinated review обоих PLAN-ID.** Это единственный current checkpoint;
+  любой другой шаг, названный текущим где-либо ещё, устарел. Шаг остаётся
+  открытым до принятого review: пункт 7 blocking gate требует и (b)
+  implementation, и (c) его independent review. PLAN-STAB-9 (shared rights
+  vocabulary owner) closed
   2026-08-06: implementation completed (commit `ed4604d`, trailer
   `Plan-Step: PLAN-STAB-9`), independently reviewed, verdict **ACCEPT WITH
   MINOR** (blocking findings: нет; один non-blocking wording finding —
@@ -79,9 +82,13 @@ source_paths:
   относится только к порядку выполнения и совместной реализации и **не
   сливает** исторические PLAN-ID PLAN-STAB-7 и PLAN-STAB-8 или их отдельные
   contracts/success criteria/allowed zones, описанные в их собственных
-  разделах ниже. Implementation PLAN-STAB-7/PLAN-STAB-8 **не начиналась**;
-  следующее точное действие — подготовка их совместного bounded
-  implementation prompt, а не сам implementation.
+  разделах ниже. Implementation этого совместного слайса **выполнена**
+  2026-08-06 одним commit с trailer `Plan-Step: PLAN-STAB-7`; PLAN-STAB-8
+  зафиксирован в commit body и в собственном разделе ниже, потому что
+  дополнительного trailer contract и trailer validator в репозитории нет
+  (`Related-Plan-Step` не встречается ни в одном commit и не изобретается).
+  Следующее точное действие — один independent coordinated review этого
+  commit, покрывающий оба PLAN-ID.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
   выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
   job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
@@ -385,12 +392,13 @@ source_paths:
     verdict ACCEPT WITH MINOR (non-blocking wording finding, исправлен); GitHub
     Actions reviewed headSha `ed4604d` зелёный; non-blocking follow-up для
     PLAN-9B-2; не текущий checkpoint;
-  - **PLAN-STAB-7** — **текущий checkpoint**; pending/not started;
-    implementation не начиналась; следующее действие — подготовка совместного
-    bounded implementation с PLAN-STAB-8 (execution order only, contracts
-    отдельные);
-  - **PLAN-STAB-8** — pending/not started; implementation не начиналась;
-    выполняется вместе с PLAN-STAB-7 в рамках того же execution-order slice;
+  - **PLAN-STAB-7** — **текущий checkpoint**; implementation completed
+    2026-08-06 (совместный commit, trailer `Plan-Step: PLAN-STAB-7`);
+    independent coordinated review **pending**; пункт 7 blocking gate остаётся
+    открытым до принятого review;
+  - **PLAN-STAB-8** — implementation completed 2026-08-06 тем же совместным
+    commit; independent coordinated review **pending**; PLAN-ID и contract
+    остаются отдельными от PLAN-STAB-7;
   - **PLAN-STAB-6, PLAN-STAB-10…PLAN-STAB-15, PLAN-STAB-17** —
     pending/not started; состав, порядок и blocking-статус каждого — раздел
     «POST-AUDIT STABILIZATION PROGRAM»;
@@ -419,11 +427,11 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** подготовка совместного bounded
-  implementation PLAN-STAB-7 + PLAN-STAB-8 (current-routing/reference
-  integrity + Git-aware docs freshness) как одного координированного
-  execution-order slice; implementation самих PLAN-STAB-7/PLAN-STAB-8 ещё не
-  начата. PLAN-STAB-9 closed 2026-08-06 (verdict ACCEPT WITH MINOR,
+- **Следующее точное действие:** один independent coordinated review в новом
+  чате, покрывающий совместный commit PLAN-STAB-7 + PLAN-STAB-8
+  (current-routing/reference integrity + Git-aware docs freshness).
+  Implementation обоих выполнена 2026-08-06; их PLAN-ID и contracts остаются
+  раздельными. PLAN-STAB-9 closed 2026-08-06 (verdict ACCEPT WITH MINOR,
   non-blocking) и остаётся non-blocking follow-up для PLAN-9B-2.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
@@ -1249,11 +1257,12 @@ repair/re-review при findings.
    документированный residual risk;
 7. PLAN-STAB-7 — три отдельных, не взаимозаменяемых условия: (a) factual
    routing repair, выполненный слайсом PLAN-STAB-0 — completed; (b) сам
-   PLAN-STAB-7 (checker extension + integrity tests) — **pending / not
-   started**, integrity tests ещё не существуют и не могут считаться
-   зелёными; (c) independent review этого будущего commit — не выполнен,
-   потому что commit ещё не создан. Пункт 7 закрывается только после (b) и
-   его independent review (c); (a) в одиночку пункт 7 не закрывает;
+   PLAN-STAB-7 (checker extension + integrity tests) — **implementation
+   completed 2026-08-06**, integrity tests существуют
+   (`tests/test_docs_routing_and_freshness.py`) и зелёные; (c) independent
+   review этого commit — **не выполнен**. Пункт 7 остаётся **открытым** и
+   закрывается только после принятого review (c); (a) и (b) вместе пункт 7 не
+   закрывают;
 8. отдельный **stabilization review** подтверждает четыре свойства:
    user-output preservation · offline/paid fail-closed behavior · rights
    safety · однозначный current routing.
@@ -1689,10 +1698,12 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-7 — current-routing и reference integrity
 
-- **status:** pending / not started. Factual routing repair в current docs
-  выполнен слайсом PLAN-STAB-0; automation и остальная implementation не
-  начинались, completed слайс не объявляется · **blocking для PLAN-9B-2:** да
-  (repair + зелёные integrity tests) · **зависимости:** —.
+- **status:** implementation completed 2026-08-06 (совместный commit с
+  PLAN-STAB-8, trailer `Plan-Step: PLAN-STAB-7`); independent coordinated
+  review **pending**, поэтому шаг остаётся текущим checkpoint и completed не
+  объявляется. Factual routing repair в current docs был выполнен ранее
+  слайсом PLAN-STAB-0 · **blocking для PLAN-9B-2:** да (repair + зелёные
+  integrity tests + принятый review) · **зависимости:** —.
 - **цель:** current checkpoint, next action, mirrors и referenced IDs не могут
   молча разойтись.
 - **user impact:** новый чат или агент получает ровно одно текущее задание, а
@@ -1710,12 +1721,37 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   собственного heading.
 - **required tests:** duplicate/stale checkpoint statement — error; ссылка на
   несуществующий PLAN-ID — error; heading-less current checkpoint — error.
+- **выполнено:** `validate_routing` в `tools/qa/check_agent_docs.py`.
+  Authority — `current_checkpoint` в frontmatter активного плана. Проверяется:
+  checkpoint имеет **собственный heading** (bullet-only шаг checkpoint быть не
+  может); его `- **status:**` не начинается со слова `completed`;
+  `next_exact_action` называет текущий checkpoint и ссылается только на
+  определённые plan steps; каждый из трёх routing mirrors
+  (`START_HERE.md`, `CURRENT_STATE.md`, `SYSTEM_MAP.md`) содержит хотя бы одно
+  checkpoint-утверждение и ни одно из них не называет другой PLAN-ID.
+  Сообщение об ошибке называет файл, строку, найденный и ожидаемый ID.
+- **осознанная граница:** reference integrity ограничена routing-полями.
+  Сплошная проверка «каждая PLAN-ID-ссылка имеет heading» дала бы ~33 ложных
+  срабатывания: сабы вида `PLAN-12A…PLAN-14F` определяются жирными буллитами
+  внутри родительских разделов, а `PLAN-ID` — обычное слово прозы. Для
+  `next_exact_action` принимаются оба вида определений, для самого checkpoint —
+  только heading.
+- **evidence:** `tests/test_docs_routing_and_freshness.py`, класс
+  `RoutingTests` (валидный route; heading-less checkpoint; расхождение каждого
+  из трёх mirrors по отдельности; mirror без checkpoint-утверждения;
+  `next_exact_action` на несуществующий шаг; `next_exact_action` без текущего
+  checkpoint; completed шаг как checkpoint; pending-статус, лишь упоминающий
+  слово completed, не считается completed) и `RepositoryRoutingAndFreshnessTests`
+  на реальном репозитории.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-8 — Git-aware documentation freshness
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** нет
-  (желателен до возврата) · **зависимости:** —.
+- **status:** implementation completed 2026-08-06 (тот же совместный commit,
+  что и PLAN-STAB-7; собственного отдельного commit у слайса нет по решению
+  владельца об одном координированном bounded slice); independent coordinated
+  review **pending** · **blocking для PLAN-9B-2:** нет (желателен до возврата) ·
+  **зависимости:** —.
 - **цель:** документ считается current по проверенному Git baseline и
   изменениям в релевантных source paths, а не по декоративному hex string.
 - **user impact:** «свежая» метка перестаёт скрывать документ, разошедшийся с
@@ -1736,6 +1772,36 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   docs; design contract фиксируется до реализации.
 - **required tests:** синтетические Git-репозитории (ancestor / не-ancestor /
   изменения после baseline / без изменений); один вызов на реальном репозитории.
+- **выполнено:** `validate_freshness` в `tools/qa/check_agent_docs.py`.
+  Coverage — все пять фактических commit-полей current authority docs:
+  `last_verified_commit` в `START_HERE.md`, `SYSTEM_MAP.md`,
+  `CURRENT_STATE.md`, `CLEANUP_REGISTRY.md` и `baseline_head` в самом плане.
+  Каждое значение обязано быть настоящим commit (`git cat-file -e`) и
+  ancestor HEAD (`git merge-base --is-ancestor`). Три класса ошибок разделены:
+  некорректная форма, несуществующий commit, commit вне истории HEAD. Сеть и
+  GitHub API не используются.
+- **N−1 semantics:** контракт — «ancestor HEAD», а не «равно HEAD». Документ
+  не может содержать hash того commit, который его записывает, поэтому
+  требование равенства было бы невыполнимо по построению.
+- **source_paths drift — advisory, не error.** Печатается как `NOTE:` и не
+  меняет exit code. Обоснование фактическое, а не стилистическое: с `9f3ddba`
+  до HEAD изменились 123 файла, входящие в `source_paths` всех трёх docs;
+  hard error потребовал бы массовой правки `last_verified_*`, которая прямо
+  входит в prohibited zones этого слайса.
+- **calendar age:** отсчитывается от даты HEAD commit, а не от системных
+  часов. Раньше wall clock делал бы дерево красным без единого изменения в
+  репозитории, из-за чего оба owning tests замораживали `today=2026-07-29`;
+  эти frozen constants удалены, tests и CI теперь проходят один и тот же путь.
+- **fail-closed:** отсутствие читаемого Git-репозитория и shallow clone —
+  ошибки, а не тихий пропуск. Поэтому `.github/workflows/offline-tests.yml`
+  получил `fetch-depth: 0` в существующем `actions/checkout@v4` (owner
+  decision 2026-08-06); второй workflow и второй checkout step не создавались.
+- **evidence:** `tests/test_docs_routing_and_freshness.py`, класс
+  `FreshnessTests` на синтетических локальных Git-репозиториях (ancestor;
+  несуществующий commit; malformed commit отдельным сообщением; commit на
+  побочной ветке; drift как advisory; отсутствие drift; каталог без `.git`;
+  shallow clone через `git clone --depth=1`) и `RepositoryRoutingAndFreshnessTests`
+  на реальном репозитории, включая проверку, что checker не трогает worktree.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-9 — shared rights vocabulary owner

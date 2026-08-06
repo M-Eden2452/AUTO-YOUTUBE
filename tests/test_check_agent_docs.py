@@ -162,9 +162,16 @@ Do not fix findings, stage files, or create commits.
 
 class RepositoryTests(unittest.TestCase):
     def test_repository_passes_every_governance_check(self) -> None:
-        self.assertEqual(
-            validate_repository(REPO_ROOT, today=date(2026, 7, 29), max_age_days=120),
-            [],
+        # The calendar reference comes from the repository's own HEAD commit,
+        # not from a constant pinned here: a frozen date would keep this test
+        # green while the identical CI invocation went red.
+        self.assertEqual(validate_repository(REPO_ROOT), [])
+
+    def test_calendar_age_still_rejects_a_document_verified_in_the_future(self) -> None:
+        errors = validate_repository(REPO_ROOT, today=date(2020, 1, 1))
+        self.assertTrue(
+            any("verification date is in the future" in error for error in errors),
+            errors,
         )
 
 

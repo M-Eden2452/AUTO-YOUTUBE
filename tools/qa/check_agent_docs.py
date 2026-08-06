@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ast
 import re
+import subprocess
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -155,6 +156,59 @@ IDENTIFIER_DEFINITION_RULES = (
 )
 CHECKPOINT_RE = re.compile(r"^(?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*$")
 ADR_REFERENCE_RE = re.compile(r"\bADR[  ]?(\d{4})\b")
+
+# --- current routing (PLAN-STAB-7) -----------------------------------------
+#
+# The execution plan's `current_checkpoint` is the single authority. The three
+# onboarding documents mirror it in prose, so drift between them is exactly
+# what a new agent reads as "three competing current tasks".
+#
+# Reference integrity is deliberately scoped to the routing fields. A blanket
+# "every PLAN-ID mentioned anywhere must have a heading" rule would report ~33
+# false positives: sub-steps such as PLAN-12B are defined as bold bullets
+# inside their parent section, and `PLAN-ID` itself is an ordinary prose word.
+EXECUTION_PLAN_DOC = Path("docs/current/PROJECT_EXECUTION_PLAN.md")
+CLEANUP_REGISTRY_DOC = Path("docs/current/CLEANUP_REGISTRY.md")
+ROUTING_MIRRORS = (
+    Path("docs/current/START_HERE.md"),
+    Path("docs/current/CURRENT_STATE.md"),
+    Path("docs/current/SYSTEM_MAP.md"),
+)
+CHECKPOINT_STATEMENT_RE = re.compile(
+    r"checkpoint\s*[—–-]\s*\*{0,2}"
+    r"((?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*)",
+    re.IGNORECASE,
+)
+PLAN_REFERENCE_RE = re.compile(r"(?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*")
+# `PLAN-ID` reads like an identifier but is prose; it never defines a step.
+PLAN_PROSE_WORDS = frozenset({"PLAN-ID", "PLAN-IDs"})
+BULLET_PLAN_DEFINITION_RE = re.compile(
+    r"^\s*-\s+\*\*((?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*)\*\*\s+—\s"
+)
+STEP_STATUS_RE = re.compile(r"^-\s+\*\*status:\*\*\s*(.+)$")
+ANY_HEADING_RE = re.compile(r"^#{1,6}\s")
+# The verdict is the head of the status value, not any word inside it: a
+# pending step may legitimately say "completed слайс не объявляется".
+COMPLETED_STATUS_PREFIX = "completed"
+
+# --- Git-aware freshness (PLAN-STAB-8) -------------------------------------
+#
+# Every commit a current document points at is verified against real Git: it
+# must exist and be reachable from HEAD. Recording the commit a document was
+# verified against is self-referential by nature — a document cannot contain
+# the hash of the commit that writes it — so the contract is "ancestor of
+# HEAD" (N−1 semantics), never "equal to HEAD".
+FRESHNESS_FIELDS = (
+    (Path("docs/current/START_HERE.md"), "last_verified_commit"),
+    (Path("docs/current/SYSTEM_MAP.md"), "last_verified_commit"),
+    (Path("docs/current/CURRENT_STATE.md"), "last_verified_commit"),
+    (CLEANUP_REGISTRY_DOC, "last_verified_commit"),
+    (EXECUTION_PLAN_DOC, "baseline_head"),
+)
+# Drift of declared source_paths after the baseline is reported, never failed.
+# Making it an error would demand a repository-wide rewrite of last_verified_*
+# on every code commit — exactly the mass edit PLAN-STAB-8 forbids.
+SOURCE_DRIFT_SAMPLE = 5
 
 # Protects the DOC-CS1 result: these boundaries must stay documented in code.
 REQUIRED_PACKAGE_DOCSTRINGS = (
@@ -362,6 +416,281 @@ def _validate_checkpoint(
     if checkpoint not in defined:
         return [f"{name}: {field} {checkpoint} has no step definition in this document"]
     return []
+
+
+# --- read-only Git access --------------------------------------------------
+#
+# Same shape as tools/qa/check_task_scope.py: optional locks disabled, never
+# checked for success implicitly, never mutating, never networked.
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str] | None:
+    try:
+        return subprocess.run(
+            ["git", "--no-optional-locks", *args],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError:
+        return None
+
+
+def _git_succeeds(root: Path, *args: str) -> bool:
+    completed = _git(root, *args)
+    return completed is not None and completed.returncode == 0
+
+
+def _repository_root(root: Path) -> Path | None:
+    """The Git top level of *root*, or None when *root* is not one itself."""
+
+    completed = _git(root, "rev-parse", "--show-toplevel")
+    if completed is None or completed.returncode != 0:
+        return None
+    discovered = completed.stdout.strip()
+    if not discovered:
+        return None
+    try:
+        return Path(discovered).resolve()
+    except OSError:
+        return None
+
+
+def _repository_is_shallow(root: Path) -> bool:
+    completed = _git(root, "rev-parse", "--is-shallow-repository")
+    if completed is None or completed.returncode != 0:
+        return False
+    return completed.stdout.strip().lower() == "true"
+
+
+def _commit_exists(root: Path, commit: str) -> bool:
+    return _git_succeeds(root, "cat-file", "-e", f"{commit}^{{commit}}")
+
+
+def _is_ancestor_of_head(root: Path, commit: str) -> bool:
+    return _git_succeeds(root, "merge-base", "--is-ancestor", commit, "HEAD")
+
+
+def _changed_since(root: Path, commit: str, sources: Iterable[str]) -> list[str]:
+    paths = [str(source) for source in sources if str(source).strip()]
+    if not paths:
+        return []
+    completed = _git(root, "diff", "--name-only", commit, "HEAD", "--", *paths)
+    if completed is None or completed.returncode != 0:
+        return []
+    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _head_commit_date(root: Path) -> date | None:
+    completed = _git(root, "log", "-1", "--format=%cI")
+    if completed is None or completed.returncode != 0:
+        return None
+    stamp = completed.stdout.strip()
+    try:
+        return date.fromisoformat(stamp[:10])
+    except ValueError:
+        return None
+
+
+def _reference_date(root: Path) -> date:
+    """Calendar reference for document age: the repository, not the wall clock.
+
+    A wall-clock reference turns a green tree red without any change to the
+    repository, which is why the previous contract had to be frozen inside the
+    tests to stay green. The HEAD commit date is deterministic locally and in
+    CI, needs no network, and moves only when the repository itself moves.
+    """
+
+    return _head_commit_date(root) or date.today()
+
+
+def validate_freshness(
+    root: Path, *, advisories: list[str] | None = None
+) -> list[str]:
+    """Commit metadata of current documents is verified against real Git.
+
+    Fail-closed: without a readable, complete Git history the contract cannot
+    be checked at all, and a checker that silently skips it would restore the
+    decorative-hex-string behaviour PLAN-STAB-8 exists to remove.
+    """
+
+    errors: list[str] = []
+    if _repository_root(root) != root.resolve():
+        return [
+            "cannot verify Git-aware documentation freshness: "
+            f"{root} is not a readable Git repository; run the checker inside "
+            "the repository checkout"
+        ]
+    if _repository_is_shallow(root):
+        return [
+            "cannot verify Git-aware documentation freshness: repository is a "
+            "shallow clone and cannot resolve commit ancestry; use "
+            "fetch-depth: 0 in CI or `git fetch --unshallow` locally"
+        ]
+
+    for relative, field in FRESHNESS_FIELDS:
+        name = relative.as_posix()
+        path = root / relative
+        if not path.is_file():
+            continue
+        try:
+            metadata = _frontmatter(path)
+        except (OSError, ValueError, yaml.YAMLError):
+            # Shape and readability are owned by the metadata contract above.
+            continue
+        commit = str(metadata.get(field, "")).strip()
+        if not COMMIT_RE.fullmatch(commit):
+            errors.append(
+                f"{name}: {field} {commit!r} is not a Git commit id; record the "
+                "commit the document was actually verified against"
+            )
+            continue
+        if not _commit_exists(root, commit):
+            errors.append(
+                f"{name}: {field} {commit} is not a commit in this repository; "
+                "record a commit that exists on this branch"
+            )
+            continue
+        if not _is_ancestor_of_head(root, commit):
+            errors.append(
+                f"{name}: {field} {commit} is not an ancestor of HEAD; record a "
+                "commit reachable from the current branch"
+            )
+            continue
+        if advisories is None:
+            continue
+        sources = metadata.get("source_paths")
+        if not isinstance(sources, list) or not sources:
+            continue
+        changed = _changed_since(root, commit, sources)
+        if not changed:
+            continue
+        # Printed to a Windows console that is not guaranteed to be UTF-8, so
+        # the advisory stays ASCII.
+        shown = ", ".join(changed[:SOURCE_DRIFT_SAMPLE])
+        if len(changed) > SOURCE_DRIFT_SAMPLE:
+            shown += f", ... ({len(changed)} files total)"
+        advisories.append(
+            f"{name}: source_paths changed since {field} {commit}: {shown}; "
+            "re-verify the content, then update the metadata in its own "
+            "reviewed slice"
+        )
+    return errors
+
+
+def _plan_step_headings(text: str) -> set[str]:
+    return {
+        identifier
+        for kind, identifier in _identifier_definitions(text)
+        if kind == "plan step"
+    }
+
+
+def _plan_step_bullets(text: str) -> set[str]:
+    return {
+        match.group(1)
+        for _, line in _prose_lines(text)
+        if (match := BULLET_PLAN_DEFINITION_RE.match(line))
+    }
+
+
+def _step_status(text: str, identifier: str) -> str | None:
+    """First status verdict declared under the heading that defines *identifier*."""
+
+    lines = text.splitlines()
+    inside = False
+    for line in lines:
+        match = PLAN_DEFINITION_RE.match(line)
+        if match:
+            inside = match.group(1) == identifier
+            continue
+        if not inside:
+            continue
+        if ANY_HEADING_RE.match(line):
+            return None
+        status = STEP_STATUS_RE.match(line)
+        if status:
+            return status.group(1).strip().lstrip("*").strip()
+    return None
+
+
+def _referenced_plan_steps(value: str) -> set[str]:
+    return set(PLAN_REFERENCE_RE.findall(value)) - PLAN_PROSE_WORDS
+
+
+def validate_routing(root: Path) -> list[str]:
+    """One authoritative current checkpoint that the mirrors cannot contradict."""
+
+    name = EXECUTION_PLAN_DOC.as_posix()
+    plan = root / EXECUTION_PLAN_DOC
+    if not plan.is_file():
+        return [f"missing current document: {name}"]
+    try:
+        metadata = _frontmatter(plan)
+    except (OSError, ValueError, yaml.YAMLError):
+        # Reported by the metadata contract; routing cannot be judged here.
+        return []
+    checkpoint = str(metadata.get("current_checkpoint") or "").strip()
+    if not CHECKPOINT_RE.fullmatch(checkpoint):
+        return []
+
+    text = plan.read_text(encoding="utf-8")
+    headings = _plan_step_headings(text)
+    if checkpoint not in headings:
+        return [
+            f"{name}: current_checkpoint {checkpoint} has no heading definition "
+            "in this document; a bullet-only step cannot be the current checkpoint"
+        ]
+
+    errors: list[str] = []
+    status = _step_status(text, checkpoint)
+    if status is None:
+        errors.append(f"{name}: current_checkpoint {checkpoint} has no status line")
+    elif status.lower().startswith(COMPLETED_STATUS_PREFIX):
+        errors.append(
+            f"{name}: current_checkpoint {checkpoint} is completed and cannot be "
+            "the current checkpoint; move the checkpoint to the next open step"
+        )
+
+    action = str(metadata.get("next_exact_action") or "")
+    defined = headings | _plan_step_bullets(text)
+    for identifier in sorted(_referenced_plan_steps(action) - defined):
+        errors.append(
+            f"{name}: next_exact_action references undefined plan step {identifier}"
+        )
+    if checkpoint not in _referenced_plan_steps(action):
+        errors.append(
+            f"{name}: next_exact_action does not name current_checkpoint "
+            f"{checkpoint}; the stated next action is stale"
+        )
+
+    for relative in ROUTING_MIRRORS:
+        mirror_name = relative.as_posix()
+        mirror = root / relative
+        if not mirror.is_file():
+            errors.append(f"missing current document: {mirror_name}")
+            continue
+        found = [
+            (number, match.group(1))
+            for number, line in _prose_lines(mirror.read_text(encoding="utf-8"))
+            for match in CHECKPOINT_STATEMENT_RE.finditer(line)
+        ]
+        if not found:
+            errors.append(
+                f"{mirror_name}: no current-checkpoint statement; this routing "
+                f"mirror must name current_checkpoint {checkpoint}"
+            )
+            continue
+        for number, identifier in found:
+            if identifier != checkpoint:
+                errors.append(
+                    f"{mirror_name}:{number}: routing mirror names checkpoint "
+                    f"{identifier}, execution plan current_checkpoint is {checkpoint}"
+                )
+    return errors
 
 
 def validate_section_references(root: Path) -> list[str]:
@@ -719,9 +1048,10 @@ def validate_repository(
     *,
     today: date | None = None,
     max_age_days: int = 120,
+    advisories: list[str] | None = None,
 ) -> list[str]:
     errors: list[str] = []
-    today = today or date.today()
+    today = today or _reference_date(root)
 
     linked_docs = [root / "AGENTS.md", root / "CLAUDE.md"]
     for relative in CURRENT_DOCS:
@@ -788,6 +1118,8 @@ def validate_repository(
                 label = _label(root, document)
                 errors.append(f"{label}: broken local link to {target}")
 
+    errors.extend(validate_routing(root))
+    errors.extend(validate_freshness(root, advisories=advisories))
     errors.extend(validate_section_references(root))
     errors.extend(validate_identifier_definitions(root))
     errors.extend(validate_adr_references(root))
@@ -810,7 +1142,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-age-days", type=int, default=120)
     args = parser.parse_args(argv)
 
-    errors = validate_repository(args.root.resolve(), max_age_days=args.max_age_days)
+    advisories: list[str] = []
+    errors = validate_repository(
+        args.root.resolve(),
+        max_age_days=args.max_age_days,
+        advisories=advisories,
+    )
+    for advisory in advisories:
+        print(f"NOTE: {advisory}")
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

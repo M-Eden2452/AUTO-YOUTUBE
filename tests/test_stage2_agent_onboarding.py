@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import unittest
-from datetime import date
 from pathlib import Path
 
 from tools.qa.check_agent_docs import REQUIRED_SKILLS, validate_repository
@@ -12,14 +11,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 class Stage2AgentOnboardingTests(unittest.TestCase):
     def test_agent_docs_and_skills_are_consistent(self) -> None:
-        self.assertEqual(
-            validate_repository(
-                REPO_ROOT,
-                today=date(2026, 7, 29),
-                max_age_days=120,
-            ),
-            [],
-        )
+        # No frozen verification date: the checker derives its calendar
+        # reference from the repository's own HEAD commit, so this test
+        # exercises exactly what CI runs instead of a pinned constant that
+        # could stay green while CI turned red.
+        self.assertEqual(validate_repository(REPO_ROOT), [])
 
     def test_onboarding_documents_stay_short(self) -> None:
         limits = {
