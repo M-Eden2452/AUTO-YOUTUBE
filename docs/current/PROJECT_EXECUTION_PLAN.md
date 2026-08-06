@@ -6,8 +6,8 @@ updated_at: 2026-08-06
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-9
-next_exact_action: PLAN-STAB-9 (shared rights vocabulary owner) implementation completed 2026-08-06, independent review pending; canonical owner is src/assets/models.py, the duplicate ALLOWED_RENDER_RIGHTS set in src/news/models.py is gone while its import paths stay as compatibility re-exports; per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 -> PLAN-STAB-7 + PLAN-STAB-8 -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint remains PLAN-STAB-9 until its independent review closes; PLAN-STAB-9 stays non-blocking for PLAN-9B-2; blocking gate items 6, 7, 8 remain open; PLAN-STAB-7/PLAN-STAB-8 must not start before the review closes
+current_checkpoint: PLAN-STAB-7
+next_exact_action: PLAN-STAB-9 (shared rights vocabulary owner) is closed 2026-08-06 - implementation commit ed4604d, independently reviewed, verdict ACCEPT WITH MINOR (blocking findings none, one non-blocking wording finding about divergence-guard coverage, corrected by this docs-only slice), GitHub Actions reviewed headSha ed4604d green (failures=0, errors=0), HEAD == origin/governance-reset, worktree clean; PLAN-STAB-9 stays non-blocking for PLAN-9B-2 and is not retroactively added to the blocking gate; per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 (closed) -> PLAN-STAB-7 + PLAN-STAB-8 -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint moves to PLAN-STAB-7; next exact action is preparing one coordinated bounded implementation covering PLAN-STAB-7 (current-routing and reference integrity) and PLAN-STAB-8 (Git-aware documentation freshness) as a single execution-order slice - this joins their execution order and implementation only, it does not merge the two historical PLAN-IDs or their separate contracts/success criteria; implementation of PLAN-STAB-7/PLAN-STAB-8 has not started; blocking gate items 6, 7, 8 remain open
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,31 +47,41 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-9 — implementation completed 2026-08-06,
-  independent review pending (non-blocking follow-up для PLAN-9B-2).** Это
+- **Текущий шаг:** **PLAN-STAB-7 — подготовка совместного bounded
+  implementation PLAN-STAB-7 + PLAN-STAB-8 (pending / not started).** Это
   единственный current checkpoint; любой другой шаг, названный текущим
-  где-либо ещё, устарел. Checkpoint остаётся PLAN-STAB-9 до закрытия review;
-  PLAN-STAB-7/PLAN-STAB-8 до этого не начинаются. Словарь допустимых
-  rights statuses получил единственного владельца `src/assets/models.py`;
-  независимая копия `ALLOWED_RENDER_RIGHTS` в `src/news/models.py` удалена, а
-  её import paths сохранены как compatibility re-exports того же объекта.
-  Детали и residual risks — в разделе PLAN-STAB-9 ниже. PLAN-STAB-5 (C50
+  где-либо ещё, устарел. PLAN-STAB-9 (shared rights vocabulary owner) closed
+  2026-08-06: implementation completed (commit `ed4604d`, trailer
+  `Plan-Step: PLAN-STAB-9`), independently reviewed, verdict **ACCEPT WITH
+  MINOR** (blocking findings: нет; один non-blocking wording finding —
+  исправлен этим docs-only closure слайсом, см. раздел PLAN-STAB-9 ниже),
+  GitHub Actions reviewed headSha `ed4604d` — job «Validate agent docs and
+  skills governance» success, job «Run offline unit and integration suite»
+  success, общий workflow result success, failures=0, errors=0, HEAD ==
+  `origin/governance-reset`, worktree clean. PLAN-STAB-9 остаётся
+  **non-blocking** для PLAN-9B-2 и не добавляется в blocking gate задним
+  числом. Словарь допустимых rights statuses остаётся с единственным
+  владельцем `src/assets/models.py`; независимая копия
+  `ALLOWED_RENDER_RIGHTS` в `src/news/models.py` удалена, а её import paths
+  сохранены как compatibility re-exports того же объекта. PLAN-STAB-5 (C50
   rights-review preservation) completed 2026-08-06, independently reviewed,
   verdict **ACCEPT** (findings: нет), GitHub Actions run `31084873522` —
   offline suite зелёный (`Ran 1646 tests in 273.522s`, `OK (skipped=6)`,
-  failures=0, errors=0), CI headSha == `8226a28`, HEAD ==
-  `origin/governance-reset`, worktree clean; пункт 5 blocking gate
-  **satisfied**. Пункты 6, 7 и 8 blocking gate остаются открытыми;
-  stabilization gate целиком не закрыт.
+  failures=0, errors=0); пункт 5 blocking gate **satisfied**. Пункты 6, 7 и 8
+  blocking gate остаются открытыми; stabilization gate целиком не закрыт.
 
   **Утверждённый активный execution route (owner decision 2026-08-06):**
-  PLAN-STAB-5 → **PLAN-STAB-9** → PLAN-STAB-7 + PLAN-STAB-8 → PLAN-STAB-6 или
-  явное residual-risk decision → отдельный stabilization review → PLAN-9B-2.
-  Это owner-prioritized порядок выполнения, а не переопределение blocking
-  gate: PLAN-STAB-9 остаётся **non-blocking** для PLAN-9B-2 (см. «Non-blocking
-  follow-up» ниже), а состав и нумерация пунктов 5–8 самого blocking gate не
-  менялись. PLAN-STAB-9 implementation выполнена; её independent review ещё не
-  проводился, поэтому переход к PLAN-STAB-7 + PLAN-STAB-8 пока не открыт.
+  PLAN-STAB-5 → PLAN-STAB-9 (closed) → **PLAN-STAB-7 + PLAN-STAB-8** →
+  PLAN-STAB-6 или явное residual-risk decision → отдельный stabilization
+  review → PLAN-9B-2. PLAN-STAB-7 и PLAN-STAB-8 выполняются как один
+  координированный bounded slice execution order (routing/reference
+  integrity + Git-aware docs freshness запускаются вместе); это объединение
+  относится только к порядку выполнения и совместной реализации и **не
+  сливает** исторические PLAN-ID PLAN-STAB-7 и PLAN-STAB-8 или их отдельные
+  contracts/success criteria/allowed zones, описанные в их собственных
+  разделах ниже. Implementation PLAN-STAB-7/PLAN-STAB-8 **не начиналась**;
+  следующее точное действие — подготовка их совместного bounded
+  implementation prompt, а не сам implementation.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
   выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
   job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
@@ -370,12 +380,20 @@ source_paths:
     trailer `Plan-Step: PLAN-STAB-5`); independent review выполнен, verdict
     **ACCEPT** (findings: нет), GitHub Actions run `31084873522` (1646 tests
     OK); commit pushed; пункт 5 blocking gate satisfied;
-  - **PLAN-STAB-9** — **текущий checkpoint**; implementation completed
-    2026-08-06 (единственный commit слайса, trailer `Plan-Step: PLAN-STAB-9`),
-    **independent review pending**; non-blocking follow-up для PLAN-9B-2;
-  - **PLAN-STAB-6, PLAN-STAB-7, PLAN-STAB-8, PLAN-STAB-10…PLAN-STAB-15,
-    PLAN-STAB-17** — pending/not started; состав, порядок и blocking-статус
-    каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
+  - **PLAN-STAB-9** — completed 2026-08-06 (единственный commit слайса,
+    trailer `Plan-Step: PLAN-STAB-9`, `ed4604d`); independent review выполнен,
+    verdict ACCEPT WITH MINOR (non-blocking wording finding, исправлен); GitHub
+    Actions reviewed headSha `ed4604d` зелёный; non-blocking follow-up для
+    PLAN-9B-2; не текущий checkpoint;
+  - **PLAN-STAB-7** — **текущий checkpoint**; pending/not started;
+    implementation не начиналась; следующее действие — подготовка совместного
+    bounded implementation с PLAN-STAB-8 (execution order only, contracts
+    отдельные);
+  - **PLAN-STAB-8** — pending/not started; implementation не начиналась;
+    выполняется вместе с PLAN-STAB-7 в рамках того же execution-order slice;
+  - **PLAN-STAB-6, PLAN-STAB-10…PLAN-STAB-15, PLAN-STAB-17** —
+    pending/not started; состав, порядок и blocking-статус каждого — раздел
+    «POST-AUDIT STABILIZATION PROGRAM»;
   - **PLAN-STAB-16** — pending/not started как полный слайс, но **частично
     выполнена**: CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) закрыл
     первую часть success criteria (green offline suite в GitHub Actions —
@@ -401,10 +419,12 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** independent review PLAN-STAB-9 (shared rights
-  vocabulary owner) в отдельном контексте. Implementation выполнена;
-  PLAN-STAB-9 остаётся non-blocking follow-up для PLAN-9B-2, и следующий
-  PLAN-step (PLAN-STAB-7 + PLAN-STAB-8) не начинается до закрытия review.
+- **Следующее точное действие:** подготовка совместного bounded
+  implementation PLAN-STAB-7 + PLAN-STAB-8 (current-routing/reference
+  integrity + Git-aware docs freshness) как одного координированного
+  execution-order slice; implementation самих PLAN-STAB-7/PLAN-STAB-8 ещё не
+  начата. PLAN-STAB-9 closed 2026-08-06 (verdict ACCEPT WITH MINOR,
+  non-blocking) и остаётся non-blocking follow-up для PLAN-9B-2.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1239,12 +1259,13 @@ repair/re-review при findings.
    safety · однозначный current routing.
 
 **Утверждённый активный execution route (owner decision 2026-08-06).** После
-закрытия PLAN-STAB-5 приоритетный порядок выполнения — PLAN-STAB-9 →
-PLAN-STAB-7 + PLAN-STAB-8 → PLAN-STAB-6 или явное residual-risk decision →
+закрытия PLAN-STAB-5 и PLAN-STAB-9 приоритетный порядок выполнения —
+**PLAN-STAB-7 + PLAN-STAB-8** → PLAN-STAB-6 или явное residual-risk decision →
 stabilization review → PLAN-9B-2 (детали — раздел «Current checkpoint» выше).
 Это owner-prioritized порядок выполнения, а не blocking dependency:
-PLAN-STAB-9 остаётся non-blocking для PLAN-9B-2, а содержание и нумерация
-пунктов 5–8 blocking gate этим решением не менялись.
+PLAN-STAB-9 остаётся non-blocking для PLAN-9B-2 и не входит в blocking gate
+задним числом, а содержание и нумерация пунктов 5–8 blocking gate этим
+решением не менялись.
 
 **Non-blocking follow-up.** PLAN-STAB-9…PLAN-STAB-17 находятся в обязательном
 stabilization backlog, но индивидуально `PLAN-9B-2` не блокируют.
@@ -1719,8 +1740,14 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-9 — shared rights vocabulary owner
 
-- **status:** implementation completed 2026-08-06, **independent review
-  pending** · **blocking для PLAN-9B-2:** нет · **зависимости:** PLAN-STAB-5.
+- **status:** completed 2026-08-06 (commit `ed4604d`, единственный commit
+  слайса, trailer `Plan-Step: PLAN-STAB-9`) · independent review выполнен,
+  verdict **ACCEPT WITH MINOR** (blocking findings: нет; один non-blocking
+  finding — wording overclaim, исправлен этим docs-only closure слайсом, см.
+  «minor finding» ниже); GitHub Actions reviewed headSha `ed4604d` — offline
+  suite зелёный, failures=0, errors=0, HEAD == `origin/governance-reset`,
+  worktree clean · **blocking для PLAN-9B-2:** нет · **зависимости:**
+  PLAN-STAB-5.
 - **выполнено:** canonical owner — `src/assets/models.py`. Он объявляет семь
   именованных `RIGHTS_*` и immutable `RIGHTS_ALLOWED_STATUSES`
   (`frozenset`: `user_owned`, `licensed`, `creative_commons`, `public_domain`).
@@ -1745,13 +1772,25 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   неполный asset; PLAN-STAB-5 monotonic review сохранён; round-trip не меняет
   значение статуса; legacy manifest читается и остаётся fail-closed.
 - **evidence:** новый owning-модуль `tests/test_rights_status_vocabulary.py`
-  (21 test OK), включая divergence-тест: identity alias и каждого re-export плюс
-  AST-проверка исходника `src/news/models.py` на отсутствие второго
-  set/frozenset словаря (проверено, что guard падает на всех четырёх формах
-  возврата копии). Regression radius 257 OK; полный offline suite —
-  см. запись в `CURRENT_STATE.md`; docs QA 0; scope-check OK;
-  `git diff --check` 0. Сеть, provider API, download, Vision, TTS и реальный
-  render не использовались.
+  (21 test OK), включая divergence-защиту как комбинацию проверок: identity
+  alias canonical object, compatibility alias tests для каждого re-export,
+  AST-проверка исходника `src/news/models.py` на отсутствие независимого
+  vocabulary literal (второго set/frozenset словаря) и runtime tests
+  существующих consumers (`asset_manifest_builder.py`,
+  `asset_provider_adapters.py`). Именно эта комбинация предотвращает
+  расхождение словаря; ни один отдельный AST guard не заявляется как
+  самостоятельно ловящий все формы независимого возврата копии. Regression
+  radius 257 OK; полный offline suite — см. запись в `CURRENT_STATE.md`;
+  docs QA 0; scope-check OK; `git diff --check` 0. Сеть, provider API,
+  download, Vision, TTS и реальный render не использовались.
+- **minor finding (independent review, non-blocking) и его исправление:**
+  формулировки в этом плане и в `CURRENT_STATE.md` преувеличивали покрытие
+  divergence guard, утверждая, что один AST guard самостоятельно ловит все
+  формы возврата независимой копии словаря. Исправлено этим docs-only closure
+  слайсом: расхождение словаря предотвращает именно комбинация
+  identity-проверок canonical object, compatibility alias tests, AST-проверки
+  отсутствия независимого vocabulary literal и runtime tests consumers — не
+  один изолированный AST guard.
 - **не менялось:** `config/license_policy.json`, schema version, persisted
   поля, CLI, Wizard, provider APIs, network boundary; миграция манифестов не
   требуется; словарь не расширялся.
@@ -1781,7 +1820,7 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   строковых списков нет.
 - **required tests:** divergence-тест — расхождение словарей падает.
 - **rollback / review:** по общим требованиям программы; independent review
-  выполняется в отдельном контексте и на момент этой записи не проводился.
+  выполнен в отдельном контексте, verdict ACCEPT WITH MINOR (см. status выше).
 
 #### PLAN-STAB-10 — canonical timestamp formats
 
