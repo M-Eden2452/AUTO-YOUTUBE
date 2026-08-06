@@ -33,6 +33,14 @@ Outputs: ``LicensePolicyDecision``. Файлов модуль не пишет;
 Important invariants:
 - политика — единственный авторитет прав; решение авторитетно и перезаписывает
   поля лицензии кандидата, включая ``review_required``;
+- требование ревью monotonic: уже записанное ``review_required=True`` — вход
+  политики, а не то, что она вправе снять. Учитываются все фактически
+  присутствующие представления записи (корень, ``license``, сохранённый
+  ``policy_decision``); одного ``True`` достаточно, отсутствующее представление
+  разрешением не является. Причина блокировки — ``record_review_required``.
+  Снимает требование только подтверждённая per-asset ``rights_declaration``.
+  Намеренный safety trade-off (owner decision 2026-08-06): дозаполнение metadata,
+  resume и rebuild сами по себе ревью больше не снимают;
 - отсутствие правила по умолчанию означает запрет: ``default_deny``, а не
   разрешение;
 - любая заблокированная причина обнуляет ``allowed_for_render`` и включает
@@ -40,11 +48,6 @@ Important invariants:
 - ``reason`` остаётся машиночитаемым и сохраняет все накопленные причины;
 - недоступный или повреждённый файл политики даёт ``missing-policy`` и
   запрещающее поведение, а не молчаливое разрешение.
-
-Открытый дефект: правило локальной библиотеки может снять явный
-``review_required`` записи. Он зафиксирован в
-``docs/current/CLEANUP_REGISTRY.md`` как отдельный bounded rights slice и здесь
-не переписывается.
 
 See also: ``src/assets/README.md``, ``src/assets/provider_contract.py``,
 ``config/license_policy.json``.
@@ -65,6 +68,7 @@ from src.config_resolver.paths import repository_path
 DEFAULT_LICENSE_POLICY_PATH = repository_path("config", "license_policy.json")
 APPROVED_STATUSES = {"approved", "confirmed", "owner_approved"}
 MANUAL_PROVIDERS = {"user", "manual", "manual_asset", "envato_manual"}
+RECORD_REVIEW_REQUIRED_REASON = "record_review_required"
 
 
 @dataclass
@@ -190,6 +194,14 @@ def evaluate_asset_policy(
 
     if rule and bool(rule.get("requires_rights_confirmation")) and not _manual_declaration_is_confirmed(manual_declaration):
         reason_parts.append("manual_rights_not_confirmed")
+
+    # A review requirement the record already carries is an input to this policy, not
+    # something the policy may normalise away. Without this, a local-library record
+    # marked for review left the canonical path allowed, because the rule table says
+    # user_owned needs no review and its answer overwrote the record's. The reason is
+    # recorded so the operator reads why the asset is held, not just that it is.
+    if _record_review_required(raw) and not _manual_declaration_is_confirmed(manual_declaration):
+        reason_parts.append(RECORD_REVIEW_REQUIRED_REASON)
 
     reason_parts.extend(
         _provider_specific_policy_reasons(
@@ -351,6 +363,30 @@ def _manual_declaration_is_confirmed(declaration: dict[str, Any]) -> bool:
         return True
     status = str(declaration.get("confirmation_status") or declaration.get("owner_approval_status") or "").strip().lower()
     return status in APPROVED_STATUSES
+
+
+def _record_review_required(raw: dict[str, Any]) -> bool:
+    """Is a review requirement already recorded anywhere on this record?
+
+    Rights review is monotonic: automation may add a requirement, never take one away.
+    Every representation the record actually carries counts - the root flag, the copy
+    inside ``license``, and the one in a stored ``policy_decision`` - and one ``True``
+    is enough, the same way ``completion.modes`` gives every present copy a veto at the
+    render gate. A representation that is absent says nothing and is not permission.
+
+    Where the requirement came from is deliberately not asked. A stored record cannot
+    reliably tell an operator's own flag apart from this policy's earlier answer, and
+    guessing at that difference is exactly what let a flagged asset through. The cost is
+    accepted and intended: supplying the metadata that caused a block no longer clears
+    the review by itself. Only a confirmed per-asset ``rights_declaration`` does.
+    """
+    if bool(raw.get("review_required")):
+        return True
+    license_data = raw.get("license")
+    if isinstance(license_data, dict) and bool(license_data.get("review_required")):
+        return True
+    previous = raw.get("policy_decision")
+    return isinstance(previous, dict) and bool(previous.get("review_required"))
 
 
 def _policy_context(candidate: AssetCandidate, raw: dict[str, Any], policy: dict[str, Any], context: str | None) -> str:

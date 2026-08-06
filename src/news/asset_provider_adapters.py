@@ -181,6 +181,11 @@ def with_policy_decision(candidate: dict[str, Any]) -> dict[str, Any]:
         )
     if isinstance(candidate.get("rights_declaration"), dict):
         canonical.rights_declaration = dict(candidate["rights_declaration"])
+    if bool(candidate.get("review_required")) and not canonical.license.review_required:
+        # A record may state the review requirement beside the licence instead of inside
+        # it, and ``AssetLicense`` then derives the nested copy from allowed_for_render.
+        # Normalising into a candidate must not be where the requirement disappears.
+        canonical.license.review_required = True
     decision = apply_policy_to_candidate(canonical)
     updated = {**candidate, **canonical.to_manifest_dict()}
     updated["canonical_asset"] = canonical.to_dict()

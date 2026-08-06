@@ -55,7 +55,7 @@ Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM». P
 MINOR, ACCEPT, ACCEPT WITH MINOR (owner-provided external review evidence, не отдельный Git commit).
 PLAN-STAB-4 (`0947e51`, runtime-сеть fail-closed, `src/runtime_network.py`) completed 2026-08-06,
 independently reviewed, verdict ACCEPT WITH MINOR (два findings non-blocking, не исправлены); gate
-пункт 4 satisfied. Checkpoint — PLAN-STAB-5 (C50 rights-review preservation), pending / not started.
+пункт 4 satisfied. Checkpoint — PLAN-STAB-5 (C50 rights-review preservation): implementation completed 2026-08-06, independent review pending, пункт 5 gate satisfied только после accepted review; rights review стал monotonic и снимается только подтверждённой per-asset `rights_declaration` (owner decision 2026-08-06 — намеренный safety contract, детали в [CURRENT_STATE.md](CURRENT_STATE.md)).
 PLAN-9B-2 остаётся deferred за stabilization gate. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`)
 вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run `31039985187`,
 1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16 частично

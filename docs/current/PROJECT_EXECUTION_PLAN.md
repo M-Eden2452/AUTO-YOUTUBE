@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-5
-next_exact_action: prepare a bounded implementation slice for PLAN-STAB-5 (C50 rights-review preservation); implementation has not started
+next_exact_action: run an independent review of the PLAN-STAB-5 implementation (C50 rights-review preservation) in a separate chat; implementation is complete, review is pending
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,12 +47,13 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-5 — pending / not started.** Это единственный
-  current checkpoint; любой другой шаг, названный текущим где-либо ещё,
-  устарел. PLAN-STAB-4 completed and independently accepted; пункт 4 blocking
-  gate satisfied (см. ниже). Checkpoint сдвинут на PLAN-STAB-5; сама
-  implementation PLAN-STAB-5 этим не начата, и stabilization gate целиком не
-  закрыт (пункты 5–8 blocking gate остаются открытыми).
+- **Текущий шаг:** **PLAN-STAB-5 — implementation completed, independent review
+  pending.** Это единственный current checkpoint; любой другой шаг, названный
+  текущим где-либо ещё, устарел. PLAN-STAB-4 completed and independently
+  accepted; пункт 4 blocking gate satisfied (см. ниже). Пункт 5 blocking gate
+  **не** satisfied, пока review PLAN-STAB-5 не выполнен; stabilization gate
+  целиком не закрыт (пункты 5–8 остаются открытыми). Следующий шаг —
+  independent review PLAN-STAB-5 в отдельном чате, не PLAN-STAB-6.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
   выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
   job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
@@ -347,8 +348,9 @@ source_paths:
     `31053545804`, offline suite 1623 tests OK); commit pushed; пункт 4
     blocking gate satisfied; два findings review зафиксированы как
     non-blocking residual evidence и не исправлены;
-  - **PLAN-STAB-5** — pending/not started; **текущий checkpoint**;
-    implementation не начата;
+  - **PLAN-STAB-5** — **текущий checkpoint**; implementation completed
+    2026-08-06 (единственный commit слайса, trailer `Plan-Step: PLAN-STAB-5`);
+    independent review pending, поэтому пункт 5 blocking gate ещё не satisfied;
   - **PLAN-STAB-6…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
     порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
     PROGRAM»;
@@ -377,10 +379,9 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** подготовить bounded implementation slice для
-  PLAN-STAB-5 (C50 rights-review preservation) в отдельном чате.
-  PLAN-STAB-4 completed and independently accepted; implementation
-  PLAN-STAB-5 этим checkpoint move не начата.
+- **Следующее точное действие:** выполнить independent review реализации
+  PLAN-STAB-5 (C50 rights-review preservation) в отдельном чате. Implementation
+  завершена; пункт 5 blocking gate satisfied только после accepted review.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1530,9 +1531,32 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-5 — C50 rights-review preservation
 
-- **status:** pending / not started · **текущий checkpoint** (после completion
-  и independent accept PLAN-STAB-4); implementation этим checkpoint move не
-  начата · **blocking для PLAN-9B-2:** да · **зависимости:** —.
+- **status:** implementation completed 2026-08-06, independent review pending ·
+  **текущий checkpoint** · **blocking для PLAN-9B-2:** да — пункт 5 blocking
+  gate satisfied только после accepted independent review · **зависимости:** —.
+- **реализованный инвариант:** требование ревью monotonic. Уже записанное
+  `review_required=True` — вход политики, а не то, что она вправе снять; оно
+  даёт причину `record_review_required`, обнуляет `allowed_for_render` и
+  переводит статус в `blocked`. Учитываются все фактически присутствующие
+  представления записи (корень, `license`, сохранённый `policy_decision`);
+  одного `True` достаточно, отсутствующее представление разрешением не
+  является. Снимает требование только подтверждённая per-asset
+  `rights_declaration` через существующий `_manual_declaration_is_confirmed`.
+- **owner decision 2026-08-06 — намеренный safety trade-off.** Происхождение
+  требования политика не выясняет. Evidence: сохранённая запись не позволяет
+  отличить флаг оператора от прошлого ответа самой политики — комбинация
+  «`review_required=True` + чужой `policy_decision`» реально производится
+  `media_library._propose_media_record` (`dict(item)` сохраняет `policy_decision`,
+  ставит `review_required=True`) и персистится `migrate_media_library` мимо
+  `_normalize_asset`, а manifest-ассет всегда несёт `policy_decision`. Принятая
+  цена: policy re-evaluation, дозаполнение metadata, resume и rebuild сами по
+  себе ревью не снимают. Измерено: единственный вариант, оставлявший
+  repair-and-retry, оставлял shape «оператор флагует уже заблокированный ассет»
+  fail-open; полный offline suite при выбранном правиле зелёный, ни один
+  существующий тест на автоматическом снятии ревью не держался.
+- **owner path:** ассет с ревью выходит из блокировки одним способом —
+  подтверждённой `rights_declaration`. Это существующий контракт, новых полей,
+  vocabulary, CLI и Wizard-шагов слайс не добавляет.
 - **цель:** явный `review_required` и owner-review evidence не теряются при
   преобразовании records/candidates и не становятся `allowed` из-за другого
   fallback.
@@ -1556,6 +1580,26 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 - **required tests:** negative-тесты — explicit `review_required=True` не
   становится `allowed`; отсутствие evidence не даёт fallback-разрешения;
   старые persisted записи читаются без миграции.
+- **фактические изменения:** canonical owner `src/assets/license_policy.py`
+  (`RECORD_REVIEW_REQUIRED_REASON`, `_record_review_required`, одна причина в
+  `evaluate_asset_policy`); два merge owner на той же live-цепочке —
+  `rank_local_assets` в `src/news/asset_manifest_builder.py` переносит флаг
+  записи в ranked item, `with_policy_decision` в
+  `src/news/asset_provider_adapters.py` не теряет флаг, записанный рядом с
+  лицензией; `tests/test_rights_review_preservation.py` (23 теста);
+  `src/assets/README.md`. `config/license_policy.json`,
+  `modes.blocking_reasons`, `ASSET_SCHEMA_VERSION`, CLI, Wizard и network
+  boundary не менялись; миграция манифестов не требуется.
+- **evidence:** targeted 23 OK; regression radius 204 OK; полный offline suite
+  1646 tests OK; `check_agent_docs` — 0; `check_task_scope` с 8-файловым
+  allowlist — OK; `git diff --check` — 0. Сеть, provider API, download, Vision,
+  TTS, реальный render и `.env` не использовались. Числа — измерения, не
+  нормативы.
+- **residual risks:** `rank_local_assets` остаётся вторым нормализатором рядом
+  с `media_library` (C40 / PLAN-10D); `AssetLicense.from_dict` по-прежнему
+  выводит `review_required` из `allowed_for_render`, когда вложенная лицензия
+  его не называет — закрыто на уровне merge owner, а не персистируемой модели;
+  нормализация ссылки C50 в `CLEANUP_REGISTRY.md` относится к PLAN-STAB-17.
 - **rollback / review:** по общим требованиям программы.
 
 #### PLAN-STAB-6 — Claude permission hardening

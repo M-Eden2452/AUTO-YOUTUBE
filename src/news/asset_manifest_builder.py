@@ -1360,6 +1360,9 @@ def rank_local_assets(
             "technical_validation": asset.get("technical_validation", {}),
             "rights_status": rights_status,
             "allowed_for_render": allowed,
+            # The record's own review flag travels with it. Dropping it here used to
+            # hand the policy a candidate that no longer said anything about review.
+            "review_required": bool(asset.get("review_required", False)),
             "width": width,
             "height": height,
             "duration": float(asset.get("duration") or 0),
