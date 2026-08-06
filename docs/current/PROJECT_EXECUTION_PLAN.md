@@ -6,8 +6,8 @@ updated_at: 2026-08-06
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
-current_checkpoint: PLAN-STAB-5
-next_exact_action: run an independent review of the PLAN-STAB-5 implementation (C50 rights-review preservation) in a separate chat; implementation is complete, review is pending
+current_checkpoint: PLAN-STAB-9
+next_exact_action: PLAN-STAB-5 closed (independent review verdict ACCEPT, GitHub Actions run 31084873522 green, 1646 tests OK); per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 -> PLAN-STAB-7 + PLAN-STAB-8 -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint is PLAN-STAB-9 (shared rights vocabulary owner), pending / not started, non-blocking follow-up for PLAN-9B-2; blocking gate items 6, 7, 8 remain open; PLAN-STAB-9 implementation has not started
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,13 +47,24 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-5 — implementation completed, independent review
-  pending.** Это единственный current checkpoint; любой другой шаг, названный
-  текущим где-либо ещё, устарел. PLAN-STAB-4 completed and independently
-  accepted; пункт 4 blocking gate satisfied (см. ниже). Пункт 5 blocking gate
-  **не** satisfied, пока review PLAN-STAB-5 не выполнен; stabilization gate
-  целиком не закрыт (пункты 5–8 остаются открытыми). Следующий шаг —
-  independent review PLAN-STAB-5 в отдельном чате, не PLAN-STAB-6.
+- **Текущий шаг:** **PLAN-STAB-9 — pending / not started (non-blocking
+  follow-up для PLAN-9B-2).** Это единственный current checkpoint; любой
+  другой шаг, названный текущим где-либо ещё, устарел. PLAN-STAB-5 (C50
+  rights-review preservation) completed 2026-08-06, independently reviewed,
+  verdict **ACCEPT** (findings: нет), GitHub Actions run `31084873522` —
+  offline suite зелёный (`Ran 1646 tests in 273.522s`, `OK (skipped=6)`,
+  failures=0, errors=0), CI headSha == `8226a28`, HEAD ==
+  `origin/governance-reset`, worktree clean; пункт 5 blocking gate
+  **satisfied**. Пункты 6, 7 и 8 blocking gate остаются открытыми;
+  stabilization gate целиком не закрыт.
+
+  **Утверждённый активный execution route (owner decision 2026-08-06):**
+  PLAN-STAB-5 → **PLAN-STAB-9** → PLAN-STAB-7 + PLAN-STAB-8 → PLAN-STAB-6 или
+  явное residual-risk decision → отдельный stabilization review → PLAN-9B-2.
+  Это owner-prioritized порядок выполнения, а не переопределение blocking
+  gate: PLAN-STAB-9 остаётся **non-blocking** для PLAN-9B-2 (см. «Non-blocking
+  follow-up» ниже), а состав и нумерация пунктов 5–8 самого blocking gate не
+  менялись. PLAN-STAB-9 implementation этим docs-only слайсом не начиналась.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
   выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
   job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
@@ -348,12 +359,16 @@ source_paths:
     `31053545804`, offline suite 1623 tests OK); commit pushed; пункт 4
     blocking gate satisfied; два findings review зафиксированы как
     non-blocking residual evidence и не исправлены;
-  - **PLAN-STAB-5** — **текущий checkpoint**; implementation completed
-    2026-08-06 (единственный commit слайса, trailer `Plan-Step: PLAN-STAB-5`);
-    independent review pending, поэтому пункт 5 blocking gate ещё не satisfied;
-  - **PLAN-STAB-6…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
-    порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
-    PROGRAM»;
+  - **PLAN-STAB-5** — completed 2026-08-06 (единственный commit слайса,
+    trailer `Plan-Step: PLAN-STAB-5`); independent review выполнен, verdict
+    **ACCEPT** (findings: нет), GitHub Actions run `31084873522` (1646 tests
+    OK); commit pushed; пункт 5 blocking gate satisfied;
+  - **PLAN-STAB-9** — **текущий checkpoint** (owner-approved active execution
+    route после PLAN-STAB-5); pending/not started; non-blocking follow-up для
+    PLAN-9B-2, implementation не начиналась;
+  - **PLAN-STAB-6, PLAN-STAB-7, PLAN-STAB-8, PLAN-STAB-10…PLAN-STAB-15,
+    PLAN-STAB-17** — pending/not started; состав, порядок и blocking-статус
+    каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
   - **PLAN-STAB-16** — pending/not started как полный слайс, но **частично
     выполнена**: CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`) закрыл
     первую часть success criteria (green offline suite в GitHub Actions —
@@ -379,9 +394,11 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** выполнить independent review реализации
-  PLAN-STAB-5 (C50 rights-review preservation) в отдельном чате. Implementation
-  завершена; пункт 5 blocking gate satisfied только после accepted review.
+- **Следующее точное действие:** подготовить bounded implementation slice
+  PLAN-STAB-9 (shared rights vocabulary owner) по owner-approved активному
+  execution route после закрытия PLAN-STAB-5. PLAN-STAB-9 остаётся
+  non-blocking follow-up для PLAN-9B-2; implementation этим docs-only слайсом
+  не начиналась.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1197,7 +1214,11 @@ repair/re-review при findings.
    `0947e51`, independent review verdict ACCEPT WITH MINOR, pushed; два
    findings зафиксированы как non-blocking residual evidence (см. раздел
    PLAN-STAB-4) и не исправлены этим слайсом;
-5. PLAN-STAB-5 completed and independently accepted;
+5. PLAN-STAB-5 completed and independently accepted — **satisfied**:
+   единственный commit слайса (trailer `Plan-Step: PLAN-STAB-5`), independent
+   review verdict ACCEPT (findings: нет), GitHub Actions run `31084873522` —
+   offline suite зелёный (1646 tests, `OK (skipped=6)`, failures=0, errors=0),
+   CI headSha == HEAD == `origin/governance-reset`, worktree clean;
 6. PLAN-STAB-6 completed **либо** владелец формально принимает
    документированный residual risk;
 7. PLAN-STAB-7 — три отдельных, не взаимозаменяемых условия: (a) factual
@@ -1210,6 +1231,14 @@ repair/re-review при findings.
 8. отдельный **stabilization review** подтверждает четыре свойства:
    user-output preservation · offline/paid fail-closed behavior · rights
    safety · однозначный current routing.
+
+**Утверждённый активный execution route (owner decision 2026-08-06).** После
+закрытия PLAN-STAB-5 приоритетный порядок выполнения — PLAN-STAB-9 →
+PLAN-STAB-7 + PLAN-STAB-8 → PLAN-STAB-6 или явное residual-risk decision →
+stabilization review → PLAN-9B-2 (детали — раздел «Current checkpoint» выше).
+Это owner-prioritized порядок выполнения, а не blocking dependency:
+PLAN-STAB-9 остаётся non-blocking для PLAN-9B-2, а содержание и нумерация
+пунктов 5–8 blocking gate этим решением не менялись.
 
 **Non-blocking follow-up.** PLAN-STAB-9…PLAN-STAB-17 находятся в обязательном
 stabilization backlog, но индивидуально `PLAN-9B-2` не блокируют.
@@ -1531,9 +1560,9 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-5 — C50 rights-review preservation
 
-- **status:** implementation completed 2026-08-06, independent review pending ·
-  **текущий checkpoint** · **blocking для PLAN-9B-2:** да — пункт 5 blocking
-  gate satisfied только после accepted independent review · **зависимости:** —.
+- **status:** completed 2026-08-06, independently reviewed, verdict **ACCEPT**
+  (findings: нет) · **blocking для PLAN-9B-2:** да — пункт 5 blocking gate
+  **satisfied** · **зависимости:** —.
 - **реализованный инвариант:** требование ревью monotonic. Уже записанное
   `review_required=True` — вход политики, а не то, что она вправе снять; оно
   даёт причину `record_review_required`, обнуляет `allowed_for_render` и
@@ -1594,7 +1623,11 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   1646 tests OK; `check_agent_docs` — 0; `check_task_scope` с 8-файловым
   allowlist — OK; `git diff --check` — 0. Сеть, provider API, download, Vision,
   TTS, реальный render и `.env` не использовались. Числа — измерения, не
-  нормативы.
+  нормативы. Independent review (отдельный чат) — verdict **ACCEPT**, findings:
+  нет; GitHub Actions run `31084873522`, job `offline-tests / unittest` —
+  success, `Ran 1646 tests in 273.522s`, `OK (skipped=6)`, failures=0,
+  errors=0; CI headSha == `8226a28`; HEAD == `origin/governance-reset`,
+  worktree clean.
 - **residual risks:** `rank_local_assets` остаётся вторым нормализатором рядом
   с `media_library` (C40 / PLAN-10D); `AssetLicense.from_dict` по-прежнему
   выводит `review_required` из `allowed_for_render`, когда вложенная лицензия
