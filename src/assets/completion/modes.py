@@ -38,7 +38,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from src.assets.models import RIGHTS_ALLOWED_STATUSES
+from src.assets.models import RIGHTS_ALLOWED_STATUSES, RIGHTS_LEGACY_CLEARED
 from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
 from src.assets.semantic_selection.decision import (
     DECISION_KEY,
@@ -143,7 +143,10 @@ BLOCK_REASONS = (
 _DRAFTABLE_SUPPORT = frozenset({SUPPORT_FULL, SUPPORT_PARTIAL, SUPPORT_MANUAL})
 # ``cleared`` is the pre-schema spelling still carried by generated story-card
 # evidence.  It is explicit permission, unlike ``legacy_unknown`` or an empty value.
-_ALLOWED_RIGHTS_STATUSES = frozenset({*RIGHTS_ALLOWED_STATUSES, "cleared"})
+# This is the only sanctioned extension of the canonical vocabulary, and it is
+# local to this gate: the owner declares the spelling but deliberately keeps it
+# out of ``RIGHTS_ALLOWED_STATUSES``.  Pinned by tests/test_rights_status_vocabulary.py.
+_ALLOWED_RIGHTS_STATUSES = frozenset({*RIGHTS_ALLOWED_STATUSES, RIGHTS_LEGACY_CLEARED})
 
 
 @dataclass

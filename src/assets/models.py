@@ -9,7 +9,40 @@ from typing import Any
 
 
 ASSET_SCHEMA_VERSION = 1
-RIGHTS_ALLOWED_STATUSES = {"user_owned", "licensed", "creative_commons", "public_domain"}
+
+# --- Rights status vocabulary (canonical owner) ------------------------------
+# The one declaration of what a ``rights_status`` may say. Consumers import from
+# here and keep no copies: until PLAN-STAB-9 the same four strings were declared
+# a second time in ``src/news/models.py``, so the two lists could drift apart
+# without anything failing. ``src.news.models`` now re-exports these names for
+# its existing callers rather than declaring them again.
+#
+# The vocabulary is the *spelling* of a status, never permission on its own. An
+# allowed status still has to survive ``license_policy``, ``review_required``
+# and ``allowed_for_render``; anything not listed here is blocked.
+RIGHTS_USER_OWNED = "user_owned"
+RIGHTS_LICENSED = "licensed"
+RIGHTS_CREATIVE_COMMONS = "creative_commons"
+RIGHTS_PUBLIC_DOMAIN = "public_domain"
+RIGHTS_EDITORIAL_REVIEW_REQUIRED = "editorial_review_required"
+RIGHTS_REFERENCE_ONLY = "reference_only"
+RIGHTS_BLOCKED = "blocked"
+
+# The pre-schema spelling still carried by generated story-card evidence.
+# Deliberately *not* a member of the canonical set below: exactly one gate
+# (``src.assets.completion.modes``) honours it, and only for that legacy source.
+RIGHTS_LEGACY_CLEARED = "cleared"
+
+# Frozen on purpose: this set is handed to every consumer, so one importer
+# mutating it must not be able to move the rights gate for the others.
+RIGHTS_ALLOWED_STATUSES = frozenset(
+    {
+        RIGHTS_USER_OWNED,
+        RIGHTS_LICENSED,
+        RIGHTS_CREATIVE_COMMONS,
+        RIGHTS_PUBLIC_DOMAIN,
+    }
+)
 
 
 def utc_now_iso() -> str:

@@ -8,8 +8,6 @@ Responsibilities:
 - ``NewsJob`` и вложенные ``StageState``, ``LocalizationState``, ``AssetRights``;
 - ``NEWS_JOB_SCHEMA_VERSION`` и tolerant чтение задания без версии (ADR 0004);
 - ``NEWS_TO_SHORT_STAGES`` — единственный список стадий активного workflow;
-- словарь прав ``RIGHTS_*`` и ``ALLOWED_RENDER_RIGHTS`` — какие статусы вообще
-  допускают попадание материала в рендер;
 - нормализация completion-настроек задания поверх существующего словаря
   ``src.assets.completion``.
 
@@ -17,8 +15,11 @@ Does not own:
 - запись, atomic replace, lock и валидацию выходов стадии —
   ``src.news.project_store``;
 - исполнение стадий, resume и force-stage — ``src.news.pipeline``;
+- словарь rights statuses: canonical owner — ``src.assets.models``. Имена
+  ``RIGHTS_*`` и ``ALLOWED_RENDER_RIGHTS`` ниже — compatibility re-exports для
+  существующих news-callers, а не второе объявление (PLAN-STAB-9);
 - решение о правах конкретного кандидата — ``src.assets.license_policy``
-  остаётся авторитетом; здесь только словарь допустимых статусов;
+  остаётся авторитетом;
 - словарь состояний завершённости — ``src.assets.completion.modes``;
 - JSON-схему на диске — ``schemas/job.schema.json``.
 
@@ -45,6 +46,16 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from src.assets.models import (
+    RIGHTS_ALLOWED_STATUSES,
+    RIGHTS_BLOCKED,
+    RIGHTS_CREATIVE_COMMONS,
+    RIGHTS_EDITORIAL_REVIEW_REQUIRED,
+    RIGHTS_LICENSED,
+    RIGHTS_PUBLIC_DOMAIN,
+    RIGHTS_REFERENCE_ONLY,
+    RIGHTS_USER_OWNED,
+)
 from src.project_foundation.naming import build_project_id, suggest_title
 
 MODE_NEWS_TO_SHORT = "news_to_short"
@@ -54,20 +65,13 @@ INPUT_MODE_TEXT = "text"
 
 NEWS_JOB_SCHEMA_VERSION = 1
 
-RIGHTS_USER_OWNED = "user_owned"
-RIGHTS_LICENSED = "licensed"
-RIGHTS_CREATIVE_COMMONS = "creative_commons"
-RIGHTS_PUBLIC_DOMAIN = "public_domain"
-RIGHTS_EDITORIAL_REVIEW_REQUIRED = "editorial_review_required"
-RIGHTS_REFERENCE_ONLY = "reference_only"
-RIGHTS_BLOCKED = "blocked"
-
-ALLOWED_RENDER_RIGHTS = {
-    RIGHTS_USER_OWNED,
-    RIGHTS_LICENSED,
-    RIGHTS_CREATIVE_COMMONS,
-    RIGHTS_PUBLIC_DOMAIN,
-}
+# Compatibility re-export of the canonical vocabulary (PLAN-STAB-9). The
+# imported ``RIGHTS_*`` names above keep every existing ``from src.news.models
+# import ...`` working; this alias is the *same* immutable object as the owner's
+# set, not an equal copy, so it cannot drift. Both facts are pinned in
+# tests/test_rights_status_vocabulary.py. New code imports from
+# ``src.assets.models`` directly.
+ALLOWED_RENDER_RIGHTS = RIGHTS_ALLOWED_STATUSES
 
 NEWS_TO_SHORT_STAGES = [
     "input",
@@ -171,7 +175,7 @@ class AssetRights:
 
     @property
     def allowed_for_render(self) -> bool:
-        return self.rights_status in ALLOWED_RENDER_RIGHTS
+        return self.rights_status in RIGHTS_ALLOWED_STATUSES
 
 
 @dataclass

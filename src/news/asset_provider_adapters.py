@@ -5,7 +5,12 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from src.assets.license_policy import apply_policy_to_candidate
-from src.assets.models import ASSET_SCHEMA_VERSION, AssetCandidate
+from src.assets.models import (
+    ASSET_SCHEMA_VERSION,
+    RIGHTS_ALLOWED_STATUSES,
+    RIGHTS_REFERENCE_ONLY,
+    AssetCandidate,
+)
 from src.assets.provider_contract import (
     AssetSearchRequest,
     DownloadContext,
@@ -19,8 +24,6 @@ from src.providers import (
     create_default_stock_providers,
     environment_enabled as provider_environment_enabled,
 )
-
-from .models import ALLOWED_RENDER_RIGHTS, RIGHTS_REFERENCE_ONLY
 
 
 class AssetProvider(Protocol):
@@ -392,7 +395,7 @@ def rank_provider_results(
     ranked = []
     for raw in results:
         rights_status = raw.get("rights_status") or RIGHTS_REFERENCE_ONLY
-        allowed = rights_status in ALLOWED_RENDER_RIGHTS
+        allowed = rights_status in RIGHTS_ALLOWED_STATUSES
         width = int(raw.get("width") or 0)
         height = int(raw.get("height") or 0)
         ranked_item = {

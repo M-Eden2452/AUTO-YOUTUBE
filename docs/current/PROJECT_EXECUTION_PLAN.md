@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-9
-next_exact_action: PLAN-STAB-5 closed (independent review verdict ACCEPT, GitHub Actions run 31084873522 green, 1646 tests OK); per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 -> PLAN-STAB-7 + PLAN-STAB-8 -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint is PLAN-STAB-9 (shared rights vocabulary owner), pending / not started, non-blocking follow-up for PLAN-9B-2; blocking gate items 6, 7, 8 remain open; PLAN-STAB-9 implementation has not started
+next_exact_action: PLAN-STAB-9 (shared rights vocabulary owner) implementation completed 2026-08-06, independent review pending; canonical owner is src/assets/models.py, the duplicate ALLOWED_RENDER_RIGHTS set in src/news/models.py is gone while its import paths stay as compatibility re-exports; per owner-approved active execution route (PLAN-STAB-5 -> PLAN-STAB-9 -> PLAN-STAB-7 + PLAN-STAB-8 -> PLAN-STAB-6 or explicit residual-risk decision -> stabilization review -> PLAN-9B-2), current checkpoint remains PLAN-STAB-9 until its independent review closes; PLAN-STAB-9 stays non-blocking for PLAN-9B-2; blocking gate items 6, 7, 8 remain open; PLAN-STAB-7/PLAN-STAB-8 must not start before the review closes
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -47,9 +47,15 @@ source_paths:
 
 ## Current checkpoint
 
-- **Текущий шаг:** **PLAN-STAB-9 — pending / not started (non-blocking
-  follow-up для PLAN-9B-2).** Это единственный current checkpoint; любой
-  другой шаг, названный текущим где-либо ещё, устарел. PLAN-STAB-5 (C50
+- **Текущий шаг:** **PLAN-STAB-9 — implementation completed 2026-08-06,
+  independent review pending (non-blocking follow-up для PLAN-9B-2).** Это
+  единственный current checkpoint; любой другой шаг, названный текущим
+  где-либо ещё, устарел. Checkpoint остаётся PLAN-STAB-9 до закрытия review;
+  PLAN-STAB-7/PLAN-STAB-8 до этого не начинаются. Словарь допустимых
+  rights statuses получил единственного владельца `src/assets/models.py`;
+  независимая копия `ALLOWED_RENDER_RIGHTS` в `src/news/models.py` удалена, а
+  её import paths сохранены как compatibility re-exports того же объекта.
+  Детали и residual risks — в разделе PLAN-STAB-9 ниже. PLAN-STAB-5 (C50
   rights-review preservation) completed 2026-08-06, independently reviewed,
   verdict **ACCEPT** (findings: нет), GitHub Actions run `31084873522` —
   offline suite зелёный (`Ran 1646 tests in 273.522s`, `OK (skipped=6)`,
@@ -64,7 +70,8 @@ source_paths:
   Это owner-prioritized порядок выполнения, а не переопределение blocking
   gate: PLAN-STAB-9 остаётся **non-blocking** для PLAN-9B-2 (см. «Non-blocking
   follow-up» ниже), а состав и нумерация пунктов 5–8 самого blocking gate не
-  менялись. PLAN-STAB-9 implementation этим docs-only слайсом не начиналась.
+  менялись. PLAN-STAB-9 implementation выполнена; её independent review ещё не
+  проводился, поэтому переход к PLAN-STAB-7 + PLAN-STAB-8 пока не открыт.
 - **PLAN-STAB-4:** completed 2026-08-06 (commit `0947e51`); independent review
   выполнен, verdict **ACCEPT WITH MINOR**; GitHub Actions run `31053545804`,
   job `offline-tests / unittest` — success, `Ran 1623 tests in 329.132s`,
@@ -363,9 +370,9 @@ source_paths:
     trailer `Plan-Step: PLAN-STAB-5`); independent review выполнен, verdict
     **ACCEPT** (findings: нет), GitHub Actions run `31084873522` (1646 tests
     OK); commit pushed; пункт 5 blocking gate satisfied;
-  - **PLAN-STAB-9** — **текущий checkpoint** (owner-approved active execution
-    route после PLAN-STAB-5); pending/not started; non-blocking follow-up для
-    PLAN-9B-2, implementation не начиналась;
+  - **PLAN-STAB-9** — **текущий checkpoint**; implementation completed
+    2026-08-06 (единственный commit слайса, trailer `Plan-Step: PLAN-STAB-9`),
+    **independent review pending**; non-blocking follow-up для PLAN-9B-2;
   - **PLAN-STAB-6, PLAN-STAB-7, PLAN-STAB-8, PLAN-STAB-10…PLAN-STAB-15,
     PLAN-STAB-17** — pending/not started; состав, порядок и blocking-статус
     каждого — раздел «POST-AUDIT STABILIZATION PROGRAM»;
@@ -394,11 +401,10 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** подготовить bounded implementation slice
-  PLAN-STAB-9 (shared rights vocabulary owner) по owner-approved активному
-  execution route после закрытия PLAN-STAB-5. PLAN-STAB-9 остаётся
-  non-blocking follow-up для PLAN-9B-2; implementation этим docs-only слайсом
-  не начиналась.
+- **Следующее точное действие:** independent review PLAN-STAB-9 (shared rights
+  vocabulary owner) в отдельном контексте. Implementation выполнена;
+  PLAN-STAB-9 остаётся non-blocking follow-up для PLAN-9B-2, и следующий
+  PLAN-step (PLAN-STAB-7 + PLAN-STAB-8) не начинается до закрытия review.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -1713,14 +1719,60 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-9 — shared rights vocabulary owner
 
-- **status:** pending / not started · **blocking для PLAN-9B-2:** нет ·
-  **зависимости:** PLAN-STAB-5.
+- **status:** implementation completed 2026-08-06, **independent review
+  pending** · **blocking для PLAN-9B-2:** нет · **зависимости:** PLAN-STAB-5.
+- **выполнено:** canonical owner — `src/assets/models.py`. Он объявляет семь
+  именованных `RIGHTS_*` и immutable `RIGHTS_ALLOWED_STATUSES`
+  (`frozenset`: `user_owned`, `licensed`, `creative_commons`, `public_domain`).
+  Удалена независимая копия того же списка — mutable set
+  `ALLOWED_RENDER_RIGHTS` в `src/news/models.py` вместе с локальными
+  объявлениями `RIGHTS_*`; значения до слайса совпадали, но гарантии этого не
+  было. Consumers `src/news/asset_manifest_builder.py` и
+  `src/news/asset_provider_adapters.py` переведены на прямой импорт из
+  canonical owner. `completion/modes.py` сохраняет единственное санкционированное
+  расширение `cleared`, теперь именованное `RIGHTS_LEGACY_CLEARED` в самом owner
+  и намеренно не входящее в canonical набор.
+- **обратная совместимость:** import paths `src.news.models` сохранены целиком —
+  все семь исторических `RIGHTS_*` и `ALLOWED_RENDER_RIGHTS` остаются
+  импортируемыми оттуда как compatibility re-exports; alias — тот же объект,
+  что и canonical `frozenset`, а не равная копия. Ни один существующий importer
+  не менялся; `tests/test_news_to_short_models.py` не правился и служит
+  регрессией на re-export.
+- **подтверждённый invariant:** словарь задаёт написание статуса и разрешением
+  сам по себе не является. Неизвестный, пустой и отсутствующий status
+  fail-closed; `review_required=True` и `allowed_for_render=False` блокируют
+  canonical status; подтверждённая `rights_declaration` не разрешает структурно
+  неполный asset; PLAN-STAB-5 monotonic review сохранён; round-trip не меняет
+  значение статуса; legacy manifest читается и остаётся fail-closed.
+- **evidence:** новый owning-модуль `tests/test_rights_status_vocabulary.py`
+  (21 test OK), включая divergence-тест: identity alias и каждого re-export плюс
+  AST-проверка исходника `src/news/models.py` на отсутствие второго
+  set/frozenset словаря (проверено, что guard падает на всех четырёх формах
+  возврата копии). Regression radius 257 OK; полный offline suite —
+  см. запись в `CURRENT_STATE.md`; docs QA 0; scope-check OK;
+  `git diff --check` 0. Сеть, provider API, download, Vision, TTS и реальный
+  render не использовались.
+- **не менялось:** `config/license_policy.json`, schema version, persisted
+  поля, CLI, Wizard, provider APIs, network boundary; миграция манифестов не
+  требуется; словарь не расширялся.
+- **residual risks (не исправлялись):** (1) `completion/modes.py` приводит вход
+  к lower-case, а `news`-consumers и `AssetLicense` сравнивают строку как есть —
+  расхождение нормализации, на живых данных не проявляется, так как все
+  производители пишут lower-case; унификация была бы семантическим изменением
+  gate; (2) `AssetLicense.from_dict` / `AssetCandidate.from_dict` не переносят
+  корневой `review_required` во вложенную лицензию — вне contract этого слайса,
+  живой render-gate читает сырой dict и корневой флаг видит; (3)
+  `ALLOWED_RENDER_RIGHTS` остаётся compatibility alias без собственного
+  retirement gate — его retirement отдельное решение; (4)
+  `RIGHTS_EDITORIAL_REVIEW_REQUIRED` и `RIGHTS_BLOCKED` импортёров не имеют и
+  перенесены как есть.
 - **цель:** убрать независимые списки допустимых rights statuses у выживающих
   production-модулей.
 - **user impact:** rights-решение одинаково во всех точках, где его видит
   пользователь.
-- **canonical owner:** один существующий модуль (кандидат —
-  `src/assets/models.py`), выбирается caller audit слайса.
+- **canonical owner:** `src/assets/models.py` — выбран caller audit слайса и
+  подтверждён: у модуля нет ни одного импорта из `src`, поэтому цикл
+  `src.news` → `src.assets` → `completion/replacement` невозможен.
 - **allowed zones:** выбранный owner, его consumers, owning tests.
 - **prohibited zones:** legacy-модули под retirement PLAN-L; новая persisted
   schema; расширение словаря без отдельного решения.
@@ -1728,7 +1780,8 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   документированы отдельно; persisted reader остаётся tolerant; дублирующих
   строковых списков нет.
 - **required tests:** divergence-тест — расхождение словарей падает.
-- **rollback / review:** по общим требованиям программы.
+- **rollback / review:** по общим требованиям программы; independent review
+  выполняется в отдельном контексте и на момент этой записи не проводился.
 
 #### PLAN-STAB-10 — canonical timestamp formats
 

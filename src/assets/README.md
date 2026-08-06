@@ -15,7 +15,7 @@
 | Ответственность | Owner |
 |---|---|
 | Контракт провайдера, типы ошибок, render-gate прав | `provider_contract.py` |
-| Модели ассета, `ASSET_SCHEMA_VERSION` | `models.py` |
+| Модели ассета, `ASSET_SCHEMA_VERSION`, словарь rights statuses | `models.py` |
 | Права, лицензии, owner review | `license_policy.py` |
 | Строка, отправляемая провайдеру, и её язык | `query_adapter.py` |
 | Класс сцены и порядок опроса провайдеров | `scene_strategy.py`, `provider_routing.py` |
@@ -93,6 +93,17 @@ Semantic evidence и Vision — включаемые части этого по�
 `license_policy.evaluate_asset_policy` и `apply_policy_to_candidate` —
 единственный авторитет прав. Решение политики авторитетно: оно перезаписывает
 поля лицензии кандидата, включая `review_required`.
+
+Словарь допустимых `rights_status` — отдельная ответственность и принадлежит
+`models.py`: `RIGHTS_ALLOWED_STATUSES` (immutable `frozenset` из `user_owned`,
+`licensed`, `creative_commons`, `public_domain`) плюс именованные `RIGHTS_*`.
+Consumers импортируют этот набор и своих копий не держат; `src.news.models`
+re-export'ит исторические имена, но второго объявления не содержит. Словарь
+задаёт только написание статуса и разрешением сам по себе не является:
+`review_required`, `allowed_for_render` и политика сохраняют собственное вето, а
+статус вне набора блокируется. Единственное санкционированное расширение —
+`cleared` в `completion/modes.py` для evidence сгенерированных story card;
+оно объявлено как `RIGHTS_LEGACY_CLEARED` и в canonical набор не входит.
 
 Требование ревью monotonic. Уже записанное `review_required=True` — вход
 политики, а не то, что она вправе снять: оно становится причиной

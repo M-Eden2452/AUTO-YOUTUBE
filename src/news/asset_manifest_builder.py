@@ -71,6 +71,9 @@ from src.assets.generated_infographic import build_generated_asset, spec_from_sc
 from src.assets.license_policy import apply_policy_to_candidate
 from src.assets.models import (
     ASSET_SCHEMA_VERSION,
+    RIGHTS_ALLOWED_STATUSES,
+    RIGHTS_REFERENCE_ONLY,
+    RIGHTS_USER_OWNED,
     AssetCandidate,
     AssetLicense,
     AssetProvenance,
@@ -146,11 +149,6 @@ from .asset_provider_adapters import (
     with_policy_decision,
 )
 from .asset_scene_completion import complete_scene_assembly
-from .models import (
-    ALLOWED_RENDER_RIGHTS,
-    RIGHTS_REFERENCE_ONLY,
-    RIGHTS_USER_OWNED,
-)
 
 
 @dataclass
@@ -1321,7 +1319,7 @@ def rank_local_assets(
     for match in matches:
         asset = match["asset"]
         rights_status = asset.get("rights_status") or RIGHTS_REFERENCE_ONLY
-        allowed = rights_status in ALLOWED_RENDER_RIGHTS
+        allowed = rights_status in RIGHTS_ALLOWED_STATUSES
         asset_id = asset.get("id") or stable_asset_id(asset)
         if asset_id in used_asset_ids:
             continue
