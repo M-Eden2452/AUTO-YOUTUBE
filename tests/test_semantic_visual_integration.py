@@ -414,6 +414,35 @@ class SemanticVisualDecisionWiringTests(unittest.TestCase):
         # ranker's to revisit.
         self.assertTrue(backend.seen)
 
+    def test_a_fixture_backend_cannot_answer_a_requirement_the_metadata_never_met(self) -> None:
+        """The shipped default backend is a fixture, and a fixture must not decide.
+
+        ``MockSemanticVisualBackend`` builds its answer out of the request it was handed,
+        so it confirms every term it is asked about. Let that reach the ranker and the
+        scene's own requirement is met by the act of stating it: a candidate whose
+        provider metadata never mentions an iceberg is selected for an iceberg scene, and
+        the project reports itself publishable on the strength of it.
+        """
+        from src.assets.semantic_visual_service import load_semantic_visual_config
+
+        # What a project gets by simply switching the feature on, without naming a backend.
+        self.assertEqual(load_semantic_visual_config()["backend"], "mock")
+        stated = ["whale", "iceberg"]
+
+        with _project() as (root, _):
+            off = _build(root, None, semantic_visual={}, must_include=stated)
+        with _project() as (root, _):
+            on = _build(root, None, semantic_visual=_WIRED, must_include=stated)
+
+        for label, manifest in (("off", off), ("on", on)):
+            with self.subTest(semantic_visual=label):
+                scene = manifest["scenes"][0]
+                candidate = scene["ranked_candidates"][0]
+                self.assertIsNone(scene["selected_asset"])
+                self.assertIn("must_include_missing:iceberg", candidate["reject_reason"])
+                self.assertEqual(candidate["vision_tags"], [])
+                self.assertFalse(manifest["completion"]["publish_ready"])
+
     def test_the_manifest_stops_reporting_a_constant_for_semantic_rerank(self) -> None:
         with _project() as (root, backend):
             wired = _build(root, backend, semantic_visual=_WIRED)
@@ -424,7 +453,10 @@ class SemanticVisualDecisionWiringTests(unittest.TestCase):
         self.assertFalse(plain["semantic_visual"]["semantic_rerank_enabled"])
 
 
-_WIRED = {"enabled": True, "semantic_rerank_enabled": True}
+# A production-capable name, so the build treats the scripted stand-in below as evidence
+# rather than as the fixture backend it replaces. It still costs nothing and reaches no
+# network: what is being proved is the wiring, never the visual quality.
+_WIRED = {"enabled": True, "semantic_rerank_enabled": True, "backend": "scripted"}
 
 
 @contextlib.contextmanager
@@ -441,11 +473,14 @@ def _project(*, extra: bool = False):
 
 def _build(
     root: Path,
-    backend: "_ScriptedBackend",
+    backend: "_ScriptedBackend | None",
     *,
     semantic_visual: dict[str, Any],
     user_assets: list[Any] | None = None,
+    must_include: list[str] | None = None,
 ) -> dict[str, Any]:
+    """Build one project's manifest. ``backend=None`` leaves the real factory in place,
+    so the build resolves whatever backend the configuration actually names."""
     from unittest.mock import patch
 
     from src.news.asset_manager import build_assets_manifest
@@ -466,17 +501,21 @@ def _build(
                 "semantic": {
                     "subject": ["whale"],
                     "environment": ["ocean"],
-                    "must_include": ["whale"],
+                    "must_include": must_include or ["whale"],
                     "must_not_include": ["desert"],
                     "visual_priority": "exact_subject",
                 },
             }
         ]
     }
-    with patch(
-        "src.assets.semantic_visual_service.create_semantic_visual_backend",
-        return_value=backend,
-    ):
+    with contextlib.ExitStack() as stack:
+        if backend is not None:
+            stack.enter_context(
+                patch(
+                    "src.assets.semantic_visual_service.create_semantic_visual_backend",
+                    return_value=backend,
+                )
+            )
         return build_assets_manifest(
             visual_plan=visual_plan,
             user_assets=user_assets or [],
@@ -581,9 +620,15 @@ def _scripted_result(
 
 
 class _ScriptedBackend:
-    """A deterministic stand-in for a semantic backend. Proof of wiring, not of quality."""
+    """A deterministic stand-in for a semantic backend. Proof of wiring, not of quality.
 
-    name = "mock"
+    It answers from a script rather than from the request, so unlike the shipped ``mock``
+    fixture it can be made to disagree with what the scene asked for - which is the only
+    way a test can show that the evidence really reached the choice. It identifies itself
+    as ``scripted`` for that reason: the build refuses to let a fixture backend decide.
+    """
+
+    name = "scripted"
 
     def __init__(self, script: dict[str, dict[str, Any]]) -> None:
         self.script = script
@@ -593,13 +638,13 @@ class _ScriptedBackend:
         from src.assets.semantic_visual_backend import SemanticBackendCapabilities
 
         return SemanticBackendCapabilities(
-            backend="mock", model="scripted", backend_version="scripted.v1", maximum_frames=5, paid_backend=False
+            backend="scripted", model="scripted", backend_version="scripted.v1", maximum_frames=5, paid_backend=False
         )
 
     def health_check(self):
         from src.assets.semantic_visual_backend import SemanticBackendHealth
 
-        return SemanticBackendHealth(backend="mock", configured=True, status="ready")
+        return SemanticBackendHealth(backend="scripted", configured=True, status="ready")
 
     def analyse_candidate(self, request):
         self.seen.append(request)

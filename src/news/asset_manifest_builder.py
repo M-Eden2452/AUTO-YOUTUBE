@@ -46,6 +46,9 @@ Important invariants:
 - ни один кандидат не попадает в манифест без provider, source, лицензии и
   контрольной суммы;
 - сборщик не решает вопрос прав сам и не переопределяет решение политики;
+- fixture-backend (``mock``) не участвует в отборе кандидатов: его ответ выведен
+  из самого запроса, поэтому он остаётся доказательством wiring и отчётом, а не
+  основанием выбора;
 - второй asset pipeline, второй selector и второй manifest owner не создаются.
 
 See also: ``src/news/asset_manager.py``, ``src/news/asset_scene_completion.py``,
@@ -153,6 +156,14 @@ from .asset_provider_adapters import (
     with_policy_decision,
 )
 from .asset_scene_completion import complete_scene_assembly
+
+
+# Semantic backends that answer from a fixture instead of from the pixels. Their verdict
+# is built out of the request, so they confirm every requirement they are handed - which
+# is exactly what makes them useful for proving wiring and useless as evidence. Named
+# rather than inferred from ``paid_backend``: a local model would cost nothing and still
+# be looking at the actual frames.
+FIXTURE_SEMANTIC_BACKENDS = frozenset({"mock"})
 
 
 @dataclass
@@ -687,16 +698,24 @@ class AssetManifestBuilder:
         Nothing is chosen here. ``select_best_with_video`` is asked again, this time with
         the evidence present; a scene answered by the user's own asset or by a figure the
         project drew itself is not ranked material and is left alone.
+
+        A fixture backend is not asked at all. It derives its answer from the requirements
+        it was given, so it confirms whatever the scene stated - an iceberg the provider
+        never mentioned becomes an observed iceberg, and the requirement is met by the act
+        of stating it. That is a report about the wiring, never grounds for a choice, and
+        it is the shipped default; the review pass after selection still records it.
         """
         settings = (
             self.selection_config.get("semantic_visual", {})
             if isinstance(self.selection_config.get("semantic_visual"), dict)
             else {}
         )
+        backend_name = str(settings.get("backend") or "mock")
         if not (
             self.project_root
             and bool(settings.get("enabled", False))
             and bool(settings.get("semantic_rerank_enabled", False))
+            and backend_name not in FIXTURE_SEMANTIC_BACKENDS
         ):
             return
         # The candidates exactly as the review board writes them, so this request and the
@@ -724,7 +743,7 @@ class AssetManifestBuilder:
             scene_text=board.scene_text,
             target_aspect_ratio=board.target_aspect_ratio,
             shortlist=board.shortlist,
-            backend_name=str(settings.get("backend") or "mock"),
+            backend_name=backend_name,
             offline=bool(settings.get("offline", False)),
             maximum_candidates=int(
                 settings.get("maximum_candidates")
