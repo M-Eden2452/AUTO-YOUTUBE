@@ -336,7 +336,7 @@ class HardcodeMigrationTest(unittest.TestCase):
         return to_legacy_visual_plan(result, language="ru")["scenes"][0]
 
     def test_the_three_level_structure_is_reproduced_without_the_topic_literals(self) -> None:
-        """``_apply_video_first_topic_briefs`` hand-wrote exact subject -> group ->
+        """The retired topic auto-brief hand-wrote exact subject -> group ->
         environment for one animal. The same shape now comes out of the ladder, and
         the words come from the brief rather than from an ``if`` on the topic."""
         scene = self._plan(

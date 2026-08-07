@@ -29,10 +29,16 @@ from src.assets.semantic_selection.models import (
     SCENE_EXACT_ACTION,
     SCENE_EXACT_SUBJECT,
     SCENE_RESEARCH_CONTEXT,
+    SemanticScene,
 )
 
 from .brief import parse_brief
-from .expansion import expand_queries, planning_input_from_scene
+from .expansion import (
+    MAX_PROVIDER_QUERIES,
+    expand_queries,
+    planning_input,
+    planning_input_from_scene,
+)
 from .models import (
     INTENT_ALTERNATIVE,
     INTENT_PRIMARY,
@@ -83,28 +89,45 @@ _SHOT_TO_PRIORITY = {
 }
 
 
-def legacy_broad_query(text: str) -> str:
-    """The pre-Q2 four-branch stock query. No longer written into a stored plan.
+def semantic_scene_queries(scene: SemanticScene) -> list[dict[str, Any]]:
+    """The expansion ladder for a scene ``analyze_scene`` has already parsed.
 
-    It is a bad query - four fixed strings for every video ever made, three of them
-    naming whales, oceans and researchers regardless of what the video is about. It
-    survived as the last English alternative only while nothing else could widen a
-    query. The expansion ladder in ``expansion`` now does, from the scene's own
-    provider-language evidence, so ``scene_to_legacy`` no longer calls this and the
-    plan gains real alternatives instead of a fixed one.
+    A shape adapter, not a second query owner: every string here is produced by
+    ``expansion``. It exists because the asset manifest and the production plan store
+    queries as ``{kind, fallback_level, query}`` items and hold a ``SemanticScene``
+    rather than the ``SceneVisualPlan`` ``planning_input_from_scene`` reads.
 
-    The function itself is kept until its remaining callers (``make_stock_query`` and
-    the query adapter's exclusion list, which still has to recognise these four
-    strings inside plans written before the migration) are retired under PLAN-9B-3.
+    What it replaced generated four queries per scene from fixed parts - subject plus
+    camera, environment plus the literal word "nature", and a hardcoded ``whale``
+    category when a scene had no subject at all - without ever asking whether any of
+    it was in a language the provider could search. A scene stating its meaning only
+    in the script's own language now yields nothing here, and nothing is the honest
+    answer: the Envato manual provider still builds its own request from the scene
+    text, and the stored fields record no query rather than an unanswerable one.
     """
-    lowered = (text or "").lower()
-    if "кит" in lowered or "whale" in lowered:
-        return "whale mother calf aerial ocean"
-    if "учен" in lowered or "research" in lowered:
-        return "scientific researchers nature field observation"
-    if "океан" in lowered or "ocean" in lowered:
-        return "ocean wildlife aerial waves"
-    return "nature science wildlife observation"
+    queries = expand_queries(
+        planning_input(
+            subject=_leading(scene.subject),
+            action=_leading(scene.action),
+            place=_leading(scene.location) or _leading(scene.environment),
+            entities=list(scene.secondary_subjects),
+            context=[*scene.context, *scene.must_include],
+            must_avoid=list(scene.must_not_include),
+        ),
+        limit=MAX_PROVIDER_QUERIES,
+    )
+    return [
+        {
+            "kind": INTENT_PRIMARY if level == 1 else INTENT_ALTERNATIVE,
+            "fallback_level": level,
+            "query": query,
+        }
+        for level, query in enumerate(queries, start=1)
+    ]
+
+
+def _leading(values: list[str]) -> str:
+    return str(values[0]) if values else ""
 
 
 def intent_to_query(intent: VisualSearchIntent) -> str:
@@ -187,7 +210,7 @@ def scene_to_legacy(
     # into them: the intents say what the scene is about in its own language, and the
     # expansion says it again, wider, in the language a provider can search. Where
     # there is no provider-language evidence this adds nothing - which is the point.
-    # It used to add ``legacy_broad_query`` instead, i.e. a whale.
+    # It used to add the retired broad query instead, i.e. a whale.
     expansion = expand_queries(
         planning_input_from_scene(scene),
         seeds=_brief_provider_queries(scene),
@@ -390,9 +413,9 @@ __all__ = [
     "LEGACY_SCENE_KEYS",
     "from_legacy_visual_plan",
     "intent_to_query",
-    "legacy_broad_query",
     "scene_to_legacy",
     "semantic_block",
+    "semantic_scene_queries",
     "to_legacy_visual_plan",
     "visual_priority_for",
 ]

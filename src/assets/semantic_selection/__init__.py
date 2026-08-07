@@ -10,7 +10,7 @@
 ``SCENE_RESEARCH_CONTEXT``, ``SCENE_ABSTRACT_EXPLANATION``,
 ``SCENE_TRANSITION``), ``rank_candidates`` и ``select_best_candidate``,
 ``decision`` (по-слотовый verdict и его чтение), ``check_continuity``,
-``validate_candidate_vision``, ``generate_queries`` / ``ordered_queries``.
+``validate_candidate_vision``.
 
 Поток: сцена -> требования -> evidence по каждому кандидату -> оценки, хранимые
 раздельно -> ``decision`` -> выбор с сохранённым обоснованием.
@@ -18,8 +18,9 @@
 Не владеет: строкой, которая уходит провайдеру (``src.assets.query_adapter``),
 порядком опроса провайдеров (``src.assets.scene_strategy`` и
 ``provider_routing``), правами (``src.assets.license_policy``), скачиванием,
-completion и манифестом ассетов. ``generate_queries`` здесь обслуживает
-метаданные и отчёты и не является генератором remote-запросов.
+completion и манифестом ассетов. Запросы из разобранной сцены строит
+``src.content.visual_planning`` (``semantic_scene_queries`` поверх канонической
+expansion ladder); собственного генератора запросов здесь больше нет.
 
 Инварианты: поисковый запрос и производные от него теги не считаются evidence;
 отсутствие метаданных сообщается как ``metadata_status="unavailable"`` и не
@@ -49,7 +50,6 @@ from .models import (
     SCENE_TRANSITION,
     SemanticScene,
 )
-from .query_generator import generate_queries, ordered_queries
 from .scene_analyzer import analyze_scene
 from .vision_validator import validate_candidate_vision
 
@@ -63,8 +63,6 @@ __all__ = [
     "SemanticScene",
     "analyze_scene",
     "check_continuity",
-    "generate_queries",
-    "ordered_queries",
     "rank_candidates",
     "select_best_candidate",
     "validate_candidate_vision",

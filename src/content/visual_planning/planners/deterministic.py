@@ -1,6 +1,6 @@
 """The default planner: works out what to show from the script's own words.
 
-Replaces a four-branch ``if`` (``src.news.visual_plan.make_stock_query``: whale,
+Replaces a four-branch ``if`` in the retired ``news.visual_plan`` stock query (whale,
 scientist, ocean, everything else) that returned one of four fixed English strings
 for every video ever made.
 

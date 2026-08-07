@@ -17,13 +17,9 @@ from __future__ import annotations
 from typing import Any
 
 from src.content.script_engine import from_legacy_script
-from src.content.visual_planning import (
-    VisualPlanRequest,
-    build_plan,
-    legacy_broad_query,
-)
+from src.content.visual_planning import VisualPlanRequest, build_plan
 
-__all__ = ["build_visual_plan", "build_visual_plan_result", "make_stock_query"]
+__all__ = ["build_visual_plan", "build_visual_plan_result"]
 
 
 def build_visual_plan(
@@ -66,13 +62,3 @@ def build_visual_plan_result(
         template_id="fullscreen_voiceover_v1",
     )
     return build_plan(request, source_text=str(research.get("summary") or ""))
-
-
-def make_stock_query(text: str) -> str:
-    """Deprecated: the pre-Q2 broad query.
-
-    Kept as a name because it was the module's public surface; the single
-    implementation now lives in ``src.content.visual_planning.legacy_format``, where
-    it is used only as the final English fallback appended after the real intents.
-    """
-    return legacy_broad_query(text)

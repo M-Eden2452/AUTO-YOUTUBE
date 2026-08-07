@@ -115,89 +115,10 @@ def build_script(job: NewsJob, research: dict[str, Any]) -> dict[str, Any]:
     """The script.json payload for this job. Signature unchanged since Stage AB."""
     outcome = generate_for_job(job, research)
     script = outcome.to_legacy_script(target_duration_sec=job.target_duration_sec)
-    _apply_video_first_topic_briefs(script, job)
     # The verdict travels with the script instead of being recomputed by every
     # reader; quality_check keeps its own independent checks.
     script["script_validation"] = outcome.validation.to_dict()
     return script
-
-
-def _apply_video_first_topic_briefs(script: dict[str, Any], job: NewsJob) -> None:
-    """Add conservative English retrieval hints for the known subject, not shot claims.
-
-    English-only stock indexes cannot use a Russian script directly. The generic
-    adapter intentionally refuses to invent translations, so a tiny stable subject
-    glossary is the right last mile for ordinary topic-mode Shorts: it names the
-    animal and safe supporting context, while still letting the semantic gate reject
-    dolphins, other whale species, and unrelated footage.
-
-    Explicit author briefs always win and are never replaced.
-    """
-    project_text = " ".join(
-        str(value or "") for value in (job.topic, job.title, job.input_text)
-    ).lower()
-    if not any(marker in project_text for marker in ("косат", "orca", "killer whale")):
-        return
-
-    for scene in script.get("scenes", []):
-        if not isinstance(scene, dict) or scene.get("visual_brief"):
-            continue
-        narration = " ".join(
-            str(scene.get(key) or "") for key in ("narration", "on_screen_text")
-        ).lower()
-        if any(marker in narration for marker in ("учён", "учен", "исследовател")):
-            queries = [
-                "marine biologist ocean research",
-                "killer whale pod ocean",
-                "open ocean underwater",
-            ]
-            action = "research observation"
-        elif any(marker in narration for marker in ("детён", "детен", "молод")):
-            queries = [
-                "orca calf killer whale pod",
-                "killer whale pod ocean",
-                "open ocean underwater",
-            ]
-            action = "swimming with calf"
-        elif any(marker in narration for marker in ("координ", "команд", "вместе")):
-            queries = [
-                "killer whale pod cooperative hunting",
-                "Orcinus orca pod ocean",
-                "open ocean underwater",
-            ]
-            action = "coordinated hunting"
-        elif "рыб" in narration and "лун" in narration:
-            queries = [
-                "killer whale hunting ocean sunfish",
-                "Orcinus orca",
-                "ocean sunfish underwater",
-            ]
-            action = "hunting large fish"
-        else:
-            queries = [
-                "Orcinus orca killer whale ocean",
-                "killer whale pod ocean",
-                "open ocean underwater",
-            ]
-            action = "swimming or hunting"
-
-        scene["visual_brief"] = {
-            "subject": "orca killer whale",
-            "action": action,
-            "place": "open ocean",
-            "media_types": ["video", "image"],
-            "source_class": "generic_broll",
-            "provider_queries": {"default": queries},
-            "must_avoid": [
-                "dolphin",
-                "humpback whale",
-                "blue whale",
-                "right whale",
-                "beluga",
-                "lizard",
-            ],
-            "notes": "Video-first: exact or supporting licensed B-roll; never claim the rare impact is shown.",
-        }
 
 
 def _article_text(research: dict[str, Any]) -> str:

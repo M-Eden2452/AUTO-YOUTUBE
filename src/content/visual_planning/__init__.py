@@ -8,7 +8,7 @@ calls Vision.
     planning = build_plan(request)              # -> VisualPlanning
     plan     = planning.to_legacy_plan(...)     # -> the visual_plan.json the pipeline stores
 
-Replaces ``src.news.visual_plan.make_stock_query`` - four ``if`` branches returning
+Replaces the retired ``news.visual_plan`` stock query - four ``if`` branches returning
 one of four fixed English strings for every video - with a plan built from the
 script's own words: subject, action, place and period per scene, a shot type, the
 kinds of material that would work, and a primary search intent with fallbacks that
@@ -42,8 +42,8 @@ from .expansion import (
 from .legacy_format import (
     from_legacy_visual_plan,
     intent_to_query,
-    legacy_broad_query,
     semantic_block,
+    semantic_scene_queries,
     to_legacy_visual_plan,
 )
 from .models import (
@@ -130,13 +130,13 @@ __all__ = [
     "from_legacy_visual_plan",
     "get_planner",
     "intent_to_query",
-    "legacy_broad_query",
     "list_capabilities",
     "list_planner_ids",
     "planning_input",
     "planning_input_from_scene",
     "resolve_planner_id",
     "semantic_block",
+    "semantic_scene_queries",
     "to_legacy_visual_plan",
     "validate_visual_plan",
 ]

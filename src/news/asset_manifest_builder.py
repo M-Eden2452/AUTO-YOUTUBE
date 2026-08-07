@@ -94,7 +94,6 @@ from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
 from src.assets.semantic_selection import (
     analyze_scene,
     check_continuity,
-    ordered_queries,
     rank_candidates,
     select_best_candidate,
 )
@@ -120,6 +119,7 @@ from src.assets.visual_preview import (
     load_visual_preview_config,
     prepare_candidate_preview_analyses,
 )
+from src.content.visual_planning import semantic_scene_queries
 from src.media_library import search_local_assets
 from src.providers.envato_manual_provider import EnvatoManualProvider
 
@@ -623,7 +623,7 @@ class AssetManifestBuilder:
             project_id=self.project_id,
             scene=state.scene,
             semantic_scene=state.semantic_scene.to_dict(),
-            metadata_queries=ordered_queries(state.semantic_scene),
+            metadata_queries=semantic_scene_queries(state.semantic_scene),
             provider_routing=state.routing_decision,
             candidates=state.candidates[:top_k],
             analyses=analyses,
@@ -793,9 +793,13 @@ class AssetManifestBuilder:
                 project_id=self.project_id or self.project_root.name,
                 scene_id=str(state.scene.get("scene_id") or ""),
                 scene=state.scene,
+                # The provider builds its own request from the scene text when this is
+                # empty, which is what an idea with no provider-language evidence must
+                # produce here - a manual search URL is opened by a person, so a query
+                # in a language the index cannot answer is worse than none.
                 queries=[
                     str(item["query"])
-                    for item in ordered_queries(state.semantic_scene)[:3]
+                    for item in semantic_scene_queries(state.semantic_scene)[:3]
                     if item.get("query")
                 ],
                 limit=int(
@@ -853,7 +857,7 @@ class AssetManifestBuilder:
         return {
             "scene_id": state.scene.get("scene_id"),
             "primary_query": state.scene.get("primary_query", ""),
-            "semantic_queries": ordered_queries(state.semantic_scene),
+            "semantic_queries": semantic_scene_queries(state.semantic_scene),
             "semantic_scene": state.semantic_scene.to_dict(),
             "provider_attempts": state.scene_provider_attempts,
             "download_attempts": state.download_attempts,
@@ -885,7 +889,7 @@ class AssetManifestBuilder:
         return {
             "scene_id": state.scene.get("scene_id"),
             "primary_query": state.scene.get("primary_query", ""),
-            "queries": ordered_queries(state.semantic_scene),
+            "queries": semantic_scene_queries(state.semantic_scene),
             "visual_type": state.scene.get("visual_type", ""),
             "semantic_scene": state.semantic_scene.to_dict(),
             "provider_routing": state.routing_decision,

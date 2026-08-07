@@ -246,7 +246,7 @@ replacement working → callers migrated → targeted/full green → reviewer/ga
 | C50 | **rights fail-open:** явный `review_required=True` local-library record проходит канонический путь | **FACT** + **INFERENCE** | policy-правило для локальной библиотеки устанавливает `review_required: false` и **перезаписывает исходный флаг записи**, поэтому явно помеченная на ревью запись проходит. Обратного случая нет. Дефект не описан ни в одном предыдущем аудите | **[HARD] rights correctness.** Отдельный bounded fix с собственной verification: policy **не может silently снять** explicit `review_required` без доказанного разрешённого контракта. Owner — `apply_policy_to_candidate` / `with_policy_decision`. **Не смешивать с PLAN-10D architectural convergence** | отдельный bounded rights slice; исполним независимо после зелёного PLAN-4. **Deadline (2026-08-01): обязан быть CLOSED до расширения/convergence/повторного включения Global Local Library в PLAN-10D, до финального product evidence PLAN-11 / M1 и до любого live/publish-ready workflow, реально использующего Global Local Library asset с policy normalization** |
 
 Строки C34–C50 закрываются каждая своим gate по общему `Closure rule` ниже.
-Ничего из перечисленного пока не удалено — таблица `Retired` остаётся пустой.
+Ничего из перечисленного пока не удалено.
 
 ## PLAN-1D findings (C51–C52)
 
@@ -287,7 +287,7 @@ providers, Vision, TTS, render и установка зависимостей н
 | C62 | design tokens размазаны по шести источникам | **FACT** | `channels/*/subtitle_style.json` (шрифт, safe zones, margins) · `channels/*/style.json` (только свободные строки, не токены) · `channels/*/channel_config.json` (resolution/fps) · `config/render_presets/story_card_short_v1.json` (цвета, шрифты, layout, radii, encoding — **и литеральный текст конкретного ролика**) · зашитая палитра в `src/assets/generated_infographic.py` · зашитые CRF/preset/fps в `src/news/final_renderer.py`. Canonical owner темы отсутствует | **ONE TOKEN OWNER.** Точное место (`channels` либо `config/design_tokens`) — `OWNER_DECISION_REQUIRED`. Отдельно: развести токены и контент конкретного ролика в существующем render preset. **Design system на каждый backend запрещена** | **MOTION-CS3** + owner decision |
 
 Строки C53–C62 закрываются каждая своим gate по общему `Closure rule` ниже.
-Таблица `Retired` остаётся пустой.
+Ничего из перечисленного пока не удалено.
 
 ## Delete evidence
 
@@ -723,9 +723,14 @@ handoff. Порядок не разрешает перепрыгивать че�
 существовал, + `git bundle` во внешний workspace, + строка здесь. Постоянный
 каталог `trash/` не создаётся.
 
+**Внешний workspace для bundle (owner decision, PLAN-9B-3, 2026-08-07):**
+`G:\Projects\AI-YouTube_retirement_bundles\`, вне worktree и вне репозитория;
+имя файла совпадает с именем тега без префикса `retired/`. До PLAN-9B-3 механизм
+ни разу не исполнялся (`git tag -l` был пуст) и путь нигде не был зафиксирован.
+
 | ID | Что ретайрено | Tag | Commit | Причина | Замена | Salvaged | Дата снятия с учёта |
 |---|---|---|---|---|---|---|---|
-| — | пока ничего не ретайрено | — | — | — | — | — | — |
+| R01 | `legacy_broad_query` (`src/content/visual_planning/legacy_format.py`) · `make_stock_query` (`src/news/visual_plan.py`) · `_apply_video_first_topic_briefs` (`src/news/script_generator.py`) · `src/assets/semantic_selection/query_generator.py` (`generate_queries` / `ordered_queries`) | `retired/query-paths-2026-08-07` (bundle `query-paths-2026-08-07.bundle`) | `1bbfcad` — последний commit, где код существовал | superseded query-generation paths: четыре фиксированные английские строки на любое видео, topic-специфичный auto-brief одного животного и генератор, собиравший запрос из слов сцены без проверки, на каком он языке | `src/content/visual_planning/expansion.py` (PLAN-9B-2 ladder) + `legacy_format.semantic_scene_queries` как shape adapter для `SemanticScene` | PLAN-9B-2 (C46, C48 — knowledge перенесён в `expansion.py`); собственного уникального knowledge сверх этого у ретайренного кода нет | 2026-08-07 |
 
 Строка добавляется **в том же commit**, что и удаление. Ретайр без tag, без
 bundle и без строки здесь считается незавершённым.

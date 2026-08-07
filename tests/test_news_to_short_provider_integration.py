@@ -314,6 +314,149 @@ class SemanticAssetSelectionNewsIntegrationTests(unittest.TestCase):
         self.assertEqual(manifest["missing_scenes"], [])
 
 
+# The four fixed strings the pre-Q2 broad query could return. Written out here on
+# purpose: a test that recomputes them by calling the implementation it is guarding
+# proves nothing once that implementation is gone.
+LEGACY_BROAD_QUERIES = (
+    "whale mother calf aerial ocean",
+    "scientific researchers nature field observation",
+    "ocean wildlife aerial waves",
+    "nature science wildlife observation",
+)
+
+
+def _briefed_scene() -> dict[str, Any]:
+    """A scene whose meaning is already stated in the language a provider searches."""
+    return {
+        "scene_id": "scene_001",
+        "visual_type": "video",
+        "primary_query": "geothermal power plant venting steam",
+        "semantic": {
+            "subject": ["geothermal power plant"],
+            "secondary_subjects": ["Hellisheidi station"],
+            "action": ["venting steam"],
+            "environment": ["volcanic valley"],
+            "location": ["volcanic valley"],
+            "must_include": ["steam plume"],
+            "must_not_include": ["nuclear reactor"],
+            "visual_priority": "exact_subject",
+        },
+    }
+
+
+def _evidence_free_scene() -> dict[str, Any]:
+    """The honest hard case: nothing here is in the provider's language."""
+    return {
+        "scene_id": "scene_001",
+        "visual_type": "video",
+        "primary_query": "квазиморфный объект",
+        "narration": "Квазиморфный объект флуктуирует над долиной.",
+        "semantic": {
+            "subject": ["квазиморфный объект"],
+            "action": ["флуктуирует"],
+            "environment": ["долина"],
+            "location": ["долина"],
+            "visual_priority": "exact_subject",
+        },
+    }
+
+
+def _manifest_for(scene: dict[str, Any], root: Path) -> dict[str, Any]:
+    from src.news.asset_manager import build_assets_manifest
+
+    return build_assets_manifest(
+        visual_plan={"scenes": [scene]},
+        user_assets=[],
+        media_index={"version": 1, "items": []},
+        providers=[],
+        dry_run=False,
+        project_root=root,
+        project_id="project_001",
+        asset_selection={"envato_manual_fallback_enabled": True},
+    )
+
+
+class EnvatoManualQuerySourceTests(unittest.TestCase):
+    """Where the Envato manual request gets its queries from.
+
+    This is the one caller of the retired semantic query generator that was not a
+    report field: the strings here become the public search URLs a human is asked to
+    open. Losing them silently would look exactly like an ordinary empty manifest.
+    """
+
+    def test_a_briefed_scene_reaches_envato_with_canonical_ladder_queries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = _manifest_for(_briefed_scene(), Path(tmp) / "project")
+            queries = manifest["scenes"][0]["manual_request"]["search_queries"]
+
+        self.assertTrue(queries)
+        # Provider language, most specific rung first, and the same order every run.
+        self.assertEqual(
+            queries[:3],
+            [
+                "Hellisheidi station geothermal power plant",
+                "geothermal power plant venting steam",
+                "geothermal power plant venting steam volcanic valley",
+            ],
+        )
+        self.assertTrue(all(query == query.strip() for query in queries))
+        self.assertEqual(len(queries), len(set(queries)))
+
+    def test_the_envato_query_list_stays_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = _manifest_for(_briefed_scene(), Path(tmp) / "project")
+            queries = manifest["scenes"][0]["manual_request"]["search_queries"]
+        # The provider pads to its own configured minimum; what this layer hands it
+        # is the bounded head of the ladder, not everything the ladder can produce.
+        self.assertLessEqual(len(queries), 8)
+
+    def test_an_evidence_free_scene_keeps_the_providers_own_fallback(self) -> None:
+        """No provider-language evidence means this layer offers no query at all.
+
+        That is fail-closed, not a crash: ``EnvatoManualProvider`` still builds its own
+        request from the scene text, exactly as it did when handed an empty list.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = _manifest_for(_evidence_free_scene(), Path(tmp) / "project")
+            manual = manifest["scenes"][0]["manual_request"]
+
+        self.assertEqual(manual["provider"], "envato_manual")
+        self.assertTrue(manual["search_queries"])
+        self.assertTrue(manual["search_urls"])
+        self.assertFalse(manual["automatic_download"])
+        lowered = {query.casefold() for query in manual["search_queries"]}
+        self.assertTrue(lowered.isdisjoint(LEGACY_BROAD_QUERIES))
+
+
+class ManifestQueryFieldShapeTests(unittest.TestCase):
+    """The stored query fields keep their shape; only their values migrate."""
+
+    def _entries(self, scene: dict[str, Any]) -> tuple[list[dict], list[dict]]:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = _manifest_for(scene, Path(tmp) / "project")
+        return (
+            manifest["scenes"][0]["queries"],
+            manifest["missing_scenes"][0]["semantic_queries"],
+        )
+
+    def test_a_briefed_scene_keeps_the_stored_item_shape(self) -> None:
+        stored, missing = self._entries(_briefed_scene())
+        self.assertEqual(stored, missing)
+        self.assertTrue(stored)
+        for item in stored:
+            self.assertEqual(set(item), {"kind", "fallback_level", "query"})
+            self.assertIsInstance(item["query"], str)
+            self.assertTrue(item["query"].strip())
+            self.assertIsInstance(item["fallback_level"], int)
+        levels = [item["fallback_level"] for item in stored]
+        self.assertEqual(levels, sorted(levels))
+
+    def test_an_evidence_free_scene_stores_no_invented_queries(self) -> None:
+        stored, missing = self._entries(_evidence_free_scene())
+        self.assertEqual(stored, [])
+        self.assertEqual(missing, [])
+
+
 def _scene() -> dict:
     return {
         "scene_id": "scene_001",

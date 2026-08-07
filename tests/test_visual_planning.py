@@ -1,6 +1,6 @@
 """Stage Q2: the visual planning layer, its planner and its validator.
 
-The layer replaced ``src.news.visual_plan.make_stock_query`` - four ``if`` branches
+The layer replaced the retired ``news.visual_plan`` stock query - four ``if`` branches
 returning one of four fixed English strings for every video ever made. Two things
 therefore have to be true and are pinned here:
 
@@ -39,7 +39,6 @@ from src.content.visual_planning import (
     from_legacy_visual_plan,
     get_planner,
     intent_to_query,
-    legacy_broad_query,
     list_capabilities,
     list_planner_ids,
     to_legacy_visual_plan,
@@ -51,6 +50,15 @@ from src.content.visual_planning.entities import (
     extract_period,
     extract_places,
     stem,
+)
+
+# Every string the pre-Q2 broad query could return. PLAN-9B-3 retired the four-branch
+# ``if`` that produced them; they are literals here so the guard outlives it.
+LEGACY_BROAD_QUERIES = (
+    "whale mother calf aerial ocean",
+    "scientific researchers nature field observation",
+    "ocean wildlife aerial waves",
+    "nature science wildlife observation",
 )
 
 NARRATIONS = [
@@ -646,14 +654,20 @@ class LegacyFormatTest(unittest.TestCase):
     def test_the_semantic_block_is_what_analyze_scene_reads(self) -> None:
         """The whole point of the integration: the existing search path consumes the
         plan through a block it already knew how to read."""
-        from src.assets.semantic_selection import analyze_scene, ordered_queries
+        from src.assets.semantic_selection import analyze_scene
+        from src.content.visual_planning import semantic_scene_queries
 
         scene = self._stored()["scenes"][0]
         semantic = analyze_scene(scene)
         self.assertEqual(semantic.scene_id, scene["scene_id"])
         self.assertEqual(semantic.subject, scene["semantic"]["subject"])
         self.assertEqual(semantic.visual_priority, scene["semantic"]["visual_priority"])
-        self.assertTrue(ordered_queries(semantic), "план должен давать существующему слою запросы")
+        for item in semantic_scene_queries(semantic):
+            # PLAN-9B-3: the block is read by the canonical ladder, which reports what
+            # the scene actually states rather than assembling its words into a query
+            # no English index can answer. It may report nothing, but never a lie.
+            self.assertEqual(set(item), {"kind", "fallback_level", "query"})
+            self.assertNotIn(item["query"], LEGACY_BROAD_QUERIES)
 
     def test_the_stored_plan_no_longer_carries_the_four_fixed_broad_queries(self) -> None:
         """PLAN-9B-2: the last-resort hardcode is migrated out of the stored plan.
@@ -663,16 +677,15 @@ class LegacyFormatTest(unittest.TestCase):
         merely said "учёные" shipped a query about field researchers. The expansion
         ladder replaces it - and where a scene has no provider-language evidence it
         correctly replaces it with nothing rather than with a wrong subject.
+
+        PLAN-9B-3 retired the function that produced these four strings, so they are
+        written out here: a guard that recomputes the values it guards from the code
+        under test proves nothing, and after the retirement it cannot even run.
         """
-        legacy_outputs = {
-            legacy_broad_query(text)
-            for text in ("кит", "ученые", "океан", "что угодно другое")
-        }
-        self.assertEqual(len(legacy_outputs), 4)
         for scene in self._stored()["scenes"]:
             with self.subTest(scene=scene["scene_id"]):
                 written = {scene["primary_query"], *scene["alternative_queries"]}
-                self.assertTrue(legacy_outputs.isdisjoint(written))
+                self.assertTrue(set(LEGACY_BROAD_QUERIES).isdisjoint(written))
 
     def test_the_stored_plan_mirrors_the_expansion_ladder_for_a_briefed_scene(self) -> None:
         """What replaced the hardcode: the scene's own idea, widened."""

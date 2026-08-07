@@ -54,8 +54,35 @@ class YoutubeShortsProductionPlanTests(unittest.TestCase):
             self.assertIn("nuclear power plant", first["positive_keywords"])
             self.assertIn("Chernobyl", first["negative_keywords"])
             self.assertIn("single solar panel close up", first["search_queries"])
-            self.assertIn("exact", first["semantic_queries"])
             self.assertIn("subject", first["semantic_scene"])
+            # PLAN-9B-3: the plan carries the canonical ladder in the same
+            # ``{kind, fallback_level, query}`` items the asset manifest stores. It used
+            # to be a dict keyed by the four fixed rungs of the retired generator - one
+            # of which appended the literal word "nature" to whatever the scene said.
+            for item in first["semantic_queries"]:
+                self.assertEqual(set(item), {"kind", "fallback_level", "query"})
+                self.assertTrue(item["query"].strip())
+            levels = [item["fallback_level"] for item in first["semantic_queries"]]
+            self.assertEqual(levels, sorted(levels))
+
+    def test_the_retired_semantic_query_generator_is_gone_from_the_root_import_chain(self) -> None:
+        """``pipeline.py`` imports this module, which imported the retired generator.
+
+        The root entrypoint therefore has to keep importing cleanly after the deletion,
+        and the retired module must not come back through any other path.
+        """
+        import importlib
+
+        import pipeline
+
+        self.assertTrue(hasattr(pipeline, "main"))
+        with self.assertRaises(ModuleNotFoundError):
+            importlib.import_module("src.assets.semantic_selection.query_generator")
+
+        import src.assets.semantic_selection as semantic_selection
+
+        self.assertNotIn("generate_queries", semantic_selection.__all__)
+        self.assertNotIn("ordered_queries", semantic_selection.__all__)
 
     def test_manual_clip_replacement_updates_scene_status(self) -> None:
         from src.production_plan.youtube_shorts import create_solar_vs_nuclear_plan, replace_selected_clip

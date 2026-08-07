@@ -25,16 +25,29 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.assets.semantic_selection import analyze_scene, ordered_queries
+from src.assets.semantic_selection import analyze_scene
 from src.assets.query_adapter import SOURCE_EXPLICIT, build_scene_queries
 from src.content.script_engine import from_legacy_script
-from src.content.visual_planning import from_legacy_visual_plan, validate_visual_plan
+from src.content.visual_planning import (
+    from_legacy_visual_plan,
+    semantic_scene_queries,
+    validate_visual_plan,
+)
 from src.content_creation.cli import main
 from src.news.asset_manager import build_news_asset_manifest
 from src.news.models import INPUT_MODE_TEXT, NewsJob
 from src.news.research_engine import build_research
 from src.news.script_generator import build_script
-from src.news.visual_plan import build_visual_plan, make_stock_query
+from src.news.visual_plan import build_visual_plan
+
+# The four fixed outputs of the retired stock query, as literals: a guard that asks
+# the retired implementation what to expect cannot survive its retirement.
+LEGACY_STOCK_QUERIES = (
+    "whale mother calf aerial ocean",
+    "scientific researchers nature field observation",
+    "ocean wildlife aerial waves",
+    "nature science wildlife observation",
+)
 
 ARTICLE = (
     "Почему вороны узнают лица людей и помнят их годами? "
@@ -125,15 +138,14 @@ class PublicContractTest(unittest.TestCase):
         self.assertEqual(len(without["scenes"]), len(with_research["scenes"]))
 
     def test_scenes_no_longer_share_one_of_four_fixed_queries(self) -> None:
-        """The point of Q2: make_stock_query had four possible outputs, total."""
+        """The point of Q2: the retired stock query had four possible outputs, total."""
         plan = build_visual_plan(self.script, language="ru", research=self.research)
         primaries = [scene["primary_query"] for scene in plan["scenes"]]
         self.assertGreater(len(set(primaries)), 1)
-        legacy_outputs = {
-            make_stock_query(text)
-            for text in ("кит", "ученые", "океан", "что угодно другое")
-        }
-        self.assertFalse(set(primaries) <= legacy_outputs, "запросы не должны сводиться к четырём старым строкам")
+        self.assertTrue(
+            set(LEGACY_STOCK_QUERIES).isdisjoint(primaries),
+            "запросы не должны сводиться к четырём старым строкам",
+        )
 
     def test_the_plan_is_serialisable(self) -> None:
         json.dumps(build_visual_plan(self.script, language="ru"), ensure_ascii=False)
@@ -161,21 +173,23 @@ class AssetLayerIntegrationTest(unittest.TestCase):
             with self.subTest(scene=scene["scene_id"]):
                 self.assertEqual(analyze_scene(scene).must_not_include, [])
 
-    def test_every_scene_yields_ordered_provider_queries(self) -> None:
+    def test_scene_queries_stay_ordered_and_provider_ready(self) -> None:
+        """PLAN-9B-3: the ladder replaced the four fixed rungs.
+
+        A Russian-only plan gets no query here at all - that is the fail-closed
+        outcome, and it is why this no longer asserts every scene yields one. What is
+        still pinned is that whatever *is* produced widens in order and is a string a
+        provider can actually be sent.
+        """
         for scene in self.plan["scenes"]:
             with self.subTest(scene=scene["scene_id"]):
-                queries = ordered_queries(analyze_scene(scene))
-                self.assertTrue(queries)
+                queries = semantic_scene_queries(analyze_scene(scene))
                 levels = [query["fallback_level"] for query in queries]
                 self.assertEqual(levels, sorted(levels))
-
-    def test_provider_queries_are_plain_strings(self) -> None:
-        """Providers take ``search(query: str, scene: dict, limit: int)`` and Q2 did
-        not change that - the adapter turns structured intent into their strings."""
-        for scene in self.plan["scenes"]:
-            for query in ordered_queries(analyze_scene(scene)):
-                self.assertIsInstance(query["query"], str)
-                self.assertTrue(query["query"].strip())
+                for query in queries:
+                    self.assertIsInstance(query["query"], str)
+                    self.assertTrue(query["query"].strip())
+                    self.assertNotIn(query["query"], LEGACY_STOCK_QUERIES)
 
     def test_visual_type_stays_in_the_vocabulary_routing_understands(self) -> None:
         for scene in self.plan["scenes"]:
@@ -342,7 +356,11 @@ class VisualPlanCliTest(unittest.TestCase):
         stored = json.loads(self.plan_path.read_text(encoding="utf-8"))
         self.assertIn("scenes", stored)
         self.assertIn("semantic", stored["scenes"][0])
-        self.assertTrue(ordered_queries(analyze_scene(stored["scenes"][0])))
+        # The written file still reaches the canonical query owner through the block
+        # ``analyze_scene`` reads; what that owner returns is the ladder's business.
+        self.assertIsInstance(
+            semantic_scene_queries(analyze_scene(stored["scenes"][0])), list
+        )
 
     def test_build_json_output_is_machine_readable(self) -> None:
         code, output = _run_cli(["visual-plan", "build", "--script-file", str(self.script_path), "--json"])

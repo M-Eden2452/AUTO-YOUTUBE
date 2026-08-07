@@ -138,7 +138,20 @@ class PublicContractTest(unittest.TestCase):
     def test_result_is_json_serialisable(self) -> None:
         json.dumps(build_script(_job(), _research()), ensure_ascii=False)
 
-    def test_orca_topic_gets_video_first_retrieval_briefs_without_hard_exact_gate(self) -> None:
+    def test_a_bare_orca_topic_gets_no_hidden_english_brief(self) -> None:
+        """PLAN-9B-3: the topic-specific auto-brief is retired, not relocated.
+
+        ``build_script`` used to match "косат"/"orca"/"killer whale" in the job text and
+        hand every unbriefed scene a written-out English brief - subject
+        ``orca killer whale``, a place, a ``must_avoid`` list naming five other whales,
+        and up to three ready provider queries chosen by matching Russian stems in the
+        narration. One animal, in the middle of a generic script adapter.
+
+        A bare Russian topic now honestly produces no brief, and therefore no provider
+        query. Fail-closed is the intended outcome: an author who wants retrieval hints
+        states them, and an evidence-free scene reports that instead of borrowing
+        another video's subject.
+        """
         job = _job(
             topic="Почему косатки взрывают огромных рыб",
             input_text=(
@@ -148,13 +161,32 @@ class PublicContractTest(unittest.TestCase):
             script_source="user_script",
         )
         script = build_script(job, {})
-        briefs = [scene.get("visual_brief") for scene in script["scenes"]]
-        self.assertTrue(briefs)
-        self.assertTrue(all(brief and brief["subject"] == "orca killer whale" for brief in briefs))
-        self.assertTrue(all(brief["media_types"] == ["video", "image"] for brief in briefs))
-        self.assertTrue(all(not brief.get("must_include") for brief in briefs))
-        self.assertIn("dolphin", briefs[0]["must_avoid"])
-        self.assertTrue(briefs[0]["provider_queries"]["default"])
+        self.assertTrue(script["scenes"])
+        for scene in script["scenes"]:
+            with self.subTest(scene=scene.get("scene_id")):
+                brief = scene.get("visual_brief") or {}
+                self.assertNotEqual(brief.get("subject"), "orca killer whale")
+                self.assertFalse(brief.get("provider_queries"))
+
+    def test_an_author_brief_still_reaches_the_script_untouched(self) -> None:
+        """What replaced the hardcode: the author's own words, for any subject."""
+        job = _job(
+            topic="Почему косатки взрывают огромных рыб",
+            input_text="Косатки охотятся на рыбу-луну.",
+            script_source="user_script",
+        )
+        job.visual_briefs = {
+            "scene_001": {
+                "subject": "orca killer whale",
+                "action": "coordinated hunting",
+                "place": "open ocean",
+                "must_avoid": ["dolphin"],
+            }
+        }
+        script = build_script(job, {})
+        brief = script["scenes"][0]["visual_brief"]
+        self.assertEqual(brief["subject"], "orca killer whale")
+        self.assertEqual(brief["must_avoid"], ["dolphin"])
 
     def test_the_default_no_longer_produces_the_fixed_six(self) -> None:
         """The point of Q1: an article gets a script shaped by its own content."""

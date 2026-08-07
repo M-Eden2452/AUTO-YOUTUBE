@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.assets.semantic_selection import analyze_scene, generate_queries
+from src.assets.semantic_selection import analyze_scene
+from src.content.visual_planning import semantic_scene_queries
 
 
 PROJECT_FOLDER = "project_solar_vs_nuclear"
@@ -260,7 +261,11 @@ def _enrich_scene(scene: dict[str, Any]) -> dict[str, Any]:
             "semantic": scene.get("semantic", {}),
         }
     )
-    semantic_queries = generate_queries(semantic_scene)
+    # The same ordered ``{kind, fallback_level, query}`` items the asset manifest
+    # stores. It used to be a dict keyed by four fixed rung names; the ladder that
+    # replaced them has no such rungs, and naming them here would be re-writing the
+    # retired literals into a plan that no longer produces them.
+    semantic_queries = semantic_scene_queries(semantic_scene)
     return {
         **scene,
         "positive_keywords": scene.get("positive_keywords", []) or _positive_keywords(scene),
