@@ -39,6 +39,7 @@ from src.content.visual_planning import (
     from_legacy_visual_plan,
     get_planner,
     intent_to_query,
+    legacy_broad_query,
     list_capabilities,
     list_planner_ids,
     to_legacy_visual_plan,
@@ -654,10 +655,42 @@ class LegacyFormatTest(unittest.TestCase):
         self.assertEqual(semantic.visual_priority, scene["semantic"]["visual_priority"])
         self.assertTrue(ordered_queries(semantic), "план должен давать существующему слою запросы")
 
-    def test_the_old_broad_english_query_survives_as_the_last_resort(self) -> None:
-        """No translator exists, so the plan may only add to what search had before."""
-        scene = self._stored()["scenes"][0]
-        self.assertIn("nature science wildlife observation", scene["alternative_queries"])
+    def test_the_stored_plan_no_longer_carries_the_four_fixed_broad_queries(self) -> None:
+        """PLAN-9B-2: the last-resort hardcode is migrated out of the stored plan.
+
+        It used to be appended to every scene of every video: a Russian video about
+        crows shipped ``nature science wildlife observation``, and one whose narration
+        merely said "учёные" shipped a query about field researchers. The expansion
+        ladder replaces it - and where a scene has no provider-language evidence it
+        correctly replaces it with nothing rather than with a wrong subject.
+        """
+        legacy_outputs = {
+            legacy_broad_query(text)
+            for text in ("кит", "ученые", "океан", "что угодно другое")
+        }
+        self.assertEqual(len(legacy_outputs), 4)
+        for scene in self._stored()["scenes"]:
+            with self.subTest(scene=scene["scene_id"]):
+                written = {scene["primary_query"], *scene["alternative_queries"]}
+                self.assertTrue(legacy_outputs.isdisjoint(written))
+
+    def test_the_stored_plan_mirrors_the_expansion_ladder_for_a_briefed_scene(self) -> None:
+        """What replaced the hardcode: the scene's own idea, widened."""
+        script = _script(["Косатки координируют охоту в открытом океане."])
+        script.scenes[0].visual_brief = {
+            "subject": "orca killer whale",
+            "action": "coordinated hunting",
+            "place": "open ocean",
+            "exact_entities": ["Orcinus orca"],
+            "must_avoid": ["dolphin"],
+        }
+        stored = to_legacy_visual_plan(build_plan(_request(script=script)).result, language="ru")
+        written = [stored["scenes"][0]["primary_query"], *stored["scenes"][0]["alternative_queries"]]
+
+        self.assertIn("Orcinus orca killer whale", written)
+        self.assertIn("orca killer whale coordinated hunting open ocean", written)
+        self.assertTrue(any(query == "orca killer whale open ocean" for query in written))
+        self.assertTrue(all("dolphin" not in query for query in written))
 
     def test_a_pre_q2_plan_is_read_without_migration(self) -> None:
         plan = from_legacy_visual_plan(self.PRE_Q2_PLAN)

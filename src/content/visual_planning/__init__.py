@@ -31,6 +31,14 @@ from .contract import (
     VisualPlannerUnavailableError,
 )
 from .engine import VisualPlanning, build_plan
+from .expansion import (
+    MAX_EXPANSION_QUERIES,
+    MAX_PROVIDER_QUERIES,
+    QueryPlanningInput,
+    expand_queries,
+    planning_input,
+    planning_input_from_scene,
+)
 from .legacy_format import (
     from_legacy_visual_plan,
     intent_to_query,
@@ -79,6 +87,8 @@ from .validation import validate_visual_plan
 
 __all__ = [
     "DEFAULT_PLANNER_ID",
+    "MAX_EXPANSION_QUERIES",
+    "MAX_PROVIDER_QUERIES",
     "INTENT_ALTERNATIVE",
     "INTENT_ATMOSPHERIC_FALLBACK",
     "INTENT_CONTEXT_FALLBACK",
@@ -101,6 +111,7 @@ __all__ = [
     "SHOT_TYPES",
     "VISUAL_PLAN_SCHEMA_VERSION",
     "BaseVisualPlanner",
+    "QueryPlanningInput",
     "SceneVisualPlan",
     "VisualEntity",
     "VisualPlanRequest",
@@ -115,12 +126,15 @@ __all__ = [
     "VisualPlanning",
     "VisualSearchIntent",
     "build_plan",
+    "expand_queries",
     "from_legacy_visual_plan",
     "get_planner",
     "intent_to_query",
     "legacy_broad_query",
     "list_capabilities",
     "list_planner_ids",
+    "planning_input",
+    "planning_input_from_scene",
     "resolve_planner_id",
     "semantic_block",
     "to_legacy_visual_plan",

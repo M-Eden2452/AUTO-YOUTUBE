@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-9B-2
-next_exact_action: The bounded owner-driven stabilization review of completed PLAN-STAB-1..9 - the review named in blocking gate item 8, which has no dedicated PLAN-ID - is finished 2026-08-07 with final verdict CLEAR TO PROCEED TO PLAN-9B-2 and blocking findings 0. It was read-only - it edited nothing, committed nothing and pushed nothing. It confirmed the four required properties - user-output preservation, offline/paid fail-closed behavior, rights safety and unambiguous current routing - and recorded that no preliminary architectural repair is required before PLAN-9B-2. Targeted evidence - tools.qa.check_agent_docs exit 0; permission/routing/governance tests 140 OK; rights/network cross-contract tests 78 OK; and the already confirmed closure CI run 31149780652 (headSha 2186b20c5592a264ab6d100c44eaa6dd664aae91) with the governance step success and the full offline suite 1749 tests OK, failures=0, errors=0. Blocking gate item 8 is satisfied, so the post-audit stabilization gate is passed in full and no new PLAN-ID was created for it. current_checkpoint stays PLAN-9B-2 (expansion + hardcode migration) and its implementation is still not started; this docs-only recording slice does not begin it. THE NEXT EXACT ACTION is a separate owner-issued implementation slice for PLAN-9B-2, executed strictly under the existing PLAN-9B-2 contract; that separate owner-issued implementation prompt is now the only outstanding prerequisite. The non-blocking stabilization backlog PLAN-STAB-10 through PLAN-STAB-17 and the review's non-blocking observations stay open and individually do not block PLAN-9B-2. Earlier context - PLAN-STAB-6 (Claude permission hardening) is closed 2026-08-07 - implementation commit 3cedff10 and repair commit b0a3547 (closing review findings F1-F5) are both independently reviewed and accepted (repair re-review verdict ACCEPT WITH MINOR, blocking findings 0), and docs-only retrigger commit 49385dd obtained green CI evidence on GitHub Actions run 31147454618 (headSha 49385dd) - Validate agent docs and skills governance and Run offline unit and integration suite both success, 1749 tests OK, failures=0, errors=0. The earlier GitHub Actions infrastructure incident (run 31123722270 for 3cedff10 cancelled before a runner was assigned with zero steps and zero logs, and no push-triggered run ever created for b0a3547) is recorded as historical infrastructure evidence, not an unresolved problem, and CI success is still not claimed for either of those two SHAs specifically. Blocking gate item 6 is satisfied. current_checkpoint became PLAN-9B-2 (expansion + hardcode migration) in that slice; its own status records that implementation is not started and stays blocked until a separate owner-issued implementation prompt. PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied. Delivered in the PLAN-STAB-6 implementation and repair slices - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, ten confirmed governance paths (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json, .claude/agents/**) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively (and any deny rule that could reach the tracked .env.example is rejected positionally) while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply (formerly deny) is replaced by six confirmed pipeline.py entrypoint prefixes in ask - a deliberate deny-to-confirmation change, coverage limited to those six spellings, with the runtime confirm_apply contract in src/media_library.py as the actual --apply barrier - destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, network plus package installation require confirmation, and only a rule in the tracked .gitignore proves an ignore exclusion. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions (47 tests OK). The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 is satisfied.
+next_exact_action: PLAN-9B-2 (expansion + hardcode migration) received its owner-issued implementation slice on 2026-08-07 and is now implemented but NOT closed - status implementation complete / pending independent review. THE NEXT EXACT ACTION is a separate read-only independent review of that single immutable implementation commit under PLAN-6E, in a fresh reviewer chat; the implementer chat must not review its own change. The commit is not pushed and no PR was created. Delivered by the slice - a new canonical reusable query expansion owner src/content/visual_planning/expansion.py holds the controlled ladder (exact subject, subject plus action, subject plus action plus place, the entity's other stated names, a wider meaning-preserving context, the same idea as its environment, and the legacy truncation rung) plus the normalized provider-language planning input QueryPlanningInput; produce_brief in src/content/visual_planning/brief.py now seeds the ladder with what the evidence states verbatim (structured intents, prepared script keywords, linked claim excerpts) and stores at most four provider queries instead of three; scene_to_legacy in src/content/visual_planning/legacy_format.py no longer calls legacy_broad_query and mirrors the ladder into the flat primary_query/alternative_queries fields instead; must_avoid is enforced as part of the query's meaning by consecutive-phrase matching. Salvaged knowledge consumed - C46 (order, truncation, total and executed caps, normalized dedup; the survival channel hardcode, the production-vocabulary suffixes and the requirement of ready English keys on input were deliberately NOT migrated), the semantic ladder exact/broad/environment/atmospheric, the orca provider_queries three-level structure and must_avoid as part of query meaning. Migration status of the named hardcodes - legacy_broad_query has no live caller left in the canonical writer path (the function, make_stock_query and the query adapter's four-string exclusion list stay in place, because plans written before this slice still contain those strings); the orca topic hardcode _apply_video_first_topic_briefs in src/news/script_generator.py had its capability migrated (answer shape, three-level structure, must_avoid) and is no longer the only producer of that shape, but is NOT deleted here - deletion of all five candidates stays PLAN-9B-3 per the mandatory order replacement working, callers migrated, targeted and full green, reviewer/gates, then retirement. Out of scope and untouched - the GLOSSARY matcher, semantic_selection/query_generator, the orca literals inside the modes.blocking_reasons HARD gate, candidate_ranker, and the legacy raw HTTP backlog (src/asset_finder.py, src/video_asset_engine.py, src/music_engine.py, src/production_plan/**). No persisted schema, serialized project format, public CLI, public Python API, manifest, rights semantics or network semantics changed - only the values of the existing visual_brief.provider_queries, primary_query and alternative_queries fields, which is exactly what OD-P-1 permits. Verification - targeted radius 321 tests OK plus 56 consumer tests OK plus the 4-test canonical characterization suite OK; full offline suite 1772 tests OK, failures=0, errors=0; tools.qa.check_agent_docs exit 0; tools.qa.check_task_scope with the exact allowlist OK; git diff --check clean; no network, provider, download, Vision, TTS, paid call or render was performed. current_checkpoint stays PLAN-9B-2 until that independent review closes it; PLAN-9B-3 must not be started before then. Earlier context - the bounded owner-driven stabilization review of completed PLAN-STAB-1..9 - the review named in blocking gate item 8, which has no dedicated PLAN-ID - is finished 2026-08-07 with final verdict CLEAR TO PROCEED TO PLAN-9B-2 and blocking findings 0. It was read-only - it edited nothing, committed nothing and pushed nothing. It confirmed the four required properties - user-output preservation, offline/paid fail-closed behavior, rights safety and unambiguous current routing - and recorded that no preliminary architectural repair is required before PLAN-9B-2. Targeted evidence - tools.qa.check_agent_docs exit 0; permission/routing/governance tests 140 OK; rights/network cross-contract tests 78 OK; and the already confirmed closure CI run 31149780652 (headSha 2186b20c5592a264ab6d100c44eaa6dd664aae91) with the governance step success and the full offline suite 1749 tests OK, failures=0, errors=0. Blocking gate item 8 is satisfied, so the post-audit stabilization gate is passed in full and no new PLAN-ID was created for it. That review recorded the then-outstanding prerequisite - a separate owner-issued implementation prompt for PLAN-9B-2 - which has since been issued and executed, see above. The non-blocking stabilization backlog PLAN-STAB-10 through PLAN-STAB-17 and the review's non-blocking observations stay open and individually do not block PLAN-9B-2. Earlier context - PLAN-STAB-6 (Claude permission hardening) is closed 2026-08-07 - implementation commit 3cedff10 and repair commit b0a3547 (closing review findings F1-F5) are both independently reviewed and accepted (repair re-review verdict ACCEPT WITH MINOR, blocking findings 0), and docs-only retrigger commit 49385dd obtained green CI evidence on GitHub Actions run 31147454618 (headSha 49385dd) - Validate agent docs and skills governance and Run offline unit and integration suite both success, 1749 tests OK, failures=0, errors=0. The earlier GitHub Actions infrastructure incident (run 31123722270 for 3cedff10 cancelled before a runner was assigned with zero steps and zero logs, and no push-triggered run ever created for b0a3547) is recorded as historical infrastructure evidence, not an unresolved problem, and CI success is still not claimed for either of those two SHAs specifically. Blocking gate item 6 is satisfied. current_checkpoint became PLAN-9B-2 (expansion + hardcode migration) in that slice; its own status records that implementation is not started and stays blocked until a separate owner-issued implementation prompt. PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied. Delivered in the PLAN-STAB-6 implementation and repair slices - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, ten confirmed governance paths (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json, .claude/agents/**) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively (and any deny rule that could reach the tracked .env.example is rejected positionally) while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply (formerly deny) is replaced by six confirmed pipeline.py entrypoint prefixes in ask - a deliberate deny-to-confirmation change, coverage limited to those six spellings, with the runtime confirm_apply contract in src/media_library.py as the actual --apply barrier - destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, network plus package installation require confirmation, and only a rule in the tracked .gitignore proves an ignore exclusion. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions (47 tests OK). The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 is satisfied.
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -48,9 +48,16 @@ source_paths:
 ## Current checkpoint
 
 - **Текущий шаг:** **PLAN-9B-2 — expansion + hardcode migration.**
-  Implementation **не начата**; шаг **ready for owner-issued implementation**
-  — единственный оставшийся prerequisite — отдельный owner-issued
-  implementation prompt. Bounded owner-driven **stabilization review**
+  Owner-issued implementation slice **выполнен 2026-08-07** одним immutable
+  commit; статус — **implementation complete / pending independent review**.
+  Шаг **не закрыт**: его собственный risk boundary (multi-owner diff +
+  persisted содержимое visual plan) требует **PLAN-6E** independent review
+  после implementation. **Следующее точное действие** — отдельный read-only
+  independent review этого единственного commit в новом reviewer-чате;
+  implementer-чат собственный change не ревьюит. Commit **не запушен**, PR не
+  создавался. PLAN-9B-3 до закрытия review не начинается, и
+  `current_checkpoint` остаётся `PLAN-9B-2`. Bounded owner-driven
+  **stabilization review**
   результатов PLAN-STAB-1..9 (пункт 8 blocking gate, без собственного
   PLAN-ID) **завершён 2026-08-07**, read-only (ничего не редактировал, не
   commit и не push), final verdict **CLEAR TO PROCEED TO PLAN-9B-2**,
@@ -100,11 +107,10 @@ source_paths:
   PLAN-STAB-5 → PLAN-STAB-9 (closed) → PLAN-STAB-7 + PLAN-STAB-8 (closed) →
   **PLAN-STAB-6** (closed 2026-08-07) → отдельный stabilization review
   (**завершён 2026-08-07**, verdict CLEAR TO PROCEED TO PLAN-9B-2, blocking
-  findings 0) → PLAN-9B-2. Route пройден целиком. Следующее точное
-  действие — **отдельный owner-issued implementation slice PLAN-9B-2** строго
-  по существующему PLAN-9B-2 contract; ни это docs-only recording, ни
-  завершённый stabilization review разрешением начать implementation не
-  являются. Обзор effective merged settings, который прежде
+  findings 0) → PLAN-9B-2. Route пройден целиком; owner-issued implementation
+  slice PLAN-9B-2 выдан и выполнен **2026-08-07**. Следующее точное
+  действие — **independent review** этого implementation commit по PLAN-6E.
+  Обзор effective merged settings, который прежде
   стоял здесь, выполнен: семь опасных local grants (`git add *`,
   `git commit *`, `python -c`, три варианта `python.exe -c`, `python -`)
   владелец удалил вручную до слайса, read-only precheck подтвердил их
@@ -3976,16 +3982,15 @@ misleading/conflict · paid approval.
 
 #### PLAN-9B-2 — expansion + hardcode migration
 
-- **status:** pending / not started; post-audit stabilization gate (OD-S-1,
-  состав — OD-S-3 и раздел «Blocking gate: что должно быть закрыто до
-  возврата к PLAN-9B-2») **пройден 2026-08-07** — пункты 1–8 satisfied,
-  отдельный stabilization review завершён с verdict CLEAR TO PROCEED TO
-  PLAN-9B-2 и blocking findings 0, поэтому deferral за этот gate снят; шаг
-  остаётся **blocked** до отдельного owner-issued implementation prompt —
-  это единственный оставшийся prerequisite, то есть **ready for owner-issued
-  implementation / not started** · **зависимости:** completed PLAN-9B-4, **PLAN-L0**,
-  **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E** — это technical prerequisites
-  слайса, и их completed status PLAN-9B-2 автоматически не открывает.
+- **status:** **implementation complete / pending independent review**
+  (**2026-08-07**, один immutable commit, trailer `Plan-Step: PLAN-9B-2`, не
+  запушен, PR не создавался). Post-audit stabilization gate (OD-S-1, состав —
+  OD-S-3 и раздел «Blocking gate: что должно быть закрыто до возврата к
+  PLAN-9B-2») **пройден 2026-08-07**; owner-issued implementation prompt
+  **выдан и исполнен**. Шаг **не закрыт**: его risk boundary требует
+  **PLAN-6E** independent review, который выполняется отдельным read-only
+  reviewer-чатом · **зависимости:** completed PLAN-9B-4, **PLAN-L0**,
+  **PLAN-9B-PRODUCER**, **PLAN-6D**, **PLAN-6E**.
 - **цель:** контролируемая лестница расширения плюс снятие topic-specific
   hardcodes из shared engine.
 - **лестница запросов:** точный субъект → субъект и действие → субъект,
@@ -4020,14 +4025,72 @@ misleading/conflict · paid approval.
   начинается до закрытого post-audit stabilization gate (**закрыт
   2026-08-07**), отдельного independent stabilization review с положительным
   verdict (**выполнен 2026-08-07**, CLEAR TO PROCEED TO PLAN-9B-2, blocking
-  findings 0) и отдельного owner-issued implementation prompt (**остаётся
-  обязательным и не выдан**).
+  findings 0) и отдельного owner-issued implementation prompt (**выдан и
+  исполнен 2026-08-07**).
 - **тесты deep-dive:** — (T3 перенесён в PLAN-9B-1 вместе с исправлением
   `source_is_latin`, registry C36; тест не потерян и нового тестового этапа не
   создаётся).
 - **risk boundary:** multi-owner diff + persisted содержимое visual plan +
-  destructive → **PLAN-6D + PLAN-6E + reversible retirement**.
+  destructive → **PLAN-6D + PLAN-6E + reversible retirement**. Фактический
+  слайс **destructive не выполнял**: ни один hardcode не удалён, reversible
+  retirement mechanism не требовался и не применялся.
 - **required verification:** targeted + `full`.
+- **реализованный механизм (2026-08-07).** Новый canonical reusable owner
+  `src/content/visual_planning/expansion.py` держит нормализованный
+  provider-language planning input (`QueryPlanningInput`) и саму лестницу:
+  точный субъект → субъект и действие → субъект, действие и локация →
+  другие **заявленные** имена сущности → более широкий контекст без смены
+  смысла → та же идея как её среда → усечение ведущего заявленного запроса до
+  двух самых конкретных термов. Синонимы берутся только из
+  `exact_entities`/`secondary_subjects`/`must_include`; словарь синонимов,
+  translator и второй vocabulary owner **не создавались**. Лестница
+  format-neutral: она получает смысл, а не сцену, бриф или план.
+  `produce_brief` подаёт в неё seeds — то, что evidence уже сказал дословно
+  (structured intents, prepared script keywords, safe claim excerpts) — и
+  сохраняет не более четырёх provider queries вместо трёх.
+  `query_adapter` остался consumer и не менялся.
+- **hardcode migration — фактический результат.** `legacy_broad_query`
+  (четыре фиксированные строки про китов, океан и исследователей) **больше не
+  имеет живого caller** в canonical writer path: `scene_to_legacy` вместо него
+  зеркалит лестницу в плоские `primary_query`/`alternative_queries`. Сама
+  функция, `make_stock_query` и exclusion-список из четырёх строк в
+  `query_adapter` **сохранены**, потому что планы, записанные до слайса, эти
+  строки всё ещё содержат. Orca topic hardcode
+  `_apply_video_first_topic_briefs` — мигрирована **capability** (форма
+  ответа, трёхуровневая структура запросов, `must_avoid` как часть смысла); он
+  больше не единственный источник этой формы, но **не удалён**. Удаление всех
+  пяти кандидатов остаётся **PLAN-9B-3** по обязательному порядку.
+- **salvage consumed:** C46 — порядок, усечение, общий и меньший executed
+  лимиты, дедупликация по нормализованной форме. **Намеренно не перенесены:**
+  channel-hardcode `survival`, production-суффиксы (`cinematic`,
+  `documentary footage`, …) и требование готовых английских ключей на входе.
+  Также consumed: semantic ladder `exact → broad → environment → atmospheric`,
+  orca `provider_queries` (три уровня) и `must_avoid` как часть смысла запроса
+  (сопоставление последовательной фразы, поэтому `Suez Canal` не блокирует
+  запрос про Panama Canal).
+- **вне scope и не тронуто:** GLOSSARY matcher · `semantic_selection/
+  query_generator` · orca-литералы внутри `[HARD]` gate
+  `modes.blocking_reasons` · `candidate_ranker` · legacy raw HTTP backlog
+  (`src/asset_finder.py`, `src/video_asset_engine.py`, `src/music_engine.py`,
+  `src/production_plan/**`).
+- **persisted/public impact:** изменились только **значения** существующих
+  полей `visual_brief.provider_queries`, `primary_query` и
+  `alternative_queries`. Новых полей, schema version, layout, artifact,
+  public CLI/API, manifest, rights- и network-семантики нет; tripwire OD-P-1
+  не сработал.
+- **фактическая verification (2026-08-07):** targeted owner/caller radius —
+  321 тест, exit code 0; downstream consumers — 56 тестов, exit code 0;
+  canonical characterization suite — 4 теста, exit code 0; full offline suite —
+  1772 теста, exit code 0, `OK`, failures=0, errors=0;
+  `tools.qa.check_agent_docs` — exit code 0; `tools.qa.check_task_scope` с
+  точным allowlist — `OK`; `git diff --check` — без замечаний. Числа и
+  длительности — измерения, не нормативы. Package network guard активен;
+  network, provider search, download, model API, Vision, TTS, paid calls и
+  реальный render не выполнялись. Test effectiveness: pre-change owning тест
+  `test_the_old_broad_english_query_survives_as_the_last_resort` падал ровно на
+  мигрированной строке, а синтетическая мутация (лестница отключена, остаются
+  только seeds) дала 11 failures + 2 errors в новых owning тестах; мутация
+  снята, репозиторий не портился.
 
 #### PLAN-9B-3 — query-path cleanup
 

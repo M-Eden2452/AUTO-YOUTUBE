@@ -32,6 +32,7 @@ from src.assets.semantic_selection.models import (
 )
 
 from .brief import parse_brief
+from .expansion import expand_queries, planning_input_from_scene
 from .models import (
     INTENT_ALTERNATIVE,
     INTENT_PRIMARY,
@@ -83,13 +84,18 @@ _SHOT_TO_PRIORITY = {
 
 
 def legacy_broad_query(text: str) -> str:
-    """The pre-Q2 four-branch stock query, kept as the last-resort English fallback.
+    """The pre-Q2 four-branch stock query. No longer written into a stored plan.
 
-    It is a bad query - four fixed strings for every video ever made - and it is
-    exactly what stage Q2 replaces. It survives for one reason: the project has no
-    translation layer, so a Russian intent cannot be handed to a stock provider that
-    only indexes English. Keeping this as the *final* alternative means the new plan
-    can only add to what search had before, never take away.
+    It is a bad query - four fixed strings for every video ever made, three of them
+    naming whales, oceans and researchers regardless of what the video is about. It
+    survived as the last English alternative only while nothing else could widen a
+    query. The expansion ladder in ``expansion`` now does, from the scene's own
+    provider-language evidence, so ``scene_to_legacy`` no longer calls this and the
+    plan gains real alternatives instead of a fixed one.
+
+    The function itself is kept until its remaining callers (``make_stock_query`` and
+    the query adapter's exclusion list, which still has to recognise these four
+    strings inside plans written before the migration) are retired under PLAN-9B-3.
     """
     lowered = (text or "").lower()
     if "кит" in lowered or "whale" in lowered:
@@ -146,6 +152,24 @@ def semantic_block(scene: SceneVisualPlan) -> dict[str, Any]:
     }
 
 
+def _brief_provider_queries(scene: SceneVisualPlan) -> list[str]:
+    """The scene's own provider-ready queries, whoever wrote them.
+
+    These lead the expansion because nothing derived from the scene's fields can be
+    more exact than a query the author - or the producer, from linked evidence -
+    stated outright. They keep reaching the adapter through ``visual_brief`` either
+    way; mirroring them here is what lets a pre-Q2 reader see them at all.
+    """
+    brief = getattr(scene, "brief", None)
+    mapping = getattr(brief, "provider_queries", None) or {}
+    return [
+        str(query)
+        for values in mapping.values()
+        for query in (values or [])
+        if str(query).strip()
+    ]
+
+
 def scene_to_legacy(
     scene: SceneVisualPlan,
     *,
@@ -159,10 +183,20 @@ def scene_to_legacy(
     primary_query = queries[0] if queries else ""
     alternatives = [query for query in queries[1:] if query]
 
-    broad = legacy_broad_query(narration)
-    if broad and broad != primary_query and broad not in alternatives:
-        # Only useful while there is no translator; see legacy_broad_query.
-        alternatives.append(broad)
+    # The flat query fields are what a pre-Q2 reader has, so the ladder is mirrored
+    # into them: the intents say what the scene is about in its own language, and the
+    # expansion says it again, wider, in the language a provider can search. Where
+    # there is no provider-language evidence this adds nothing - which is the point.
+    # It used to add ``legacy_broad_query`` instead, i.e. a whale.
+    expansion = expand_queries(
+        planning_input_from_scene(scene),
+        seeds=_brief_provider_queries(scene),
+    )
+    for query in expansion:
+        if query != primary_query and query not in alternatives:
+            alternatives.append(query)
+    if not primary_query and alternatives:
+        primary_query = alternatives.pop(0)
 
     data: dict[str, Any] = {
         "scene_id": scene.scene_id,
@@ -173,7 +207,7 @@ def scene_to_legacy(
         if scene.preferred_media_kind != MEDIA_ANIMATED_IMAGE
         else MEDIA_ANIMATED_IMAGE,
         "visual_description": scene.meaning,
-        "primary_query": primary_query or broad,
+        "primary_query": primary_query,
         "alternative_queries": alternatives,
         "negative_keywords": [*DEFAULT_NEGATIVE_KEYWORDS, *scene.must_avoid],
         "preferred_asset_ids": list(preferred_asset_ids or []),
