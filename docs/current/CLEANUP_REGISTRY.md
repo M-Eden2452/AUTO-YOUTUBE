@@ -43,6 +43,8 @@ consistency review** этого файла: 2026-08-01 от clean HEAD `affa138`
 - **C34–C50** — evidence ревизии 2.1 (deep-dive), 2026-07-31 от `adcbb19`;
 - **C51–C52** — findings PLAN-1D-routing, 2026-08-01 от clean HEAD `b396a50`;
 - **C53–C62** — findings motion rendering, 2026-08-01 от clean HEAD `35325b4`;
+- **C01-SEM ownership inventory** — PLAN-1C′, 2026-08-07 от clean HEAD
+  `b0e99a7`; read-only, без перемещения файлов и без изменения поведения;
 - **Knowledge salvage log** — заполнен PLAN-L0, 2026-08-02 от clean HEAD
   `2b46afb`; read-only, без retirement и без миграции capability.
 
@@ -327,6 +329,177 @@ providers, Vision, TTS, render и установка зависимостей н
 
 Строки C53–C62 закрываются каждая своим gate по общему `Closure rule` ниже.
 Ничего из перечисленного пока не удалено.
+
+## C01-SEM — ownership inventory asset/semantic (PLAN-1C′)
+
+Зафиксировано 2026-08-07 слайсом `PLAN-1C′` от clean HEAD `b0e99a7`, ветка
+`governance-reset`. Источник — фактический код, import-граф, реальные callers,
+persisted-артефакты проектов, `schemas/` и tests. Production-код, tests, схемы,
+config, manifests и runtime **не изменялись**; ни один файл не перемещался; сеть,
+providers, Vision, TTS и render не выполнялись. Классы доказанности прежние:
+**FACT** / **INFERENCE** / **DEFER**.
+
+**Эта секция закрывает C01-SEM.** Она отвечает ровно на три вопроса контракта —
+кто принимает решение о пригодности кандидата, где заканчивается shared service и
+начинается workflow policy, и какова роль заглушки `vision_validator` и
+подключённого, но не влияющего на отбор `semantic_visual_service`. Она **не даёт
+права на действие**: ни одна строка ниже не разрешает переносить файлы, менять
+поведение, создавать owner или удалять реализацию.
+
+### Владельцы
+
+Ownership выведено из фактических responsibilities, callers, возвращаемых
+значений, мутации состояния, persisted-контрактов и tests; совпадение basename
+доказательством не считается.
+
+| Capability / module | Canonical owner | Production callers | Decision authority | Persisted contract | Owning tests | Duplication / overlap |
+|---|---|---|---|---|---|---|
+| разбор сцены в проверяемые требования | `src/assets/semantic_selection/scene_analyzer.py` (`analyze_scene`) | `news/asset_manifest_builder.py:316`, `production_plan/youtube_shorts.py:254` | **evidence / requirements**, решения не принимает | читает блок `semantic` визуального плана; сам ничего не пишет | `test_semantic_asset_selection.py`, `test_visual_planning_pipeline.py`, `test_semantic_slot_decisions.py` | нет; блок `semantic` производит `src/content/visual_planning` |
+| что метаданные провайдера доказывают | `src/assets/semantic_selection/evidence.py` | только `candidate_ranker` и `decision` того же подпакета | **evidence producer** | нет | `test_visual_retrieval_repair.py`, `test_semantic_asset_selection.py` | выделен из `candidate_ranker` намеренно, чтобы score и slot читали одни правила |
+| оценка и отклонение кандидата | `src/assets/semantic_selection/candidate_ranker.py` (`rank_candidates`) | `asset_manifest_builder.py:507`, `asset_scene_completion.py:110,248` | **ranking + reject** | пишет в кандидата `selection_decision`, `support_status`, `slot_verdict` | `test_semantic_asset_selection.py`, `test_visual_retrieval_wiring.py`, `test_visual_retrieval_repair.py`, `test_news_to_short_assets.py` | второго ranker нет |
+| окончательный выбор кандидата сцены | `candidate_ranker.select_best_candidate` | через `asset_manifest_builder.select_best_with_video:1097` | **decision owner** отбора | выбранный ассет попадает в `scenes[].selected_asset` | `test_semantic_slot_decisions.py`, `test_visual_retrieval_regression.py` | `news/asset_manager._select_best_candidate:150` — построчно та же video-preference обёртка; **не вызывается production-путём**, сохранена как patch-point, закреплена `test_news_asset_manager_contract.py:226` |
+| словарь verdict/support и persisted решение | `src/assets/semantic_selection/decision.py` (`DECISION_KEY = "selection_decision"`) | `completion/*`, `news/asset_manifest_builder.py`, `asset_provider_adapters.py`, `draft_completion.py`, `quality_check.py`, `review_bundle.py`, `asset_manifest_summaries.py` | **contract owner** словаря | `selection_decision` внутри `assets_manifest.json`, `DECISION_SCHEMA_VERSION = 1` | `test_semantic_slot_decisions.py`, `test_autonomous_completion_core.py`, `test_slot_aware_retrieval.py` | второго словаря verdict нет |
+| межсценовая связность | `src/assets/semantic_selection/continuity_checker.py` | `asset_manifest_builder.py:244` | пост-проверка: пополняет `missing_scenes`, отбор не меняет | блок `continuity` манифеста | `test_semantic_asset_selection.py:96` | нет |
+| `vision_validator` | `src/assets/semantic_selection/vision_validator.py` (13 строк) | **ноль** — экспортируется из `__init__`, но не вызывается ни production-кодом, ни tests | никакой | нет | **нет owning test** | заглушка; фактическое потребление `vision_tags` живёт в `evidence.py:195` и `candidate_ranker.py:380` |
+| Vision evidence по кандидату | `src/assets/semantic_visual_service.py` | `asset_manifest_builder._write_reviews:959`, `pipeline.py` (legacy CLI) | **evidence producer**, окончательного выбора не делает | пишет `assets/review/visual_review_manifest.json`: `semantic_analysis`, `semantic_score`, `semantic_rank`, `semantic_review_required`, блок `semantic_visual` | `test_semantic_visual_integration.py` | второго Vision stack нет |
+| протокол и реализации backend | `semantic_visual_backend.py` + `semantic_visual_mock/openai/external.py` | только `semantic_visual_service.create_semantic_visual_backend` | нет | нет | `test_semantic_visual_foundation.py`, `test_semantic_visual_openai_backend.py` | нет |
+| кэш Vision-результатов | `src/assets/semantic_visual_cache.py` | `semantic_visual_service` | нет | content-addressed кэш под корнем проекта | `test_semantic_visual_foundation.py` | нет |
+| калибровка Vision-вердикта | `src/assets/semantic_decision_policy.py` | **ноль production-callers** | policy, сегодня ни к чему не подключена | нет | `test_semantic_decision_policy.py` | не дубль: это отдельный, ещё не подключённый слой поверх сырого результата |
+| offline-оценка Vision | `semantic_visual_evaluation_runtime.py` + `_tooling.py`, фасад `semantic_visual_evaluation.py` | `pipeline.py:15` → `src/legacy_pipeline/maintenance.py:140`; канонический CLI этих команд не имеет | нет | dataset/results под `docs/implementation/openai_live_evaluation` (**C31**) | `test_semantic_visual_evaluation.py`, `test_semantic_visual_evaluation_internals_contract.py` | фасад — уже записанная строка **C09** |
+| что значит «готово» и что блокирует материал | `src/assets/completion/modes.py` | `asset_manifest_builder`, `asset_scene_completion`, `news/final_renderer`, `news/quality_check`, `news/models`, `news/pipeline`, `news/script_generator` | **completion policy owner** (`blocking_reasons`, `evaluate_usability`) | `COMPLETION_SCHEMA_VERSION = 1`, блок `completion` манифеста | `test_autonomous_completion_core.py`, `test_news_to_short_quality_check.py`, `test_rights_status_vocabulary.py` | второй ladder/словарь причин не создаётся |
+| лестница fallback и детерминированный порядок | `src/assets/completion/ladder.py` | `asset_scene_completion.complete_scene_assembly` | **decision owner ступени**, фильтрует каждую ступень через `modes.blocking_reasons` | `ReuseLedger` внутри прогона | `test_autonomous_completion_core.py` | нет |
+| сцена как несколько слотов | `src/assets/completion/assembly.py` | `asset_manifest_builder`, `final_renderer`, `attribution_export`, `projects/rights`, `asset_manifest_summaries` | нет | `visual_assembly` внутри `scenes[]`; `assembly_from_selected_asset` читает досхемные записи без миграции | `test_autonomous_completion_core.py`, `test_slot_aware_retrieval.py` | нет |
+| ручная замена слота | `src/assets/completion/replacement.py` | `src/ai_youtube/cli/commands/assets.py:12` | пользовательское решение | **перезаписывает** `assets_manifest.json`, `missing_assets.json`, историю замен, `quality`/`render` manifests и `job.json` | `test_manual_asset_replacement.py` | нет |
+| отчёт о слабых фрагментах | `src/assets/completion/report.py` | `news/draft_completion.py:33` | нет, только отчёт | `replacement_report.json/html`, `replacement_queue.json`, `timeline_replacement_map.csv` | `test_autonomous_completion_pipeline.py` | нет |
+| оркестрация стадии `asset_search` | `src/news/asset_manifest_builder.py` | `news/asset_manager.build_news_asset_manifest` ← `news/pipeline.py:66` | **orchestration owner**: собирает чужие решения, своего критерия пригодности не имеет | возвращает dict манифеста; `ASSET_SCHEMA_VERSION` | `test_news_to_short_assets.py`, `test_slot_aware_retrieval.py`, `test_visual_retrieval_wiring.py`, `test_rights_review_preservation.py`, `test_artifact_schemas.py` | `src/news/asset_manager.py` — compatibility facade поверх него (**C09-семейство**, closure — свой gate) |
+| заполнение сцены в `draft_complete` | `src/news/asset_scene_completion.py` | `asset_manifest_builder.py:735` (и через facade) | workflow policy поверх shared ladder | скачанные файлы проекта, attempts | `test_slot_aware_retrieval.py` | нет |
+| состояние проекта и валидность стадии | `src/news/project_store.py` (`NewsProjectStore`) | `news/pipeline.py`, `draft_completion`, `replacement`, CLI | **persistence owner**: атомарная запись, project lock, `is_stage_completed`/`validate_stage_output` | `job.json`, форма проверки `asset_search` — `scenes` + `missing_scenes`, tolerant к досхемным манифестам | `test_news_stage_idempotency.py`, `test_news_to_short_pipeline.py`, `test_project_repository.py` | формой манифеста не владеет |
+| декларация формы манифеста | `schemas/assets.schema.json` | — | нет | `additionalProperties: true`; `semantic_visual` и `visual_review` объявлены объектами без внутренней формы | `test_artifact_schemas.py` | второй schema owner отсутствует |
+
+### Кто принимает решение о пригодности кандидата
+
+**FACT.** Решение принимается **одним** владельцем и только на метаданных
+провайдера: `rank_candidates` выставляет `rejected`/`reject_reason` и
+`selection_decision`, а `select_best_candidate` возвращает первого неотклонённого
+кандидата. Оркестратор `asset_manifest_builder` добавляет к этому только
+предпочтение видео (`select_best_with_video`) и приоритет пользовательского
+ассета; собственного критерия пригодности у него нет. Второй момент, способный
+изменить уже выбранного кандидата, — `select_candidate_after_review` в
+`_prepare_visual_review:613`, и он выполняется **только** при
+`technical_rerank_enabled`, по умолчанию `false`, и работает на технических
+признаках, а не на смысле.
+
+Три владельца различаются и не сливаются:
+**evidence producers** — `scene_analyzer`, `evidence`, `visual_preview`,
+`semantic_visual_service`; **decision owner** — `candidate_ranker`
+(+ `completion/ladder` для ступени fallback и `completion/modes` для допуска);
+**orchestration owner** — `asset_manifest_builder`; **persistence owner** —
+`news/project_store` вместе с `news/pipeline`.
+
+### Где заканчивается shared service и начинается workflow policy
+
+**FACT.** Граница проходит по `src/assets/*` против `src/news/*`.
+`semantic_selection`, `semantic_visual*` и `completion` не знают ни о стадиях, ни
+о `job.json`, ни о провайдерском порядке: они получают сцену и кандидатов и
+возвращают значения. Workflow-политика — какой режим завершённости, какой порядок
+провайдеров, сколько попыток скачивания, когда включается `draft_complete`,
+что попадает в `missing_scenes` — принадлежит `src/news`. Единственные
+пересечения границы в обратную сторону — отложенный импорт
+`completion/replacement.py:250` (`src.news.asset_manager.refresh_manifest_summaries`) и
+чтение `assets_manifest.json` из `src/assets/completion/replacement.py` и
+`src/assets/visual_preview.py`. Это **INFERENCE**-уровня дефект слоистости, а не
+второй owner; действие по нему здесь не назначается.
+
+### Роль `vision_validator` и `semantic_visual_service`
+
+**FACT.** `vision_validator.validate_candidate_vision` — заглушка: возвращает
+`vision_validation_enabled: False` и переданные теги, не имеет ни одного caller и
+ни одного owning test. Флаг `vision_validation_enabled` в `selection_config`
+(`asset_manifest_builder.py:260`, `production_plan/youtube_shorts.py:211`) тоже
+никем не читается.
+
+**FACT.** `semantic_visual_service` подключён, но на отбор не влияет:
+`analyse_semantic_visual_for_project` вызывается из `_write_reviews:959`, то есть
+**после** цикла по всем сценам, после отбора, скачивания и fallback, и пишет
+результат только в review-манифест. `_selection_fingerprint:446` — защитная
+самопроверка: расхождение фиксируется как `selection_warning`, а не как право
+изменить выбор. Отдельно подтверждён уже записанный дефект отчётности:
+`_semantic_visual_summary:1050` пишет `semantic_rerank_enabled: False` жёстко,
+хотя реальное значение приходит из `config/semantic_visual.json` через
+`_selection_config:300`; читателей этого поля манифеста в коде нет.
+
+### Persisted contracts
+
+- `projects/<id>/assets/assets_manifest.json` — `ASSET_SCHEMA_VERSION`, объявлен
+  `schemas/assets.schema.json`. **Три писателя:** `news/pipeline.py:437`
+  (каноническая стадия, через атомарный `NewsProjectStore.write_json`),
+  `news/draft_completion.py:256` (merged-манифест после адаптации сценария),
+  `assets/completion/replacement.py:294` (ручная замена слота).
+- `projects/<id>/assets/review/visual_review_manifest.json` — владелец формы
+  `src/assets/review_bundle.py`; Vision-evidence дописывает
+  `semantic_visual_service`.
+- `projects/<id>/assets/missing_assets.json`, `job.json` и stage-state —
+  `news/project_store.py` и `news/pipeline.py`.
+- `selection_decision` и `visual_assembly` — additive-поля внутри `scenes[]`;
+  tolerant reader (`assembly_from_selected_asset`) читает досхемные записи без
+  миграции.
+
+### Duplicate / overlap — вердикт
+
+| Предмет | Класс | Вердикт |
+|---|---|---|
+| `news/asset_manager._select_best_candidate` против `asset_manifest_builder.select_best_with_video` | **FACT** | одна и та же реализация в двух местах; production-путь использует вторую, первая — compatibility patch-point, закреплённый тестом. Живого второго owner нет |
+| `news/asset_manager` целиком | **FACT** | compatibility facade: `build_news_asset_manifest` делегирует в builder; собственного поведения не добавляет |
+| `semantic_score` в `candidate_ranker` против `semantic_score` в `semantic_visual_models` | **FACT** | совпадение имени при разном смысле (метаданные против Vision). Не дубль реализации; риск ошибочного чтения при wiring PLAN-9C |
+| `semantic_decision_policy` против `semantic_visual_service` | **FACT** | не дубль: policy калибрует сырой результат и сегодня не подключена ни к одному production-пути |
+| `vision_validator` против `evidence.build_evidence` | **FACT** | фактическое потребление `vision_tags` живёт в `evidence`/`candidate_ranker`; `vision_validator` — неиспользуемая заглушка |
+
+### PLAN-9C relevance — где Vision evidence должно войти
+
+**INFERENCE**, ограниченный уже существующим кодом; PLAN-1C′ здесь ничего не
+включает и не проектирует. Два уже существующих seam:
+
+1. **Bounded shortlist перед скачиванием.** `_prepare_visual_review:581` уже
+   строит `state.candidates[:top_k]`, уже получает evidence
+   (`prepare_candidate_preview_analyses`) и уже умеет переизбирать кандидата
+   через `select_candidate_after_review` **до** `_download_and_complete`. Это
+   единственная точка внутри цикла сцены, где evidence уже способно изменить
+   выбор.
+2. **Приём evidence существующим decision owner.** `evidence.py:195` уже читает
+   `candidate["vision_tags"]`, добавляет их в token set и в `metadata_status`, а
+   `candidate_ranker.py:380` уже отклоняет кандидата по `vision_mismatch`.
+   Контракт закреплён тестом
+   `test_semantic_asset_selection.py::test_vision_mismatch_rejection_uses_existing_tags_without_api`
+   и платных вызовов не делает.
+
+Из этого следует только одно: подключение Vision в PLAN-9C — это перенос уже
+существующего producer'а на уже существующий seam, а не новый selector, новый
+semantic stack, новый manifest и не второй словарь «требуется проверка
+человеком».
+
+### C31 — повторная проверка, без действия
+
+**FACT, перепроверено 2026-08-07 от `b0e99a7`.** Production-зависимость на
+`docs/implementation/openai_live_evaluation` существует и не устранена:
+`src/assets/semantic_visual_evaluation_tooling.py:26` (дефолтный dataset),
+`:38` (дефолтный results dir), `:695` (переписывание относительных путей), плюс
+три вызова в `tests/test_semantic_decision_policy.py` (строки 11–12, 29–30,
+46–47) и `tests/test_semantic_visual_evaluation.py:455`. Каталог содержит
+dataset, checkpoint, sanitized payloads, contact sheet и `results/`.
+
+Строка **C31** остаётся в разделе «Ревизия 2 findings» без изменения класса,
+action и exit condition. Physical target и перемещение остаются **PLAN-13** по
+OD-8/OD-9. В этом слайсе ничего не переносилось, imports не менялись, target
+owner не выбирался, пофайловая классификация `docs/implementation` (C27,
+**PLAN-12B**) не выполнялась.
+
+### Что этот gate не закрывает
+
+C01–C16, C09 и C27 остаются открытыми и закрываются своими gates. Наблюдение о
+слоистости (`src/assets` читает и импортирует `src/news`) записано как evidence и
+права на исправление не даёт. Отсутствие owning test у `vision_validator` и
+неподключённость `semantic_decision_policy` записаны как факты; ни одна строка
+кода этим слайсом не изменялась.
 
 ## Delete evidence
 
