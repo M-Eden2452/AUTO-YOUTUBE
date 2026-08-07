@@ -259,17 +259,31 @@ def _mentions_avoided(query: str, must_avoid: tuple[str, ...]) -> bool:
     """True when ``query`` asks for something the scene said not to show.
 
     Matched as a consecutive token phrase, so "Suez Canal" does not veto a query about
-    the Panama Canal and "blue whale" does not veto one about whale watching.
+    the Panama Canal and "blue whale" does not veto one about whale watching. Both
+    sides are tokenised with the same provider-token rule used to build queries, so
+    punctuation ("Panama Canal," or a truncated "Panama Canal.") cannot smuggle an
+    avoided phrase past a raw-whitespace split.
     """
-    tokens = [token.casefold() for token in query.split()]
+    tokens = _avoided_match_tokens(query)
     for phrase in must_avoid:
-        wanted = [token.casefold() for token in phrase.split()]
+        wanted = _avoided_match_tokens(phrase)
         if not wanted or len(wanted) > len(tokens):
             continue
         for start in range(len(tokens) - len(wanted) + 1):
             if tokens[start : start + len(wanted)] == wanted:
                 return True
     return False
+
+
+def _avoided_match_tokens(text: str) -> list[str]:
+    """Case-normalised provider tokens for ``_mentions_avoided`` comparison.
+
+    ``_PROVIDER_TOKEN_RE`` keeps a trailing ``.``/``'``/``-`` attached when it follows a
+    letter, so an abbreviation like "U.S." tokenises whole - but that same rule leaves
+    ordinary sentence punctuation ("Canal." at a truncation boundary) stuck to the last
+    word. Stripped here, on both sides of the comparison, so it cannot hide a match.
+    """
+    return [token.strip(".'-").casefold() for token in _PROVIDER_TOKEN_RE.findall(text)]
 
 
 def _dedupe(values: list[str]) -> list[str]:

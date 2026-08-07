@@ -177,6 +177,55 @@ class MustAvoidIsPartOfTheQueryTest(unittest.TestCase):
         queries = expand_queries(data)
         self.assertIn("Panama Canal locks lifting cargo ships", queries)
 
+    def test_punctuation_does_not_smuggle_an_avoided_phrase_past_the_match(self) -> None:
+        """F1: a raw whitespace split leaves punctuation glued to a word, so
+        "Panama Canal," or a truncated "Panama Canal." never matched the
+        ``must_avoid`` tokens even though the query plainly names the avoided
+        subject. Both sides of the comparison must use the same provider-token
+        normalisation the ladder already builds queries with."""
+        cases = {
+            "trailing comma": ("Panama Canal, wide aerial shot", ["Panama Canal"], True),
+            "case and punctuation together": (
+                "PANAMA CANAL, wide aerial shot",
+                ["panama canal"],
+                True,
+            ),
+            "trailing sentence period": (
+                "wide aerial shot of the Panama Canal.",
+                ["Panama Canal"],
+                True,
+            ),
+            "an unrelated canal is not vetoed": (
+                "Suez Canal wide aerial shot",
+                ["Panama Canal"],
+                False,
+            ),
+            "a shared single word does not veto the query": (
+                "wide aerial shot of the Canal",
+                ["Panama Canal"],
+                False,
+            ),
+            "punctuation around the surrounding words": (
+                "aerial, Panama Canal, wide shot",
+                ["Panama Canal"],
+                True,
+            ),
+        }
+        for label, (seed, must_avoid, expect_blocked) in cases.items():
+            with self.subTest(label=label):
+                queries = expand_queries(planning_input(must_avoid=must_avoid), seeds=[seed])
+                self.assertEqual(seed not in queries, expect_blocked)
+
+    def test_the_truncation_rung_does_not_leak_the_avoided_phrase(self) -> None:
+        """Rung 7 offers the leading stated query truncated to its two most specific
+        terms; that truncated string must be screened by the same must_avoid check as
+        every other rung, not just the untruncated seed it was cut from."""
+        queries = expand_queries(
+            planning_input(must_avoid=["Panama Canal"]),
+            seeds=["Panama Canal, aerial establishing shot"],
+        )
+        self.assertFalse(queries)
+
 
 class PlanningInputTest(unittest.TestCase):
     def test_a_brief_wins_over_the_planners_own_fields(self) -> None:
