@@ -1,7 +1,7 @@
 ---
 status: current
-last_verified_commit: affa138
-last_verified_date: 2026-08-01
+last_verified_commit: 72221e1
+last_verified_date: 2026-08-07
 source_paths:
   - pyproject.toml
   - ai_youtube
@@ -246,7 +246,46 @@ replacement working → callers migrated → targeted/full green → reviewer/ga
 | C50 | **rights fail-open:** явный `review_required=True` local-library record проходит канонический путь | **FACT** + **INFERENCE** | policy-правило для локальной библиотеки устанавливает `review_required: false` и **перезаписывает исходный флаг записи**, поэтому явно помеченная на ревью запись проходит. Обратного случая нет. Дефект не описан ни в одном предыдущем аудите | **[HARD] rights correctness.** Отдельный bounded fix с собственной verification: policy **не может silently снять** explicit `review_required` без доказанного разрешённого контракта. Owner — `apply_policy_to_candidate` / `with_policy_decision`. **Не смешивать с PLAN-10D architectural convergence** | отдельный bounded rights slice; исполним независимо после зелёного PLAN-4. **Deadline (2026-08-01): обязан быть CLOSED до расширения/convergence/повторного включения Global Local Library в PLAN-10D, до финального product evidence PLAN-11 / M1 и до любого live/publish-ready workflow, реально использующего Global Local Library asset с policy normalization** |
 
 Строки C34–C50 закрываются каждая своим gate по общему `Closure rule` ниже.
-Ничего из перечисленного пока не удалено.
+
+**Исполнено на 2026-08-07 (обновлено closure-слайсом PLAN-9B-3).** Прежняя
+редакция этой строки утверждала, что ничего из перечисленного не удалено; это
+перестало соответствовать факту и исправлено здесь.
+
+- **C34** — исполнена через **PLAN-9B-1**, commit `141beae`. Harmful GLOSSARY
+  **substring** matcher (строка `if russian in text and english not in
+  matched:`) физически удалён и заменён матчингом по границам токенов с
+  ограниченной морфологией (`_word_tokens` / `_contains_lexicon_phrase` /
+  `_lexicon_token_matches` / `_GLOSSARY_STEMS` / `_GLOSSARY_STEM_ENDINGS`).
+  Словарь `GLOSSARY` сохранён намеренно — этого требует сам action строки
+  («состав терминов сохраняется как seed»). Substring-матчинга против
+  `GLOSSARY` на HEAD не осталось, поэтому у второй половины gate
+  (`→ PLAN-9B-3`) объекта удаления не было; строка исполнена, а не пропущена.
+- **C35, C36, C37, C38** — исполнены через **PLAN-9B-3**, commit `72221e1`,
+  строка **R01** таблицы `Retired` ниже.
+- Остальные строки C34–C50 не удалены и закрываются каждая своим gate.
+
+**Non-blocking observation F3 (independent review PLAN-9B-3, 2026-08-07;
+pre-existing, вне diff `72221e1`).** Относится к истории C36/R01. При
+отсутствии брифа `_english_queries` в `src/assets/query_adapter.py` собирает
+запрос из glossary- и latin-токенов текста сцены, поэтому ретайренный legacy
+broad literal, всё ещё присутствующий в persisted-плане, записанном до слайса,
+теоретически может вернуться этим путём. Единственная действующая защита —
+exclusion-список `_LEGACY_BROAD_QUERIES` (см. ниже). Наблюдение записано как
+non-blocking follow-up; нового PLAN-ID и нового finding-ID под него не
+создавалось, repair в closure-слайсе не выполнялся.
+
+**Compatibility guard `_LEGACY_BROAD_QUERIES` — KEEP с exit condition.**
+Exclusion-список из четырёх строк в `src/assets/query_adapter.py`
+**retirement candidate'ом PLAN-9B-3 не является и никогда не являлся**: он
+создан commit `141beae` в **PLAN-9B-1**, то есть позже составления списка
+кандидатов (ревизия 2.1, 2026-07-31); он не производит запросы, а только
+отфильтровывает четыре ретайренных литерала при tolerant flat read
+(`_source_language_queries`) планов, записанных до слайса. Current owner —
+`src/assets/query_adapter.py`; replacement — canonical PLAN-9B-2 ladder
+`src/content/visual_planning/expansion.py`, пишущая новые планы без этих
+литералов. **Exit condition:** guard снимается, когда pre-slice persisted
+планы перестают читаться; до этого снятие вернуло бы legacy broad literal в
+живой запрос (см. F3 выше). Бессрочным `keep` строка не является.
 
 ## PLAN-1D findings (C51–C52)
 
