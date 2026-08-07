@@ -14,6 +14,9 @@ Responsibilities:
 - ``analyse_semantic_visual_for_project`` — проход по сценам и bounded
   shortlist, кэшированный вызов backend, запись результата и semantic rank,
   сводка выполнения;
+- ``analyse_semantic_visual_for_shortlist`` — тот же проход по одной сцене,
+  вызываемый **до** окончательного отбора; результат отдаётся существующему
+  владельцу решения через ``vision_tags``;
 - ``inspect_semantic_visual_project`` — read-only состояние без вызовов.
 
 Does not own:
@@ -39,6 +42,8 @@ Outputs: обновлённый review-манифест и сводка — об
 Important invariants:
 - модуль даёт evidence, а не финальный выбор; неожиданная смена уже выбранного
   кандидата фиксируется как ``selection_warning``, а не выполняется молча;
+- оба входа строят один и тот же запрос по одному и тому же shortlist, поэтому
+  кандидат анализируется и оплачивается один раз, а не дважды;
 - ``offline`` не выполняет ни одного вызова backend: промах кэша даёт явный
   ``offline_cache_miss``, а не тихий успех;
 - анализ ограничен bounded shortlist и лимитом кадров, поэтому объём вызовов
@@ -56,6 +61,7 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +76,7 @@ from .semantic_visual_models import (
     SemanticVisualRequest,
     fallback_semantic_result,
     apply_semantic_aggregation_rules,
+    semantic_result_vision_tags,
 )
 
 
@@ -103,6 +110,207 @@ def create_semantic_visual_backend(backend_name: str, config: dict[str, Any]) ->
     return ExternalSemanticVisualBackend(backend_config)
 
 
+@dataclass(frozen=True)
+class _SemanticRun:
+    """Everything one analysis run needs, resolved once.
+
+    Both entry points below build this the same way, so the request - and therefore the
+    cache key - does not depend on which of them asked for the analysis.
+    """
+
+    backend: SemanticVisualBackend
+    backend_name: str
+    backend_version: str
+    model: str
+    semantic_config: dict[str, Any]
+    cache: SemanticVisualCache
+    prompt_template_version: str
+    max_candidates: int
+    max_frames: int
+    minimum_confidence: float
+    hard_reject_confidence: float
+    offline: bool
+    project_root: Path
+    project_id: str
+
+
+def _prepare_run(
+    *,
+    project_root: Path,
+    project_id: str,
+    backend: SemanticVisualBackend | None,
+    backend_name: str,
+    refresh: bool,
+    offline: bool,
+    maximum_candidates: int | None,
+    maximum_frames: int | None,
+    config: dict[str, Any] | None,
+) -> _SemanticRun:
+    semantic_config = load_semantic_visual_config()
+    if config:
+        _deep_update(semantic_config, config)
+    if backend_name:
+        semantic_config["backend"] = backend_name
+    if refresh:
+        semantic_config["refresh_cache"] = True
+    effective_backend_name = str(semantic_config.get("backend") or "mock")
+    selected_backend = backend or create_semantic_visual_backend(effective_backend_name, semantic_config)
+    capabilities = selected_backend.capabilities()
+    effective_model = capabilities.model or str(semantic_config.get("model") or "")
+    if effective_model:
+        semantic_config["model"] = effective_model
+    semantic_config["backend"] = capabilities.backend or effective_backend_name
+    semantic_config["backend_version"] = capabilities.backend_version
+    return _SemanticRun(
+        backend=selected_backend,
+        backend_name=capabilities.backend or effective_backend_name,
+        backend_version=capabilities.backend_version,
+        model=effective_model,
+        semantic_config=semantic_config,
+        cache=SemanticVisualCache(_semantic_cache_root(project_root, semantic_config)),
+        prompt_template_version=str(semantic_config.get("prompt_template_version") or DEFAULT_PROMPT_TEMPLATE_VERSION),
+        max_candidates=int(maximum_candidates or semantic_config.get("maximum_candidates") or 5),
+        max_frames=int(maximum_frames or semantic_config.get("maximum_frames_per_candidate") or capabilities.maximum_frames or 5),
+        minimum_confidence=float(semantic_config.get("minimum_confidence") or 0.65),
+        hard_reject_confidence=float(semantic_config.get("hard_reject_confidence") or 0.90),
+        offline=offline,
+        project_root=project_root,
+        project_id=project_id,
+    )
+
+
+def _analyse_scene_shortlist(
+    run: _SemanticRun,
+    *,
+    scene_id: str,
+    scene: dict[str, Any],
+    requirements: SceneVisualRequirements,
+    shortlist: list[dict[str, Any]],
+    summary: dict[str, Any],
+) -> list[Any]:
+    """One scene's bounded shortlist, analysed once. The only place a call is made."""
+    semantic_config = run.semantic_config
+    results: list[Any] = []
+    for candidate in shortlist[: max(0, run.max_candidates)]:
+        summary["candidates_processed"] += 1
+        request = _request_for_candidate(
+            project_id=run.project_id,
+            scene_id=scene_id,
+            backend_name=run.backend_name,
+            model=run.model,
+            backend_version=run.backend_version,
+            requirements=requirements,
+            candidate=candidate,
+            scene=scene,
+            project_root=run.project_root,
+            maximum_frames=run.max_frames,
+            semantic_config=semantic_config,
+        )
+        cache_key = compute_semantic_cache_key(request, semantic_config=semantic_config, prompt_template_version=run.prompt_template_version)
+        result = None
+        if bool(semantic_config.get("cache_enabled", True)) and not bool(semantic_config.get("refresh_cache", False)):
+            result = run.cache.read(cache_key)
+            if result:
+                summary["cache_hits"] += 1
+        if not result:
+            summary["cache_misses"] += 1
+            if run.offline:
+                result = fallback_semantic_result(
+                    backend=run.backend_name,
+                    model=run.model,
+                    backend_version=run.backend_version,
+                    request_version=request.request_version,
+                    status="offline_cache_miss",
+                    error_code="offline_cache_miss",
+                    message="Offline semantic analysis requires an existing cache entry.",
+                    cache_key=cache_key,
+                )
+            else:
+                summary["backend_calls"] += 1
+                result = _safe_backend_call(run.backend, request, cache_key, run.minimum_confidence, run.hard_reject_confidence)
+                if bool(semantic_config.get("cache_enabled", True)):
+                    try:
+                        run.cache.write(result)
+                    except ValueError:
+                        pass
+        result.cache_key = cache_key
+        _attach_candidate_semantic_result(candidate, result)
+        results.append(result)
+        if result.status == "success":
+            summary["successful_analyses"] += 1
+        else:
+            summary["failed_analyses"] += 1
+        if result.hard_reject:
+            summary["hard_rejects"] += 1
+        if result.review_required_reasons or result.status != "success":
+            summary["review_required"] += 1
+    _attach_semantic_ranks(shortlist)
+    return results
+
+
+def analyse_semantic_visual_for_shortlist(
+    *,
+    project_root: str | Path,
+    project_id: str,
+    scene_id: str,
+    semantic_scene: dict[str, Any],
+    scene_text: str = "",
+    target_aspect_ratio: str = "",
+    shortlist: list[dict[str, Any]],
+    backend_name: str = "",
+    backend: SemanticVisualBackend | None = None,
+    refresh: bool = False,
+    offline: bool = False,
+    maximum_candidates: int | None = None,
+    maximum_frames: int | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Analyse one scene's bounded shortlist while the choice can still be affected.
+
+    The same producer and the same request as ``analyse_semantic_visual_for_project``:
+    the caller passes the candidates in the shape the review board writes them, so both
+    entry points compute the same cache key and a candidate is paid for once.
+
+    Every analysed candidate is given ``vision_tags`` - the field
+    ``src.assets.semantic_selection.evidence`` already reads - and nothing else. What
+    that evidence is worth stays with the ranker; this function selects nothing.
+    """
+    root = Path(project_root)
+    run = _prepare_run(
+        project_root=root,
+        project_id=project_id,
+        backend=backend,
+        backend_name=backend_name,
+        refresh=refresh,
+        offline=offline,
+        maximum_candidates=maximum_candidates,
+        maximum_frames=maximum_frames,
+        config=config,
+    )
+    summary = _empty_summary(root / "assets" / "review" / "visual_review_manifest.json")
+    summary["backend"] = run.backend_name
+    summary["estimated_cost"] = 0.0
+    summary["paid_calls_performed"] = False
+    summary["scenes_processed"] = 1
+    scene = {
+        "scene_id": scene_id,
+        "scene_text": scene_text,
+        "target_aspect_ratio": target_aspect_ratio,
+    }
+    requirements = SceneVisualRequirements.from_current_semantic_scene(semantic_scene or {}, scene=scene)
+    results = _analyse_scene_shortlist(
+        run,
+        scene_id=scene_id,
+        scene=scene,
+        requirements=requirements,
+        shortlist=shortlist,
+        summary=summary,
+    )
+    for candidate, result in zip(shortlist, results):
+        candidate["vision_tags"] = semantic_result_vision_tags(result, minimum_confidence=run.minimum_confidence)
+    return summary
+
+
 def analyse_semantic_visual_for_project(
     *,
     project_root: str | Path,
@@ -119,39 +327,29 @@ def analyse_semantic_visual_for_project(
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = Path(project_root)
-    semantic_config = load_semantic_visual_config()
-    if config:
-        _deep_update(semantic_config, config)
-    if backend_name:
-        semantic_config["backend"] = backend_name
-    if refresh:
-        semantic_config["refresh_cache"] = True
-    effective_backend_name = str(semantic_config.get("backend") or "mock")
-    selected_backend = backend or create_semantic_visual_backend(effective_backend_name, semantic_config)
-    capabilities = selected_backend.capabilities()
-    effective_model = capabilities.model or str(semantic_config.get("model") or "")
-    if effective_model:
-        semantic_config["model"] = effective_model
-    semantic_config["backend"] = capabilities.backend or effective_backend_name
-    semantic_config["backend_version"] = capabilities.backend_version
+    run = _prepare_run(
+        project_root=root,
+        project_id=project_id,
+        backend=backend,
+        backend_name=backend_name,
+        refresh=refresh,
+        offline=offline,
+        maximum_candidates=maximum_candidates,
+        maximum_frames=maximum_frames,
+        config=config,
+    )
+    semantic_config = run.semantic_config
 
     manifest_path = root / "assets" / "review" / "visual_review_manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"visual review manifest not found: {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest_before_selection = _selection_fingerprint(manifest)
-    cache = SemanticVisualCache(_semantic_cache_root(root, semantic_config))
-    prompt_template_version = str(semantic_config.get("prompt_template_version") or DEFAULT_PROMPT_TEMPLATE_VERSION)
-    max_candidates = int(maximum_candidates or semantic_config.get("maximum_candidates") or 5)
-    max_frames = int(maximum_frames or semantic_config.get("maximum_frames_per_candidate") or capabilities.maximum_frames or 5)
-    min_conf = float(semantic_config.get("minimum_confidence") or 0.65)
-    hard_conf = float(semantic_config.get("hard_reject_confidence") or 0.90)
 
     summary = _empty_summary(manifest_path)
-    summary["backend"] = capabilities.backend or effective_backend_name
+    summary["backend"] = run.backend_name
     summary["estimated_cost"] = 0.0
     summary["paid_calls_performed"] = False
-    processed_results: list[tuple[dict[str, Any], float, bool]] = []
 
     for scene in manifest.get("scenes", []) or []:
         current_scene_id = str(scene.get("scene_id") or "")
@@ -169,60 +367,14 @@ def analyse_semantic_visual_for_project(
             },
         )
         shortlist = scene.get("shortlist") if isinstance(scene.get("shortlist"), list) else []
-        for candidate in shortlist[: max(0, max_candidates)]:
-            summary["candidates_processed"] += 1
-            request = _request_for_candidate(
-                project_id=project_id,
-                scene_id=current_scene_id,
-                backend_name=capabilities.backend or effective_backend_name,
-                model=effective_model,
-                backend_version=capabilities.backend_version,
-                requirements=requirements,
-                candidate=candidate,
-                scene=scene,
-                project_root=root,
-                maximum_frames=max_frames,
-                semantic_config=semantic_config,
-            )
-            cache_key = compute_semantic_cache_key(request, semantic_config=semantic_config, prompt_template_version=prompt_template_version)
-            result = None
-            if bool(semantic_config.get("cache_enabled", True)) and not bool(semantic_config.get("refresh_cache", False)):
-                result = cache.read(cache_key)
-                if result:
-                    summary["cache_hits"] += 1
-            if not result:
-                summary["cache_misses"] += 1
-                if offline:
-                    result = fallback_semantic_result(
-                        backend=capabilities.backend or effective_backend_name,
-                        model=effective_model,
-                        backend_version=capabilities.backend_version,
-                        request_version=request.request_version,
-                        status="offline_cache_miss",
-                        error_code="offline_cache_miss",
-                        message="Offline semantic analysis requires an existing cache entry.",
-                        cache_key=cache_key,
-                    )
-                else:
-                    summary["backend_calls"] += 1
-                    result = _safe_backend_call(selected_backend, request, cache_key, min_conf, hard_conf)
-                    if bool(semantic_config.get("cache_enabled", True)):
-                        try:
-                            cache.write(result)
-                        except ValueError:
-                            pass
-            result.cache_key = cache_key
-            _attach_candidate_semantic_result(candidate, result)
-            processed_results.append((candidate, float(result.semantic_score), bool(result.hard_reject)))
-            if result.status == "success":
-                summary["successful_analyses"] += 1
-            else:
-                summary["failed_analyses"] += 1
-            if result.hard_reject:
-                summary["hard_rejects"] += 1
-            if result.review_required_reasons or result.status != "success":
-                summary["review_required"] += 1
-        _attach_semantic_ranks(shortlist)
+        _analyse_scene_shortlist(
+            run,
+            scene_id=current_scene_id,
+            scene=scene,
+            requirements=requirements,
+            shortlist=shortlist,
+            summary=summary,
+        )
 
     manifest["semantic_visual"] = {
         "status": "completed",

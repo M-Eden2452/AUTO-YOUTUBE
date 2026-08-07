@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import tempfile
 import unittest
@@ -175,6 +176,462 @@ class SemanticVisualIntegrationTests(unittest.TestCase):
         entry = bundle.shortlist[0]
         self.assertEqual(entry["semantic_status"], "success")
         self.assertIn("semantic_analysis", entry)
+
+
+class SemanticVisualDecisionWiringTests(unittest.TestCase):
+    """PLAN-9C: the Vision verdict has to arrive while the choice is still open.
+
+    Everything here is offline. No provider, no download, no paid backend, no render:
+    the candidates come from a local media index and the semantic backend is a scripted
+    stand-in, which is admissible as proof of *wiring* and of nothing else.
+    """
+
+    def test_a_failed_analysis_is_not_evidence(self) -> None:
+        from src.assets.semantic_visual_models import fallback_semantic_result, semantic_result_vision_tags
+
+        result = fallback_semantic_result(
+            backend="mock", status="invalid_response", error_code="invalid_response", message="broken"
+        )
+
+        self.assertEqual(semantic_result_vision_tags(result), [])
+
+    def test_an_answer_nobody_can_stand_behind_adds_no_positive_evidence(self) -> None:
+        from src.assets.semantic_visual_models import semantic_result_vision_tags
+
+        result = _scripted_result(confidence=0.40, subject="whale", environment=["ocean"])
+
+        self.assertEqual(semantic_result_vision_tags(result), [])
+
+    def test_a_confirmed_observation_becomes_evidence_the_metadata_never_gave(self) -> None:
+        from src.assets.semantic_visual_models import semantic_result_vision_tags
+
+        result = _scripted_result(subject="whale", environment=["ocean"], must_have=["whale"])
+
+        self.assertEqual(sorted(semantic_result_vision_tags(result)), ["ocean", "whale"])
+
+    def test_a_confirmed_forbidden_element_becomes_the_term_the_scene_forbade(self) -> None:
+        from src.assets.semantic_visual_models import (
+            SemanticVisualRequest,
+            apply_semantic_aggregation_rules,
+            semantic_result_vision_tags,
+        )
+
+        request = SemanticVisualRequest(
+            project_id="p", scene_id="s", backend="mock", requirements=_requirements(), candidate_id="c", provider="fake"
+        )
+        result = apply_semantic_aggregation_rules(
+            _scripted_result(subject="whale", environment=["ocean"], forbidden="desert"), request
+        )
+
+        self.assertTrue(result.hard_reject)
+        # Only the refusal travels: a candidate the backend rejected must not also carry
+        # evidence that makes it look better than an honest absence of metadata.
+        self.assertEqual(semantic_result_vision_tags(result), ["desert"])
+
+    def test_the_shortlist_pass_tags_candidates_and_stays_bounded(self) -> None:
+        from src.assets.semantic_visual_service import analyse_semantic_visual_for_shortlist
+
+        backend = _ScriptedBackend({"a1": {}, "a2": {}, "a3": {}})
+        shortlist = [_review_entry("a1"), _review_entry("a2"), _review_entry("a3")]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = analyse_semantic_visual_for_shortlist(
+                project_root=Path(tmp),
+                project_id="project_001",
+                scene_id="scene_001",
+                semantic_scene={"subject": ["whale"], "environment": ["ocean"], "must_not_include": ["desert"]},
+                shortlist=shortlist,
+                backend=backend,
+                maximum_candidates=2,
+            )
+
+        self.assertEqual(summary["candidates_processed"], 2)
+        self.assertEqual([request.candidate_id for request in backend.seen], ["a1", "a2"])
+        self.assertEqual(sorted(shortlist[0]["vision_tags"]), ["ocean", "whale"])
+        self.assertNotIn("vision_tags", shortlist[2])
+
+    def test_the_shortlist_pass_makes_no_call_when_offline(self) -> None:
+        from src.assets.semantic_visual_service import analyse_semantic_visual_for_shortlist
+
+        backend = _ScriptedBackend({"a1": {}})
+        shortlist = [_review_entry("a1")]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = analyse_semantic_visual_for_shortlist(
+                project_root=Path(tmp),
+                project_id="project_001",
+                scene_id="scene_001",
+                semantic_scene={"subject": ["whale"]},
+                shortlist=shortlist,
+                backend=backend,
+                offline=True,
+            )
+
+        self.assertEqual(summary["backend_calls"], 0)
+        self.assertEqual(backend.seen, [])
+        self.assertEqual(shortlist[0]["vision_tags"], [])
+
+    def test_the_review_pass_reuses_what_the_shortlist_pass_already_paid_for(self) -> None:
+        """The two entry points must be the same request, or a candidate is paid twice."""
+        from src.assets.review_bundle import create_scene_review_bundle, write_review_bundle
+        from src.assets.semantic_visual_service import (
+            analyse_semantic_visual_for_project,
+            analyse_semantic_visual_for_shortlist,
+        )
+
+        backend = _ScriptedBackend({"a1": {}, "a2": {}})
+        scene = {"scene_id": "scene_001", "narration": "A whale in the ocean.", "target_duration_sec": 4}
+        semantic_scene = {"subject": ["whale"], "environment": ["ocean"], "visual_priority": "exact_subject"}
+        analyses = [_preview_analysis("a1"), _preview_analysis("a2")]
+        bundle = create_scene_review_bundle(
+            project_id="project_001",
+            scene=scene,
+            semantic_scene=semantic_scene,
+            metadata_queries=[],
+            provider_routing={},
+            candidates=[{"asset_id": "a1", "provider": "fake"}, {"asset_id": "a2", "provider": "fake"}],
+            analyses=analyses,
+            selected_candidate_id="a1",
+            target_aspect_ratio="9:16",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project_001"
+            analyse_semantic_visual_for_shortlist(
+                project_root=project,
+                project_id="project_001",
+                scene_id=bundle.scene_id,
+                semantic_scene=bundle.semantic_scene,
+                scene_text=bundle.scene_text,
+                target_aspect_ratio=bundle.target_aspect_ratio,
+                shortlist=bundle.shortlist,
+                backend=backend,
+            )
+            first_calls = len(backend.seen)
+            write_review_bundle(project, [bundle], write_html=False)
+
+            summary = analyse_semantic_visual_for_project(
+                project_root=project,
+                project_id="project_001",
+                scene_id="scene_001",
+                backend=backend,
+                no_html=True,
+            )
+
+        self.assertEqual(first_calls, 2)
+        self.assertEqual(summary["backend_calls"], 0)
+        self.assertEqual(summary["cache_hits"], 2)
+        self.assertEqual(len(backend.seen), 2)
+
+    def test_the_choice_is_untouched_while_semantic_visual_is_off(self) -> None:
+        with _project() as (root, backend):
+            manifest = _build(root, backend, semantic_visual={})
+
+        self.assertEqual(manifest["scenes"][0]["selected_asset"]["asset_id"], "local_rich")
+        self.assertEqual(backend.seen, [])
+        self.assertFalse(manifest["asset_selection"]["semantic_visual"]["enabled"])
+
+    def test_vision_evidence_reaches_the_decision_before_the_asset_is_chosen(self) -> None:
+        with _project() as (root, backend):
+            backend.script["local_rich"] = {"forbidden": "desert"}
+            manifest = _build(root, backend, semantic_visual=_WIRED)
+
+        scene = manifest["scenes"][0]
+        rejected = next(item for item in scene["ranked_candidates"] if item["asset_id"] == "local_rich")
+        self.assertEqual(scene["selected_asset"]["asset_id"], "local_plain")
+        self.assertEqual(rejected["vision_tags"], ["desert"])
+        self.assertEqual(sorted(scene["selected_asset"]["vision_tags"]), ["ocean", "whale"])
+        # The refusal is spoken in the vocabulary that already existed, by the owner that
+        # already owned it - no second verdict was introduced for Vision.
+        self.assertIn("must_avoid_match:desert", rejected["reject_reason"])
+        self.assertIn("vision_mismatch", rejected["reject_reason"])
+
+    def test_a_vision_failure_leaves_the_deterministic_choice_in_place(self) -> None:
+        with _project() as (root, backend):
+            backend.script["local_rich"] = {"raises": True}
+            backend.script["local_plain"] = {"raises": True}
+            manifest = _build(root, backend, semantic_visual=_WIRED)
+            review = _read_manifest(root / "project_001")
+
+        scene = manifest["scenes"][0]
+        self.assertEqual(scene["selected_asset"]["asset_id"], "local_rich")
+        self.assertEqual(scene["selected_asset"]["vision_tags"], [])
+        # The provider really was asked before the choice; it simply had nothing to say.
+        self.assertEqual(review["semantic_visual"]["summary"]["backend_calls"], 0)
+        self.assertEqual(len(backend.seen), 2)
+
+    def test_only_the_bounded_shortlist_is_shown_to_the_backend(self) -> None:
+        with _project(extra=True) as (root, backend):
+            manifest = _build(
+                root, backend, semantic_visual={**_WIRED, "maximum_candidates": 1}
+            )
+            review = _read_manifest(root / "project_001")
+
+        self.assertEqual(len({request.candidate_id for request in backend.seen}), 1)
+        self.assertEqual(review["semantic_visual"]["summary"]["backend_calls"], 0)
+        self.assertTrue(manifest["scenes"][0]["selected_asset"])
+
+    def test_the_scene_is_analysed_once_across_the_whole_build(self) -> None:
+        with _project() as (root, backend):
+            _build(root, backend, semantic_visual=_WIRED)
+            review = _read_manifest(root / "project_001")
+
+        # The review pass after selection really did run - and found both candidates
+        # already in the cache, so wiring the seam costs nothing extra.
+        self.assertEqual(review["semantic_visual"]["status"], "completed")
+        self.assertEqual(review["semantic_visual"]["summary"]["backend_calls"], 0)
+        self.assertEqual(review["semantic_visual"]["summary"]["cache_hits"], 2)
+        self.assertEqual(len(backend.seen), 2)
+
+    def test_a_user_asset_is_not_re_ranked_by_vision(self) -> None:
+        from PIL import Image
+
+        with _project() as (root, backend):
+            backend.script["user_1"] = {"forbidden": "desert"}
+            user_image = root / "user_whale.png"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(user_image)
+            manifest = _build(
+                root,
+                backend,
+                semantic_visual=_WIRED,
+                user_assets=[
+                    {
+                        "path": str(user_image),
+                        "rights_declaration": {
+                            "confirmation_status": "approved",
+                            "license_name": "user_owned",
+                            "rights_status": "user_owned",
+                            "owner_approval_status": "approved",
+                        },
+                    }
+                ],
+            )
+
+        selected = manifest["scenes"][0]["selected_asset"]
+        self.assertEqual(selected["provider"], "user")
+        self.assertEqual(selected["selected_by"], "user_asset_priority_manual")
+        # The shortlist was still analysed; the user's own choice is simply not the
+        # ranker's to revisit.
+        self.assertTrue(backend.seen)
+
+    def test_the_manifest_stops_reporting_a_constant_for_semantic_rerank(self) -> None:
+        with _project() as (root, backend):
+            wired = _build(root, backend, semantic_visual=_WIRED)
+        with _project() as (root, backend):
+            plain = _build(root, backend, semantic_visual={})
+
+        self.assertTrue(wired["semantic_visual"]["semantic_rerank_enabled"])
+        self.assertFalse(plain["semantic_visual"]["semantic_rerank_enabled"])
+
+
+_WIRED = {"enabled": True, "semantic_rerank_enabled": True}
+
+
+@contextlib.contextmanager
+def _project(*, extra: bool = False):
+    """A project whose candidates are real local files, so previews stay offline."""
+    from PIL import Image
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for asset_id in ("local_rich", "local_plain", *(("local_spare",) if extra else ())):
+            Image.new("RGB", (1080, 1920), (10, 40, 90)).save(root / f"{asset_id}.png")
+        yield root, _ScriptedBackend({})
+
+
+def _build(
+    root: Path,
+    backend: "_ScriptedBackend",
+    *,
+    semantic_visual: dict[str, Any],
+    user_assets: list[Any] | None = None,
+) -> dict[str, Any]:
+    from unittest.mock import patch
+
+    from src.news.asset_manager import build_assets_manifest
+
+    items = [
+        _library_item("local_rich", root, "Whale in the ocean", ["whale", "ocean", "aerial"]),
+        _library_item("local_plain", root, "Whale", ["whale", "ocean"]),
+    ]
+    if (root / "local_spare.png").exists():
+        items.append(_library_item("local_spare", root, "Whale close up", ["whale", "ocean"]))
+    visual_plan = {
+        "scenes": [
+            {
+                "scene_id": "scene_001",
+                "visual_type": "image",
+                "primary_query": "whale ocean",
+                "target_duration_sec": 4,
+                "semantic": {
+                    "subject": ["whale"],
+                    "environment": ["ocean"],
+                    "must_include": ["whale"],
+                    "must_not_include": ["desert"],
+                    "visual_priority": "exact_subject",
+                },
+            }
+        ]
+    }
+    with patch(
+        "src.assets.semantic_visual_service.create_semantic_visual_backend",
+        return_value=backend,
+    ):
+        return build_assets_manifest(
+            visual_plan=visual_plan,
+            user_assets=user_assets or [],
+            media_index={"version": 1, "items": items},
+            providers=[],
+            dry_run=False,
+            project_root=root / "project_001",
+            project_id="project_001",
+            asset_selection={"semantic_visual": semantic_visual} if semantic_visual else {},
+        )
+
+
+def _library_item(asset_id: str, root: Path, title: str, keywords: list[str]) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "id": asset_id,
+        "type": "image",
+        "provider": "local",
+        "provider_asset_id": asset_id,
+        "local_path": str(root / f"{asset_id}.png"),
+        "title": title,
+        "description": title,
+        "keywords": keywords,
+        "tags": keywords,
+        "source_url": f"file://{asset_id}",
+        "width": 1080,
+        "height": 1920,
+        "rights_status": "licensed",
+        "allowed_for_render": True,
+        "review_required": False,
+        "license": {
+            "license_name": "user_owned",
+            "rights_status": "licensed",
+            "allowed_for_render": True,
+            "review_required": False,
+        },
+        "provenance": {"provider": "local", "provider_asset_id": asset_id, "source_page_url": f"file://{asset_id}"},
+    }
+
+
+def _requirements(**overrides: Any):
+    from src.assets.semantic_visual_models import SceneVisualRequirements
+
+    values = {"scene_id": "scene_001", "subject": "whale", "environment": ["ocean"], "negative_elements": ["desert"]}
+    values.update(overrides)
+    return SceneVisualRequirements(**values)
+
+
+def _scripted_result(
+    *,
+    confidence: float = 0.92,
+    subject: str = "",
+    environment: list[str] | None = None,
+    must_have: list[str] | None = None,
+    forbidden: str = "",
+):
+    from src.assets.semantic_visual_models import (
+        AggregateSemanticScores,
+        FrameSemanticObservation,
+        SemanticVisualResult,
+        TermSemanticCheckResult,
+    )
+
+    return SemanticVisualResult(
+        backend="mock",
+        model="scripted",
+        backend_version="scripted.v1",
+        request_version="semantic_visual_request.v1",
+        status="success",
+        confidence=confidence,
+        frames_analysed=1,
+        frame_observations=[
+            FrameSemanticObservation(
+                frame_index=0,
+                subject_observations=[subject] if subject else [],
+                environment_observations=list(environment or []),
+                unwanted_element_observations=[forbidden] if forbidden else [],
+                confidence=confidence,
+            )
+        ],
+        aggregate_scores=AggregateSemanticScores(
+            subject_match=0.93,
+            action_match=0.90,
+            environment_match=0.91,
+            location_match=0.90,
+            exact_entity_match=0.90,
+            must_have_match=0.94,
+            negative_element_safety=0.05 if forbidden else 0.96,
+            shot_type_match=0.0,
+            mood_match=0.90,
+            temporal_match=0.0,
+        ),
+        must_have_results=[
+            TermSemanticCheckResult(term=term, present=True, confidence=0.90) for term in (must_have or [])
+        ],
+        negative_element_results=(
+            [TermSemanticCheckResult(term=forbidden, present=True, confidence=0.95, frame_indices=[0])]
+            if forbidden
+            else []
+        ),
+    )
+
+
+class _ScriptedBackend:
+    """A deterministic stand-in for a semantic backend. Proof of wiring, not of quality."""
+
+    name = "mock"
+
+    def __init__(self, script: dict[str, dict[str, Any]]) -> None:
+        self.script = script
+        self.seen: list[Any] = []
+
+    def capabilities(self):
+        from src.assets.semantic_visual_backend import SemanticBackendCapabilities
+
+        return SemanticBackendCapabilities(
+            backend="mock", model="scripted", backend_version="scripted.v1", maximum_frames=5, paid_backend=False
+        )
+
+    def health_check(self):
+        from src.assets.semantic_visual_backend import SemanticBackendHealth
+
+        return SemanticBackendHealth(backend="mock", configured=True, status="ready")
+
+    def analyse_candidate(self, request):
+        self.seen.append(request)
+        case = self.script.get(request.candidate_id, {})
+        if case.get("raises"):
+            raise RuntimeError("scripted backend failure")
+        return _scripted_result(
+            subject=request.requirements.subject,
+            environment=list(request.requirements.environment),
+            must_have=list(request.requirements.must_have),
+            forbidden=str(case.get("forbidden") or ""),
+        )
+
+
+def _review_entry(asset_id: str) -> dict[str, Any]:
+    return {"asset_id": asset_id, "provider": "fake", "provider_asset_id": asset_id, "sampled_frames": []}
+
+
+def _preview_analysis(asset_id: str) -> dict[str, Any]:
+    return {
+        "asset_id": asset_id,
+        "provider": "fake",
+        "provider_asset_id": asset_id,
+        "analysis_status": "passed",
+        "sampled_frames": [
+            {"frame_index": 0, "sha256": f"{asset_id:0>64}"[-64:], "perceptual_hash": "abcd", "width": 320, "height": 480}
+        ],
+        "technical_metrics": {"technical_quality_score": 80.0},
+        "technical_quality_score": 80.0,
+        "crop_scores": {},
+        "duplicate_scores": [],
+    }
 
 
 def _write_visual_review_fixture(

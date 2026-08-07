@@ -11,6 +11,10 @@ from typing import Any
 SEMANTIC_REQUEST_VERSION = "semantic_visual_request.v1"
 SEMANTIC_RESULT_VERSION = "semantic_visual_result.v1"
 SEMANTIC_STRICTNESS_VALUES = {"strict", "balanced", "illustrative"}
+# How ``apply_semantic_aggregation_rules`` writes down a forbidden element it is
+# confident is really in the frames. Named because the projection below reads that
+# verdict back rather than re-deciding it.
+NEGATIVE_ELEMENT_DETECTED_PREFIX = "negative_element_detected:"
 SECRET_KEY_MARKERS = ("api_key", "apikey", "token", "secret", "password", "certificate", "proof", "env")
 PATH_KEYS = {"path", "local_path", "downloaded_path", "private_local_path"}
 
@@ -537,7 +541,7 @@ def apply_semantic_aggregation_rules(
         if item.confidence >= hard_reject_confidence and _negative_evidence_is_consistent(item, frame_count):
             result.hard_reject = True
             scores.negative_element_safety = min(scores.negative_element_safety, max(0.0, 1.0 - item.confidence))
-            mismatches.append(f"negative_element_detected:{item.term}")
+            mismatches.append(f"{NEGATIVE_ELEMENT_DETECTED_PREFIX}{item.term}")
         else:
             reasons.append(f"negative_element_low_confidence:{item.term}")
 
@@ -549,6 +553,63 @@ def apply_semantic_aggregation_rules(
     result.review_required_reasons = _unique(reasons)
     result.mismatch_reasons = _unique(mismatches)
     return result
+
+
+# Which frame observation carries which dimension's confidence. Every family is let
+# through by its own aggregate score and nothing else, so this projection introduces no
+# threshold of its own.
+_OBSERVATION_FAMILIES: tuple[tuple[str, str], ...] = (
+    ("subject_observations", "subject_match"),
+    ("action_observations", "action_match"),
+    ("environment_observations", "environment_match"),
+    ("location_observations", "location_match"),
+    ("shot_type_observations", "shot_type_match"),
+    ("temporal_observations", "temporal_match"),
+)
+
+
+def semantic_result_vision_tags(
+    result: SemanticVisualResult,
+    *,
+    minimum_confidence: float = 0.65,
+) -> list[str]:
+    """What the backend says is in the frames, in the words the selection layer reads.
+
+    ``vision_tags`` is the field ``semantic_selection.evidence`` already consults, so a
+    Vision verdict enters the existing decision through the existing vocabulary instead
+    of a second scoring system: a confirmed forbidden element becomes the term the scene
+    forbade, and a confirmed observation becomes evidence the provider's metadata could
+    not give.
+
+    Nothing is decided here. A failed or low-confidence analysis contributes no positive
+    evidence at all - an answer nobody could stand behind must not make a candidate look
+    better than an honest absence of metadata.
+    """
+    if result.status != "success":
+        return []
+    # Read back the aggregation's own verdict rather than re-deciding it: a negative
+    # element is "detected" only when that layer already said so.
+    tags = [
+        reason[len(NEGATIVE_ELEMENT_DETECTED_PREFIX) :]
+        for reason in result.mismatch_reasons
+        if reason.startswith(NEGATIVE_ELEMENT_DETECTED_PREFIX)
+    ]
+    if result.hard_reject or result.confidence < minimum_confidence:
+        return _unique(tags)
+    scores = result.aggregate_scores.to_dict()
+    tags.extend(
+        item.term
+        for item in result.must_have_results
+        if item.present and item.confidence >= minimum_confidence
+    )
+    for observation in result.frame_observations:
+        if observation.confidence < minimum_confidence:
+            continue
+        for family, score_name in _OBSERVATION_FAMILIES:
+            if float(scores.get(score_name) or 0.0) < minimum_confidence:
+                continue
+            tags.extend(getattr(observation, family))
+    return _unique(tags)
 
 
 def fallback_semantic_result(

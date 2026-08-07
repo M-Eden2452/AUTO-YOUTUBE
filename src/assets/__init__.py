@@ -84,6 +84,7 @@ from .semantic_visual_openai import (
 )
 from .semantic_visual_service import (
     analyse_semantic_visual_for_project,
+    analyse_semantic_visual_for_shortlist,
     inspect_semantic_visual_project,
     load_semantic_visual_config,
 )
@@ -154,5 +155,6 @@ __all__ = [
     "compute_semantic_cache_key",
     "load_semantic_visual_config",
     "analyse_semantic_visual_for_project",
+    "analyse_semantic_visual_for_shortlist",
     "inspect_semantic_visual_project",
 ]

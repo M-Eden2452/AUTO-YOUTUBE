@@ -11,6 +11,9 @@ Responsibilities:
   ``SceneVisualAssembly``;
 - запись фактических попыток: provider attempts, routing decision, query plan,
   download attempts и причины отказа кандидатов;
+- запрос semantic/Vision evidence по bounded shortlist **до** окончательного
+  отбора, когда это включено конфигурацией, и передача её существующему
+  владельцу решения через ``vision_tags``;
 - video-first покрытие сцены и учёт повторного использования через
   существующий ``ReuseLedger``;
 - контролируемые fallback-ступени, когда материал не найден, и список
@@ -112,6 +115,7 @@ from src.assets.semantic_selection.decision import (
 )
 from src.assets.semantic_visual_service import (
     analyse_semantic_visual_for_project,
+    analyse_semantic_visual_for_shortlist,
     load_semantic_visual_config,
 )
 from src.assets.visual_preview import (
@@ -602,6 +606,7 @@ class AssetManifestBuilder:
             request=request,
             config=self.visual_preview_config,
         )
+        self._apply_semantic_visual_evidence(state, analyses, top_k, request)
         before_id = str(
             (state.selected or {}).get("asset_id")
             or (
@@ -663,6 +668,119 @@ class AssetManifestBuilder:
                 )
             ),
         }
+
+    def _apply_semantic_visual_evidence(
+        self,
+        state: SceneBuildState,
+        analyses: list[dict[str, Any]],
+        top_k: int,
+        request: VisualPreviewRequest,
+    ) -> None:
+        """Ask the semantic evidence provider about the shortlist while it still matters.
+
+        Vision used to run after every scene had been selected and downloaded, so its
+        verdict could describe the result and never change it. Here the same provider is
+        asked about the same bounded shortlist, with the previews and frames already
+        prepared above, and what it saw is handed to the existing decision owner in the
+        field it already reads - ``vision_tags``.
+
+        Nothing is chosen here. ``select_best_with_video`` is asked again, this time with
+        the evidence present; a scene answered by the user's own asset or by a figure the
+        project drew itself is not ranked material and is left alone.
+        """
+        settings = (
+            self.selection_config.get("semantic_visual", {})
+            if isinstance(self.selection_config.get("semantic_visual"), dict)
+            else {}
+        )
+        if not (
+            self.project_root
+            and bool(settings.get("enabled", False))
+            and bool(settings.get("semantic_rerank_enabled", False))
+        ):
+            return
+        # The candidates exactly as the review board writes them, so this request and the
+        # one built later from the written review manifest are the same request - one
+        # analysis, one cache entry, one cost.
+        board = create_scene_review_bundle(
+            project_id=self.project_id,
+            scene=state.scene,
+            semantic_scene=state.semantic_scene.to_dict(),
+            metadata_queries=semantic_scene_queries(state.semantic_scene),
+            provider_routing=state.routing_decision,
+            candidates=state.candidates[:top_k],
+            analyses=analyses,
+            selected_candidate_id=str((state.selected or {}).get("asset_id") or ""),
+            target_aspect_ratio=request.target_aspect_ratio,
+            manual_request=state.manual_request,
+        )
+        if not board.shortlist:
+            return
+        analyse_semantic_visual_for_shortlist(
+            project_root=self.project_root,
+            project_id=self.project_id,
+            scene_id=board.scene_id,
+            semantic_scene=board.semantic_scene,
+            scene_text=board.scene_text,
+            target_aspect_ratio=board.target_aspect_ratio,
+            shortlist=board.shortlist,
+            backend_name=str(settings.get("backend") or "mock"),
+            offline=bool(settings.get("offline", False)),
+            maximum_candidates=int(
+                settings.get("maximum_candidates")
+                or self.semantic_visual_config.get("maximum_candidates")
+                or 5
+            ),
+            maximum_frames=int(
+                settings.get("maximum_frames_per_candidate")
+                or self.semantic_visual_config.get(
+                    "maximum_frames_per_candidate"
+                )
+                or 5
+            ),
+            config=self.semantic_visual_config,
+        )
+        observed = False
+        tags_by_asset = {
+            str(entry.get("asset_id") or ""): [
+                str(tag) for tag in entry.get("vision_tags") or []
+            ]
+            for entry in board.shortlist
+        }
+        for candidate in state.candidates:
+            tags = tags_by_asset.get(str(candidate.get("asset_id") or ""))
+            if tags:
+                candidate["vision_tags"] = tags
+                observed = True
+        if not (observed and self._semantic_reselection_allowed(state)):
+            return
+        state.selected, state.candidates = select_best_with_video(
+            state.semantic_scene,
+            state.candidates,
+            prefer_video=self.prefer_video,
+            used_asset_ids=self.used_asset_ids,
+            required_duration_sec=state.required_duration,
+            require_provider_metadata=bool(
+                state.routing_decision.get("requires_provider_metadata")
+            ),
+            source_class=state.source_class,
+        )
+        state.selected = ensure_decision(
+            state.selected,
+            scene_id=str(state.scene.get("scene_id") or ""),
+            source_class=state.source_class,
+        )
+
+    def _semantic_reselection_allowed(self, state: SceneBuildState) -> bool:
+        """Whether the ranker made this choice, and may therefore be asked again."""
+        if str(self.selection_config.get("mode") or "") != "semantic":
+            return False
+        if state.generated_asset is not None:
+            return False
+        return (
+            str((state.selected or {}).get("selected_by") or "")
+            != "user_asset_priority_manual"
+        )
 
     def _preview_request(
         self,
@@ -1047,7 +1165,12 @@ class AssetManifestBuilder:
         return {
             "enabled": bool(values.get("enabled", False)),
             "mode": str(values.get("mode", "analyse_and_report")),
-            "semantic_rerank_enabled": False,
+            # Was written as a constant ``False`` while the flag it names had no effect
+            # at all. Now that the flag decides whether semantic evidence reaches the
+            # selection, the manifest reports what actually happened.
+            "semantic_rerank_enabled": bool(
+                values.get("semantic_rerank_enabled", False)
+            ),
         }
 
 
