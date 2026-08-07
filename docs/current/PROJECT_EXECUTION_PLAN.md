@@ -4141,6 +4141,20 @@ misleading/conflict · paid approval.
 - **risk boundary:** destructive retirement → **PLAN-6E + reversible retirement
   mechanism** (annotated tag + внешний `git bundle` + строка `Retired`).
 - **required verification:** targeted + `full`.
+- **note (добавлено 2026-08-07, docs-only, contract не расширяет).**
+  Read-only аудит подтвердил на факт HEAD `4ffdc48892a`: envato-manual
+  request construction в `src/news/asset_manifest_builder.py` (метод,
+  строящий `manual_request` при `envato_manual_fallback_enabled`) берёт
+  запросы через `ordered_queries(state.semantic_scene)`, а `ordered_queries`
+  определён именно в **superseded** `src/assets/semantic_selection/
+  query_generator.py` — том же кандидате на retirement, что перечислен выше.
+  Это напоминание уже действующего правила «выполняется только ПОСЛЕ
+  работающей замены» и «ни один кандидат не удаляется раньше переноса
+  уникального knowledge и всех callers»: при retirement superseded
+  `query_generator` этот envato-manual caller обязан быть мигрирован на
+  canonical query output (после PLAN-9B-2 expansion), иначе envato-manual
+  query source будет молча потерян. Новое условие/зависимость этим не
+  добавляется.
 
 #### PLAN-9B-5b — retirement `apps/news_to_short`
 
@@ -4900,6 +4914,93 @@ Multi-Renderer Composition». Findings — C53–C62 реестра.
   при этом сохраняется.
 - **не фиксируется без owner approval:** точная persisted-схема и публичные
   имена `composition_type`.
+
+## Unscheduled candidate slices — Premium/Envato family
+
+Записано 2026-08-07 owner-approved read-only аудитом «AI Visual Selection +
+Envato Personal Browser Agent». Это **не этапы программы**.
+
+Статус всей семьи:
+
+- **не получают PLAN-ID** и не занимают номера существующих этапов;
+- **не становятся** `current_checkpoint`;
+- **не входят** в критический путь и ни один существующий этап не блокируют;
+- **требуют отдельного owner approval** перед планированием;
+- подчиняются общему правилу `PRODUCT_PLAN.md` раздела 18: до approval
+  candidate slice не планируется и PLAN-ID не получает.
+
+Временные метки — `ENVATO-CS1`, `ENVATO-CS2`, `ENVATO-CS3`. Продуктовое
+обоснование — `PRODUCT_PLAN.md`, раздел 11.7 «Premium asset sources» и раздел
+17 (`OD-P-14`, `OD-P-15`, `OD-P-16`).
+
+**Отношение к FUNCTION 1 аудита (AI visual asset selection).** Общий
+semantic/Vision evaluator новой candidate family не является: он уже
+покрывается существующим route `PLAN-1C′ → PLAN-9C → PLAN-9D → PLAN-9A →
+PLAN-10A → PLAN-10B → PLAN-10C → PLAN-9E`. Ни один из этапов этого route этим
+разделом не меняется; `ENVATO-CS3` только подключает Envato-кандидатов к уже
+существующему `PLAN-9C` wiring.
+
+### ENVATO-CS1 — canonical premium manual fallback
+
+- **objective:** довести уже существующий `EnvatoManualProvider` fallback до
+  канонического config/CLI execution path.
+- **фактический existing flag (проверено 2026-08-07):**
+  `selection_config["envato_manual_fallback_enabled"]` в
+  `src/news/asset_manifest_builder.py`.
+- **предлагаемый scope:** canonical config path · canonical CLI/config
+  enablement · reuse существующего `EnvatoManualProvider` · reuse
+  существующего manual import (`EnvatoManualProvider.import_asset`) ·
+  targeted offline tests.
+- **не включает:** сеть · браузер · новый provider · AI Vision · commercial
+  API integration.
+- **test strategy:** deterministic offline unit/contract tests.
+
+### ENVATO-CS2 — personal interactive browser agent
+
+- **classification:** `EXPERIMENTAL` · personal-only.
+- **objective:** автоматизировать поиск Envato для локального владельца
+  приложения через видимый interactive browser workflow.
+- **предлагаемая архитектура (design direction, не immutable public
+  contract):** headed Playwright · отдельный persistent browser profile,
+  управляемый приложением (default личный Chrome profile не автоматизируется)
+  · deterministic DOM/browser actions там, где они надёжны ·
+  visual/computer-use reasoning только там, где действительно нужно
+  интерпретировать UI/content · visible browser, пользователь видит действия
+  · login выполняет человек · MFA выполняет человек · CAPTCHA выполняет
+  человек · challenge: PAUSE → human takeover → continue · пароль Envato
+  AI-YouTube не хранит.
+- **download handoff:** browser workflow → licensed user download → asset
+  file + available license/project evidence → **существующий** envato-manual
+  import path (`EnvatoManualProvider.import_asset`) → SHA-256 → provenance →
+  license proof → `rights_declaration` → `review_required` → обычный
+  downstream scene/render path. Новый manifest importer, rights stack или
+  downloader поверх существующего manual import owner не пишется.
+- **strict anti-evasion boundary.** Implementation не должна включать:
+  fingerprint spoofing · намеренное сокрытие webdriver · stealth-плагины для
+  обхода detection · proxy rotation ради обхода ограничений · CAPTCHA bypass
+  · MFA bypass · rate-limit bypass · mass downloading · identity/device
+  impersonation. Security challenge требует human takeover.
+- **network boundary.** Interactive browser — network-capable execution.
+  Implementation требует нового именованного action class через существующего
+  единственного owner `src/runtime_network.py` (проверено 2026-08-07:
+  закрытый словарь `NETWORK_ACTIONS` сегодня содержит только
+  `provider_search`, `asset_download`, `preview_download`, `article_fetch`,
+  `voice_preflight`); отдельный permission bypass не создаётся.
+- **test strategy.** Offline CI: unit tests · contract tests ·
+  browser-controller logic через mocks/fixtures · manual-import handoff
+  tests. Real Envato browser tests: **local opt-in / manual only**; реальный
+  Envato account в обычном CI никогда не требуется.
+- **dependencies:** `ENVATO-CS1`, `OD-P-14`, `OD-P-16`.
+
+### ENVATO-CS3 — AI evaluation of premium candidates
+
+- **objective:** подключить Envato preview/candidates к **общему**
+  semantic/Vision evaluator.
+- **не создаёт:** `EnvatoVisionEvaluator` или любой отдельный
+  Envato-specific Vision stack. Envato использует тот же evidence/decision
+  owner, который активируется через **PLAN-9C**.
+- **dependencies:** `PLAN-9C`, `ENVATO-CS2`.
+- **test strategy:** fixture-based offline tests.
 
 ## Результат после каждого этапа
 

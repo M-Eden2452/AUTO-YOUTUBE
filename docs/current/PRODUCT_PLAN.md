@@ -428,6 +428,47 @@ approval; манифест рендера.
 | **Anime Factory** | нарезка существующего длинного видео | вне scope этого документа | `anime_factory/` | — | отдельный продукт, сейчас не меняется | — | отдельный deep audit после UI Content Creator |
 | **Video Repurposer** | нарезка стримов, подкастов, фильмов | `COMMITTED_LATER` · отдельное приложение | будущая миграция Anime Factory | стабильный Content Creator + его UI + deep audit | приоритетом не является | **очень высокий** при попытке писать заново | по порядку раздела 14 |
 
+### 11.7. Premium asset sources
+
+Записано read-only аудитом 2026-08-07 «AI Visual Selection + Envato Personal
+Browser Agent». AI visual asset selection (FUNCTION 1 аудита) новых записей
+здесь не получает: она уже покрыта существующим route `PLAN-1C′ → PLAN-9C →
+PLAN-9D → PLAN-9A → PLAN-10A → PLAN-10B → PLAN-10C → PLAN-9E` (раздел 8,
+раздел 16.1). Ниже — только premium retrieval (FUNCTION 2 аудита).
+
+| Идея | Польза | Статус | Owner to extend | Prerequisites | Почему не сейчас | Риск каши | Критерий возврата |
+|---|---|---|---|---|---|---|---|
+| **Premium asset sources (Envato как первый case)** | доступ к премиальным stock-ассетам расширяет provider coverage без падения качества | `CANDIDATE_EXECUTION_SLICE` | существующие `StockProvider`/manual provider contracts, `EnvatoManualProvider`, `license_policy`, provider routing | owner-approved execution ordering, вне сверх уже описанного здесь | premium retrieval не создаёт отдельный parallel pipeline; Envato — первый premium use case, а не архитектурный owner | низкий, если остаётся расширением существующих contracts | после owner approval `ENVATO-CS1` (`PROJECT_EXECUTION_PLAN.md`, «Unscheduled candidate slices — Premium/Envato family») |
+| **Envato Personal Interactive Browser Agent** | локальный experimental workflow только для владельца приложения: интерактивный browser-поиск на Envato | `EXPERIMENTAL` · personal-only | существующий `EnvatoManualProvider`/manual import handoff; canonical `runtime_network` owner; browser/computer interaction layer появится только в его implementation slice | `ENVATO-CS1`, OD-P-14, OD-P-16 | policy/ToS risk decision не принято (OD-P-14); общий AI visual evaluator подключается отдельным `ENVATO-CS3` после `PLAN-9C` и не является prerequisite самого browser-agent | средний — риск ToS-нарушения и риск второго network permission mechanism при неверном wiring | после OD-P-14 и появления canonical action class (OD-P-16) |
+| **Commercial premium connector** (Envato Market API, BYO subscription/session, partner/private/enterprise route) | официальный коммерческий путь к премиальным ассетам без ToS-риска browser-агента | `DEFERRED_IDEA` | будущий bounded owner поверх существующих provider contracts | owner decision о коммерческой модели | implementation сейчас не планируется | средний — риск второго provider contract при неверном wiring | после owner decision о коммерческой модели |
+
+**External facts (verified_at: 2026-08-07).** Факты ниже записаны внешним
+read-only аудитом 2026-08-07 без нового живого сетевого доступа в этой
+docs-only сессии (`AGENTS.md` запрещает сеть без отдельного разрешения). Как и
+коммерческие/лицензионные сведения раздела 19 (OD-P-7), они помечены
+`REQUIRES SEPARATE WEB/LICENSE VERIFICATION` и сами по себе не являются
+основанием implementation decision. FACT отделён от ARCHITECTURAL INFERENCE.
+
+- **FACT.** "As of 2026-08-07, no documented public Envato Elements developer
+  API for subscription asset search/download was found in official developer
+  documentation. The documented public developer API is Envato Market API."
+  Primary source: Envato Market API developer documentation (build.envato.com)
+  — `REQUIRES SEPARATE WEB/LICENSE VERIFICATION`.
+- **FACT.** Envato Market API — официальный API; поддерживает Market/
+  VideoHive discovery.
+- **FACT.** Download endpoint Envato Market API относится к purchased items.
+- **FACT.** Elements license/project workflow имеет отдельные требования
+  регистрации использования asset в project.
+- **FACT.** YouTube/video use допускается при соблюдении актуальных license
+  terms. Primary source: Envato Elements licensing terms
+  (elements.envato.com) — `REQUIRES SEPARATE WEB/LICENSE VERIFICATION`.
+- **FACT.** Automation/fair-use restrictions на Envato существуют (см.
+  OD-P-14).
+- **ARCHITECTURAL INFERENCE.** Официальный Market API путь не покрывает
+  Elements subscription assets и не заменяет `ENVATO-CS2`; выбор между
+  официальным API, personal browser automation и отложенным capability —
+  owner decision (OD-P-14), а не архитектурный вывод этого документа.
+
 ## 12. Do-not-build-as-separate-owner list
 
 Идеи, привлекательные по форме, но опасные тем, что создают второго владельца
@@ -452,6 +493,7 @@ approval; манифест рендера.
 | Отдельная design system на каждый renderer backend | один token owner для всех авторов кадра | `MOTION-CS3` |
 | Второй scene-analysis stack в Content Creator (PySceneDetect / OpenCV) | существующие визуальные метрики; сегментация длинного видео принадлежит Anime Factory | — |
 | Несколько равноправных web motion backends для одной и той же capability | один `composition_type` — один canonical backend | `MOTION-CS2` |
+| Второй Envato/premium pipeline или Envato-specific Vision stack | existing `StockProvider`/manual-provider architecture + общий semantic/Vision evaluator | `ENVATO-CS1`, `PLAN-9C` |
 
 ## 13. Legacy knowledge and capability salvage
 
@@ -755,6 +797,53 @@ slices выше и capabilities, уже интегрированных в сущ
   сохраняется только в developer-only PoC archive.
 - **BENEFIT.** Не возникает второй полупроизводственный renderer.
 - **RISK.** Архив требует обслуживания и может тихо стать вторым owner.
+
+### OD-P-14 — personal Envato Elements browser automation policy/risk decision
+
+- **FACT.** На 2026-08-07 официальные условия Envato содержат широкие
+  ограничения на automated data/image gathering, robots и подобные методы, и
+  отдельно запрещают mass-download automation.
+- **CURRENT PLAN.** `ENVATO-CS2` (personal interactive browser agent) записан
+  как `EXPERIMENTAL` · personal-only candidate slice вне критического пути,
+  без PLAN-ID; implementation не начата.
+- **PROPOSED CHANGE.** Owner явно выбирает один из трёх путей: (1) принять
+  ToS/policy риск personal experimental single-user assisted browser
+  workflow; (2) выбрать официальный Envato Market API / per-item VideoHive
+  путь; (3) отложить capability. Visible, single-user, per-scene assisted
+  browser workflow не описывается как гарантированно разрешённый до этого
+  решения.
+- **BENEFIT.** Серая зона не выдаётся за юридически подтверждённое
+  разрешение; implementation не начинается на непроверенном допущении.
+- **RISK.** Без явного решения `ENVATO-CS2` остаётся заблокированным
+  candidate slice.
+
+### OD-P-15 — публичные имена и policy premium source escalation
+
+- **FACT.** Рабочие идеи эскалации к premium-источнику — «fallback only» и
+  «prefer premium»; ни одна публично не зафиксирована.
+- **CURRENT PLAN.** Публичные названия и persisted/public контракт escalation
+  policy не выбраны.
+- **PROPOSED CHANGE.** Зафиксировать точное публичное имя и persisted/public
+  контракт только в момент implementation, после проверки существующего
+  UI/config design.
+- **BENEFIT.** Контракт не замораживается до появления работающего пути.
+- **RISK.** Public surface tripwire.
+
+### OD-P-16 — имя нового runtime_network action class для personal interactive browser
+
+- **FACT.** `src/runtime_network.py` — единственный owner закрытого словаря
+  `NETWORK_ACTIONS` (`provider_search`, `asset_download`, `preview_download`,
+  `article_fetch`, `voice_preflight`, проверено на 2026-08-07); класса для
+  интерактивного browser-действия сегодня не существует.
+- **CURRENT PLAN.** Окончательное public/internal имя нового action class не
+  выбрано.
+- **PROPOSED CHANGE.** `ENVATO-CS2` расширяет единственного owner
+  `src/runtime_network.py` новым именованным action class; отдельный
+  обходной network permission mechanism не создаётся. Точное имя фиксируется
+  в момент implementation.
+- **BENEFIT.** Единственный сетевой permission owner сохраняется; второй
+  permission mechanism не возникает.
+- **RISK.** До решения `ENVATO-CS2` не может начать implementation.
 
 ## 18. How an idea becomes an execution slice
 
