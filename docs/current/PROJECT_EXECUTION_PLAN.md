@@ -7,7 +7,7 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-05
 current_checkpoint: PLAN-STAB-6
-next_exact_action: PLAN-STAB-6 (Claude permission hardening) implementation is completed 2026-08-06 and its five non-blocking review findings F1-F5 are repaired in a separate bounded repair commit; the next exact action is a short independent re-review of that repair commit only, and it does not close the step. The repair closes F1 (any deny rule that can reach the tracked .env.example is rejected positionally instead of by a two-spelling blacklist), F2 (the media-library record now states that the former leading-wildcard rule was deny while the six replacement entrypoint prefixes are ask, that coverage is limited to those six spellings, and that the real --apply barrier is the runtime confirm_apply contract in src/media_library.py), F3 (tracked governance under .claude/ requires Edit and Write confirmation via ./.claude/agents/** plus the existing exact ./.claude/settings.json, enumerated from git ls-files so a new tracked file cannot appear unguarded, with no broad ./.claude/** rule that would collide with the exact settings.local.json deny), F4 (a literal minimum contract pinned independently of PROTECTED_GOVERNANCE_PATHS, SECRET_ENV_NAMES, DESTRUCTIVE_GIT_DENY, DESTRUCTIVE_GIT_ASK and FORBIDDEN_BROAD_GRANTS, so narrowing settings.json and a constant together now fails) and F5 (only a rule in the tracked .gitignore proves an exclusion - .git/info/exclude, global core.excludesFile and user-level ignore are rejected - plus thirteen exact sensitive .env names added to the tracked .gitignore while .env.example stays tracked and unignored). CI for 3cedff10 is not confirmed green - run 31123722270 was cancelled twice before a windows-latest runner was assigned, with zero steps and zero logs, so neither required step ran; that is an infrastructure residual risk recorded by owner decision 2026-08-06 and CI success for 3cedff10 must not be claimed. Delivered in the implementation slice - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, the nine protected governance zones (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply is replaced by six confirmed pipeline.py entrypoint prefixes, destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, and network plus package installation require confirmation. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions. The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 remains open until the independent review of PLAN-STAB-6 lands or the owner formally accepts a documented residual risk; PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied
+next_exact_action: PLAN-STAB-6 (Claude permission hardening) implementation is completed 2026-08-06 and its five non-blocking review findings F1-F5 are repaired in bounded repair commit b0a3547, whose independent re-review is completed and accepted (verdict ACCEPT WITH MINOR, blocking findings 0). CI evidence is still missing for both implementation commit 3cedff10 and repair commit b0a3547, and this is a confirmed external GitHub Actions infrastructure incident on 2026-08-06/07 (GitHub Status confirmed queued hosted jobs without a runner, throttled webhook-triggered runs, push/pull_request events producing no workflow run at all, and some lost trigger events not automatically replayed after recovery), not a test or repository failure - run 31123722270 for 3cedff10 was cancelled before a runner was assigned with zero steps and zero logs, and no push-triggered run was ever created for b0a3547; CI success must not be claimed for either SHA. GitHub Actions is now confirmed recovered. The next exact action is to land a minimal docs-only slice that fixes the one remaining MINOR finding from the repair re-review, records this CI incident, and creates a new push event to retrigger CI, then obtain green CI evidence on that new commit; it does not close PLAN-STAB-6. Delivered in the implementation and repair slices - the versioned .claude/settings.json is deny/ask-only with permissions.allow absent, ten confirmed governance paths (AGENTS.md, CLAUDE.md, skills/**, tools/qa/**, .github/workflows/**, docs/current/PROJECT_EXECUTION_PLAN.md, docs/archive/**, docs/handoff/**, .claude/settings.json, .claude/agents/**) require confirmation on Edit and Write while Read stays open, .claude/settings.local.json is denied to the agent for Read/Write/Edit and stays untracked and ignored, thirteen further secret .env.* names are covered for Read/Write/Edit at the root and recursively (and any deny rule that could reach the tracked .env.example is rejected positionally) while the tracked .env.example keeps the PLAN-6D-1 zero-deny-match property, the untrustworthy leading-wildcard rule for media-library migrate --apply (formerly deny) is replaced by six confirmed pipeline.py entrypoint prefixes in ask - a deliberate deny-to-confirmation change, coverage limited to those six spellings, with the runtime confirm_apply contract in src/media_library.py as the actual --apply barrier - destructive Git is split into a deny set (reset --hard, clean, force push, filter-branch, reflog delete/expire, update-ref -d, gc --prune) and an ask set (checkout --, restore, rm, branch -D, worktree remove) per owner decision, network plus package installation require confirmation, and only a rule in the tracked .gitignore proves an ignore exclusion. The contract is validated by validate_claude_permissions in the existing governance QA owner tools/qa/check_agent_docs.py, so the existing CI step covers it and no second QA framework or workflow was created; tests/test_claude_permission_contract.py owns the regressions (47 tests OK). The seven dangerous local grants (git add *, git commit *, python -c, three python.exe -c variants, python -) were removed by the owner by hand before this slice and a read-only precheck confirmed none of them remain. Recorded residual limitations - exact matcher wildcard semantics and bucket precedence are not empirically proven here, Bash is not path-restricted so global Git options, shell aliases and an arbitrary interpreter remain out of contract, the enumerated .env.* coverage is deliberately incomplete, and the effective merged user/managed/local configuration lives outside the repository and is not claimed to be protected. Blocking gate item 6 remains open until CI confirmation lands on the retrigger commit or the owner formally accepts a documented residual risk; PLAN-STAB-7 and PLAN-STAB-8 stay closed and item 7 stays satisfied
 source_paths:
   - AGENTS.md
   - pyproject.toml
@@ -48,7 +48,9 @@ source_paths:
 ## Current checkpoint
 
 - **Текущий шаг:** **PLAN-STAB-6 — implementation completed 2026-08-06,
-  independent review pending (Claude permission hardening).** Это единственный
+  independent review of the repair commit completed and accepted 2026-08-06
+  (verdict ACCEPT WITH MINOR, blocking findings: 0), CI confirmation pending
+  (Claude permission hardening).** Это единственный
   current checkpoint; любой другой шаг,
   названный текущим где-либо ещё, устарел. PLAN-STAB-7 (current-routing и
   reference integrity) и PLAN-STAB-8 (Git-aware documentation freshness)
@@ -1681,12 +1683,13 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
 
 #### PLAN-STAB-6 — Claude permission hardening
 
-- **status:** implementation completed 2026-08-06, independent review pending ·
-  findings F1–F5 отремонтированы отдельным bounded repair commit 2026-08-06,
-  который сам ожидает короткого independent re-review ·
+- **status:** implementation completed 2026-08-06, findings F1–F5 отремонтированы
+  bounded repair commit `b0a3547` 2026-08-06, independent re-review этого
+  repair commit выполнен и принят (verdict **ACCEPT WITH MINOR**, blocking
+  findings: 0) · CI confirmation pending — см. residual limitations ·
   **blocking для PLAN-9B-2:** да —
   **либо** формально принятый документированный residual risk; пункт 6 gate
-  остаётся **open** до independent review · **зависимости:** —.
+  остаётся **open** до CI confirmation · **зависимости:** —.
 - **цель:** минимизировать возможность агента читать secrets, обходить
   destructive Git rules, менять governance и коммитить широким wildcard.
 - **user impact:** ошибка или сбой агента не превращается в потерю работы
@@ -1884,18 +1887,26 @@ stabilization review с ACCEPT → отдельный owner-issued implementatio
   - модель паттернов checker'а (`_permission_pattern_regex`) — **repository
     contract, а не runtime proof**: она описывает, какие правила репозиторий
     считает опасными, и не утверждает, что Claude matcher разбирает их так же;
-  - **CI для `3cedff10` зелёным не подтверждён.** GitHub Actions run
-    `31123722270` дважды отменён до выдачи `windows-latest` runner (0 steps,
-    0 логов, ~15 минут очереди на попытку); ни один из двух обязательных
-    шагов не выполнялся, поэтому `failures`/`errors` не существуют. Это
-    инфраструктурный residual risk, а **не** падение commit. Локальное
-    evidence на том же дереве: full offline suite `Ran 1729 tests, OK` и
-    `tools.qa.check_agent_docs` exit 0. Owner decision 2026-08-06 разрешил
-    начать repair на этом основании; заявлять CI success для `3cedff10`
-    запрещено.
-- **rollback / review:** по общим требованиям программы. Ни implementation, ни
-  repair шаг не закрывают: пункт 6 blocking gate остаётся open до короткого
-  independent re-review repair commit.
+  - **CI для `3cedff10` и `b0a3547` зелёным не подтверждён — подтверждённый
+    внешний GitHub Actions incident, а не test failure.** Implementation
+    commit `3cedff10`: run `31123722270` дважды отменён до выдачи
+    `windows-latest` runner (0 steps, 0 логов); ни один обязательный шаг не
+    выполнялся. Repair commit `b0a3547`: push-triggered run вообще не был
+    создан. Независимое подтверждение GitHub Status зафиксировало внешний
+    infrastructure incident GitHub Actions 2026-08-06/07 (queued hosted jobs
+    без runner, throttled webhook-triggered runs, часть push/pull_request
+    events без workflow run вообще, часть потерянных trigger events без
+    автоматического replay). Оба commit прошли local evidence на своём
+    дереве (`3cedff10`: full offline suite `Ran 1729 tests, OK`; `b0a3547`:
+    `1749 tests OK`, `tools.qa.check_agent_docs` exit 0) и независимый
+    review; ни для `3cedff10`, ни для `b0a3547` CI success не заявляется.
+    Docs-only retrigger commit после восстановления Actions используется
+    только для получения нового push event и CI evidence — не для изменения
+    permission contract.
+- **rollback / review:** по общим требованиям программы. Implementation и
+  repair шаг закрыты independent review (verdict ACCEPT WITH MINOR, blocking
+  findings: 0); шаг не закрывается: пункт 6 blocking gate остаётся open до CI
+  confirmation на push после восстановления GitHub Actions.
 
 #### PLAN-STAB-7 — current-routing и reference integrity
 
