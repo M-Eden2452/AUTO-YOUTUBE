@@ -1,54 +1,126 @@
-# PLAN-9D-A — offline ground-truth benchmark
+# PLAN-9D — данные offline-оценки
 
 Evaluation-only. Ничего здесь не является production-контрактом, не включается в
 runtime и не меняет поведение кода. Owner каталога — `tests/plan9d_ground_truth.py`
-(контракт данных и измерение) и `tests/plan9d_corpus_builder.py` (сборка корпуса и
-рендер пакета разметки). Локи — `tests/test_plan9d_ground_truth_baseline.py`.
+(контракты данных и измерение) и `tests/plan9d_corpus_builder.py` (сборка, курирование
+и рендер пакета разметки). Локи — `tests/test_plan9d_ground_truth_baseline.py`
+(generic harness) и `tests/test_plan9d_historical_evidence.py` (historical fixture).
 
-**PLAN-9D НЕ закрыт.** Этот slice готовит основание для измерения и ничего об
-улучшении decision path не утверждает.
+**PLAN-9D НЕ закрыт.** PLAN-9D-A готовит основание и ничего об улучшении decision
+path не утверждает.
 
-## Зачем
+## Два разных вида данных, и почему их нельзя смешивать
 
-PLAN-9D требует доказать улучшение decision path на уже имеющихся данных.
-Единственный выполненный реальный Vision-прогон покрывает 3 сцены и 6 кандидатов,
-и ни в одной из них metadata-only ветка не даёт сильного ответа — значит, на этом
-корпусе изменение физически не может стать хуже, и «улучшение» там недоказуемо.
-Нужен независимый корпус, на котором регрессия возможна.
+Owner direction 2026-08-08 переформулировал, на чём измеряется decision quality:
+candidate pool говорит что-то о качестве **решения** только если сам pool
+представляет текущее retrieval-поведение. Ни один runtime project на диске не
+создан текущим query stack — самый новый файл в `projects/` датирован 2026-07-28,
+тогда как PLAN-9B-1 (`141beae`) от 2026-08-01, а PLAN-9B-2/9B-3/9C — от 2026-08-07/08.
+
+| `generation_class` | что это | кто создаёт | можно измерять |
+|---|---|---|---|
+| `historical_pre_query_fixes` | доказательство, что дефект retrieval был реальным | PLAN-9D-A | **нет** |
+| `current_head_capture` | benchmark input, снятый с текущего production-пути | PLAN-9D-B | да |
+
+Разделение — не соглашение об именах, а данные и гейт.
+`assert_current_benchmark_input` — единственная точка, через которую что-либо
+попадает в измерение; она отказывает historical-данным и **любому payload без
+провенанса** (замороженный корпус до PLAN-9D-A провенанса не объявлял вовсе,
+а собран был из `projects/`, поэтому «не объявлено» читается как historical).
 
 ## Файлы
 
 | Файл | Что это |
 |---|---|
-| `corpus_v1.json` | Замороженный корпус: 16 независимых сцен, 75 candidate-in-scene наблюдений, blind id, кадры с SHA256 |
-| `annotations_v1.json` | Разметка владельца. Сейчас `status = WAITING_FOR_OWNER_ANNOTATION` — шаблон, а не результат |
+| `historical_failure_evidence_v1.json` | Замороженное historical failure evidence: 7 кейсов, 31 кандидат, по одному representative frame на кандидата |
+| `current_corpus_v1.json` | **Отсутствует.** Создаётся PLAN-9D-B (bounded capture текущего retrieval, отдельное owner network approval) |
+| `current_annotations_v1.json` | **Отсутствует.** Создаётся PLAN-9D-D после заморозки current corpus |
 
 Изображения в репозиторий **не копируются**: это чужой лицензированный
-provider-материал, а `projects/` намеренно untracked. Корпус несёт путь, размеры и
-SHA256 каждого кадра, поэтому все тесты, кроме одного явно пропускаемого, работают
-на машине, которая `projects/` никогда не видела.
+provider-материал, а `projects/` намеренно untracked. Fixture несёт путь, размеры и
+SHA256 кадра, и все тесты работают на машине, которая `projects/` никогда не видела.
+
+### Что было раньше на этом месте
+
+`corpus_v1.json` (16 сцен, 75 наблюдений, 107 кадров, 451 КБ) и его пустой шаблон
+`annotations_v1.json` удалены в PLAN-9D-A. Точные байты остаются в Git:
+
+```
+git show 04fe035e6ac07dbbe4a80257c3ed9d971976457e:tests/data/plan9d/corpus_v1.json
+```
+
+Файл не переименован и не оставлен «на всякий случай» намеренно: он имел форму
+benchmark-корпуса, и любой его возврат в дерево вернул бы ровно ту двусмысленность,
+ради устранения которой шаг существует. Восстановленный из Git файл провенанса не
+объявляет, поэтому benchmark-гейт его тоже отклонит.
+
+## Historical failure evidence
+
+Курируется, а не сэмплируется. Несколько сцен демонстрируют один и тот же дефект —
+пять независимых проектов обслужил один и тот же ретайренный broad-литерал — и
+сохранение всех превратило бы fixture в архив runtime, а не в доказательство.
+Сохранены три из них, потому что **повтор здесь и есть находка**, плюс по одному
+кейсу на каждый оставшийся отдельный дефект.
+
+| case_id | failure modes | что доказывает |
+|---|---|---|
+| `gecko_subject_free_broad_query` | `subject_absent_from_provider_query`, `retired_broad_query_literal`, `shared_generic_candidate_pool` | visual brief отсутствовал; всем провайдерам ушёл литерал `nature science wildlife observation` (registry C36) |
+| `hummingbird_subject_free_broad_query` | те же | другой проект, другой субъект, тот же литерал и тот же pool |
+| `penguin_subject_free_broad_query` | те же | третий независимый проект; пересечение pools — 4 asset id |
+| `cyrillic_query_to_latin_provider` | `non_provider_language_query` | русский запрос ушёл в англоязычные индексы как есть (CRITICAL-1 до PLAN-9B-1) |
+| `subject_lost_between_primary_query_and_provider` | `degenerate_single_token_query`, `subject_lost_after_primary_query`, `subject_absent_from_provider_query` | `primary_query` содержал субъект, а провайдеров спросили одним словом `close` |
+| `glossary_substitute_for_extracted_stopwords` | `garbage_subject_extraction`, `degenerate_single_token_query` | subject/action извлеклись как русские служебные слова, глоссарий заменил их одним английским токеном |
+| `orca_topic_query_hardcode` | `retired_topic_query_hardcode`, `degenerate_single_token_query`, `mislabelled_query_language` | `visual_brief.provider_queries` дословно от ретайренного one-topic hardcode (registry C35), включая немецкий wikimedia-запрос, помеченный как `en` |
+
+Каждая сцена исходного корпуса либо сохранена, либо перечислена в
+`dropped_source_scenes` с причиной. Тихого усечения нет: 7 сохранённых + 9
+отброшенных = 16 сцен `corpus_v1.json`.
+
+Что fixture **не** содержит: `vision_tags`, score, `support_status`, любые
+aggregate-числа и любую owner-разметку. Их отсутствие залочено тестами — иначе
+рядом с historical данными легко появился бы «результат качества».
+
+### Политика кадров
+
+Хранится **один** representative frame на кандидата (путь + SHA256 + размеры),
+а не 1–5, как в старом корпусе: 107 путей сжаты до 31. Причина именно в
+доказательности, а не в экономии. Для сохранённых кейсов провайдерские `tags`
+часто оказываются эхом самого запроса (`tags_source` пуст) — то есть у metadata-гейта
+не было ничего своего, и единственная content-проверка «в pool нет заявленного
+субъекта» делается глазами. Но сам заявленный дефект — «субъект не дошёл до
+провайдера» — доказывается из `historical_provider_attempts` и без единого пикселя;
+кадр остаётся provenance-якорем, а не носителем доказательства.
+
+## Остаточная зависимость от `projects/`
+
+`historical_runtime_paths()` возвращает точный список. Сейчас это 45 путей:
+14 манифестов (по два на кейс) и 31 кадр — суммарно порядка 1 МБ. Всё остальное
+под `projects/` (около 7.3 ГБ) PLAN-9D больше не нужно.
+
+Оговорка «Safety boundaries» в `PROJECT_EXECUTION_PLAN.md` защищает кадры
+замороженного корпуса, пока PLAN-9D открыт, и снимается на шаге (4) cleanup
+sequencing. PLAN-9D-A ничего не удаляет из `projects/` — это отдельный
+owner-authorized slice.
 
 ## Порядок работы
 
-Разметка выполняется **один раз**. После этого benchmark работает полностью
-автоматически: harness читает `annotations_v1.json` и никогда ничего не
-спрашивает у человека во время прогона.
-
-1. Сгенерировать слепой пакет (пишите **вне репозитория**, файл одноразовый):
+1. **PLAN-9D-A (сделано).** Historical evidence курировано и заморожено.
+2. **PLAN-9D-B.** Bounded capture текущего retrieval → `current_corpus_v1.json`,
+   заморозка своим `corpus_sha256`. Требует отдельного owner network approval.
+3. **PLAN-9D-C.** Retrieval quality gate на замороженном current corpus.
+4. **PLAN-9D-D.** Слепая разметка владельцем — **один раз**, по current corpus:
 
    ```
-   .\venv\Scripts\python.exe -B -m tests.plan9d_corpus_builder pack --out %TEMP%\plan9d_pack.html
+   .\venv\Scripts\python.exe -B -m tests.plan9d_corpus_builder pack --corpus tests\data\plan9d\current_corpus_v1.json --out %TEMP%\plan9d_pack.html
    ```
 
-2. Открыть пакет в браузере, пройти сцены, для каждой выбрать
-   `BEST: C… / none_acceptable / undecidable`, отметить неприемлемых кандидатов и
-   заполнить categorical-флаги. Кнопка сохраняет `annotations_v1.json`.
-3. Положить полученный файл на место `tests/data/plan9d/annotations_v1.json`.
-4. Прогнать targeted-тесты. Дальнейшие измерения повторяемы и автоматичны.
+   Пакет одноразовый, пишется вне репозитория. Кнопка сохраняет
+   `current_annotations_v1.json`. Пересборка корпуса после разметки запрещена:
+   изменится `corpus_sha256`, и harness откажется считать разметку валидной.
+5. **PLAN-9D-E → PLAN-9D-G.** Metadata-only baseline, real Vision evidence, offline A/B.
 
-Пересобирать корпус (`build --force`) после разметки нельзя: изменится
-`corpus_sha256`, и harness откажется считать разметку валидной — это защита, а не
-неудобство.
+Пока разметки нет, `evaluate_arm` возвращает `WAITING_FOR_OWNER_ANNOTATION` и не
+измеряет ничего. Разметка от имени владельца не заполняется.
 
 ## Что видит и чего не видит аннотатор
 
@@ -70,7 +142,8 @@ SHA256 каждого кадра, поэтому все тесты, кроме �
 `run_metadata_baseline` вызывает production-путь как есть:
 `select_best_with_video` → `select_best_candidate`. Второго selector нет, своего
 score нет, confidence не выдумывается. Кандидаты подаются без `vision_tags` —
-это metadata-only ветка.
+это metadata-only ветка. Первым делом вызывается тот же provenance-гейт: на
+historical pool решающий владелец не запускается вообще.
 
 Заявленные evaluation-константы:
 
@@ -81,24 +154,19 @@ score нет, confidence не выдумывается. Кандидаты по�
   это исправлено и залочено тестом;
 - framing-гейт судит **заявленные provider-размеры** из записи кандидата, а не
   разрешение локального превью. Кандидаты без объявленных размеров дают
-  `framing_unknown` (не hard reject) и помечаются `technical_dimensions_unknown`.
-  Production-гейт не отключался.
+  `framing_unknown` (не hard reject). Production-гейт не отключался.
 
-## Покрытие категорий
+## Требования к current corpus — где они проверяются
 
-Покрыто: `subject_mismatch_risk`, `must_include_declared`, `must_avoid_declared`,
-`environment_conflict_risk`, `declared_conflicting_context`, `crop_framing_concern`,
-`visible_text_or_logo_risk`, `ambiguous_needs_review`, `rights_blocked_candidate`,
-`technical_dimensions_unknown`, `no_acceptable_candidate`, `regression_capable`.
+Прежняя версия локов проверяла на historical корпусе размер, покрытие технических
+категорий, наличие `regression_capable` сцен, расхождение заявленных и превью-размеров
+и checksum каждого кадра. Это требования к **benchmark**-корпусу, и проверять их на
+синтетике бессмысленно. Они не потеряны: это условия приёмки PLAN-9D-B и
+PLAN-9D-C, где будут проверены на реально снятых данных.
 
-**Не покрыто:** `non_real_footage_risk`. Ни один кандидат ни в одном локальном
-проекте не несёт non-real-footage формулировок в provider-evidence (0 из 88
-пригодных сцен). Синтезировать такую сцену запрещено, поэтому пробел зафиксирован,
-а не заполнен.
-
-`regression_capable` — сцены, где metadata-only ветка уже даёт непровальный ответ
-с `support_status ∈ {full_support, partial_support}`. Без них A/B мог бы выглядеть
-только нейтральным или лучшим.
+Известный пробел, зафиксированный, а не заполненный: категория
+`non_real_footage_risk` в старом корпусе не встретилась ни разу (0 из 88 пригодных
+сцен). Синтезировать такую сцену запрещено.
 
 ## Готовность к будущим режимам Review и Auto
 
@@ -135,8 +203,7 @@ approval/escalation policy поверх уже существующих выхо
 
 ## Что запрещено этому каталогу
 
-Mock, scripted и любой fixture-backend не могут служить доказательством
-визуального качества — `assert_admissible_evidence` отказывает такому arm'у до
-любого измерения. Разметка от имени владельца не заполняется. Пока
-`annotations_v1.json` в состоянии `WAITING_FOR_OWNER_ANNOTATION`, harness
-возвращает этот же статус и не измеряет ничего.
+Historical evidence не измеряется и не размечается. Mock, scripted и любой
+fixture-backend не могут служить доказательством визуального качества —
+`assert_admissible_evidence` отказывает такому arm'у до любого измерения.
+Разметка от имени владельца не заполняется.

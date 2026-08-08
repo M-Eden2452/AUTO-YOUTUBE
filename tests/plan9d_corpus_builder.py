@@ -1,28 +1,50 @@
-"""Build the PLAN-9D-A corpus and render its blind annotation pack.
+"""Hand-run PLAN-9D data tooling: harvest, curate, and render the blind pack.
 
-Run by hand, twice in the life of the benchmark: once to freeze the corpus, and
-whenever the owner needs the annotation pack regenerated from that frozen
-corpus. It is not a test and nothing imports it at test time.
+Not a test; nothing imports it at test time except the locks that exercise its
+pure functions. Three commands, in the order they are actually used:
 
-    .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder build
-    .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder pack --out <path-outside-the-repo>\\pack.html
+    build    projects/ -> a historical project corpus (intermediate, not committed)
+    curate   that corpus + the manifests -> the compact historical failure evidence
+    pack     a *current* frozen corpus -> the owner's blind annotation page
+
+    .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder build --out %TEMP%\\hist.json
+    .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder curate --source-corpus %TEMP%\\hist.json
+    .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder pack --corpus <current> --out %TEMP%\\pack.html
 
 Offline by construction: it reads ``projects/*/assets/assets_manifest.json`` and
 ``projects/*/assets/review/visual_review_manifest.json``, both already on disk,
 and opens no socket. No provider search, no download, no Vision, no paid call.
 
-Two things it deliberately does not do.
+Anything harvested from ``projects/`` is stamped ``historical_pre_query_fixes``
+------------------------------------------------------------------------------
+Every runtime project on disk predates the query work of PLAN-9B-1..9B-3 and
+PLAN-9C, so ``build`` cannot produce a current benchmark no matter what it is
+pointed at, and it says so in the payload rather than leaving the reader to
+work it out. ``pack`` refuses anything that is not a current capture: blind
+owner annotation belongs to the current corpus (PLAN-9D-D), and annotating a
+historical pool would freeze a human answer to a question the product no longer
+asks.
 
-*It does not decide which candidate is right.* Scenes are chosen by technical
-category coverage - what a scene declares, what the licence says, whether the
-provider declared dimensions, whether the existing decision owner already has a
-strong answer that a change could break. The semantic question is left entirely
-to the owner's blind pass.
+``curate`` is the one-way step. It runs while the runtime tree still exists and
+keeps only what proves a defect was real - the scene's requirement, the query
+that actually reached the provider, the pool that came back, and one frame per
+candidate as provenance. After it, PLAN-9D needs a few manifests and a few dozen
+JPEGs instead of gigabytes; the rest of the harvest is released.
+
+Three things it deliberately does not do.
+
+*It does not decide which candidate is right.* Benchmark scenes are chosen by
+technical category coverage; historical cases are chosen by which failure they
+demonstrate. The semantic question is left entirely to the owner's blind pass on
+the current corpus.
+
+*It does not repair history.* A curated case records what happened, including
+queries that were wrong, empty and in the wrong language.
 
 *It does not copy pictures into the repository.* The cached previews are
 third-party licensed provider material and ``projects/`` is deliberately
-untracked. The corpus carries each frame's path, size and SHA256, so the frozen
-data can be verified, and the tests never need the image bytes.
+untracked. Frames are carried as path, size and SHA256, so the frozen data can
+be verified and the tests never need the image bytes.
 """
 
 from __future__ import annotations
@@ -35,7 +57,7 @@ import sys
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from src.assets.semantic_selection.candidate_ranker import NON_REAL_VIDEO_TERMS
 from src.assets.semantic_selection.decision import (
@@ -51,16 +73,25 @@ from src.assets.semantic_selection.models import SemanticScene
 from src.news.asset_manifest_builder import select_best_with_video
 
 from .plan9d_ground_truth import (
-    ANNOTATIONS_PATH,
     ANNOTATIONS_SCHEMA_VERSION,
     CANDIDATE_FLAG_SPEC,
-    CORPUS_PATH,
     CORPUS_SCHEMA_VERSION,
+    FIXTURE_KIND_HISTORICAL_CORPUS,
+    FIXTURE_KIND_HISTORICAL_EVIDENCE,
+    GENERATION_HISTORICAL,
+    HISTORICAL_EVIDENCE_PATH,
+    HISTORICAL_EVIDENCE_SCHEMA_VERSION,
+    HISTORICAL_FAILURE_MODES,
     STATUS_WAITING,
+    BenchmarkError,
+    assert_current_benchmark_input,
     assign_blind_ids,
     canonical_json,
     corpus_digest,
-    load_corpus,
+    generation_class_of,
+    historical_digest,
+    validate_corpus,
+    validate_historical_evidence,
 )
 
 
@@ -68,6 +99,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PROJECTS_ROOT = REPO_ROOT / "projects"
 
 CORPUS_VERSION = "plan9d-a-2026-08-08"
+HISTORICAL_EVIDENCE_VERSION = "plan9d-historical-2026-08-08"
+
+#: The frozen historical corpus this fixture supersedes. It is not in the tree
+#: any more - PLAN-9D-A replaced 451 KB of ambiguous benchmark-shaped data with
+#: the curated evidence - so the anchor is recorded as a commit, and
+#: ``git show <commit>:<path>`` still reproduces the exact bytes.
+SUPERSEDED_CORPUS_COMMIT = "04fe035e6ac07dbbe4a80257c3ed9d971976457e"
+SUPERSEDED_CORPUS_PATH = "tests/data/plan9d/corpus_v1.json"
 
 #: Ranker output written back into the stored manifest. Feeding it back in would
 #: let the benchmark inherit a verdict instead of recomputing one, so every key
@@ -403,6 +442,10 @@ def build_corpus() -> dict[str, Any]:
     corpus: dict[str, Any] = {
         "schema_version": CORPUS_SCHEMA_VERSION,
         "corpus_version": CORPUS_VERSION,
+        # Stamped, not inferred: everything under ``projects/`` predates the
+        # current query stack, so a harvest of it can only ever be historical.
+        "fixture_kind": FIXTURE_KIND_HISTORICAL_CORPUS,
+        "generation_class": GENERATION_HISTORICAL,
         "built_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "plan_step": "PLAN-9D-A",
         "source": "local project asset manifests and review manifests; no network or paid call",
@@ -421,6 +464,14 @@ def build_corpus() -> dict[str, Any]:
 
 
 def annotation_template(corpus: dict[str, Any]) -> dict[str, Any]:
+    """An empty label sheet for a *current* capture, and for nothing else.
+
+    Blind owner annotation is expensive and happens once (PLAN-9D-D). Spending it
+    on a historical pool would freeze a human answer about candidates the current
+    retrieval path would never return, so the gate is here rather than in a note.
+    """
+
+    assert_current_benchmark_input(corpus, context="annotation template")
     return {
         "schema_version": ANNOTATIONS_SCHEMA_VERSION,
         "corpus_version": corpus["corpus_version"],
@@ -443,6 +494,357 @@ def annotation_template(corpus: dict[str, Any]) -> dict[str, Any]:
             for scene in corpus["scenes"]
         ],
     }
+
+
+# --------------------------------------------------------------------------- #
+# Curating the historical failure evidence
+# --------------------------------------------------------------------------- #
+
+#: Which historical scenes are kept, and what each one is kept *for*.
+#:
+#: Curation, not sampling. Several scenes demonstrate the same defect - five
+#: separate projects were served by the same retired broad literal - and keeping
+#: all of them would archive the runtime tree rather than preserve the proof.
+#: Three are kept where the repetition itself is the evidence, one per remaining
+#: distinct failure. Everything a case claims is checkable against the record
+#: curated with it; ``expected_subject_terms`` is the curator's reading of the
+#: scene text, and is labelled as such rather than presented as a system output.
+#:
+#: The project names live here, in the hand-run tool, and never in the harness:
+#: the harness has to outlive this data.
+HISTORICAL_CASES: tuple[dict[str, Any], ...] = (
+    {
+        "case_id": "gecko_subject_free_broad_query",
+        "project": "почему_геккон_не_падает_с_гладкого_стекла_20260723T172318",
+        "scene_id": "scene_001",
+        "expected_subject_terms": ("геккон", "gecko"),
+        "failure_modes": (
+            "subject_absent_from_provider_query",
+            "retired_broad_query_literal",
+            "shared_generic_candidate_pool",
+        ),
+        "retired_query_class": "C36",
+        "note": (
+            "The scene asks why a gecko does not fall off glass. No visual brief was produced, "
+            "and every provider was asked the same subject-free literal."
+        ),
+    },
+    {
+        "case_id": "hummingbird_subject_free_broad_query",
+        "project": "почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315",
+        "scene_id": "scene_001",
+        "expected_subject_terms": ("колибри", "hummingbird"),
+        "failure_modes": (
+            "subject_absent_from_provider_query",
+            "retired_broad_query_literal",
+            "shared_generic_candidate_pool",
+        ),
+        "retired_query_class": "C36",
+        "note": "A different project, a different subject, the same literal and the same pool.",
+    },
+    {
+        "case_id": "penguin_subject_free_broad_query",
+        "project": "почему_пингвины_скользят_по_снегу_на_животе_20260723T172320",
+        "scene_id": "scene_001",
+        "expected_subject_terms": ("пингвин", "penguin"),
+        "failure_modes": (
+            "subject_absent_from_provider_query",
+            "retired_broad_query_literal",
+            "shared_generic_candidate_pool",
+        ),
+        "retired_query_class": "C36",
+        "note": (
+            "The third independent project served by the same pool. Three subjects that share "
+            "one candidate set is the defect, not a coincidence worth deduplicating away."
+        ),
+    },
+    {
+        "case_id": "cyrillic_query_to_latin_provider",
+        "project": "2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy",
+        "scene_id": "scene_007",
+        "expected_subject_terms": ("plastic",),
+        "failure_modes": ("non_provider_language_query",),
+        "retired_query_class": "CRITICAL-1 (before PLAN-9B-1)",
+        "note": (
+            "A Russian query was sent verbatim to English-language stock indexes. Three providers "
+            "returned nothing at all; the two that answered matched on nothing the scene declared."
+        ),
+    },
+    {
+        "case_id": "subject_lost_between_primary_query_and_provider",
+        "project": "почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947",
+        "scene_id": "scene_001",
+        "expected_subject_terms": ("cat", "кошка"),
+        "failure_modes": (
+            "degenerate_single_token_query",
+            "subject_lost_after_primary_query",
+            "subject_absent_from_provider_query",
+        ),
+        "retired_query_class": "degenerate query ladder (before PLAN-9B-1)",
+        "note": (
+            "The strongest single case: the scene *did* produce a usable primary query naming the "
+            "subject, and every provider was nevertheless asked one adjective."
+        ),
+    },
+    {
+        "case_id": "glossary_substitute_for_extracted_stopwords",
+        "project": "2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb",
+        "scene_id": "scene_006",
+        "expected_subject_terms": (),
+        "failure_modes": ("garbage_subject_extraction", "degenerate_single_token_query"),
+        "retired_query_class": "deterministic_glossary substitution (before PLAN-9B-1)",
+        "note": (
+            "The semantic scene took Russian function words as subject and action, and the "
+            "glossary turned that into one English token."
+        ),
+    },
+    {
+        "case_id": "orca_topic_query_hardcode",
+        "project": "2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2",
+        "scene_id": "scene_002",
+        "expected_subject_terms": ("orca",),
+        "failure_modes": (
+            "retired_topic_query_hardcode",
+            "degenerate_single_token_query",
+            "mislabelled_query_language",
+        ),
+        "retired_query_class": "C35",
+        "note": (
+            "The visual brief carries the retired one-topic hardcode verbatim, down to the German "
+            "Wikimedia query that the attempt record labels as English."
+        ),
+    },
+)
+
+#: Retired query classes the preserved cases demonstrate. Recorded as data rather
+#: than checked against production: the compatibility guard that still recognises
+#: the broad literal has its own exit condition, and this evidence has to survive
+#: that removal.
+RETIRED_QUERY_CLASSES: tuple[dict[str, Any], ...] = (
+    {
+        "registry_id": "C36",
+        "literal": "nature science wildlife observation",
+        "what": "subject-free broad literal appended to every scene of a legacy visual plan",
+        "retired_in_commit": "72221e1",
+        "still_recognised_by": "src/assets/query_adapter.py::_LEGACY_BROAD_QUERIES (persisted-plan guard)",
+    },
+    {
+        "registry_id": "C35",
+        "literal": "",
+        "what": "one-topic (orca) provider_queries hardcode in src/news/script_generator.py",
+        "retired_in_commit": "72221e1",
+        "still_recognised_by": "",
+    },
+)
+
+
+def _manifest_scene(project: str, scene_id: str) -> dict[str, Any]:
+    path = PROJECTS_ROOT / project / "assets" / "assets_manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    for scene in manifest.get("scenes") or []:
+        if str(scene.get("scene_id")) == scene_id:
+            return scene
+    raise RuntimeError(f"{project}/{scene_id}: not found in {path}")
+
+
+def _unique_attempts(scene: dict[str, Any]) -> list[dict[str, Any]]:
+    """What actually reached each provider, once per distinct attempt.
+
+    Retries repeat verbatim in the stored manifest; the repetition says nothing
+    about the defect, and the distinct set is what the evidence rests on.
+    """
+
+    seen: list[dict[str, Any]] = []
+    for attempt in scene.get("provider_attempts") or []:
+        record = {
+            "provider": str(attempt.get("provider") or ""),
+            "query": str(attempt.get("query") or ""),
+            "query_language": str(attempt.get("query_language") or ""),
+            "query_source": str(attempt.get("query_source") or ""),
+            "result_count": int(attempt.get("result_count") or 0),
+        }
+        if record not in seen:
+            seen.append(record)
+    return seen
+
+
+def _minimal_candidate(candidate: dict[str, Any], frames: list[dict[str, Any]]) -> dict[str, Any]:
+    """Enough provider metadata to show what came back, and nothing more.
+
+    Rights, scores, download paths and the archival copies of the same record are
+    dropped: this fixture is never fed to the decision owner, so the fields that
+    exist for the decision owner would be dead weight that only invites the
+    misuse PLAN-9D-A exists to prevent.
+    """
+
+    record: dict[str, Any] = {
+        "asset_id": str(candidate.get("asset_id") or ""),
+        "provider": str(candidate.get("provider") or ""),
+        "provider_asset_id": str(candidate.get("provider_asset_id") or ""),
+        "media_type": str(candidate.get("media_type") or candidate.get("type") or ""),
+        "title": str(candidate.get("title") or ""),
+        "tags": [str(tag) for tag in (candidate.get("tags") or candidate.get("keywords") or [])],
+        # Kept because it is itself part of the evidence: where the pools came
+        # from a subject-free query, the stored "tags" are that query echoed
+        # back, so the metadata gate had nothing of the provider's to read.
+        "tags_source": str(candidate.get("tags_source") or ""),
+        "width": int(candidate.get("width") or 0),
+        "height": int(candidate.get("height") or 0),
+        "search_query": str(candidate.get("search_query") or ""),
+        "source_url": str(candidate.get("source_page_url") or candidate.get("source_url") or ""),
+    }
+    representative = min(frames, key=lambda frame: int(frame.get("frame_index") or 0), default=None)
+    record["representative_frame"] = (
+        {
+            "local_frame_path": str(representative["local_frame_path"]),
+            "sha256": str(representative["sha256"]),
+            "width": int(representative.get("width") or 0),
+            "height": int(representative.get("height") or 0),
+            "frame_index": int(representative.get("frame_index") or 0),
+        }
+        if representative
+        else None
+    )
+    return record
+
+
+def curate_historical_evidence(
+    source_corpus: dict[str, Any],
+    *,
+    manifest_reader: Callable[[str, str], dict[str, Any]] = _manifest_scene,
+) -> dict[str, Any]:
+    """Compact the frozen historical corpus down to the proof it contains.
+
+    The frozen corpus supplies the candidate pools and the frames, exactly as
+    they were audited; the project manifests supply what the corpus never
+    recorded and the evidence needs most - the visual brief, the query ladder and
+    the attempt log showing which query each provider was actually given.
+
+    ``manifest_reader`` is injectable so the curation rules stay testable once
+    the runtime tree this was curated from is gone.
+    """
+
+    by_key = {str(scene["scene_key"]): scene for scene in source_corpus["scenes"]}
+    preserved_keys: set[str] = set()
+    cases: list[dict[str, Any]] = []
+
+    for spec in HISTORICAL_CASES:
+        scene_key = f"{spec['project']}/{spec['scene_id']}"
+        frozen = by_key.get(scene_key)
+        if frozen is None:
+            raise RuntimeError(f"{scene_key}: not present in the source corpus")
+        preserved_keys.add(scene_key)
+        manifest_scene = manifest_reader(spec["project"], spec["scene_id"])
+        brief = manifest_scene.get("visual_brief")
+
+        candidates = [
+            _minimal_candidate(entry["candidate"], entry.get("frames") or [])
+            for entry in sorted(frozen["candidates"], key=lambda item: int(item["input_order"]))
+        ]
+        frozen_assets = {str(entry["asset_id"]) for entry in frozen["candidates"]}
+        if {c["asset_id"] for c in candidates} != frozen_assets:
+            raise RuntimeError(f"{scene_key}: curated pool does not match the frozen pool")
+
+        cases.append(
+            {
+                "case_id": spec["case_id"],
+                "failure_modes": list(spec["failure_modes"]),
+                "note": spec["note"],
+                "source_project": spec["project"],
+                "source_scene_id": spec["scene_id"],
+                "scene_key": scene_key,
+                "scene_text": frozen["scene_text"],
+                "expected_subject_terms": list(spec["expected_subject_terms"]),
+                "expected_subject_terms_source": "curator, read from scene_text",
+                "historical_semantic_scene": frozen["semantic_scene"],
+                "visual_brief_present": bool(brief),
+                "visual_brief_provider_queries": (brief or {}).get("provider_queries") or {},
+                "historical_primary_query": str(manifest_scene.get("primary_query") or ""),
+                "historical_query_ladder": [
+                    {
+                        "kind": str(entry.get("kind") or ""),
+                        "fallback_level": int(entry.get("fallback_level") or 0),
+                        "query": str(entry.get("query") or ""),
+                    }
+                    for entry in manifest_scene.get("queries") or []
+                ],
+                "historical_provider_attempts": _unique_attempts(manifest_scene),
+                "retired_query_class": spec["retired_query_class"],
+                "historical_selected_asset_id": str(
+                    (manifest_scene.get("selected_asset") or {}).get("asset_id") or ""
+                ),
+                "source_manifests": [
+                    f"projects/{spec['project']}/assets/assets_manifest.json",
+                    f"projects/{spec['project']}/assets/review/visual_review_manifest.json",
+                ],
+                "candidates": candidates,
+            }
+        )
+
+    preserved_literals = {
+        str(attempt["query"]) for case in cases for attempt in case["historical_provider_attempts"]
+    }
+    dropped = []
+    for scene_key, scene in sorted(by_key.items()):
+        if scene_key in preserved_keys:
+            continue
+        literals = sorted(
+            {
+                str(entry["candidate"].get("search_query") or "")
+                for entry in scene["candidates"]
+                if entry["candidate"].get("search_query")
+            }
+        )
+        duplicate = sorted(set(literals) & preserved_literals)
+        dropped.append(
+            {
+                "scene_key": scene_key,
+                "queries": literals,
+                "reason": (
+                    "duplicate_evidence: the same retired query is already preserved by a curated case"
+                    if duplicate
+                    else "no_curated_failure_mode: nothing in this scene demonstrates a retrieval "
+                    "failure from the curated vocabulary"
+                ),
+                "duplicates_preserved_query": duplicate,
+            }
+        )
+
+    fixture: dict[str, Any] = {
+        "schema_version": HISTORICAL_EVIDENCE_SCHEMA_VERSION,
+        "fixture_kind": FIXTURE_KIND_HISTORICAL_EVIDENCE,
+        "generation_class": GENERATION_HISTORICAL,
+        "fixture_version": HISTORICAL_EVIDENCE_VERSION,
+        "plan_step": "PLAN-9D-A",
+        "built_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "not_a_benchmark": (
+            "Historical failure evidence, retrieved by the query stack that PLAN-9B-1..9B-3 and "
+            "PLAN-9C retired. It proves the defects were real. It measures nothing about current "
+            "decision quality and must never be used as a benchmark input; the current capture is "
+            "PLAN-9D-B and the owner ground truth is PLAN-9D-D."
+        ),
+        "derived_from": {
+            "corpus_version": str(source_corpus["corpus_version"]),
+            "corpus_sha256": str(source_corpus["corpus_sha256"]),
+            "corpus_path": SUPERSEDED_CORPUS_PATH,
+            "corpus_commit": SUPERSEDED_CORPUS_COMMIT,
+            "corpus_scene_count": int(source_corpus["scene_count"]),
+            "corpus_observation_count": int(source_corpus["observation_count"]),
+        },
+        "source": "local project asset manifests and review manifests; no network or paid call",
+        "retired_query_classes": [dict(entry) for entry in RETIRED_QUERY_CLASSES],
+        "failure_mode_vocabulary": list(HISTORICAL_FAILURE_MODES),
+        "case_count": len(cases),
+        "candidate_count": sum(len(case["candidates"]) for case in cases),
+        "frame_count": sum(
+            1 for case in cases for c in case["candidates"] if c.get("representative_frame")
+        ),
+        "cases": cases,
+        "dropped_source_scenes": dropped,
+        "fixture_sha256": "",
+    }
+    fixture["fixture_sha256"] = historical_digest(fixture)
+    return fixture
 
 
 # --------------------------------------------------------------------------- #
@@ -515,8 +917,12 @@ def render_pack(corpus: dict[str, Any]) -> str:
     What it shows is the whole point: the scene's stated requirement and the
     pictures, under blind identifiers. Provider, title, description, licence,
     every score, the ranker's answer and the corpus categories all stay behind.
+
+    Same gate as the template it feeds: a pack is only ever rendered for the
+    frozen current capture.
     """
 
+    assert_current_benchmark_input(corpus, context="annotation pack")
     parts: list[str] = [
         "<!doctype html><meta charset='utf-8'>",
         "<title>PLAN-9D-A blind annotation pack</title>",
@@ -592,35 +998,62 @@ def render_pack(corpus: dict[str, Any]) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def load_historical_corpus(path: Path) -> dict[str, Any]:
+    """Read a historical project corpus, refusing anything that is not one."""
+
+    corpus = json.loads(path.read_text(encoding="utf-8"))
+    if corpus.get("schema_version") != CORPUS_SCHEMA_VERSION:
+        raise BenchmarkError(f"{path}: unexpected schema_version {corpus.get('schema_version')!r}")
+    if generation_class_of(corpus) != GENERATION_HISTORICAL:
+        raise BenchmarkError(f"{path}: not a historical corpus, refusing to curate it as one")
+    recorded = str(corpus.get("corpus_sha256") or "")
+    actual = corpus_digest(corpus)
+    if recorded != actual:
+        raise BenchmarkError(f"{path}: digest mismatch, recorded {recorded}, computed {actual}")
+    return corpus
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="PLAN-9D-A offline benchmark tooling")
+    parser = argparse.ArgumentParser(description="PLAN-9D offline evaluation data tooling")
     sub = parser.add_subparsers(dest="command", required=True)
-    build = sub.add_parser("build", help="freeze the corpus and the empty annotation template")
-    build.add_argument("--force", action="store_true", help="overwrite an existing frozen corpus")
-    pack = sub.add_parser("pack", help="render the blind annotation pack from the frozen corpus")
+    build = sub.add_parser("build", help="harvest a historical project corpus from projects/")
+    build.add_argument("--out", required=True, help="destination .json path (intermediate; keep it outside the repo)")
+    curate = sub.add_parser("curate", help="compact a historical corpus into the failure evidence")
+    curate.add_argument("--source-corpus", required=True, help="historical corpus produced by build")
+    curate.add_argument("--out", default=str(HISTORICAL_EVIDENCE_PATH), help="destination fixture")
+    pack = sub.add_parser("pack", help="render the blind annotation pack from a frozen current corpus")
+    pack.add_argument("--corpus", required=True, help="frozen current corpus (PLAN-9D-B)")
     pack.add_argument("--out", required=True, help="destination .html path (keep it outside the repo)")
     args = parser.parse_args(argv)
 
     if args.command == "build":
-        if CORPUS_PATH.exists() and not args.force:
-            print(f"refusing to overwrite frozen corpus {CORPUS_PATH} (use --force)")
-            return 1
         corpus = build_corpus()
-        CORPUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        CORPUS_PATH.write_text(
-            json.dumps(corpus, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
-        )
-        ANNOTATIONS_PATH.write_text(
-            json.dumps(annotation_template(corpus), ensure_ascii=False, indent=1) + "\n",
-            encoding="utf-8",
-        )
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(corpus, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         covered = sorted({c for scene in corpus["scenes"] for c in scene["categories"]})
+        print(f"historical corpus written to {out}")
         print(f"scenes={corpus['scene_count']} observations={corpus['observation_count']}")
         print(f"sha256={corpus['corpus_sha256']}")
         print("categories=" + ", ".join(covered))
         return 0
 
-    corpus = load_corpus()
+    if args.command == "curate":
+        fixture = curate_historical_evidence(load_historical_corpus(Path(args.source_corpus)))
+        validate_historical_evidence(fixture)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(fixture, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"historical failure evidence written to {out}")
+        print(
+            f"cases={fixture['case_count']} candidates={fixture['candidate_count']} "
+            f"frames={fixture['frame_count']} dropped={len(fixture['dropped_source_scenes'])}"
+        )
+        print(f"sha256={fixture['fixture_sha256']}")
+        return 0
+
+    corpus = json.loads(Path(args.corpus).read_text(encoding="utf-8"))
+    validate_corpus(corpus)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(render_pack(corpus), encoding="utf-8")

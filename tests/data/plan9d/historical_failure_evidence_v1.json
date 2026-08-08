@@ -1,0 +1,1769 @@
+{
+ "schema_version": "plan9d-historical-evidence-1",
+ "fixture_kind": "historical_failure_evidence",
+ "generation_class": "historical_pre_query_fixes",
+ "fixture_version": "plan9d-historical-2026-08-08",
+ "plan_step": "PLAN-9D-A",
+ "built_at_utc": "2026-08-08T14:23:01+00:00",
+ "not_a_benchmark": "Historical failure evidence, retrieved by the query stack that PLAN-9B-1..9B-3 and PLAN-9C retired. It proves the defects were real. It measures nothing about current decision quality and must never be used as a benchmark input; the current capture is PLAN-9D-B and the owner ground truth is PLAN-9D-D.",
+ "derived_from": {
+  "corpus_version": "plan9d-a-2026-08-08",
+  "corpus_sha256": "d6522ff39dafd5a66396f99b02b7ec4a8fe982828f03d6ad4e67eec2dff7007f",
+  "corpus_path": "tests/data/plan9d/corpus_v1.json",
+  "corpus_commit": "04fe035e6ac07dbbe4a80257c3ed9d971976457e",
+  "corpus_scene_count": 16,
+  "corpus_observation_count": 75
+ },
+ "source": "local project asset manifests and review manifests; no network or paid call",
+ "retired_query_classes": [
+  {
+   "registry_id": "C36",
+   "literal": "nature science wildlife observation",
+   "what": "subject-free broad literal appended to every scene of a legacy visual plan",
+   "retired_in_commit": "72221e1",
+   "still_recognised_by": "src/assets/query_adapter.py::_LEGACY_BROAD_QUERIES (persisted-plan guard)"
+  },
+  {
+   "registry_id": "C35",
+   "literal": "",
+   "what": "one-topic (orca) provider_queries hardcode in src/news/script_generator.py",
+   "retired_in_commit": "72221e1",
+   "still_recognised_by": ""
+  }
+ ],
+ "failure_mode_vocabulary": [
+  "subject_absent_from_provider_query",
+  "retired_broad_query_literal",
+  "retired_topic_query_hardcode",
+  "shared_generic_candidate_pool",
+  "degenerate_single_token_query",
+  "subject_lost_after_primary_query",
+  "non_provider_language_query",
+  "mislabelled_query_language",
+  "garbage_subject_extraction"
+ ],
+ "case_count": 7,
+ "candidate_count": 31,
+ "frame_count": 31,
+ "cases": [
+  {
+   "case_id": "gecko_subject_free_broad_query",
+   "failure_modes": [
+    "subject_absent_from_provider_query",
+    "retired_broad_query_literal",
+    "shared_generic_candidate_pool"
+   ],
+   "note": "The scene asks why a gecko does not fall off glass. No visual brief was produced, and every provider was asked the same subject-free literal.",
+   "source_project": "почему_геккон_не_падает_с_гладкого_стекла_20260723T172318",
+   "source_scene_id": "scene_001",
+   "scene_key": "почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/scene_001",
+   "scene_text": "Почему геккон не падает с гладкого стекла?",
+   "expected_subject_terms": [
+    "геккон",
+    "gecko"
+   ],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_001",
+    "subject": [],
+    "secondary_subjects": [],
+    "action": [],
+    "environment": [],
+    "location": [],
+    "camera": [],
+    "mood": [],
+    "must_include": [],
+    "should_include": [],
+    "must_not_include": [],
+    "visual_priority": "abstract_explanation",
+    "fallback_level": 1
+   },
+   "visual_brief_present": false,
+   "visual_brief_provider_queries": {},
+   "historical_primary_query": "nature science wildlife observation",
+   "historical_query_ladder": [
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "nature"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "pexels",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pixabay",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 2
+    },
+    {
+     "provider": "internet_archive",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "wikimedia",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "nasa_images",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    }
+   ],
+   "retired_query_class": "C36",
+   "historical_selected_asset_id": "pexels_video_38575790",
+   "source_manifests": [
+    "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/assets_manifest.json",
+    "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pexels_video_38575790",
+     "provider": "pexels",
+     "provider_asset_id": "38575790",
+     "media_type": "video",
+     "title": "Pexels video 38575790",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/close-up-of-a-woodpecker-in-lush-greenery-38575790/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/previews/9b628069792fd691eff36a4926d81f349d9a6947e8ba91fec58eb5418b5247a6/remote.jpeg",
+      "sha256": "390a521ca646bf1d93ff2dcc06319ba9b86f15f21e346e5a346b56e143ba8486",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_6318227",
+     "provider": "pexels",
+     "provider_asset_id": "6318227",
+     "media_type": "video",
+     "title": "Pexels video 6318227",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/man-taking-picture-of-a-yellow-flower-6318227/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/previews/6e19769ff4f8ee385814d5950d873b267186df5b3565ce5472378f9ff9d8738a/remote.jpeg",
+      "sha256": "38614e5deab563964bd72c481996e7ae2fd2714da26b4b0ab4300dd84308aded",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_35350096",
+     "provider": "pexels",
+     "provider_asset_id": "35350096",
+     "media_type": "video",
+     "title": "Pexels video 35350096",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/captivating-squirrel-eating-on-tree-branch-35350096/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/previews/81d396b1f527d5383337317f2dafca2746cb481b8c237c13210aec1fe3b18c99/remote.jpeg",
+      "sha256": "fdd2b5ca975a319c82dcea5574c83a2100b147b48dec2d07d3b11d583958f273",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pixabay_video_206294",
+     "provider": "pixabay",
+     "provider_asset_id": "206294",
+     "media_type": "video",
+     "title": "Pixabay video 206294",
+     "tags": [
+      "horses",
+      "animals",
+      "wildlife",
+      "running",
+      "ice",
+      "nature"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://pixabay.com/videos/id-206294/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/previews/d6247c7716e67ad1f3ba8ec4eae22e71f002e23239694f98e1fefe6da9e0c886/frames/frame_000.jpg",
+      "sha256": "def160669f86dd8278331315fde32d62c1dc8cdf6caa655be5d3387898f16463",
+      "width": 360,
+      "height": 640,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pixabay_video_214669",
+     "provider": "pixabay",
+     "provider_asset_id": "214669",
+     "media_type": "video",
+     "title": "Pixabay video 214669",
+     "tags": [
+      "bird",
+      "kingfisher",
+      "trees",
+      "forest",
+      "animal",
+      "wildlife",
+      "nature"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://pixabay.com/videos/id-214669/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_геккон_не_падает_с_гладкого_стекла_20260723T172318/assets/previews/deed3aff157ebb96b50fc600855c299e8bd720f19815ec6c2966461858998ded/frames/frame_000.jpg",
+      "sha256": "a9d0f852b302004c4b39f77a8fcd415eb1d338ffcb2182155c8d2fa40cc8add4",
+      "width": 360,
+      "height": 640,
+      "frame_index": 0
+     }
+    }
+   ]
+  },
+  {
+   "case_id": "hummingbird_subject_free_broad_query",
+   "failure_modes": [
+    "subject_absent_from_provider_query",
+    "retired_broad_query_literal",
+    "shared_generic_candidate_pool"
+   ],
+   "note": "A different project, a different subject, the same literal and the same pool.",
+   "source_project": "почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315",
+   "source_scene_id": "scene_001",
+   "scene_key": "почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/scene_001",
+   "scene_text": "Почему колибри может зависать в воздухе и лететь назад?",
+   "expected_subject_terms": [
+    "колибри",
+    "hummingbird"
+   ],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_001",
+    "subject": [],
+    "secondary_subjects": [],
+    "action": [],
+    "environment": [],
+    "location": [],
+    "camera": [],
+    "mood": [],
+    "must_include": [],
+    "should_include": [],
+    "must_not_include": [],
+    "visual_priority": "abstract_explanation",
+    "fallback_level": 1
+   },
+   "visual_brief_present": false,
+   "visual_brief_provider_queries": {},
+   "historical_primary_query": "nature science wildlife observation",
+   "historical_query_ladder": [
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "nature"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "pexels",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pixabay",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 2
+    },
+    {
+     "provider": "internet_archive",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "wikimedia",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "nasa_images",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    }
+   ],
+   "retired_query_class": "C36",
+   "historical_selected_asset_id": "pexels_video_38575790",
+   "source_manifests": [
+    "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/assets_manifest.json",
+    "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pexels_video_38575790",
+     "provider": "pexels",
+     "provider_asset_id": "38575790",
+     "media_type": "video",
+     "title": "Pexels video 38575790",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/close-up-of-a-woodpecker-in-lush-greenery-38575790/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/previews/9b628069792fd691eff36a4926d81f349d9a6947e8ba91fec58eb5418b5247a6/remote.jpeg",
+      "sha256": "390a521ca646bf1d93ff2dcc06319ba9b86f15f21e346e5a346b56e143ba8486",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_6318227",
+     "provider": "pexels",
+     "provider_asset_id": "6318227",
+     "media_type": "video",
+     "title": "Pexels video 6318227",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/man-taking-picture-of-a-yellow-flower-6318227/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/previews/6e19769ff4f8ee385814d5950d873b267186df5b3565ce5472378f9ff9d8738a/remote.jpeg",
+      "sha256": "38614e5deab563964bd72c481996e7ae2fd2714da26b4b0ab4300dd84308aded",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_35350096",
+     "provider": "pexels",
+     "provider_asset_id": "35350096",
+     "media_type": "video",
+     "title": "Pexels video 35350096",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/captivating-squirrel-eating-on-tree-branch-35350096/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/previews/81d396b1f527d5383337317f2dafca2746cb481b8c237c13210aec1fe3b18c99/remote.jpeg",
+      "sha256": "fdd2b5ca975a319c82dcea5574c83a2100b147b48dec2d07d3b11d583958f273",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pixabay_video_206294",
+     "provider": "pixabay",
+     "provider_asset_id": "206294",
+     "media_type": "video",
+     "title": "Pixabay video 206294",
+     "tags": [
+      "horses",
+      "animals",
+      "wildlife",
+      "running",
+      "ice",
+      "nature"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://pixabay.com/videos/id-206294/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/previews/d6247c7716e67ad1f3ba8ec4eae22e71f002e23239694f98e1fefe6da9e0c886/frames/frame_000.jpg",
+      "sha256": "def160669f86dd8278331315fde32d62c1dc8cdf6caa655be5d3387898f16463",
+      "width": 360,
+      "height": 640,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_12723974",
+     "provider": "pexels",
+     "provider_asset_id": "12723974",
+     "media_type": "video",
+     "title": "Pexels video 12723974",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 4096,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/schoolboys-having-fun-playing-with-a-magnifying-glass-at-a-field-trip-12723974/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_колибри_может_зависать_в_воздухе_и_лететь_назад_20260723T172315/assets/previews/4191cd1f847c2f275a4587599521ca5ff921a935d5c693395fb36fed7f30c8e2/remote.jpeg",
+      "sha256": "e3456fe0e5b2dc1ac77d7db68a47f588b0be2f885a87f240e6cb19f49a81eb57",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    }
+   ]
+  },
+  {
+   "case_id": "penguin_subject_free_broad_query",
+   "failure_modes": [
+    "subject_absent_from_provider_query",
+    "retired_broad_query_literal",
+    "shared_generic_candidate_pool"
+   ],
+   "note": "The third independent project served by the same pool. Three subjects that share one candidate set is the defect, not a coincidence worth deduplicating away.",
+   "source_project": "почему_пингвины_скользят_по_снегу_на_животе_20260723T172320",
+   "source_scene_id": "scene_001",
+   "scene_key": "почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/scene_001",
+   "scene_text": "Почему пингвины скользят по снегу на животе?",
+   "expected_subject_terms": [
+    "пингвин",
+    "penguin"
+   ],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_001",
+    "subject": [],
+    "secondary_subjects": [],
+    "action": [],
+    "environment": [],
+    "location": [],
+    "camera": [],
+    "mood": [],
+    "must_include": [],
+    "should_include": [],
+    "must_not_include": [],
+    "visual_priority": "abstract_explanation",
+    "fallback_level": 1
+   },
+   "visual_brief_present": false,
+   "visual_brief_provider_queries": {},
+   "historical_primary_query": "nature science wildlife observation",
+   "historical_query_ladder": [
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "nature"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "pexels",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pixabay",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 2
+    },
+    {
+     "provider": "internet_archive",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "wikimedia",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "nasa_images",
+     "query": "nature science wildlife observation",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    }
+   ],
+   "retired_query_class": "C36",
+   "historical_selected_asset_id": "pexels_video_38575790",
+   "source_manifests": [
+    "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/assets_manifest.json",
+    "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pexels_video_38575790",
+     "provider": "pexels",
+     "provider_asset_id": "38575790",
+     "media_type": "video",
+     "title": "Pexels video 38575790",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/close-up-of-a-woodpecker-in-lush-greenery-38575790/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/previews/9b628069792fd691eff36a4926d81f349d9a6947e8ba91fec58eb5418b5247a6/remote.jpeg",
+      "sha256": "390a521ca646bf1d93ff2dcc06319ba9b86f15f21e346e5a346b56e143ba8486",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_6318227",
+     "provider": "pexels",
+     "provider_asset_id": "6318227",
+     "media_type": "video",
+     "title": "Pexels video 6318227",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/man-taking-picture-of-a-yellow-flower-6318227/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/previews/6e19769ff4f8ee385814d5950d873b267186df5b3565ce5472378f9ff9d8738a/remote.jpeg",
+      "sha256": "38614e5deab563964bd72c481996e7ae2fd2714da26b4b0ab4300dd84308aded",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_35350096",
+     "provider": "pexels",
+     "provider_asset_id": "35350096",
+     "media_type": "video",
+     "title": "Pexels video 35350096",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/captivating-squirrel-eating-on-tree-branch-35350096/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/previews/81d396b1f527d5383337317f2dafca2746cb481b8c237c13210aec1fe3b18c99/remote.jpeg",
+      "sha256": "fdd2b5ca975a319c82dcea5574c83a2100b147b48dec2d07d3b11d583958f273",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pixabay_video_206294",
+     "provider": "pixabay",
+     "provider_asset_id": "206294",
+     "media_type": "video",
+     "title": "Pixabay video 206294",
+     "tags": [
+      "horses",
+      "animals",
+      "wildlife",
+      "running",
+      "ice",
+      "nature"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://pixabay.com/videos/id-206294/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/previews/d6247c7716e67ad1f3ba8ec4eae22e71f002e23239694f98e1fefe6da9e0c886/frames/frame_000.jpg",
+      "sha256": "def160669f86dd8278331315fde32d62c1dc8cdf6caa655be5d3387898f16463",
+      "width": 360,
+      "height": 640,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_12723974",
+     "provider": "pexels",
+     "provider_asset_id": "12723974",
+     "media_type": "video",
+     "title": "Pexels video 12723974",
+     "tags": [
+      "nature",
+      "science",
+      "wildlife",
+      "observation"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 4096,
+     "search_query": "nature science wildlife observation",
+     "source_url": "https://www.pexels.com/video/schoolboys-having-fun-playing-with-a-magnifying-glass-at-a-field-trip-12723974/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_пингвины_скользят_по_снегу_на_животе_20260723T172320/assets/previews/4191cd1f847c2f275a4587599521ca5ff921a935d5c693395fb36fed7f30c8e2/remote.jpeg",
+      "sha256": "e3456fe0e5b2dc1ac77d7db68a47f588b0be2f885a87f240e6cb19f49a81eb57",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    }
+   ]
+  },
+  {
+   "case_id": "cyrillic_query_to_latin_provider",
+   "failure_modes": [
+    "non_provider_language_query"
+   ],
+   "note": "A Russian query was sent verbatim to English-language stock indexes. Three providers returned nothing at all; the two that answered matched on nothing the scene declared.",
+   "source_project": "2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy",
+   "source_scene_id": "scene_007",
+   "scene_key": "2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/scene_007",
+   "scene_text": "Но главный вопрос пока без ответа: пластик оставили местные исследовательские станции или он прилетел по воздуху с других континентов?",
+   "expected_subject_terms": [
+    "plastic"
+   ],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_007",
+    "subject": [
+     "пластик"
+    ],
+    "secondary_subjects": [
+     "воздуху",
+     "главный"
+    ],
+    "action": [
+     "оставили"
+    ],
+    "environment": [],
+    "location": [],
+    "camera": [],
+    "mood": [],
+    "must_include": [
+     "пластик"
+    ],
+    "should_include": [
+     "воздуху",
+     "главный"
+    ],
+    "must_not_include": [],
+    "visual_priority": "exact_action",
+    "fallback_level": 1
+   },
+   "visual_brief_present": false,
+   "visual_brief_provider_queries": {},
+   "historical_primary_query": "пластик оставили воздуху",
+   "historical_query_ladder": [
+    {
+     "kind": "exact",
+     "fallback_level": 1,
+     "query": "пластик воздуху оставили"
+    },
+    {
+     "kind": "broad",
+     "fallback_level": 2,
+     "query": "пластик воздуху"
+    },
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "nature"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "internet_archive",
+     "query": "пластик воздуху оставили",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "internet_archive",
+     "query": "пластик воздуху",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "wikimedia",
+     "query": "пластик воздуху оставили",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "wikimedia",
+     "query": "пластик воздуху",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "nasa_images",
+     "query": "пластик воздуху оставили",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "nasa_images",
+     "query": "пластик воздуху",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "pexels",
+     "query": "пластик воздуху оставили",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pexels",
+     "query": "пластик воздуху",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pixabay",
+     "query": "пластик воздуху оставили",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 4
+    },
+    {
+     "provider": "pixabay",
+     "query": "пластик воздуху",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    }
+   ],
+   "retired_query_class": "CRITICAL-1 (before PLAN-9B-1)",
+   "historical_selected_asset_id": "pexels_video_7250213",
+   "source_manifests": [
+    "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/assets_manifest.json",
+    "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pexels_video_7250213",
+     "provider": "pexels",
+     "provider_asset_id": "7250213",
+     "media_type": "video",
+     "title": "Pexels video 7250213",
+     "tags": [
+      "пластик",
+      "воздуху",
+      "оставили"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "пластик воздуху оставили",
+     "source_url": "https://www.pexels.com/video/a-person-packing-a-plastic-bottles-7250213/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/previews/12d242bdf846a1a8ca4af5b8a30b7ea7bcf80f7e0670dc610d18629fb932985b/remote.jpeg",
+      "sha256": "fc6b6b77dbb1331fde878f0b30ae7af90c7ae37bd2a4a1b2a6f889c7e5b532e2",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_8544197",
+     "provider": "pexels",
+     "provider_asset_id": "8544197",
+     "media_type": "video",
+     "title": "Pexels video 8544197",
+     "tags": [
+      "пластик",
+      "воздуху",
+      "оставили"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "пластик воздуху оставили",
+     "source_url": "https://www.pexels.com/video/a-plastic-bag-falling-on-a-hand-holding-a-small-globe-8544197/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/previews/fb114c265ad40cb627c68ea2309e1993476be48c1fd31f6c99a9e8c3e5f9d301/remote.jpeg",
+      "sha256": "63bcf64948151633fbf2682d38d9adc79e57e3c17cf681b4772ef482d69fa143",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_3960159",
+     "provider": "pexels",
+     "provider_asset_id": "3960159",
+     "media_type": "video",
+     "title": "Pexels video 3960159",
+     "tags": [
+      "пластик",
+      "воздуху",
+      "оставили"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 4096,
+     "search_query": "пластик воздуху оставили",
+     "source_url": "https://www.pexels.com/video/safe-health-lifestyle-mask-3960159/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/previews/819df4a73a5ad4f076da4d783c65be0ff9745b70dd64b45699c853e4e436f873/remote.jpeg",
+      "sha256": "1d80d9a5930c52b9320009fd78d15095342da800b50a50c839f835a27a7f5db3",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_7829722",
+     "provider": "pexels",
+     "provider_asset_id": "7829722",
+     "media_type": "video",
+     "title": "Pexels video 7829722",
+     "tags": [
+      "пластик",
+      "воздуху",
+      "оставили"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 4096,
+     "search_query": "пластик воздуху оставили",
+     "source_url": "https://www.pexels.com/video/woman-sipping-on-yellow-straw-7829722/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/previews/cb6ee24158299c93a5dc0ed462f5303cfb7ef5992ac69773efd3ad921a0412c1/remote.jpeg",
+      "sha256": "8db46fe8d0c93ece216832f3b0ac59529affeb625f3135b5c05bff81200f68f9",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_7825309",
+     "provider": "pexels",
+     "provider_asset_id": "7825309",
+     "media_type": "video",
+     "title": "Pexels video 7825309",
+     "tags": [
+      "пластик",
+      "воздуху",
+      "оставили"
+     ],
+     "tags_source": "",
+     "width": 2160,
+     "height": 4096,
+     "search_query": "пластик воздуху оставили",
+     "source_url": "https://www.pexels.com/video/studio-shot-woman-eating-plastic-7825309/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-26_nanoplastik-nayden-v-pochvah-antarktidy/assets/previews/e8f5e46ea749d2457bf3194044d1a1a7554dabb9e943b01553a7d6a29ebbbded/remote.jpeg",
+      "sha256": "dcdbc38e95f4546ba166d615a305ad43f6c182ab8143a8ee1f629e0d5f3449c2",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    }
+   ]
+  },
+  {
+   "case_id": "subject_lost_between_primary_query_and_provider",
+   "failure_modes": [
+    "degenerate_single_token_query",
+    "subject_lost_after_primary_query",
+    "subject_absent_from_provider_query"
+   ],
+   "note": "The strongest single case: the scene *did* produce a usable primary query naming the subject, and every provider was nevertheless asked one adjective.",
+   "source_project": "почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947",
+   "source_scene_id": "scene_001",
+   "scene_key": "почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947/scene_001",
+   "scene_text": "Кошка смотрит в пустой угол не потому, что видит призрака. Она слышит звуки в стене, которые человеческое ухо просто не замечает.",
+   "expected_subject_terms": [
+    "cat",
+    "кошка"
+   ],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_001",
+    "subject": [],
+    "secondary_subjects": [],
+    "action": [],
+    "environment": [],
+    "location": [],
+    "camera": [
+     "close"
+    ],
+    "mood": [],
+    "must_include": [],
+    "should_include": [
+     "close"
+    ],
+    "must_not_include": [],
+    "visual_priority": "abstract_explanation",
+    "fallback_level": 1
+   },
+   "visual_brief_present": false,
+   "visual_brief_provider_queries": {},
+   "historical_primary_query": "cat staring at wall corner",
+   "historical_query_ladder": [
+    {
+     "kind": "exact",
+     "fallback_level": 1,
+     "query": "close"
+    },
+    {
+     "kind": "broad",
+     "fallback_level": 2,
+     "query": "close"
+    },
+    {
+     "kind": "environment_fallback",
+     "fallback_level": 4,
+     "query": "close"
+    },
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "nature close"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "internet_archive",
+     "query": "close",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "wikimedia",
+     "query": "close",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 0
+    },
+    {
+     "provider": "nasa_images",
+     "query": "close",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pexels",
+     "query": "close",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 5
+    },
+    {
+     "provider": "pixabay",
+     "query": "close",
+     "query_language": "",
+     "query_source": "",
+     "result_count": 2
+    }
+   ],
+   "retired_query_class": "degenerate query ladder (before PLAN-9B-1)",
+   "historical_selected_asset_id": "pexels_video_38692480",
+   "source_manifests": [
+    "projects/почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947/assets/assets_manifest.json",
+    "projects/почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pexels_video_38692480",
+     "provider": "pexels",
+     "provider_asset_id": "38692480",
+     "media_type": "video",
+     "title": "Pexels video 38692480",
+     "tags": [
+      "close"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "close",
+     "source_url": "https://www.pexels.com/video/industrial-machinery-close-up-in-operation-38692480/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947/assets/previews/0caed76329ed20aabb42a9733ca44a02c18c077c732234db6a49a452f029c013/remote.jpeg",
+      "sha256": "420ad53a19b9f979e77803e4fda40aa5c6af76f87b8dbb13cdf94c0234e9ef82",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_30507932",
+     "provider": "pexels",
+     "provider_asset_id": "30507932",
+     "media_type": "video",
+     "title": "Pexels video 30507932",
+     "tags": [
+      "close"
+     ],
+     "tags_source": "",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "close",
+     "source_url": "https://www.pexels.com/video/close-up-of-hand-holding-fresh-kumquat-30507932/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947/assets/previews/c404ae2892df4af658e86d114dfeb88da8312a0896a0d2ea498068ea383093fc/remote.jpeg",
+      "sha256": "98a95634c5e731c0ec0741847dcd43a5e4716db12381002415a4ba62262dcbec",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_36583244",
+     "provider": "pexels",
+     "provider_asset_id": "36583244",
+     "media_type": "video",
+     "title": "Pexels video 36583244",
+     "tags": [
+      "close"
+     ],
+     "tags_source": "",
+     "width": 1440,
+     "height": 2690,
+     "search_query": "close",
+     "source_url": "https://www.pexels.com/video/man-and-cat-sharing-a-tender-moment-36583244/",
+     "representative_frame": {
+      "local_frame_path": "projects/почему_кошка_иногда_смотрит_в_пустой_угол_20260724T151947/assets/previews/97532f938448e4b9a4cc9d860f363948b17f3de796bb61771a94d98c2db90350/remote.jpeg",
+      "sha256": "36a52fed63ebd9d44b2455466734863205b6cb0c725873f8a23c0457d1a39d45",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    }
+   ]
+  },
+  {
+   "case_id": "glossary_substitute_for_extracted_stopwords",
+   "failure_modes": [
+    "garbage_subject_extraction",
+    "degenerate_single_token_query"
+   ],
+   "note": "The semantic scene took Russian function words as subject and action, and the glossary turned that into one English token.",
+   "source_project": "2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb",
+   "source_scene_id": "scene_006",
+   "scene_key": "2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/scene_006",
+   "scene_text": "Учёные пока не знают, зачем они это делают.",
+   "expected_subject_terms": [],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_006",
+    "subject": [
+     "пока"
+    ],
+    "secondary_subjects": [
+     "Учёные"
+    ],
+    "action": [
+     "знают"
+    ],
+    "environment": [],
+    "location": [],
+    "camera": [],
+    "mood": [],
+    "must_include": [],
+    "should_include": [
+     "Учёные"
+    ],
+    "must_not_include": [],
+    "context": [],
+    "conflicting_context": [],
+    "source_class": "",
+    "visual_priority": "exact_action",
+    "fallback_level": 1
+   },
+   "visual_brief_present": false,
+   "visual_brief_provider_queries": {},
+   "historical_primary_query": "пока знают Учёные",
+   "historical_query_ladder": [
+    {
+     "kind": "exact",
+     "fallback_level": 1,
+     "query": "пока Учёные знают"
+    },
+    {
+     "kind": "broad",
+     "fallback_level": 2,
+     "query": "пока Учёные"
+    },
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "nature"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "wikimedia",
+     "query": "scientists",
+     "query_language": "en",
+     "query_source": "deterministic_glossary",
+     "result_count": 0
+    },
+    {
+     "provider": "internet_archive",
+     "query": "scientists",
+     "query_language": "en",
+     "query_source": "deterministic_glossary",
+     "result_count": 5
+    },
+    {
+     "provider": "nasa_images",
+     "query": "scientists",
+     "query_language": "en",
+     "query_source": "deterministic_glossary",
+     "result_count": 5
+    },
+    {
+     "provider": "pexels",
+     "query": "scientists",
+     "query_language": "en",
+     "query_source": "deterministic_glossary",
+     "result_count": 5
+    },
+    {
+     "provider": "pixabay",
+     "query": "scientists",
+     "query_language": "en",
+     "query_source": "deterministic_glossary",
+     "result_count": 3
+    }
+   ],
+   "retired_query_class": "deterministic_glossary substitution (before PLAN-9B-1)",
+   "historical_selected_asset_id": "pexels_video_8328150",
+   "source_manifests": [
+    "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/assets_manifest.json",
+    "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pexels_video_8328150",
+     "provider": "pexels",
+     "provider_asset_id": "8328150",
+     "media_type": "video",
+     "title": "man and a woman looking at a robot controller",
+     "tags": [
+      "man",
+      "and",
+      "a",
+      "woman",
+      "looking",
+      "at",
+      "a",
+      "robot",
+      "controller"
+     ],
+     "tags_source": "provider",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "scientists",
+     "source_url": "https://www.pexels.com/video/man-and-a-woman-looking-at-a-robot-controller-8328150/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/previews/9a50c9fb2a70f5251d2f30674169a44faadb3890afcd93930a5dff322b8758bd/remote.jpeg",
+      "sha256": "86d6dea737e2333da156c878b8a9be6ed6dabdda5927ffc2b249105291ff32d8",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_8381711",
+     "provider": "pexels",
+     "provider_asset_id": "8381711",
+     "media_type": "video",
+     "title": "man and woman looking at a document",
+     "tags": [
+      "man",
+      "and",
+      "woman",
+      "looking",
+      "at",
+      "a",
+      "document"
+     ],
+     "tags_source": "provider",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "scientists",
+     "source_url": "https://www.pexels.com/video/man-and-woman-looking-at-a-document-8381711/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/previews/6c0e6c22a8447437ff3e07dd0534a63c9fd514581b36dca4653e921cf002b5f7/remote.jpeg",
+      "sha256": "de2be9e2678398ec67e5ef44db51e4ecc662bd86b953775f49ccb61a52bce0c9",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_8514757",
+     "provider": "pexels",
+     "provider_asset_id": "8514757",
+     "media_type": "video",
+     "title": "woman writing on glass",
+     "tags": [
+      "woman",
+      "writing",
+      "on",
+      "glass"
+     ],
+     "tags_source": "provider",
+     "width": 2160,
+     "height": 3840,
+     "search_query": "scientists",
+     "source_url": "https://www.pexels.com/video/woman-writing-on-glass-8514757/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/previews/f2932153c784fc8389ba9ae84fa475092142147a67579ecd37f0e1a4edd8945a/remote.jpeg",
+      "sha256": "e0c18b4b46f9db40c6729be1f1c39aaa67d5aa318ff671e44023784fdcaf8ded",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_8530027",
+     "provider": "pexels",
+     "provider_asset_id": "8530027",
+     "media_type": "video",
+     "title": "a scientist observing a specimen under a microscope",
+     "tags": [
+      "a",
+      "scientist",
+      "observing",
+      "a",
+      "specimen",
+      "under",
+      "a",
+      "microscope"
+     ],
+     "tags_source": "provider",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "scientists",
+     "source_url": "https://www.pexels.com/video/a-scientist-observing-a-specimen-under-a-microscope-8530027/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/previews/7f2e02815e95fd4c86bc03c4ec7eb4fc327e9ecc700955e175c44f619478b32a/remote.jpeg",
+      "sha256": "0e63c5842420d2530f1068956a358b14ae44679c8c5f8443928b7afc023073dc",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pexels_video_8531311",
+     "provider": "pexels",
+     "provider_asset_id": "8531311",
+     "media_type": "video",
+     "title": "people doing chemistry",
+     "tags": [
+      "people",
+      "doing",
+      "chemistry"
+     ],
+     "tags_source": "provider",
+     "width": 1080,
+     "height": 1920,
+     "search_query": "scientists",
+     "source_url": "https://www.pexels.com/video/people-doing-chemistry-8531311/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb/assets/previews/5d86ab8d80c7fc7967df4f31e38ae0edfc9e22eef25774f099fc3067d6ef5938/remote.jpeg",
+      "sha256": "e17e03bfaf464a22087ff3de79db4a5c67c74647a6a23b1fc5c16a02ffcad478",
+      "width": 630,
+      "height": 1200,
+      "frame_index": 0
+     }
+    }
+   ]
+  },
+  {
+   "case_id": "orca_topic_query_hardcode",
+   "failure_modes": [
+    "retired_topic_query_hardcode",
+    "degenerate_single_token_query",
+    "mislabelled_query_language"
+   ],
+   "note": "The visual brief carries the retired one-topic hardcode verbatim, down to the German Wikimedia query that the attempt record labels as English.",
+   "source_project": "2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2",
+   "source_scene_id": "scene_002",
+   "scene_key": "2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/scene_002",
+   "scene_text": "Учёные пока не знают, зачем косатки это делают: ради удобной разделки добычи или просто ради игры. Самое удивительное — удар требует точной координации двух животных, поэтому это не случайность, а командная операция.",
+   "expected_subject_terms": [
+    "orca"
+   ],
+   "expected_subject_terms_source": "curator, read from scene_text",
+   "historical_semantic_scene": {
+    "scene_id": "scene_002",
+    "subject": [
+     "orca killer whale"
+    ],
+    "secondary_subjects": [
+     "удар",
+     "двух"
+    ],
+    "action": [
+     "research observation"
+    ],
+    "environment": [
+     "open ocean"
+    ],
+    "location": [
+     "open ocean"
+    ],
+    "camera": [],
+    "mood": [],
+    "must_include": [],
+    "should_include": [
+     "удар",
+     "двух",
+     "open ocean"
+    ],
+    "must_not_include": [
+     "dolphin",
+     "humpback whale",
+     "blue whale",
+     "right whale",
+     "beluga",
+     "lizard"
+    ],
+    "context": [],
+    "conflicting_context": [],
+    "source_class": "generic_broll",
+    "visual_priority": "exact_action",
+    "fallback_level": 1
+   },
+   "visual_brief_present": true,
+   "visual_brief_provider_queries": {
+    "wikimedia": [
+     "Die Jagdtechniken von Orcas"
+    ],
+    "default": [
+     "orca",
+     "marine biologist ocean research",
+     "killer whale pod ocean",
+     "open ocean underwater"
+    ]
+   },
+   "historical_primary_query": "orca killer whale research observation open ocean удар",
+   "historical_query_ladder": [
+    {
+     "kind": "exact",
+     "fallback_level": 1,
+     "query": "orca killer whale удар research observation open ocean"
+    },
+    {
+     "kind": "broad",
+     "fallback_level": 2,
+     "query": "orca killer whale удар open ocean"
+    },
+    {
+     "kind": "environment_fallback",
+     "fallback_level": 4,
+     "query": "open ocean"
+    },
+    {
+     "kind": "atmospheric_fallback",
+     "fallback_level": 4,
+     "query": "open ocean nature"
+    }
+   ],
+   "historical_provider_attempts": [
+    {
+     "provider": "pexels",
+     "query": "orca",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 9
+    },
+    {
+     "provider": "pexels",
+     "query": "marine biologist ocean research",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 10
+    },
+    {
+     "provider": "pexels",
+     "query": "killer whale pod ocean",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 10
+    },
+    {
+     "provider": "pixabay",
+     "query": "orca",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 6
+    },
+    {
+     "provider": "pixabay",
+     "query": "marine biologist ocean research",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 9
+    },
+    {
+     "provider": "pixabay",
+     "query": "killer whale pod ocean",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 10
+    },
+    {
+     "provider": "wikimedia",
+     "query": "Die Jagdtechniken von Orcas",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 1
+    },
+    {
+     "provider": "internet_archive",
+     "query": "orca",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 10
+    },
+    {
+     "provider": "internet_archive",
+     "query": "marine biologist ocean research",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 6
+    },
+    {
+     "provider": "internet_archive",
+     "query": "killer whale pod ocean",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 3
+    },
+    {
+     "provider": "nasa_images",
+     "query": "orca",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 1
+    },
+    {
+     "provider": "nasa_images",
+     "query": "marine biologist ocean research",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 1
+    },
+    {
+     "provider": "nasa_images",
+     "query": "killer whale pod ocean",
+     "query_language": "en",
+     "query_source": "explicit_override",
+     "result_count": 0
+    }
+   ],
+   "retired_query_class": "C35",
+   "historical_selected_asset_id": "pixabay_image_8072814",
+   "source_manifests": [
+    "projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/assets/assets_manifest.json",
+    "projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/assets/review/visual_review_manifest.json"
+   ],
+   "candidates": [
+    {
+     "asset_id": "pixabay_image_8072814",
+     "provider": "pixabay",
+     "provider_asset_id": "8072814",
+     "media_type": "image",
+     "title": "Pixabay image 8072814",
+     "tags": [
+      "killer",
+      "whale",
+      "orca",
+      "mammal",
+      "animal",
+      "predator",
+      "fins",
+      "deep",
+      "sea",
+      "underwater",
+      "ocean",
+      "nature",
+      "orca",
+      "orca",
+      "orca",
+      "orca",
+      "orca"
+     ],
+     "tags_source": "provider",
+     "width": 2000,
+     "height": 3000,
+     "search_query": "orca",
+     "source_url": "https://pixabay.com/photos/killer-whale-orca-mammal-animal-8072814/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/assets/previews/bb8127630d5eee7f04333a63da976ec45865aebf424c09d2196f88a689897ad1/remote.jpg",
+      "sha256": "46d037e81ee3846027e6292765537905ce595bed0d9da2f1e491e36b5199e0a6",
+      "width": 100,
+      "height": 150,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pixabay_image_74081",
+     "provider": "pixabay",
+     "provider_asset_id": "74081",
+     "media_type": "image",
+     "title": "Pixabay image 74081",
+     "tags": [
+      "orca",
+      "killer",
+      "whale",
+      "orcinus",
+      "orca",
+      "shamu",
+      "sea",
+      "world",
+      "san",
+      "diego",
+      "nature",
+      "performance",
+      "show",
+      "jump",
+      "ocean"
+     ],
+     "tags_source": "provider",
+     "width": 2269,
+     "height": 3138,
+     "search_query": "orca",
+     "source_url": "https://pixabay.com/photos/orca-killer-whale-orcinus-orca-74081/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/assets/previews/21b787fc429d48ecbb309b46db6beae511d3ff567c977af4e5c21259cc43152a/remote.jpg",
+      "sha256": "4b1038205d5ec0b2a279d7332e91b21a1d3d3f233271eef22d47411a47ff3afd",
+      "width": 108,
+      "height": 150,
+      "frame_index": 0
+     }
+    },
+    {
+     "asset_id": "pixabay_image_7633370",
+     "provider": "pixabay",
+     "provider_asset_id": "7633370",
+     "media_type": "image",
+     "title": "Pixabay image 7633370",
+     "tags": [
+      "killer",
+      "whale",
+      "coral",
+      "reef",
+      "fish",
+      "ocean",
+      "seascape",
+      "sand",
+      "sea",
+      "light",
+      "nature",
+      "undersea",
+      "life",
+      "orca",
+      "underwater",
+      "killer",
+      "whale",
+      "killer",
+      "whale",
+      "orca",
+      "orca",
+      "orca",
+      "orca",
+      "orca"
+     ],
+     "tags_source": "provider",
+     "width": 4852,
+     "height": 5872,
+     "search_query": "orca",
+     "source_url": "https://pixabay.com/photos/killer-whale-coral-reef-fish-ocean-7633370/",
+     "representative_frame": {
+      "local_frame_path": "projects/2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2/assets/previews/4d6a6d433dc643039203fe2012181055f6930a6c2970be8e59b0774d98841246/remote.jpg",
+      "sha256": "2e0795eca1ff8fdfd7d189414cecb7aa9f9d56388ba43b9ed8410ab044652f11",
+      "width": 124,
+      "height": 150,
+      "frame_index": 0
+     }
+    }
+   ]
+  }
+ ],
+ "dropped_source_scenes": [
+  {
+   "scene_key": "2026-07-26_nanoplastik-v-antarktide-q2-1-retest/scene_001",
+   "queries": [
+    "McMurdo Dry Valleys Antarctica"
+   ],
+   "reason": "no_curated_failure_mode: nothing in this scene demonstrates a retrieval failure from the curated vocabulary",
+   "duplicates_preserved_query": []
+  },
+  {
+   "scene_key": "2026-07-26_nanoplastik-v-antarktide-q2-1-retest/scene_003",
+   "queries": [
+    "laboratory microscope particle sample macro"
+   ],
+   "reason": "no_curated_failure_mode: nothing in this scene demonstrates a retrieval failure from the curated vocabulary",
+   "duplicates_preserved_query": []
+  },
+  {
+   "scene_key": "2026-07-27_nanoplastik-v-antarktide-live-proverka-pravok/scene_006",
+   "queries": [
+    "mass spectrometer laboratory",
+    "mass spectrometer laboratory instrument"
+   ],
+   "reason": "no_curated_failure_mode: nothing in this scene demonstrates a retrieval failure from the curated vocabulary",
+   "duplicates_preserved_query": []
+  },
+  {
+   "scene_key": "2026-07-27_nanoplastik-v-antarktide-q2-2a-2-retest/scene_002",
+   "queries": [
+    "Antarctic scientists collecting soil samples"
+   ],
+   "reason": "no_curated_failure_mode: nothing in this scene demonstrates a retrieval failure from the curated vocabulary",
+   "duplicates_preserved_query": []
+  },
+  {
+   "scene_key": "2026-07-27_pochemu-kosatki-vzryvayut-ogromnyh-ryb-3/scene_003",
+   "queries": [
+    "orca killer whale open ocean",
+    "orca killer whale swimming fast charging open ocean"
+   ],
+   "reason": "no_curated_failure_mode: nothing in this scene demonstrates a retrieval failure from the curated vocabulary",
+   "duplicates_preserved_query": []
+  },
+  {
+   "scene_key": "в_видео_используются_архивные_стоковые_материалы_карты_авторская_20260724T214350/scene_003",
+   "queries": [
+    "nature science wildlife observation"
+   ],
+   "reason": "duplicate_evidence: the same retired query is already preserved by a curated case",
+   "duplicates_preserved_query": [
+    "nature science wildlife observation"
+   ]
+  },
+  {
+   "scene_key": "зачем_морская_выдра_использует_камни_20260723T172319/scene_001",
+   "queries": [
+    "nature science wildlife observation"
+   ],
+   "reason": "duplicate_evidence: the same retired query is already preserved by a curated case",
+   "duplicates_preserved_query": [
+    "nature science wildlife observation"
+   ]
+  },
+  {
+   "scene_key": "как_лиса_находит_добычу_под_глубоким_снегом_20260723T172317/scene_001",
+   "queries": [
+    "nature science wildlife observation"
+   ],
+   "reason": "duplicate_evidence: the same retired query is already preserved by a curated case",
+   "duplicates_preserved_query": [
+    "nature science wildlife observation"
+   ]
+  },
+  {
+   "scene_key": "океан_20260724T224243/scene_001",
+   "queries": [
+    "ocean aerial"
+   ],
+   "reason": "no_curated_failure_mode: nothing in this scene demonstrates a retrieval failure from the curated vocabulary",
+   "duplicates_preserved_query": []
+  }
+ ],
+ "fixture_sha256": "2bd49d4bc90ce24761fd59e2f6dd5f27aaf0b2cb74b1313bdcf378935abd7f93"
+}

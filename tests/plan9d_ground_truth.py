@@ -1,15 +1,41 @@
-"""Offline ground-truth benchmark for the existing asset decision path (PLAN-9D-A).
+"""Offline ground-truth benchmark for the existing asset decision path (PLAN-9D).
 
 Why this module exists
 ----------------------
-PLAN-9D has to prove that Vision evidence *improves* the decision path, on data
-that already exists. It cannot be proved against the only real Vision run in the
-repository: that run covers three scenes and six candidates, none of which has a
-strong metadata-only answer, so there is nothing there that a change could make
-worse. A claim of improvement needs a benchmark that can also show a regression.
+PLAN-9D has to prove that Vision evidence *improves* the decision path. It cannot
+be proved against the only real Vision run in the repository: that run covers
+three scenes and six candidates, none of which has a strong metadata-only answer,
+so there is nothing there that a change could make worse. A claim of improvement
+needs a benchmark that can also show a regression.
 
-This module owns the offline benchmark's data contract and its measurement, and
-nothing else. Three properties are deliberate:
+Historical evidence is not that benchmark
+-----------------------------------------
+Owner direction 2026-08-08 settled where the benchmark's data may come from. A
+candidate pool only says something about *decision* quality if the pool itself
+represents what retrieval does now. Every runtime project on disk predates the
+query work of PLAN-9B-1..9B-3 and PLAN-9C, so a corpus harvested from those
+projects measures the choice between candidates that the retired query stack
+happened to return - which is a statement about the old queries, not about the
+decision owner.
+
+So this module knows two kinds of frozen data and keeps them apart by contract:
+
+``current_head_capture``
+    The benchmark input. Captured from the current production retrieval path by
+    PLAN-9D-B, then frozen. Only this may be measured.
+
+``historical_pre_query_fixes``
+    Evidence that a defect really existed - a scene requirement, the query that
+    actually reached the provider, the pool that came back. Curated by PLAN-9D-A
+    into ``historical_failure_evidence_v1.json``. It is never measured, and
+    ``assert_current_benchmark_input`` is the single gate that says so.
+
+The gate is deliberately unforgiving about *unstamped* data too: the pre-9D-A
+corpus carried no provenance at all, so anything that fails to declare itself a
+current capture is refused rather than assumed.
+
+This module owns both data contracts and the measurement, and nothing else.
+Three properties of the benchmark are deliberate:
 
 *The ground truth is human, frozen and independent.* Nothing here decides which
 candidate is right. The corpus is selected by *technical* category, the
@@ -40,8 +66,10 @@ Preview pixels are not asset pixels
     which reports ``framing_unknown`` and does not reject on it.
 
 What this module does not do: it does not read ``projects/``, does not open
-image files and does not build the corpus. That belongs to
-``tests.plan9d_corpus_builder``, which is run by hand.
+image files, does not build the corpus and does not curate the historical
+evidence. That belongs to ``tests.plan9d_corpus_builder``, which is run by hand.
+Nothing here names a historical project: the generic harness must outlive the
+runtime data it was once built from.
 """
 
 from __future__ import annotations
@@ -64,11 +92,54 @@ from src.news.asset_manifest_builder import FIXTURE_SEMANTIC_BACKENDS, select_be
 
 
 DATA_ROOT = Path(__file__).resolve().parent / "data" / "plan9d"
-CORPUS_PATH = DATA_ROOT / "corpus_v1.json"
-ANNOTATIONS_PATH = DATA_ROOT / "annotations_v1.json"
+
+#: The benchmark input. Captured and frozen by PLAN-9D-B; absent until then, and
+#: its absence is reported rather than papered over.
+CURRENT_CORPUS_PATH = DATA_ROOT / "current_corpus_v1.json"
+#: The owner's blind labels for that capture. Written once by PLAN-9D-D.
+CURRENT_ANNOTATIONS_PATH = DATA_ROOT / "current_annotations_v1.json"
+#: Curated proof that the pre-9B/9C retrieval defects were real (PLAN-9D-A).
+HISTORICAL_EVIDENCE_PATH = DATA_ROOT / "historical_failure_evidence_v1.json"
 
 CORPUS_SCHEMA_VERSION = "plan9d-corpus-1"
 ANNOTATIONS_SCHEMA_VERSION = "plan9d-annotations-1"
+HISTORICAL_EVIDENCE_SCHEMA_VERSION = "plan9d-historical-evidence-1"
+
+#: Where a frozen payload came from. The distinction is the whole point of the
+#: 2026-08-08 reconciliation, so it is data, not a naming convention.
+GENERATION_CURRENT = "current_head_capture"
+GENERATION_HISTORICAL = "historical_pre_query_fixes"
+
+#: What a frozen payload is *for*. ``historical_project_corpus`` is the raw
+#: project harvest the builder produces; ``historical_failure_evidence`` is the
+#: compact curated form that PLAN-9D-A commits.
+FIXTURE_KIND_CURRENT_BENCHMARK = "current_retrieval_benchmark"
+FIXTURE_KIND_HISTORICAL_CORPUS = "historical_project_corpus"
+FIXTURE_KIND_HISTORICAL_EVIDENCE = "historical_failure_evidence"
+
+HISTORICAL_KINDS = frozenset({FIXTURE_KIND_HISTORICAL_CORPUS, FIXTURE_KIND_HISTORICAL_EVIDENCE})
+
+#: Failure classes the historical evidence is allowed to claim. Each one is
+#: checkable against the record it is attached to, so a label cannot be a
+#: free-text opinion. ``shared_generic_candidate_pool`` is deliberately a
+#: property of a *set* of cases: the repetition is the evidence.
+HISTORICAL_FAILURE_MODES = (
+    "subject_absent_from_provider_query",
+    "retired_broad_query_literal",
+    "retired_topic_query_hardcode",
+    "shared_generic_candidate_pool",
+    "degenerate_single_token_query",
+    "subject_lost_after_primary_query",
+    "non_provider_language_query",
+    "mislabelled_query_language",
+    "garbage_subject_extraction",
+)
+
+#: Owner-annotation vocabulary. Historical evidence carrying any of it would be a
+#: label nobody made, so the historical validator refuses these keys outright.
+OWNER_ANNOTATION_KEYS = frozenset(
+    {"preferred_candidate", "unacceptable_candidates", "annotator", "annotated_at_utc"}
+)
 
 #: Salt for the blind identifier order. Fixed, so the mapping is reproducible;
 #: unrelated to any ranking, so the order carries no signal about the answer.
@@ -218,19 +289,79 @@ def assign_blind_ids(scene_key: str, asset_ids: Iterable[str]) -> dict[str, str]
 # --------------------------------------------------------------------------- #
 
 
-def load_corpus(path: Path = CORPUS_PATH) -> dict[str, Any]:
+def generation_class_of(payload: dict[str, Any]) -> str:
+    """Where this payload came from, reading an unstamped payload honestly.
+
+    The corpus frozen before the 2026-08-08 reconciliation declared no
+    provenance. It was built from ``projects/``, so the only truthful reading of
+    a missing stamp is *historical* - never "current, presumably".
+    """
+
+    declared = str(payload.get("generation_class") or "").strip()
+    if declared:
+        return declared
+    if payload.get("schema_version") == CORPUS_SCHEMA_VERSION:
+        return GENERATION_HISTORICAL
+    return ""
+
+
+def fixture_kind_of(payload: dict[str, Any]) -> str:
+    """What this payload is for, with the same reading of an unstamped payload."""
+
+    declared = str(payload.get("fixture_kind") or "").strip()
+    if declared:
+        return declared
+    if payload.get("schema_version") == CORPUS_SCHEMA_VERSION:
+        return FIXTURE_KIND_HISTORICAL_CORPUS
+    return ""
+
+
+def assert_current_benchmark_input(payload: dict[str, Any], *, context: str = "benchmark") -> None:
+    """The single gate between historical evidence and a quality measurement.
+
+    Historical pools answer "what did the retired queries return"; the benchmark
+    asks "how good is the decision". Feeding one to the other is the exact
+    mistake PLAN-9D was reconciled to prevent, so it fails loudly here rather
+    than producing a number that reads like a quality result.
+    """
+
+    kind = fixture_kind_of(payload)
+    generation = generation_class_of(payload)
+    if kind in HISTORICAL_KINDS or generation == GENERATION_HISTORICAL:
+        raise BenchmarkError(
+            f"{context}: refusing historical evidence as benchmark input "
+            f"(fixture_kind={kind!r}, generation_class={generation!r}). Historical pools were "
+            "retrieved by the retired query stack and cannot measure current decision quality; "
+            "the current capture is owned by PLAN-9D-B."
+        )
+    if kind != FIXTURE_KIND_CURRENT_BENCHMARK or generation != GENERATION_CURRENT:
+        raise BenchmarkError(
+            f"{context}: benchmark input must declare fixture_kind="
+            f"{FIXTURE_KIND_CURRENT_BENCHMARK!r} and generation_class={GENERATION_CURRENT!r}, "
+            f"got {kind!r}/{generation!r}"
+        )
+
+
+def load_current_corpus(path: Path = CURRENT_CORPUS_PATH) -> dict[str, Any]:
+    if not path.is_file():
+        raise BenchmarkError(
+            f"no current retrieval corpus at {path}: capturing it from the current production "
+            "retrieval path is PLAN-9D-B, which is a separate owner-approved slice. The curated "
+            "historical evidence is not a substitute."
+        )
     corpus = json.loads(path.read_text(encoding="utf-8"))
     validate_corpus(corpus)
     return corpus
 
 
-def load_annotations(path: Path = ANNOTATIONS_PATH) -> dict[str, Any]:
+def load_annotations(path: Path = CURRENT_ANNOTATIONS_PATH) -> dict[str, Any]:
     annotations = json.loads(path.read_text(encoding="utf-8"))
     validate_annotations(annotations)
     return annotations
 
 
 def validate_corpus(corpus: dict[str, Any]) -> None:
+    assert_current_benchmark_input(corpus, context="corpus")
     if corpus.get("schema_version") != CORPUS_SCHEMA_VERSION:
         raise BenchmarkError(f"unexpected corpus schema_version: {corpus.get('schema_version')!r}")
     for field_name in ("corpus_version", "built_at_utc", "corpus_sha256", "scenes"):
@@ -350,6 +481,159 @@ def annotations_are_complete(corpus: dict[str, Any], annotations: dict[str, Any]
 
 
 # --------------------------------------------------------------------------- #
+# Historical failure evidence
+# --------------------------------------------------------------------------- #
+
+
+def historical_digest(fixture: dict[str, Any]) -> str:
+    """SHA256 of the whole fixture except the recorded digest itself."""
+
+    payload = {key: value for key, value in fixture.items() if key != "fixture_sha256"}
+    return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def load_historical_evidence(path: Path = HISTORICAL_EVIDENCE_PATH) -> dict[str, Any]:
+    fixture = json.loads(path.read_text(encoding="utf-8"))
+    validate_historical_evidence(fixture)
+    return fixture
+
+
+def validate_historical_evidence(fixture: dict[str, Any]) -> None:
+    """Everything the fixture claims has to be present and self-consistent.
+
+    The fixture's job is narrow: keep the proof that a retrieval defect existed
+    after the gigabytes that produced it are gone. So the validator checks
+    provenance (where each case came from and what it was derived from), the
+    query record (what actually reached the provider), and that no owner label
+    has crept in - never whether a candidate was "good", which nobody here is
+    entitled to say.
+    """
+
+    if fixture.get("schema_version") != HISTORICAL_EVIDENCE_SCHEMA_VERSION:
+        raise BenchmarkError(
+            f"unexpected historical schema_version: {fixture.get('schema_version')!r}"
+        )
+    if fixture.get("fixture_kind") != FIXTURE_KIND_HISTORICAL_EVIDENCE:
+        raise BenchmarkError(f"unexpected fixture_kind: {fixture.get('fixture_kind')!r}")
+    if fixture.get("generation_class") != GENERATION_HISTORICAL:
+        raise BenchmarkError(
+            f"historical evidence must declare generation_class={GENERATION_HISTORICAL!r}, "
+            f"got {fixture.get('generation_class')!r}"
+        )
+    for name in ("fixture_version", "built_at_utc", "plan_step", "cases", "fixture_sha256"):
+        if not fixture.get(name):
+            raise BenchmarkError(f"historical evidence is missing {name}")
+
+    recorded = str(fixture["fixture_sha256"])
+    actual = historical_digest(fixture)
+    if recorded != actual:
+        raise BenchmarkError(
+            f"historical evidence digest mismatch: recorded {recorded}, computed {actual}"
+        )
+
+    derived = fixture.get("derived_from") or {}
+    for name in ("corpus_version", "corpus_sha256", "corpus_path", "corpus_commit"):
+        if not derived.get(name):
+            raise BenchmarkError(f"derived_from is missing {name}")
+
+    stray = OWNER_ANNOTATION_KEYS & set(fixture)
+    if stray:
+        raise BenchmarkError(f"historical evidence carries owner annotation keys {sorted(stray)}")
+
+    seen_ids: set[str] = set()
+    for case in fixture["cases"]:
+        case_id = str(case.get("case_id") or "")
+        if not case_id:
+            raise BenchmarkError("historical case without case_id")
+        if case_id in seen_ids:
+            raise BenchmarkError(f"duplicate historical case_id: {case_id}")
+        seen_ids.add(case_id)
+
+        stray = OWNER_ANNOTATION_KEYS & set(case)
+        if stray:
+            raise BenchmarkError(f"{case_id}: case carries owner annotation keys {sorted(stray)}")
+
+        for name in (
+            "source_project",
+            "source_scene_id",
+            "scene_key",
+            "scene_text",
+            "historical_semantic_scene",
+            "historical_primary_query",
+            "historical_provider_attempts",
+            "source_manifests",
+            "candidates",
+        ):
+            if name not in case:
+                raise BenchmarkError(f"{case_id}: historical case is missing {name}")
+
+        modes = tuple(case.get("failure_modes") or ())
+        if not modes:
+            raise BenchmarkError(f"{case_id}: a historical case must name at least one failure mode")
+        unknown = set(modes) - set(HISTORICAL_FAILURE_MODES)
+        if unknown:
+            raise BenchmarkError(f"{case_id}: unknown failure modes {sorted(unknown)}")
+
+        if "visual_brief_present" not in case:
+            raise BenchmarkError(f"{case_id}: historical case must record visual_brief_present")
+
+        attempts = case["historical_provider_attempts"]
+        if not attempts:
+            raise BenchmarkError(f"{case_id}: no provider attempt was preserved")
+        for attempt in attempts:
+            for name in ("provider", "query"):
+                if not attempt.get(name):
+                    raise BenchmarkError(f"{case_id}: provider attempt without {name}")
+            if "result_count" not in attempt:
+                raise BenchmarkError(f"{case_id}: provider attempt without result_count")
+
+        if not case["source_manifests"]:
+            raise BenchmarkError(f"{case_id}: no source manifest recorded")
+
+        candidates = case["candidates"]
+        if len(candidates) < 2:
+            raise BenchmarkError(f"{case_id}: a historical pool needs at least two candidates")
+        seen_assets: set[str] = set()
+        for candidate in candidates:
+            asset_id = str(candidate.get("asset_id") or "")
+            if not asset_id:
+                raise BenchmarkError(f"{case_id}: candidate without asset_id")
+            if asset_id in seen_assets:
+                raise BenchmarkError(f"{case_id}: duplicate candidate {asset_id}")
+            seen_assets.add(asset_id)
+            if not candidate.get("provider"):
+                raise BenchmarkError(f"{case_id}/{asset_id}: candidate without provider")
+            if candidate.get("vision_tags"):
+                raise BenchmarkError(
+                    f"{case_id}/{asset_id}: historical evidence carries no Vision result"
+                )
+            frame = candidate.get("representative_frame")
+            if frame is None:
+                continue
+            for name in ("local_frame_path", "sha256"):
+                if not frame.get(name):
+                    raise BenchmarkError(f"{case_id}/{asset_id}: representative frame without {name}")
+
+
+def historical_runtime_paths(fixture: dict[str, Any]) -> list[str]:
+    """Every path under ``projects/`` this fixture still points at.
+
+    This is the list the cleanup sequencing of PLAN-9D needs: what must survive
+    until PLAN-9D closes, as opposed to the rest of the runtime tree, which the
+    curated fixture has already released.
+    """
+
+    paths: list[str] = []
+    for case in fixture.get("cases") or []:
+        paths.extend(str(path) for path in case.get("source_manifests") or [])
+        for candidate in case.get("candidates") or []:
+            frame = candidate.get("representative_frame") or {}
+            if frame.get("local_frame_path"):
+                paths.append(str(frame["local_frame_path"]))
+    return sorted(dict.fromkeys(paths))
+
+
+# --------------------------------------------------------------------------- #
 # The metadata-only baseline arm
 # --------------------------------------------------------------------------- #
 
@@ -389,8 +673,13 @@ def run_metadata_baseline(corpus: dict[str, Any]) -> dict[str, SceneSelection]:
     Deliberately the *production* entry point: ``select_best_with_video`` wraps
     ``select_best_candidate``, which is the single decision owner. Nothing here
     ranks, scores or overrides anything.
+
+    Gated on provenance before anything is selected: running the decision owner
+    over a historical pool would produce a perfectly real-looking aggregate about
+    a retrieval stack that no longer exists.
     """
 
+    assert_current_benchmark_input(corpus, context="metadata baseline")
     results: dict[str, SceneSelection] = {}
     for scene in corpus["scenes"]:
         key = str(scene["scene_key"])
@@ -481,6 +770,7 @@ def evaluate_arm(
     """
 
     assert_admissible_evidence(arm_name, evidence_source)
+    assert_current_benchmark_input(corpus, context=f"arm {arm_name!r}")
     complete, problems = annotations_are_complete(corpus, annotations)
     if not complete:
         return {

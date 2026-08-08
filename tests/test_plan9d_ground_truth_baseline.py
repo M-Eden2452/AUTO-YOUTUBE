@@ -1,164 +1,323 @@
-"""Locks on the PLAN-9D-A offline ground-truth benchmark.
+"""Locks on the generic PLAN-9D benchmark harness.
 
 These tests guard the properties the benchmark's value rests on: the ground
 truth is human and frozen, the annotator was blind, the measurement consumes
-those annotations instead of producing them, and a fixture backend can never be
-mistaken for evidence of visual quality.
+those annotations instead of producing them, a fixture backend can never be
+mistaken for evidence of visual quality, and - added by PLAN-9D-A - historical
+evidence can never be measured as if it described current retrieval.
 
-They deliberately do not need the cached preview images. The corpus carries
-every field the decision owner reads plus each frame's path and SHA256, so the
-whole suite runs on a machine that has never seen ``projects/``.
+They run on a corpus this module builds, not on a frozen one. That is the point:
+after the 2026-08-08 reconciliation the only admissible benchmark input is the
+capture PLAN-9D-B takes from the current production retrieval path, and it does
+not exist yet. A synthetic corpus proves the *harness* behaves; it proves
+nothing about visual quality and never claims to.
+
+What moved out with the historical corpus, and where it goes
+------------------------------------------------------------
+The previous version of this file asserted properties of the 16-scene harvest
+from ``projects/`` - corpus size, technical category coverage, the presence of
+regression-capable scenes, declared-versus-preview dimensions, a frame checksum
+for every observation. Those are requirements on a *benchmark* corpus, and they
+stop being checkable the moment the benchmark input is the one thing that does
+not exist yet. They are not dropped: they are the acceptance conditions of the
+current capture (PLAN-9D-B) and of the retrieval quality gate (PLAN-9D-C), to be
+asserted there against real captured data rather than re-asserted here against a
+corpus this module made up.
+
+Historical failure evidence has its own locks in
+``tests/test_plan9d_historical_evidence.py``.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import unittest
-from pathlib import Path
+from typing import Any
 
 from tests.plan9d_corpus_builder import annotation_template, render_pack
 from tests.plan9d_ground_truth import (
-    ANNOTATIONS_PATH,
     ARM_METADATA_ONLY,
     BLINDED_CANDIDATE_KEYS,
     CANDIDATE_FLAG_SPEC,
-    CORPUS_CATEGORIES,
-    CORPUS_PATH,
+    CORPUS_SCHEMA_VERSION,
+    CURRENT_ANNOTATIONS_PATH,
+    CURRENT_CORPUS_PATH,
+    FIXTURE_KIND_CURRENT_BENCHMARK,
+    FIXTURE_KIND_HISTORICAL_CORPUS,
+    FIXTURE_KIND_HISTORICAL_EVIDENCE,
+    GENERATION_CURRENT,
+    GENERATION_HISTORICAL,
     PREFERENCE_NONE_ACCEPTABLE,
     STATUS_COMPLETE,
     STATUS_WAITING,
     BenchmarkError,
     annotations_are_complete,
     assert_admissible_evidence,
+    assert_current_benchmark_input,
     assign_blind_ids,
     compare_arms,
     corpus_digest,
     evaluate_arm,
-    load_annotations,
-    load_corpus,
+    fixture_kind_of,
+    generation_class_of,
+    load_current_corpus,
     run_metadata_baseline,
     validate_annotations,
     validate_corpus,
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+def _preview_key(asset_id: str) -> str:
+    return hashlib.sha256(f"synthetic-preview|{asset_id}".encode("utf-8")).hexdigest()
+
+
+def _candidate(asset_id: str, **overrides: Any) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "asset_id": asset_id,
+        "provider": "pexels",
+        "provider_asset_id": asset_id,
+        "media_type": "video",
+        "title": "gecko climbing smooth glass",
+        "tags": ["gecko", "glass", "climbing"],
+        "width": 1080,
+        "height": 1920,
+        "duration_sec": 8.0,
+        "rights_status": "licensed",
+        "license_name": "Pexels License",
+        "allowed_for_render": True,
+        "review_required": False,
+        "vision_tags": [],
+    }
+    record.update(overrides)
+    return record
+
+
+def _scene(scene_key: str, candidates: list[dict[str, Any]], **overrides: Any) -> dict[str, Any]:
+    """One corpus scene, stored blind and fed in manifest order.
+
+    ``input_order`` is deliberately the reverse of the blind order, so every test
+    that depends on tie-breaking is also proving that the blind identifier is not
+    quietly deciding the answer.
+    """
+
+    blind = assign_blind_ids(scene_key, [c["asset_id"] for c in candidates])
+    entries = [
+        {
+            "blind_id": blind[c["asset_id"]],
+            "asset_id": c["asset_id"],
+            "input_order": len(candidates) - int(blind[c["asset_id"]][1:]),
+            # Shaped like the real cache: a content-addressed directory, so the
+            # pack cannot leak the asset id through the picture's own URL.
+            "frames": [
+                {
+                    "local_frame_path": (
+                        f"projects/synthetic/assets/previews/{_preview_key(c['asset_id'])}/frame_000.jpg"
+                    ),
+                    "sha256": _preview_key(c["asset_id"]),
+                    "width": 360,
+                    "height": 640,
+                    "frame_index": 0,
+                }
+            ],
+            "candidate": c,
+        }
+        for c in candidates
+    ]
+    entries.sort(key=lambda entry: int(entry["blind_id"][1:]))
+    scene = {
+        "scene_key": scene_key,
+        "project": "synthetic",
+        "scene_id": scene_key.split("/")[-1],
+        "scene_text": f"synthetic scene {scene_key}",
+        "semantic_scene": {
+            "scene_id": scene_key.split("/")[-1],
+            "subject": ["gecko"],
+            "action": ["climbing"],
+            "environment": ["glass"],
+            "visual_priority": "exact_subject",
+        },
+        "required_duration_sec": 5.0,
+        "source_class": "generic_broll",
+        "require_provider_metadata": False,
+        "prefer_video": True,
+        "target_aspect_ratio": "9:16",
+        "categories": ["subject_mismatch_risk"],
+        "candidates": entries,
+    }
+    scene.update(overrides)
+    return scene
+
+
+def _current_corpus() -> dict[str, Any]:
+    """A frozen corpus shaped exactly like the one PLAN-9D-B will capture.
+
+    Three scenes, because three properties have to be exercised: an ordinary
+    selection, an abstention with a recorded blocking reason, and a tie whose
+    only tie-break is the manifest order.
+    """
+
+    blocked = {
+        "rights_status": "legacy_unknown",
+        "allowed_for_render": False,
+        "review_required": True,
+    }
+    corpus: dict[str, Any] = {
+        "schema_version": CORPUS_SCHEMA_VERSION,
+        "fixture_kind": FIXTURE_KIND_CURRENT_BENCHMARK,
+        "generation_class": GENERATION_CURRENT,
+        "corpus_version": "synthetic-harness-corpus",
+        "built_at_utc": "2026-08-08T00:00:00+00:00",
+        "plan_step": "PLAN-9D-A",
+        "source": "synthetic; built by the harness locks, never committed",
+        "scene_count": 3,
+        "scenes": [
+            _scene("synthetic/scene_selects", [_candidate("sel_a"), _candidate("sel_b")]),
+            _scene(
+                "synthetic/scene_abstains",
+                [_candidate("blk_a", **blocked), _candidate("blk_b", **blocked)],
+            ),
+            _scene("synthetic/scene_ties", [_candidate("tie_a"), _candidate("tie_b")]),
+        ],
+        "corpus_sha256": "",
+    }
+    corpus["observation_count"] = sum(len(s["candidates"]) for s in corpus["scenes"])
+    corpus["corpus_sha256"] = corpus_digest(corpus)
+    return corpus
+
+
+def _historical_corpus() -> dict[str, Any]:
+    corpus = _current_corpus()
+    corpus["fixture_kind"] = FIXTURE_KIND_HISTORICAL_CORPUS
+    corpus["generation_class"] = GENERATION_HISTORICAL
+    corpus["corpus_sha256"] = ""
+    corpus["corpus_sha256"] = corpus_digest(corpus)
+    return corpus
+
+
+def _complete(corpus: dict, *, preference: str | None = None) -> dict:
+    """A synthetic COMPLETE annotation set, for testing the harness only.
+
+    It is never written to disk and never used as evidence about a picture: its
+    only job is to prove that the harness measures a frozen annotation set
+    without asking a human anything.
+    """
+
+    return {
+        "schema_version": "plan9d-annotations-1",
+        "corpus_version": corpus["corpus_version"],
+        "corpus_sha256": corpus["corpus_sha256"],
+        "blind": True,
+        "annotator": "synthetic-harness-test",
+        "annotated_at_utc": "2026-08-08T00:00:00Z",
+        "status": STATUS_COMPLETE,
+        "scenes": [
+            {
+                "scene_key": scene["scene_key"],
+                "preferred_candidate": preference or scene["candidates"][0]["blind_id"],
+                "unacceptable_candidates": [],
+                "note": "",
+                "candidates": {
+                    entry["blind_id"]: {name: "undecidable" for name in CANDIDATE_FLAG_SPEC}
+                    for entry in scene["candidates"]
+                },
+            }
+            for scene in corpus["scenes"]
+        ],
+    }
+
+
+class CurrentBenchmarkSlotTests(unittest.TestCase):
+    """Until PLAN-9D-B captures one, there is no benchmark input, and it says so."""
+
+    def test_no_current_corpus_is_frozen_yet(self) -> None:
+        self.assertFalse(CURRENT_CORPUS_PATH.exists())
+        self.assertFalse(CURRENT_ANNOTATIONS_PATH.exists())
+
+    def test_absence_is_reported_with_the_slice_that_owns_it(self) -> None:
+        with self.assertRaises(BenchmarkError) as raised:
+            load_current_corpus()
+        self.assertIn("PLAN-9D-B", str(raised.exception))
+
+
+class ProvenanceGateTests(unittest.TestCase):
+    """The single gate between historical evidence and a quality measurement."""
+
+    def test_a_current_capture_is_accepted(self) -> None:
+        assert_current_benchmark_input(_current_corpus())
+
+    def test_historical_generation_is_refused(self) -> None:
+        with self.assertRaises(BenchmarkError) as raised:
+            assert_current_benchmark_input(_historical_corpus())
+        self.assertIn("historical", str(raised.exception))
+
+    def test_historical_failure_evidence_is_refused(self) -> None:
+        with self.assertRaises(BenchmarkError):
+            assert_current_benchmark_input(
+                {
+                    "schema_version": "plan9d-historical-evidence-1",
+                    "fixture_kind": FIXTURE_KIND_HISTORICAL_EVIDENCE,
+                    "generation_class": GENERATION_HISTORICAL,
+                }
+            )
+
+    def test_an_unstamped_payload_is_read_as_historical_not_assumed_current(self) -> None:
+        """The pre-9D-A corpus declared no provenance, and it was built from projects/."""
+
+        legacy = _current_corpus()
+        legacy.pop("fixture_kind")
+        legacy.pop("generation_class")
+        self.assertEqual(generation_class_of(legacy), GENERATION_HISTORICAL)
+        self.assertEqual(fixture_kind_of(legacy), FIXTURE_KIND_HISTORICAL_CORPUS)
+        with self.assertRaises(BenchmarkError):
+            assert_current_benchmark_input(legacy)
+
+    def test_relabelling_only_one_half_does_not_open_the_gate(self) -> None:
+        half = _historical_corpus()
+        half["generation_class"] = GENERATION_CURRENT
+        with self.assertRaises(BenchmarkError):
+            assert_current_benchmark_input(half)
+        other = _historical_corpus()
+        other["fixture_kind"] = FIXTURE_KIND_CURRENT_BENCHMARK
+        with self.assertRaises(BenchmarkError):
+            assert_current_benchmark_input(other)
 
 
 class CorpusContractTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.corpus = load_corpus()
+        self.corpus = _current_corpus()
 
-    def test_frozen_corpus_validates(self) -> None:
+    def test_a_current_shaped_corpus_validates(self) -> None:
         validate_corpus(self.corpus)
 
-    def test_corpus_is_large_enough_to_measure_anything(self) -> None:
-        scenes = self.corpus["scenes"]
-        self.assertGreaterEqual(len(scenes), 12, "PLAN-9D-A requires at least 12 independent scenes")
-        self.assertEqual(len(scenes), self.corpus["scene_count"])
-        observations = sum(len(scene["candidates"]) for scene in scenes)
-        self.assertEqual(observations, self.corpus["observation_count"])
-        self.assertGreaterEqual(observations, 40)
-        for scene in scenes:
-            self.assertGreaterEqual(len(scene["candidates"]), 2, scene["scene_key"])
+    def test_a_historical_corpus_never_validates_as_benchmark_input(self) -> None:
+        with self.assertRaises(BenchmarkError):
+            validate_corpus(_historical_corpus())
 
-    def test_scenes_are_independent(self) -> None:
-        """No scene text is reused, and no single project dominates the corpus."""
-
-        texts = [str(scene["scene_text"]).strip().casefold() for scene in self.corpus["scenes"]]
-        self.assertEqual(len(texts), len(set(texts)))
-        projects = [scene["project"] for scene in self.corpus["scenes"]]
-        self.assertGreaterEqual(len(set(projects)), 10)
-        for project in set(projects):
-            self.assertLessEqual(projects.count(project), 3, project)
-
-    def test_category_coverage_including_the_documented_gap(self) -> None:
-        covered = {c for scene in self.corpus["scenes"] for c in scene["categories"]}
-        self.assertLessEqual(covered, set(CORPUS_CATEGORIES))
-        for required in (
-            "must_include_declared",
-            "must_avoid_declared",
-            "declared_conflicting_context",
-            "environment_conflict_risk",
-            "subject_mismatch_risk",
-            "crop_framing_concern",
-            "visible_text_or_logo_risk",
-            "ambiguous_needs_review",
-            "rights_blocked_candidate",
-            "technical_dimensions_unknown",
-            "no_acceptable_candidate",
-        ):
-            self.assertIn(required, covered, f"corpus lost coverage of {required}")
-        # Recorded, not repaired: no candidate in any local project carries
-        # non-real-footage wording in provider evidence, so the category cannot be
-        # covered without inventing a scene. It stays in the vocabulary as a known
-        # gap rather than being quietly dropped or faked.
-        self.assertNotIn("non_real_footage_risk", covered)
-
-    def test_regression_capable_scenes_exist(self) -> None:
-        """Without them an A/B could never show that a change made things worse."""
-
-        capable = [s for s in self.corpus["scenes"] if "regression_capable" in s["categories"]]
-        self.assertGreaterEqual(len(capable), 5)
-
-    def test_corpus_carries_declared_dimensions_not_preview_dimensions(self) -> None:
-        """The framing gate must judge the asset, never the cached thumbnail."""
-
-        compared = 0
-        for scene in self.corpus["scenes"]:
-            for entry in scene["candidates"]:
-                width = int(entry["candidate"].get("width") or 0)
-                height = int(entry["candidate"].get("height") or 0)
-                if not width or not height:
-                    self.assertIn(
-                        "technical_dimensions_unknown",
-                        scene["categories"],
-                        f"{scene['scene_key']}: undeclared dimensions are not tagged",
-                    )
-                    continue
-                for frame in entry["frames"]:
-                    if frame.get("width") and (width, height) != (frame["width"], frame["height"]):
-                        compared += 1
-        self.assertGreater(compared, 0, "no candidate proves asset and preview sizes differ")
+    def test_any_edit_changes_the_digest(self) -> None:
+        self.corpus["scenes"][0]["scene_text"] += " edited"
+        with self.assertRaises(BenchmarkError):
+            validate_corpus(self.corpus)
 
     def test_corpus_is_the_metadata_only_arm(self) -> None:
         for scene in self.corpus["scenes"]:
             for entry in scene["candidates"]:
                 self.assertEqual(entry["candidate"].get("vision_tags"), [])
 
-
-class ProvenanceTests(unittest.TestCase):
-    def test_recorded_digest_matches_the_frozen_content(self) -> None:
-        corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(corpus["corpus_sha256"], corpus_digest(corpus))
-
-    def test_any_edit_changes_the_digest(self) -> None:
-        corpus = load_corpus()
-        corpus["scenes"][0]["scene_text"] = corpus["scenes"][0]["scene_text"] + " edited"
-        with self.assertRaises(BenchmarkError):
-            validate_corpus(corpus)
-
-    def test_annotations_are_bound_to_one_corpus(self) -> None:
-        corpus = load_corpus()
-        annotations = load_annotations()
-        self.assertIs(annotations["blind"], True)
-        self.assertEqual(annotations["corpus_sha256"], corpus["corpus_sha256"])
-        annotations["corpus_sha256"] = "0" * 64
-        complete, problems = annotations_are_complete(corpus, annotations)
-        self.assertFalse(complete)
-        self.assertTrue(any("corpus_sha256" in problem for problem in problems))
-
-    def test_every_frame_is_recorded_with_a_checksum(self) -> None:
-        for scene in load_corpus()["scenes"]:
-            for entry in scene["candidates"]:
-                self.assertTrue(entry["frames"], f"{scene['scene_key']}/{entry['blind_id']}")
-                for frame in entry["frames"]:
-                    self.assertRegex(str(frame["sha256"]), r"^[0-9a-f]{64}$")
+    def test_input_order_is_kept_and_is_not_the_blind_order(self) -> None:
+        for scene in self.corpus["scenes"]:
+            orders = sorted(int(e["input_order"]) for e in scene["candidates"])
+            self.assertEqual(orders, list(range(len(scene["candidates"]))))
+            self.assertNotEqual(
+                [e["input_order"] for e in scene["candidates"]],
+                list(range(len(scene["candidates"]))),
+                scene["scene_key"],
+            )
 
 
 class BlindingTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.corpus = load_corpus()
+        self.corpus = _current_corpus()
 
     def test_blind_ids_are_derived_not_invented(self) -> None:
         for scene in self.corpus["scenes"]:
@@ -175,17 +334,6 @@ class BlindingTests(unittest.TestCase):
                 [f"C{i}" for i in range(1, len(scene["candidates"]) + 1)],
                 scene["scene_key"],
             )
-
-    def test_blind_order_is_not_the_manifest_order(self) -> None:
-        """Otherwise the blind id would be the stored ranking under a new name."""
-
-        reshuffled = [
-            scene
-            for scene in self.corpus["scenes"]
-            if [entry["input_order"] for entry in scene["candidates"]]
-            != list(range(len(scene["candidates"])))
-        ]
-        self.assertGreaterEqual(len(reshuffled), len(self.corpus["scenes"]) // 2)
 
     def test_annotation_pack_shows_no_provider_or_ranking_evidence(self) -> None:
         """The pack may show the requirement and the pictures. Nothing else.
@@ -225,11 +373,15 @@ class BlindingTests(unittest.TestCase):
         for forbidden in ("license", "rights", "provider_confidence", "metadata_score"):
             self.assertNotIn(forbidden, pack.casefold())
 
+    def test_no_pack_is_rendered_for_historical_evidence(self) -> None:
+        with self.assertRaises(BenchmarkError):
+            render_pack(_historical_corpus())
+
 
 class AnnotationContractTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.corpus = load_corpus()
-        self.annotations = load_annotations()
+        self.corpus = _current_corpus()
+        self.annotations = annotation_template(self.corpus)
 
     def test_template_covers_every_scene_and_every_candidate(self) -> None:
         validate_annotations(self.annotations)
@@ -246,24 +398,22 @@ class AnnotationContractTests(unittest.TestCase):
             for flags in entry["candidates"].values():
                 self.assertEqual(set(flags), set(CANDIDATE_FLAG_SPEC))
 
-    def test_template_is_regenerated_identically_from_the_corpus(self) -> None:
-        self.assertEqual(annotation_template(self.corpus), self.annotations)
-
-    def test_owner_annotation_is_still_outstanding(self) -> None:
-        """The first commit of PLAN-9D-A ships a benchmark that is not yet labelled."""
-
+    def test_a_fresh_template_is_unlabelled(self) -> None:
         self.assertEqual(self.annotations["status"], STATUS_WAITING)
         complete, problems = annotations_are_complete(self.corpus, self.annotations)
         self.assertFalse(complete)
         self.assertTrue(any("preferred_candidate" in problem for problem in problems))
 
+    def test_no_template_is_offered_for_historical_evidence(self) -> None:
+        with self.assertRaises(BenchmarkError):
+            annotation_template(_historical_corpus())
+
     def test_out_of_vocabulary_flag_is_refused(self) -> None:
-        annotations = load_annotations()
-        first = annotations["scenes"][0]
+        first = self.annotations["scenes"][0]
         blind_id = next(iter(first["candidates"]))
         first["candidates"][blind_id]["must_avoid"] = "maybe"
         with self.assertRaises(BenchmarkError):
-            validate_annotations(annotations)
+            validate_annotations(self.annotations)
 
     def test_preference_must_name_a_candidate_of_that_scene(self) -> None:
         annotations = _complete(self.corpus)
@@ -272,10 +422,19 @@ class AnnotationContractTests(unittest.TestCase):
         self.assertFalse(complete)
         self.assertTrue(any("C99" in problem for problem in problems))
 
+    def test_annotations_are_bound_to_one_corpus(self) -> None:
+        annotations = _complete(self.corpus)
+        annotations["corpus_sha256"] = "0" * 64
+        complete, problems = annotations_are_complete(self.corpus, annotations)
+        self.assertFalse(complete)
+        self.assertTrue(any("corpus_sha256" in problem for problem in problems))
+
 
 class MetadataBaselineTests(unittest.TestCase):
+    """Wiring, not quality: a synthetic pool cannot say how good a decision is."""
+
     def setUp(self) -> None:
-        self.corpus = load_corpus()
+        self.corpus = _current_corpus()
 
     def test_baseline_is_deterministic(self) -> None:
         first = run_metadata_baseline(self.corpus)
@@ -294,12 +453,14 @@ class MetadataBaselineTests(unittest.TestCase):
             if result.selected_blind_id is not None:
                 self.assertRegex(result.selected_blind_id, r"^C\d+$", key)
 
-    def test_selection_is_not_pinned_to_one_blind_position(self) -> None:
+    def test_ties_are_broken_by_the_manifest_order_not_the_blind_id(self) -> None:
         """Guards the defect this harness had: blind order deciding every tie."""
 
-        chosen = {r.selected_blind_id for r in run_metadata_baseline(self.corpus).values()}
-        chosen.discard(None)
-        self.assertGreaterEqual(len(chosen), 3)
+        scene = next(s for s in self.corpus["scenes"] if s["scene_key"] == "synthetic/scene_ties")
+        first_fed = min(scene["candidates"], key=lambda entry: int(entry["input_order"]))
+        self.assertNotEqual(first_fed["blind_id"], "C1", "the tie test proves nothing this way")
+        selected = run_metadata_baseline(self.corpus)["synthetic/scene_ties"]
+        self.assertEqual(selected.selected_blind_id, first_fed["blind_id"])
 
     def test_abstention_is_recorded_with_its_blocking_reasons(self) -> None:
         results = run_metadata_baseline(self.corpus)
@@ -313,26 +474,29 @@ class MetadataBaselineTests(unittest.TestCase):
             }
             self.assertTrue(reasons, result.scene_key)
 
+    def test_the_decision_owner_is_never_run_on_historical_pools(self) -> None:
+        with self.assertRaises(BenchmarkError):
+            run_metadata_baseline(_historical_corpus())
+
 
 class MeasurementTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.corpus = load_corpus()
+        self.corpus = _current_corpus()
         self.selections = run_metadata_baseline(self.corpus)
+        self.waiting = annotation_template(self.corpus)
 
     def test_measurement_waits_instead_of_inventing_a_result(self) -> None:
-        report = evaluate_arm(self.corpus, load_annotations(), self.selections)
+        report = evaluate_arm(self.corpus, self.waiting, self.selections)
         self.assertEqual(report["status"], STATUS_WAITING)
         self.assertEqual(report["scenes"], [])
         self.assertEqual(report["aggregate"], {})
         self.assertTrue(report["blocking"])
 
     def test_measurement_never_writes_to_the_annotations(self) -> None:
-        before = ANNOTATIONS_PATH.read_bytes()
-        annotations = load_annotations()
-        evaluate_arm(self.corpus, annotations, self.selections)
-        evaluate_arm(self.corpus, annotations, self.selections)
-        self.assertEqual(ANNOTATIONS_PATH.read_bytes(), before)
-        self.assertEqual(annotations, load_annotations())
+        before = json.dumps(self.waiting, sort_keys=True)
+        evaluate_arm(self.corpus, self.waiting, self.selections)
+        evaluate_arm(self.corpus, self.waiting, self.selections)
+        self.assertEqual(json.dumps(self.waiting, sort_keys=True), before)
 
     def test_a_frozen_annotation_set_measures_without_asking_anyone(self) -> None:
         report = evaluate_arm(self.corpus, _complete(self.corpus), self.selections)
@@ -369,6 +533,11 @@ class MeasurementTests(unittest.TestCase):
         for row in report["scenes"]:
             self.assertNotIn("confidence", json.dumps(row))
 
+    def test_no_arm_is_measured_against_historical_evidence(self) -> None:
+        historical = _historical_corpus()
+        with self.assertRaises(BenchmarkError):
+            evaluate_arm(historical, _complete(historical), self.selections)
+
 
 class EvidenceAdmissibilityTests(unittest.TestCase):
     def test_fixture_backends_are_refused_as_quality_evidence(self) -> None:
@@ -381,11 +550,11 @@ class EvidenceAdmissibilityTests(unittest.TestCase):
         assert_admissible_evidence("candidate", "vision:openai")
 
     def test_a_fixture_arm_cannot_be_measured_at_all(self) -> None:
-        corpus = load_corpus()
+        corpus = _current_corpus()
         with self.assertRaises(BenchmarkError):
             evaluate_arm(
                 corpus,
-                load_annotations(),
+                annotation_template(corpus),
                 run_metadata_baseline(corpus),
                 arm_name="candidate",
                 evidence_source="vision:mock",
@@ -433,60 +602,9 @@ class ArmComparisonTests(unittest.TestCase):
             compare_arms(self._arm("a"), other)
 
     def test_comparison_waits_while_either_arm_is_unmeasured(self) -> None:
-        corpus = load_corpus()
-        waiting = evaluate_arm(corpus, load_annotations(), run_metadata_baseline(corpus))
+        corpus = _current_corpus()
+        waiting = evaluate_arm(corpus, annotation_template(corpus), run_metadata_baseline(corpus))
         self.assertEqual(compare_arms(waiting, self._arm("b"))["status"], STATUS_WAITING)
-
-
-class LocalPreviewTests(unittest.TestCase):
-    """The pictures live in the untracked project tree, so this is opt-in."""
-
-    def test_every_recorded_frame_exists_on_this_machine(self) -> None:
-        corpus = load_corpus()
-        missing = [
-            frame["local_frame_path"]
-            for scene in corpus["scenes"]
-            for entry in scene["candidates"]
-            for frame in entry["frames"]
-            if not (REPO_ROOT / frame["local_frame_path"]).is_file()
-        ]
-        if len(missing) == sum(
-            len(entry["frames"]) for scene in corpus["scenes"] for entry in scene["candidates"]
-        ):
-            self.skipTest("local project previews are not present on this machine")
-        self.assertEqual(missing, [])
-
-
-def _complete(corpus: dict, *, preference: str | None = None) -> dict:
-    """A synthetic COMPLETE annotation set, for testing the harness only.
-
-    It is never written to disk and never used as evidence about a picture: its
-    only job is to prove that the harness measures a frozen annotation set
-    without asking a human anything.
-    """
-
-    return {
-        "schema_version": "plan9d-annotations-1",
-        "corpus_version": corpus["corpus_version"],
-        "corpus_sha256": corpus["corpus_sha256"],
-        "blind": True,
-        "annotator": "synthetic-harness-test",
-        "annotated_at_utc": "2026-08-08T00:00:00Z",
-        "status": STATUS_COMPLETE,
-        "scenes": [
-            {
-                "scene_key": scene["scene_key"],
-                "preferred_candidate": preference or scene["candidates"][0]["blind_id"],
-                "unacceptable_candidates": [],
-                "note": "",
-                "candidates": {
-                    entry["blind_id"]: {name: "undecidable" for name in CANDIDATE_FLAG_SPEC}
-                    for entry in scene["candidates"]
-                },
-            }
-            for scene in corpus["scenes"]
-        ],
-    }
 
 
 if __name__ == "__main__":
