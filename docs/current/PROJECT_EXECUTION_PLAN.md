@@ -4863,6 +4863,15 @@ current-quality benchmark. Production logic этой записью не мен�
   маскировать retrieval failure под улучшение decision quality.
 - **required verification:** targeted retrieval-gate tests на замороженном
   current corpus; сеть не требуется.
+- **product test-video checkpoint после закрытия PLAN-9D-C (owner direction
+  2026-08-08).** После закрытия шага владелец собирает один **diagnostic
+  vertical Short** и смотрит его глазами, чтобы проверить, стал ли current
+  retrieval/selection действительно лучше. Это **diagnostic baseline, а не
+  production acceptance**: `publish_ready`, quality gate и product evidence им
+  не объявляются. Действие лежит **вне scope PLAN-9D-C**, выполняется
+  отдельным owner-issued слайсом и требует собственных разрешений на сеть,
+  платные вызовы и render; scope, статус и offline-контракт PLAN-9D-C этой
+  записью не меняются.
 
 #### PLAN-9D-D — human ground truth
 
@@ -4953,6 +4962,11 @@ current-quality benchmark. Production logic этой записью не мен�
 - **измеримый результат:** opt-in policy имеет безопасный fallback при
   отсутствии результата/бюджета/backend; старые проекты и default config
   сохраняют прежнее поведение; выбор и причина записываются в manifest.
+- **product test-video checkpoint (owner direction 2026-08-08).** После
+  закрытия этого шага и его prerequisites собирается первый **meaningful
+  end-to-end acceptance Short**. В отличие от diagnostic Short после
+  PLAN-9D-C, это именно acceptance-проверка продукта; она не заменяет
+  multi-topic evidence gate PLAN-11 и не ослабляет его требования.
 - **required verification:** targeted policy/integration tests + `smoke` +
   `full` как общий activation gate.
 - **rollback:** один commit.
@@ -4966,6 +4980,17 @@ current-quality benchmark. Production logic этой записью не мен�
   providers и pagination; достигнут budget; несколько итераций не улучшили
   best-so-far; следующий шаг требует отдельного платного разрешения; достигнут
   strict threshold. Бесконечный поиск запрещён.
+- **non-blocking follow-up: network denial не должен выглядеть как provider
+  error (записано docs-only reconciliation 2026-08-08).** [FACT от HEAD
+  `7a8142f`] `require_network` (`src/runtime_network.py`) поднимает
+  `NetworkAccessDeniedError(PermissionError)`, а `_search_provider`
+  (`src/news/asset_manifest_builder.py:476`) и аналогичный обработчик
+  `src/news/asset_scene_completion.py:352` ловят его широким `except Exception`
+  и записывают в ledger как `provider_unexpected_error`. Отказ по разрешению
+  владельца и настоящий сбой провайдера становятся неразличимы в attempt
+  ledger. Естественный владелец — этот шаг: stop reason «требует отдельного
+  разрешения» уже входит в его список допустимых причин. Не исправлялось,
+  отдельный PLAN-ID не создавался, поведение сети не менялось.
 - **required verification:** targeted persisted-contract tests + `full`.
 - **rollback:** один commit.
 
@@ -5170,6 +5195,12 @@ current-quality benchmark. Production logic этой записью не мен�
   лимиты не согласованы и здесь не фиксируются.
 - **M3:** `strict` выставляет `publish_ready=true` только после реальной
   визуальной проверки. Бюджет не утверждается до анализа M2.
+- **product test-video checkpoint (owner direction 2026-08-08).** После
+  acceptance Short шага PLAN-9E продуктовым evidence/regression материалом
+  этого gate становятся **5–10 real-world Shorts на разных темах**. Состав тем
+  подчиняется трём reference domains выше; числовой ориентир не отменяет ни
+  одно общее требование gate и не является отдельным разрешением на платные
+  или сетевые вызовы.
 - **required verification:** product gate. **rollback:** —
 
 ### PLAN-12 — классификация и архивирование документации

@@ -106,7 +106,11 @@ checksum и attribution по каждому ассету. Approval-гейты н
 - `topic` без источника материала не является достаточным входом;
 - user assets недоступны через canonical CLI;
 - нет обзора сцен и запросов до платных и сетевых операций;
-- preview недоступен, когда часть сцен не найдена;
+- честного pre-final preview не существует вовсе: стадия `preview_render`
+  требует уже готовый master финального рендера, поэтому до него всегда
+  возвращает `blocked`, а в `draft_complete` не резолвится никогда (registry
+  C58, owner `MOTION-CS1`). Отдельно: preview недоступен, когда часть сцен не
+  найдена;
 - нет редактирования сцен, планов, субтитров и тайминга;
 - нет longform, горизонтального формата и multi-language production;
 - каталог экспорта объявляет больше целей, чем реально производится.
@@ -213,6 +217,40 @@ Projects → Project Status → Scenes → Visual Brief → Queries
 | **Output-file quality gate** | расширение существующего quality owner | не новый Quality Engine |
 | **Word-level subtitle alignment** | локальный adapter, пишущий в существующее поле контракта | не второй subtitle engine |
 | **Motion Design и multi-renderer composition** | несколько специализированных авторов кадра над **одним** FFmpeg-сборщиком | раздел 19; один `composition_type` — один canonical backend; новый video pipeline не создаётся |
+
+### 7.1. Форматы: один engine, разные format profiles
+
+Запись существует, чтобы следующему разработчику не приходилось выводить это
+архитектурным аудитом заново. Новый PLAN-ID для long-form этим разделом **не**
+создаётся; порядок работ по-прежнему принадлежит execution plan.
+
+**Сегодня (current capability).** Реальная production capability — только
+**vertical Short**. **Горизонтальный 16:9** и **long-form/documentary**
+end-to-end **не поддержаны**: `longform` и `horizontal_clip` остаются
+disabled/planned в каталоге, реального template и полной цепочки у них нет.
+
+**Направление (product direction).** Horizontal explainer и
+long-form/documentary остаются `COMMITTED_LATER` (таблица раздела 7, PD-9,
+ADR 0016).
+
+**Архитектурная форма.** Short, horizontal и long-form **не становятся тремя
+отдельными content-generation engines**. Целевая форма — один
+`content_creator` с format/workflow profiles: существующий `vertical_short`
+плюс будущие horizontal и documentary/longform профили. Точные публичные имена
+профилей — public-surface tripwire и фиксируются в момент implementation, а не
+здесь.
+
+- **Общее ядро (одни и те же владельцы для всех профилей):** input/material ·
+  script · scenes · visual planning · query planning · retrieval · rights ·
+  ranking/selection · semantic/Vision evidence · audio · persistence/review.
+- **Format-specific policy (единственное, что различается по профилю):** aspect
+  ratio и разрешение · целевая длительность · pacing · плотность сцен ·
+  политика глав · crop/композиция · раскладка субтитров · render profile ·
+  motion policy.
+
+**`video_repurposer`** остаётся отдельной application capability для
+переработки существующего медиа (раздел 14) и Short/Long
+content-generation engine'ом не является.
 
 ## 8. Vision AI commitment and boundaries
 
