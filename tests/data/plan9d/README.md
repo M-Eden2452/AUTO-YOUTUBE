@@ -187,7 +187,14 @@ owner-authorized slice.
 1. **PLAN-9D-A (сделано).** Historical evidence курировано и заморожено.
 2. **PLAN-9D-B (сделано).** Bounded capture текущего retrieval снят и заморожен
    в `current_corpus_v1.json` своим `corpus_sha256`. PLAN-9D в целом **не закрыт**.
-3. **PLAN-9D-C.** Retrieval quality gate на замороженном current corpus.
+3. **PLAN-9D-C (сделано).** Retrieval quality gate на замороженном current
+   corpus — владелец `tests/plan9d_retrieval_gate.py`, лок
+   `tests/test_plan9d_retrieval_gate.py`, отчёт печатается командой
+   `.\venv\Scripts\python.exe -B -m tests.plan9d_retrieval_gate`. Gate прошёл:
+   субъект сцены доходит до провайдера и возвращается в pool во всех 14 сценах.
+   Про качество *решения* он говорит обратное — подробности и две owner
+   decision перед разметкой в секции PLAN-9D-C
+   `docs/current/PROJECT_EXECUTION_PLAN.md`. Корпус этим шагом не менялся.
 4. **PLAN-9D-D.** Слепая разметка владельцем — **один раз**, по current corpus:
 
    ```
