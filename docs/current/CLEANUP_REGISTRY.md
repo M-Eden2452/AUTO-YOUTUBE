@@ -1096,6 +1096,27 @@ product tests.
 2026-07-31). Операционные детали — `PROJECT_EXECUTION_PLAN.md` →
 «Safety boundaries».
 
+**Исполнено 2026-08-08 — owner-authorized runtime media cleanup `projects/`
+(bounded slice от HEAD `8bf2271`, отдельный от PLAN-14D и его не закрывающий).**
+Удалены 792 untracked runtime-файла (~7.04 GiB) в 31 старой project directory:
+downloaded/stock media, preview-кэши и кадры вне evidence-списка, review HTML,
+rendered/localization outputs и прочие generated media. Tracked файлы не
+менялись. Сохранено 950 файлов (~153 MiB): полный корпус JSON/SRT/ASS
+манифестов всех проектов — superset будущего representative corpus, отбор и
+внешний bundle остаются за C32/PLAN-14D и этим слайсом **не** выполнены; все
+45 runtime-путей `historical_runtime_paths()` PLAN-9D (14 манифестов + 31
+кадр; защищены PLAN-9D-A до шага (4) cleanup sequencing);
+`projects/plan9d_current_capture_v1/` целиком (124 файла, visual evidence
+PLAN-9D-C); SHA-якорённые артефакты `PRODUCT_EVIDENCE_GATE.md`
+(`contact_sheet_6frames.png`, `draft_1080x1920.mp4` проекта
+`2026-07-28_pochemu-kosatki-vzryvayut-ogromnyh-ryb-2`); example source assets
+`COMMANDS.md` (`story_card_owl_test/final_test.mp4`, `final_test_v2.mp4`);
+`ATTRIBUTION.md` каждого проекта (rights/attribution evidence). Счётчики
+N02/C32 (1618 файлов, 749 JSON, ~700 медиа) — исторические измерения своих
+provenance-дат и здесь намеренно не переписаны. Verification: все preserved
+paths сверены по существованию, targeted PLAN-9D + content-creation +
+project tests — 286 OK.
+
 | Предмет | Почему сохраняется | Owner решения |
 |---|---|---|
 | минимальный representative набор JSON/SRT/ASS манифестов проектов | единственная база проверки tolerant readers и resume на реальных legacy-формах; состав отбирается, а не сохраняется целиком | C32, PLAN-14D |
