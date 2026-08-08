@@ -432,7 +432,10 @@ class SemanticVisualDecisionWiringTests(unittest.TestCase):
         with _project() as (root, _):
             off = _build(root, None, semantic_visual={}, must_include=stated)
         with _project() as (root, _):
-            on = _build(root, None, semantic_visual=_WIRED, must_include=stated)
+            # No ``backend`` key here, unlike ``_WIRED``: the real factory must resolve
+            # the name itself, so it lands on the shipped default - "mock" - and this
+            # test exercises the actual ``MockSemanticVisualBackend``, not a stand-in.
+            on = _build(root, None, semantic_visual=_WIRED_DEFAULT_BACKEND, must_include=stated)
 
         for label, manifest in (("off", off), ("on", on)):
             with self.subTest(semantic_visual=label):
@@ -457,6 +460,11 @@ class SemanticVisualDecisionWiringTests(unittest.TestCase):
 # rather than as the fixture backend it replaces. It still costs nothing and reaches no
 # network: what is being proved is the wiring, never the visual quality.
 _WIRED = {"enabled": True, "semantic_rerank_enabled": True, "backend": "scripted"}
+
+# Same seam, but with no backend named - what a project actually gets from switching the
+# feature on. This must resolve through the real factory to the shipped "mock" fixture,
+# not to a stand-in, or a test built on it proves nothing about the guard that refuses it.
+_WIRED_DEFAULT_BACKEND = {"enabled": True, "semantic_rerank_enabled": True}
 
 
 @contextlib.contextmanager
