@@ -258,26 +258,40 @@ def _provider_queries(
             candidates.append(query)
 
     # Research is scene-local only when the script names the claim it came from.
+    for text in scene_claim_texts(scene, claims):
+        query = provider_language_query([text])
+        if query:
+            candidates.append(query)
+
+    return _unique_queries(candidates)
+
+
+def scene_claim_texts(scene: Any, claims: list[dict[str, Any]]) -> list[str]:
+    """Research this scene is actually allowed to be illustrated from, in claim order.
+
+    Scene-local by construction: a claim belongs to a scene because the script named its
+    id, never because it is in the same project. Anything marked unsafe for the script
+    is dropped here, so no consumer has to remember that it must be.
+    """
     claim_ids = {
         str(item)
         for item in (getattr(scene, "claim_ids", None) or [])
         if str(item)
     }
-    if claim_ids:
-        for claim in claims:
-            if not isinstance(claim, dict):
-                continue
-            if str(claim.get("claim_id") or "") not in claim_ids:
-                continue
-            if claim.get("safe_for_script") is False:
-                continue
-            query = provider_language_query(
-                [str(claim.get("source_excerpt") or claim.get("text") or "")]
-            )
-            if query:
-                candidates.append(query)
-
-    return _unique_queries(candidates)
+    if not claim_ids:
+        return []
+    texts: list[str] = []
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        if str(claim.get("claim_id") or "") not in claim_ids:
+            continue
+        if claim.get("safe_for_script") is False:
+            continue
+        text = " ".join(str(claim.get("source_excerpt") or claim.get("text") or "").split())
+        if text:
+            texts.append(text)
+    return texts
 
 
 def _unique_queries(values: list[str]) -> list[str]:
@@ -323,4 +337,4 @@ def _unique(values: list[str]) -> list[str]:
     return ordered
 
 
-__all__ = ["VisualBrief", "apply_brief", "parse_brief"]
+__all__ = ["VisualBrief", "apply_brief", "parse_brief", "produce_brief", "scene_claim_texts"]

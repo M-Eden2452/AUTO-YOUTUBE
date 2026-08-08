@@ -1,7 +1,7 @@
 ---
 status: active_product_plan
 product_plan_revision: 1.1
-updated: 2026-08-01
+updated: 2026-08-09
 working_branch: governance-reset
 authority: owner_approved_product_direction
 execution_source_of_truth: docs/current/PROJECT_EXECUTION_PLAN.md
@@ -141,6 +141,17 @@ VisualBrief → query_adapter**.
 локальная детерминированная адаптация · локальная модель · опциональная платная
 модель после отдельного approval. Конкретный механизм — implementation-time
 решение, не фиксируется здесь.
+
+**Обновлено owner decision 2026-08-09.** Model-assisted adapter этой же
+capability получил исполняемый слайс **PLAN-9B-PRODUCER-M** и закрыт 2026-08-09:
+он живёт в том же visual-planning ownership, заполняет тот же `VisualBrief` и не
+строит запросов сам. Продуктовое следствие — обычный подготовленный материал,
+включая русский, больше не обязан нести ручной английский бриф на каждую сцену,
+чтобы дойти до провайдера; ручной бриф остаётся override и коррекцией. Реальный
+вызов модели этим слайсом не активирован: adapter доступен только через
+injection, и запуск живой модели требует **двух раздельных** owner decision —
+разрешения на сеть для text-model вызова и отдельного paid approval, если модель
+платная.
 
 ### B. User assets as first-class canonical input
 
@@ -454,7 +465,7 @@ approval; манифест рендера.
 |---|---|---|---|---|---|---|---|
 | **CLIP / SigLIP relevance** | сопоставление кадра и смысла сцены локально | `EXPERIMENTAL` | существующий semantic-слой как evidence | semantic wiring; bounded shortlist | без wiring evidence не влияет на выбор | средний — риск второго semantic stack | после semantic wiring |
 | **Local embeddings** | поиск по смыслу в медиатеке | `EXPERIMENTAL` | существующий media index | локальная библиотека сведена к одной capability | сегодня поиск линейный, но объёмы малы | средний | при доказанном объёме медиатеки |
-| **Local translation / adaptation** | адаптация без платной модели | `EXPERIMENTAL` · adapter capability 6A | существующий `VisualBrief` | producer capability | это один из adapters, а не отдельная возможность | низкий, если пишет в существующий контракт | вместе с producer |
+| **Local translation / adaptation** | адаптация без платной модели | `OWNER_APPROVED` · adapter capability 6A · выполнен как PLAN-9B-PRODUCER-M (closed 2026-08-09) | существующий `VisualBrief` | producer capability | seam готов offline; выбор конкретной локальной модели и её запуск — отдельное решение | низкий, если пишет в существующий контракт | сеть и оплата остаются раздельными owner decision |
 | **Word-level alignment** | точные субтитры по словам | `COMMITTED_LATER` | существующий subtitle contract (поле уже предусмотрено) | локальный adapter | поле контракта есть, писателя нет | низкий | после subtitle write path |
 | **Output-file quality analysis** | проверка готового файла, а не только метаданных | `COMMITTED_LATER` | существующий quality owner | knowledge salvage из legacy | знание существует только в legacy | средний — риск нового Quality Engine | вместе с salvage |
 | **Perceptual and motion analysis** | статика, дубли, движение | `EXPERIMENTAL` | существующие визуальные метрики | — | часть уже реализована | низкий | по мере необходимости |
@@ -652,6 +663,10 @@ Motion-направление добавило **четыре собственн
   PLAN-9B-2 небезопасно широким.
 - **Decision:** OD-P-1 принят 2026-08-02; это docs-only scheduling и не
   разрешение начинать implementation.
+- **Model-assisted adapter той же capability** запланирован и выполнен отдельно:
+  owner decision 2026-08-09 → **PLAN-9B-PRODUCER-M**, closed 2026-08-09. Живая
+  модель им не активирована; сеть и оплата остаются двумя раздельными owner
+  decision.
 
 #### 16.3.2. Pre-search and pre-paid review gate
 

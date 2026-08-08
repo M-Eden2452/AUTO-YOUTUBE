@@ -32,6 +32,7 @@ words contain an avoided phrase is dropped before it is ever offered.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from src.content.script_engine.text_analysis import STOPWORDS
@@ -246,6 +247,17 @@ def expand_queries(
     return allowed[: max(0, limit)]
 
 
+def mentions_avoided(text: str, must_avoid: Iterable[str]) -> bool:
+    """True when ``text`` asks for something the scene said not to show.
+
+    The ladder's own test, exported so anything that *produces* meaning can refuse it
+    with the same comparison the ladder applies to a finished query. A second answer to
+    "does this ask for the forbidden thing" is how a phrase gets blocked in the query
+    and allowed in the brief it was built from.
+    """
+    return _mentions_avoided(" ".join(str(text or "").split()), tuple(must_avoid))
+
+
 def _truncations(queries: list[str]) -> list[str]:
     short: list[str] = []
     for query in queries:
@@ -335,6 +347,7 @@ __all__ = [
     "PROVIDER_LANGUAGE",
     "QueryPlanningInput",
     "expand_queries",
+    "mentions_avoided",
     "planning_input",
     "planning_input_from_scene",
     "provider_language_query",
