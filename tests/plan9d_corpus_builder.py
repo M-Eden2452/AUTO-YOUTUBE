@@ -993,6 +993,91 @@ def render_pack(corpus: dict[str, Any]) -> str:
     return "".join(parts)
 
 
+_REVIEW_STYLE = """
+body{font:15px/1.5 system-ui,sans-serif;margin:0;padding:24px;background:#12141a;color:#e7e9ee}
+h1{font-size:20px;margin:0 0 6px}h2{font-size:17px;margin:0 0 8px}
+.scene{border:1px solid #2b2f3a;border-radius:10px;padding:16px;margin:0 0 22px;background:#181b23}
+.req{background:#11131a;border-left:3px solid #4c6ef5;padding:10px 12px;margin:0 0 14px;border-radius:4px}
+.req dt{font-weight:600;color:#9aa4bf;float:left;clear:left;width:190px}
+.req dd{margin:0 0 4px 200px}
+.cands{display:flex;flex-wrap:wrap;gap:14px}
+.cand{border:1px solid #2b2f3a;border-radius:8px;padding:10px;background:#1e222c;width:260px}
+.cand h3{margin:0 0 8px;font-size:15px}
+.cand img{max-width:100%;border-radius:4px;display:block;margin:0 0 4px;background:#000}
+.bar{position:sticky;top:0;background:#12141a;padding:12px 0;border-bottom:1px solid #2b2f3a;margin:0 0 20px;z-index:5}
+.warn{color:#ffa94d}.muted{color:#9aa4bf;font-size:13px}
+"""
+
+
+def render_review_pack(corpus: dict[str, Any]) -> str:
+    """A read-only contact sheet over a frozen current capture (PLAN-9D-C).
+
+    Deliberately *not* the annotation pack. There is no field to fill in, no BEST
+    selector, no save button and no unacceptable checkbox: PLAN-9D-D is the one
+    place an owner label may be produced, once, and producing one here would spend
+    that pass on a page nobody promised to freeze.
+
+    It shows what a reviewer needs to judge whether the pool is worth measuring at
+    all - the scene's stated requirement and the pictures - and withholds
+    everything that would tell them the answer: the provider, the title, the
+    licence, every score, the ranker's choice and any Vision evidence. Candidates
+    keep their blind identifiers, so a finding here can still be named in a way
+    PLAN-9D-D will recognise.
+    """
+
+    assert_current_benchmark_input(corpus, context="review pack")
+    parts: list[str] = [
+        "<!doctype html><meta charset='utf-8'>",
+        "<title>PLAN-9D-C candidate review pack</title>",
+        f"<style>{_REVIEW_STYLE}</style>",
+        "<div class='bar'><h1>PLAN-9D-C — просмотр пула кандидатов</h1>",
+        "<p class='muted'>Материал для чтения, не разметка. Кандидаты обезличены; "
+        "порядок не отражает оценку системы. Выбор системы, провайдер, лицензия, "
+        "метаданные, любые оценки и Vision-выводы намеренно не показаны. "
+        "<span class='warn'>Ground truth здесь не собирается — это PLAN-9D-D.</span></p>",
+        f"<p class='muted'>corpus_version {html.escape(str(corpus.get('corpus_version') or ''))} · "
+        f"capture_head_sha {html.escape(str(corpus.get('capture_head_sha') or ''))} · "
+        f"corpus_sha256 {html.escape(str(corpus.get('corpus_sha256') or ''))}</p></div>",
+    ]
+    for scene in corpus["scenes"]:
+        semantic = scene.get("semantic_scene") or {}
+        parts.append(
+            f"<div class='scene' data-key=\"{html.escape(str(scene['scene_key']))}\">"
+            f"<h2>{html.escape(str(scene.get('scene_text') or scene['scene_key']))}</h2><dl class='req'>"
+        )
+        for label, key in (
+            ("Субъект", "subject"),
+            ("Действие", "action"),
+            ("Среда", "environment"),
+            ("Место", "location"),
+            ("Должно быть в кадре", "must_include"),
+            ("Не должно быть в кадре", "must_not_include"),
+            ("Заявленный контекст", "context"),
+            ("Заявленное противоречие", "conflicting_context"),
+        ):
+            values = [str(item) for item in (semantic.get(key) or []) if str(item).strip()]
+            if values:
+                parts.append(f"<dt>{label}</dt><dd>{html.escape(', '.join(values))}</dd>")
+        parts.append(
+            f"<dt>Кадр</dt><dd>{html.escape(str(scene.get('target_aspect_ratio') or ''))}, "
+            f"{scene.get('required_duration_sec', 0)} с</dd>"
+            f"<dt>Кандидатов в пуле</dt><dd>{len(scene['candidates'])}</dd>"
+            "</dl><div class='cands'>"
+        )
+        for candidate in scene["candidates"]:
+            blind_id = html.escape(str(candidate["blind_id"]))
+            parts.append(f"<div class='cand' data-blind='{blind_id}'><h3>{blind_id}</h3>")
+            frames = candidate.get("frames") or []
+            if not frames:
+                parts.append("<p class='muted'>превью не снималось</p>")
+            for frame in frames:
+                url = (REPO_ROOT / frame["local_frame_path"]).resolve().as_uri()
+                parts.append(f"<img loading='lazy' src=\"{html.escape(url)}\" alt='{blind_id}'>")
+            parts.append("</div>")
+        parts.append("</div></div>")
+    return "".join(parts)
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -1024,6 +1109,9 @@ def main(argv: list[str] | None = None) -> int:
     pack = sub.add_parser("pack", help="render the blind annotation pack from a frozen current corpus")
     pack.add_argument("--corpus", required=True, help="frozen current corpus (PLAN-9D-B)")
     pack.add_argument("--out", required=True, help="destination .html path (keep it outside the repo)")
+    review = sub.add_parser("review", help="render the read-only PLAN-9D-C candidate review pack")
+    review.add_argument("--corpus", required=True, help="frozen current corpus (PLAN-9D-B)")
+    review.add_argument("--out", required=True, help="destination .html path (keep it outside the repo)")
     args = parser.parse_args(argv)
 
     if args.command == "build":
@@ -1056,6 +1144,10 @@ def main(argv: list[str] | None = None) -> int:
     validate_corpus(corpus)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    if args.command == "review":
+        out.write_text(render_review_pack(corpus), encoding="utf-8")
+        print(f"review pack written to {out}")
+        return 0
     out.write_text(render_pack(corpus), encoding="utf-8")
     print(f"annotation pack written to {out}")
     return 0

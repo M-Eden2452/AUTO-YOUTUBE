@@ -76,6 +76,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -139,6 +140,20 @@ HISTORICAL_FAILURE_MODES = (
 #: label nobody made, so the historical validator refuses these keys outright.
 OWNER_ANNOTATION_KEYS = frozenset(
     {"preferred_candidate", "unacceptable_candidates", "annotator", "annotated_at_utc"}
+)
+
+#: Broad, subject-free literals the query stack used to append to every scene of a
+#: legacy plan (registry C36, retired in ``72221e1``). Recorded here as data rather
+#: than imported from the production guard that still recognises them: that guard
+#: has its own exit condition, and a capture must still be refusable for having
+#: sent one of these after the guard is gone.
+LEGACY_BROAD_QUERY_LITERALS = frozenset(
+    {
+        "whale mother calf aerial ocean",
+        "scientific researchers nature field observation",
+        "ocean wildlife aerial waves",
+        "nature science wildlife observation",
+    }
 )
 
 #: Salt for the blind identifier order. Fixed, so the mapping is reproducible;
@@ -424,6 +439,161 @@ def validate_corpus(corpus: dict[str, Any]) -> None:
             raise BenchmarkError(f"{key}: input_order must be a permutation of 0..n-1, got {orders}")
 
 
+#: Provenance a current capture must declare on top of the generic corpus shape.
+#: The generic validator only proves a payload is *a* corpus; these fields are what
+#: make it answerable later - which HEAD produced the pools, when, into which
+#: workspace, and under which network approval.
+CURRENT_CAPTURE_REQUIRED_FIELDS = (
+    "capture_head_sha",
+    "capture_timestamp_utc",
+    "capture_workspace",
+    "evaluation_set_version",
+    "plan_step",
+    "production_stages",
+    "stages_not_run",
+    "network",
+    "providers",
+    "capture_statistics",
+)
+
+_SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
+
+#: Field names that carry a credential rather than evidence. Applied to *keys*
+#: only. A capture writes provider URLs and provider metadata verbatim, so the
+#: corpus is scanned before it is frozen: a provider that put a key in a URL must
+#: fail the freeze rather than be discovered later in a committed file.
+SECRET_MARKERS = (
+    "api_key",
+    "apikey",
+    "api-key",
+    "access_token",
+    "access-token",
+    "auth_token",
+    "authorization",
+    "client_secret",
+    "private_key",
+    "secret_key",
+    "session_token",
+    "x-api-key",
+)
+
+#: A *value* is only suspicious when it is shaped like a credential in use.
+#: Matching the marker word alone would flag ordinary provider prose - an archive
+#: description really can contain the word "authorization" - and a check that
+#: cries wolf on a catalogue entry is a check that gets switched off.
+_SECRET_PARAM_RE = re.compile(
+    r"(?i)[?&](?:key|api_?key|apikey|token|access_?key|access_?token|secret|password|pwd|sig|signature)="
+    r"[^&\s]{6,}"
+)
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b(?:api[_-]?key|apikey|access[_-]?token|auth[_-]?token|authorization|client[_-]?secret|"
+    r"private[_-]?key|secret[_-]?key|session[_-]?token|x-api-key|password|passwd)\b\s*[:=]\s*\S{6,}"
+)
+#: An ``Authorization`` header value, not the English words. The scheme name has
+#: to be followed by something that is actually token-shaped - long, and carrying
+#: a digit or a base64/URL symbol. Requiring only letters matched "Basic
+#: Construction" in an Internet Archive bibliography and stopped a capture.
+_BEARER_RE = re.compile(
+    r"(?i)\b(?:bearer|basic)\s+(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=-])[A-Za-z0-9._~+/=-]{16,}"
+)
+
+
+def secret_like_findings(payload: Any, *, path: str = "$") -> list[str]:
+    """Every place in ``payload`` that looks like a credential. Empty is the only pass.
+
+    Deliberately reports the *location*, never the value: a finding is a reason to
+    stop, and printing the thing found would defeat the check that produced it.
+    """
+
+    findings: list[str] = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            lowered = str(key).casefold()
+            if any(marker in lowered for marker in SECRET_MARKERS):
+                findings.append(f"{path}.{key}: key name looks like a credential")
+            findings.extend(secret_like_findings(value, path=f"{path}.{key}"))
+        return findings
+    if isinstance(payload, (list, tuple)):
+        for index, item in enumerate(payload):
+            findings.extend(secret_like_findings(item, path=f"{path}[{index}]"))
+        return findings
+    if isinstance(payload, str):
+        if _SECRET_PARAM_RE.search(payload):
+            findings.append(f"{path}: string carries a credential-shaped query parameter")
+        elif _SECRET_ASSIGNMENT_RE.search(payload):
+            findings.append(f"{path}: string assigns a value to a credential name")
+        elif _BEARER_RE.search(payload):
+            findings.append(f"{path}: string carries an authorization header value")
+    return findings
+
+
+def validate_current_capture(corpus: dict[str, Any]) -> None:
+    """Everything a PLAN-9D-B capture has to be able to answer about itself.
+
+    Separate from ``validate_corpus`` on purpose: that one owns the shape every
+    corpus shares, this one owns what makes a capture *current*. A payload that
+    passes the first and fails this is a corpus with no traceable origin, which is
+    exactly the state PLAN-9D-A found the retired ``corpus_v1.json`` in.
+    """
+
+    assert_current_benchmark_input(corpus, context="current capture")
+    for name in CURRENT_CAPTURE_REQUIRED_FIELDS:
+        if not corpus.get(name):
+            raise BenchmarkError(f"current capture is missing {name}")
+
+    head = str(corpus["capture_head_sha"])
+    if not _SHA1_RE.match(head):
+        raise BenchmarkError(f"capture_head_sha is not a full commit sha: {head!r}")
+
+    workspace = str(corpus["capture_workspace"]).replace("\\", "/").rstrip("/")
+    if not workspace:
+        raise BenchmarkError("capture_workspace is empty")
+
+    network = corpus["network"] if isinstance(corpus.get("network"), dict) else {}
+    approved = {str(item) for item in (network.get("approved_actions") or [])}
+    if not approved:
+        raise BenchmarkError("current capture must record which network actions were approved")
+    if "asset_download" in approved or network.get("asset_download_used"):
+        raise BenchmarkError(
+            "PLAN-9D-B captures frame evidence from the bounded preview path; a corpus that "
+            "records an asset download was produced under an approval this step never had"
+        )
+
+    findings = secret_like_findings(corpus)
+    if findings:
+        raise BenchmarkError(f"current capture carries secret-like values: {findings}")
+
+    for scene in corpus["scenes"]:
+        key = str(scene.get("scene_key") or "")
+        for name in ("case_id", "visual_brief", "query_plan", "routing", "provider_attempts"):
+            if name not in scene:
+                raise BenchmarkError(f"{key}: captured scene is missing {name}")
+        if not scene["visual_brief"]:
+            raise BenchmarkError(f"{key}: captured scene carries no visual brief")
+        subjects = [item for item in (scene.get("semantic_scene") or {}).get("subject") or [] if str(item).strip()]
+        if not subjects:
+            raise BenchmarkError(f"{key}: captured scene has an empty semantic subject")
+        queries = [
+            str(item.get("query") or "")
+            for item in (scene["query_plan"].get("queries") or [])
+            if str(item.get("status") or "") == "ok"
+        ]
+        if not queries:
+            raise BenchmarkError(f"{key}: no provider-ready query was recorded")
+        for query in queries:
+            if " ".join(query.casefold().split()) in LEGACY_BROAD_QUERY_LITERALS:
+                raise BenchmarkError(f"{key}: a retired broad literal reached a provider: {query!r}")
+        for candidate in scene["candidates"]:
+            blind_id = str(candidate.get("blind_id") or "")
+            for frame in candidate.get("frames") or []:
+                path = str(frame.get("local_frame_path") or "").replace("\\", "/")
+                if not path.startswith(f"{workspace}/"):
+                    raise BenchmarkError(
+                        f"{key}/{blind_id}: frame {path!r} is outside the capture workspace "
+                        f"{workspace!r}; a current corpus may not reference historical runtime data"
+                    )
+
+
 def validate_annotations(annotations: dict[str, Any]) -> None:
     if annotations.get("schema_version") != ANNOTATIONS_SCHEMA_VERSION:
         raise BenchmarkError(
@@ -448,6 +618,23 @@ def validate_annotations(annotations: dict[str, Any]) -> None:
                 value = str(flags.get(name) or "")
                 if value and value not in allowed:
                     raise BenchmarkError(f"{key}/{blind_id}: {name}={value!r} is not one of {allowed}")
+
+
+def annotation_status(path: Path = CURRENT_ANNOTATIONS_PATH) -> str:
+    """Where the owner's blind pass stands, reading an absent file honestly.
+
+    No annotation file means the pass has not happened, which is the same state
+    an empty one describes - never "complete by default". PLAN-9D-D is the only
+    step allowed to change this answer, and only the owner may produce the labels.
+    """
+
+    if not path.is_file():
+        return STATUS_WAITING
+    annotations = json.loads(path.read_text(encoding="utf-8"))
+    status = str(annotations.get("status") or "")
+    if status == STATUS_COMPLETE and str(annotations.get("annotator") or "").strip():
+        return STATUS_COMPLETE
+    return STATUS_WAITING
 
 
 def annotations_are_complete(corpus: dict[str, Any], annotations: dict[str, Any]) -> tuple[bool, list[str]]:

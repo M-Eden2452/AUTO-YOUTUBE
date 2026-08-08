@@ -6,8 +6,8 @@ runtime и не меняет поведение кода. Owner каталога
 и рендер пакета разметки). Локи — `tests/test_plan9d_ground_truth_baseline.py`
 (generic harness) и `tests/test_plan9d_historical_evidence.py` (historical fixture).
 
-**PLAN-9D НЕ закрыт.** PLAN-9D-A готовит основание и ничего об улучшении decision
-path не утверждает.
+**PLAN-9D НЕ закрыт.** PLAN-9D-A готовит основание, PLAN-9D-B снимает вход для
+измерения; ни один из них ничего об улучшении decision path не утверждает.
 
 ## Два разных вида данных, и почему их нельзя смешивать
 
@@ -33,12 +33,92 @@ candidate pool говорит что-то о качестве **решения**
 | Файл | Что это |
 |---|---|
 | `historical_failure_evidence_v1.json` | Замороженное historical failure evidence: 7 кейсов, 31 кандидат, по одному representative frame на кандидата |
-| `current_corpus_v1.json` | **Отсутствует.** Создаётся PLAN-9D-B (bounded capture текущего retrieval, отдельное owner network approval) |
+| `current_corpus_v1.json` | Замороженный current capture (PLAN-9D-B): 14 сцен, 1064 наблюдения, 1052 уникальных ассета, 64 кадра |
 | `current_annotations_v1.json` | **Отсутствует.** Создаётся PLAN-9D-D после заморозки current corpus |
 
 Изображения в репозиторий **не копируются**: это чужой лицензированный
 provider-материал, а `projects/` намеренно untracked. Fixture несёт путь, размеры и
 SHA256 кадра, и все тесты работают на машине, которая `projects/` никогда не видела.
+
+## Current capture (PLAN-9D-B)
+
+`current_corpus_v1.json` снят одним bounded прогоном текущего production-пути с
+`capture_head_sha = d01914d77822057569a491216cfecf21b08f5d0c`. Owner выдал ровно два
+сетевых класса — `provider_search` и `preview_download`; `asset_download` не
+запрашивался и не использовался, потому что кадры берутся из ограниченного
+preview-кэша (`config/visual_preview.json`, 5 МБ на превью).
+
+Прогонялись production-владельцы в production-порядке, без единой собственной
+строки запроса:
+
+```
+evaluation script (narration + author visual_brief)
+  → src/news/visual_plan.build_visual_plan → content/visual_planning (brief, expansion ladder)
+  → AssetManifestBuilder._prepare_scene    → analyze_scene, route_providers, build_scene_queries
+  → _search_scene_providers                → providers/*, rank_provider_results, license_policy
+  → _select_scene_asset                    → candidate_ranker (единственный владелец решения)
+  → _prepare_visual_review                 → visual_preview + frame_sampling
+```
+
+`_download_and_complete` и всё, что после него, **не запускается** — это записано в
+самом корпусе (`stages_not_run`).
+
+Evaluation-константы корпуса заявлены, а не спрятаны: пустые `user_assets`, пустой
+media index (локальная медиатека — другой источник и наполнена ровно теми
+историческими проектами, которые PLAN-9D-A вывел из benchmark), пустые
+`used_asset_ids`, `vision_tags` пусты (semantic backend остался в shipped default
+`enabled:false`).
+
+Владелец инструмента — `tests/plan9d_current_capture.py`. Две команды:
+
+```
+.\venv\Scripts\python.exe -B -m tests.plan9d_current_capture preflight --out %TEMP%\plan9d_preflight.json
+.\venv\Scripts\python.exe -B -m tests.plan9d_current_capture finalize --corpus tests\data\plan9d\current_corpus_v1.json
+```
+
+`preflight` полностью offline: он строит планы и прогоняет tripwires (нет visual
+brief, пустой semantic subject, потерянный в запросе субъект, вернувшийся
+ретайренный broad-литерал, нарушение языкового контракта провайдера). При любом
+срабатывании ни один provider-запрос не отправляется, и обойти tripwire
+запросом, написанным руками, запрещено — иначе измеряется не система.
+
+`capture` требует явного освобождения тестового socket guard
+(`AI_YOUTUBE_ALLOW_LIVE_TESTS=1`) и сам отказывается работать под ним: прогон под
+guard записал бы несуществующую аварию провайдеров. Повторный capture ради
+лучшего результата запрещён; `finalize` пересчитывает только производные поля
+(технические категории, статистику дублей) и идемпотентен.
+
+### Что в корпусе есть и чего в нём нет
+
+Есть: требование сцены, `visual_brief`, `visual_intents`, `semantic_scene`, план
+запросов с провенансом каждой строки, фактические provider attempts, полный пул
+кандидатов с правами и заявленными провайдером размерами, превью и кадры с SHA256
+и perceptual hash, выбранный текущим владельцем решения кандидат.
+
+Нет: owner-разметки (это PLAN-9D-D), Vision evidence (PLAN-9D-F), любых
+агрегатов качества. **PLAN-9D-B ничего не утверждает о том, хороший retrieval или
+плохой** — это вопрос PLAN-9D-C.
+
+### Кадры и review
+
+Кадры лежат в `projects/plan9d_current_capture_v1/` — отдельном evaluation-only
+runtime namespace, который целиком под `/projects/` в `.gitignore` и не смешивается
+ни с пользовательскими, ни с историческими проектами. Превью снимались только для
+production-shortlist (5 кандидатов на сцену), поэтому визуально проверяемы 56
+кандидатов из 1064; остальные представлены метаданными, ровно как их видит
+владелец решения. Clean clone получает корпус целиком, но без пикселей — это
+честное ограничение, а не недосмотр: чужой лицензированный материал в Git не
+копируется.
+
+Пакет просмотра для PLAN-9D-C собирается локально и корпус не меняет:
+
+```
+.\venv\Scripts\python.exe -B -m tests.plan9d_corpus_builder review --corpus tests\data\plan9d\current_corpus_v1.json --out %TEMP%\plan9d_c_review.html
+```
+
+Он показывает требование сцены и кадры под обезличенными `C1..Cn` и намеренно не
+показывает провайдера, заголовок, лицензию, оценки, выбор ranker и Vision. Полей
+для заполнения в нём нет: разметка — отдельный шаг и отдельный пакет (`pack`).
 
 ### Что было раньше на этом месте
 
@@ -105,8 +185,8 @@ owner-authorized slice.
 ## Порядок работы
 
 1. **PLAN-9D-A (сделано).** Historical evidence курировано и заморожено.
-2. **PLAN-9D-B.** Bounded capture текущего retrieval → `current_corpus_v1.json`,
-   заморозка своим `corpus_sha256`. Требует отдельного owner network approval.
+2. **PLAN-9D-B (сделано).** Bounded capture текущего retrieval снят и заморожен
+   в `current_corpus_v1.json` своим `corpus_sha256`. PLAN-9D в целом **не закрыт**.
 3. **PLAN-9D-C.** Retrieval quality gate на замороженном current corpus.
 4. **PLAN-9D-D.** Слепая разметка владельцем — **один раз**, по current corpus:
 
@@ -161,12 +241,24 @@ historical pool решающий владелец не запускается в
 Прежняя версия локов проверяла на historical корпусе размер, покрытие технических
 категорий, наличие `regression_capable` сцен, расхождение заявленных и превью-размеров
 и checksum каждого кадра. Это требования к **benchmark**-корпусу, и проверять их на
-синтетике бессмысленно. Они не потеряны: это условия приёмки PLAN-9D-B и
-PLAN-9D-C, где будут проверены на реально снятых данных.
+синтетике бессмысленно, поэтому они были перенесены в условия приёмки PLAN-9D-B и
+PLAN-9D-C. На снятых данных они проверены — `tests/test_plan9d_current_capture.py`,
+класс `DerivedFieldTests`:
 
-Известный пробел, зафиксированный, а не заполненный: категория
-`non_real_footage_risk` в старом корпусе не встретилась ни разу (0 из 88 пригодных
-сцен). Синтезировать такую сцену запрещено.
+- размер: 14 сцен, 1064 наблюдения, ни одна сцена не исключена по нехватке кандидатов;
+- покрытие: встретились **все 13** технических категорий словаря, включая
+  `regression_capable` (12 сцен) — без них A/B мог бы выглядеть только нейтрально
+  или лучше;
+- checksum: SHA256 есть у каждого из 64 кадров;
+- расхождение заявленных и превью-размеров записано как измеренная величина.
+  Факт, а не оценка: сравнимы всего 2 пары из 1064 — превью снимается только для
+  production-shortlist, а его запись редко несёт собственные размеры. Framing-гейт
+  как и прежде читает **заявленные** размеры кандидата.
+
+Пробел прошлого корпуса закрылся сам: категория `non_real_footage_risk`, которой
+не было ни в одной из 88 пригодных исторических сцен, в current capture встретилась
+в 11 сценах из 14. Синтезировать такую сцену по-прежнему запрещено — она пришла из
+реальных provider-метаданных.
 
 ## Готовность к будущим режимам Review и Auto
 

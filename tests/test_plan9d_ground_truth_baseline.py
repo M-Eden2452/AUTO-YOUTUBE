@@ -228,15 +228,28 @@ def _complete(corpus: dict, *, preference: str | None = None) -> dict:
 
 
 class CurrentBenchmarkSlotTests(unittest.TestCase):
-    """Until PLAN-9D-B captures one, there is no benchmark input, and it says so."""
+    """The benchmark slot, before and after PLAN-9D-B filled it.
 
-    def test_no_current_corpus_is_frozen_yet(self) -> None:
-        self.assertFalse(CURRENT_CORPUS_PATH.exists())
+    This class used to assert that the slot was empty, which was the truth while
+    PLAN-9D-B was unstarted. PLAN-9D-B captured and froze a corpus, so the two
+    facts worth locking changed: the file is there and loads through the gate,
+    and the *absence* path still names the slice that owns it - which is what a
+    clean clone or a future re-capture will hit.
+    """
+
+    def test_the_current_corpus_is_frozen(self) -> None:
+        self.assertTrue(CURRENT_CORPUS_PATH.exists())
+        corpus = load_current_corpus()
+        self.assertTrue(corpus["scenes"])
+
+    def test_owner_annotation_has_not_been_produced(self) -> None:
+        """PLAN-9D-D is the owner's, and PLAN-9D-B did not do it for them."""
+
         self.assertFalse(CURRENT_ANNOTATIONS_PATH.exists())
 
     def test_absence_is_reported_with_the_slice_that_owns_it(self) -> None:
         with self.assertRaises(BenchmarkError) as raised:
-            load_current_corpus()
+            load_current_corpus(CURRENT_CORPUS_PATH.with_name("no_such_corpus.json"))
         self.assertIn("PLAN-9D-B", str(raised.exception))
 
 
