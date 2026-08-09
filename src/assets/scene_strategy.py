@@ -169,8 +169,16 @@ def classify_scene(scene: dict[str, Any]) -> tuple[str, str, str]:
         return CLASS_ARCHIVE, "scene names archival material", "glossary"
     if _has_any(text, _RESEARCH_TERMS):
         return CLASS_RESEARCH_ACTIVITY, "scene shows people doing research", "glossary"
-    if _named_place(scene) or _has_any(text, _LOCATION_TERMS):
-        return CLASS_EXACT_LOCATION, "scene is set in a named place", "glossary"
+    # A filled ``place`` is deliberately not evidence here. The field means "where it
+    # happens" and is a stock-search phrase, so a semantic brief fills it with whatever
+    # surrounds the subject - ``open ocean``, ``nature outdoors``, ``indoor glass wall``.
+    # Treating it as a *named* place sent five of six scenes of the confirmed run
+    # 2026-08-09_diagnostic-ru-semantic-live-2 to NASA and Wikimedia under a class that
+    # also refuses any candidate without provider metadata. ``brief`` already refuses
+    # ``place`` as an answer on its own for the same reason. Geography has to be named
+    # for this class - either the author declared it above, or a glossary term says so.
+    if _has_any(text, _LOCATION_TERMS):
+        return CLASS_EXACT_LOCATION, "scene names geography", "glossary"
     return CLASS_GENERIC_BROLL, "no specific source evidence in the scene", "default"
 
 
@@ -287,14 +295,6 @@ def _media_type(scene: dict[str, Any]) -> str:
 def _provider_media_type(scene: dict[str, Any]) -> str:
     """What a provider should be asked for. Drawn figures are still images to them."""
     return "image" if _media_type(scene) in {"image", "animated_image", "diagram"} else "video"
-
-
-def _named_place(scene: dict[str, Any]) -> bool:
-    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
-    if str(brief.get("place") or brief.get("location") or "").strip():
-        return True
-    semantic = scene.get("semantic") if isinstance(scene.get("semantic"), dict) else {}
-    return bool([item for item in (semantic.get("location") or []) if str(item).strip()])
 
 
 def _evidence_text(scene: dict[str, Any]) -> str:

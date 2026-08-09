@@ -220,6 +220,92 @@ class SceneStrategyTests(unittest.TestCase):
         self.assertEqual(strategy.skipped_providers["pexels"], "policy_blocked")
 
 
+class GenericEnvironmentIsNotAnExactLocationTests(unittest.TestCase):
+    """A ``place`` that describes surroundings is not a place anyone can identify.
+
+    Observed in ``projects/2026-08-09_diagnostic-ru-semantic-live-2``: five of six
+    scenes were classified ``exact_location`` because the semantic brief had filled
+    ``place`` at all - ``open ocean``, ``nature outdoors``, ``snowy icy ground`` - and
+    each decision claimed it came from the glossary while no glossary term matched.
+    ``place`` is documented as "where it happens", a stock-search phrase, and
+    ``brief.author_semantics_are_sufficient`` already refuses it as an answer on its
+    own for exactly this reason.
+    """
+
+    # The wording the live run produced, verbatim.
+    GENERIC_PLACES = (
+        "nature outdoors",
+        "snowy icy ground",
+        "open ocean",
+        "outdoor natural setting",
+        "indoor glass wall",
+    )
+
+    @staticmethod
+    def _brief_scene(place: str, subject: str = "animal moving") -> dict:
+        """A scene whose only location evidence is ``place``. No declared class."""
+        return _scene(
+            narration="Об этом мало кто задумывается.",
+            primary_query="",
+            visual_brief={"subject": subject, "place": place},
+        )
+
+    def test_a_generic_environment_is_not_an_exact_location(self) -> None:
+        for place in self.GENERIC_PLACES:
+            with self.subTest(place=place):
+                source_class, _, _ = classify_scene(self._brief_scene(place))
+                self.assertNotEqual(source_class, CLASS_EXACT_LOCATION)
+                self.assertEqual(source_class, CLASS_GENERIC_BROLL)
+
+    def test_a_generic_environment_says_it_had_no_evidence(self) -> None:
+        """The recorded reason and source must name the rule that actually fired."""
+        for place in self.GENERIC_PLACES:
+            with self.subTest(place=place):
+                _, reason, classified_from = classify_scene(self._brief_scene(place))
+                self.assertEqual(classified_from, "default")
+                self.assertNotIn("named place", reason)
+
+    def test_a_generic_environment_mirrored_into_semantic_is_still_generic(self) -> None:
+        """``semantic.location`` is ``[scene.place]`` - the same value, not a second source."""
+        scene = self._brief_scene("open ocean")
+        scene["semantic"] = {"location": ["open ocean"], "environment": ["open ocean"]}
+        self.assertEqual(classify_scene(scene)[0], CLASS_GENERIC_BROLL)
+
+    def test_a_generic_environment_is_routed_to_stock_like_any_other_broll(self) -> None:
+        strategy = build_strategy(self._brief_scene("open ocean"), available_providers=ALL_PROVIDERS)
+        self.assertEqual(strategy.provider_order[:3], ["local_library", "pexels", "pixabay"])
+        self.assertFalse(strategy.requires_provider_metadata)
+
+    def test_geography_the_glossary_recognises_is_still_an_exact_location(self) -> None:
+        """The canonical Antarctic scene, with the declared class removed on purpose.
+
+        Nothing here is hardcoded to the string: ``antarctica`` and ``valley`` are
+        entries of the existing ``_LOCATION_TERMS`` vocabulary, which is the evidence
+        that survives this repair.
+        """
+        scene = self._brief_scene(ANTARCTIC_BRIEF["place"], subject=ANTARCTIC_BRIEF["subject"])
+        source_class, _, classified_from = classify_scene(scene)
+        self.assertEqual(source_class, CLASS_EXACT_LOCATION)
+        self.assertEqual(classified_from, "glossary")
+
+    def test_a_declared_exact_location_still_wins_without_any_glossary_term(self) -> None:
+        """An author naming the class is untouched by this repair."""
+        scene = self._brief_scene("open ocean")
+        scene["visual_brief"]["source_class"] = CLASS_EXACT_LOCATION
+        self.assertEqual(classify_scene(scene), (CLASS_EXACT_LOCATION, "declared in visual brief", "visual_brief"))
+
+    def test_the_other_glossary_classes_are_unchanged(self) -> None:
+        for narration, expected in (
+            ("orbital satellite imagery", "satellite_or_earth_observation"),
+            ("mass spectrometer in a laboratory", CLASS_SCIENTIFIC_EQUIPMENT),
+            ("archival newsreel footage", "archive"),
+            ("researchers on an expedition", "research_activity"),
+        ):
+            with self.subTest(narration=narration):
+                scene = _scene(narration=narration, primary_query="", visual_brief={"place": "open ocean"})
+                self.assertEqual(classify_scene(scene)[0], expected)
+
+
 class ProviderQueryLanguageTests(unittest.TestCase):
     """Wikimedia and NASA answered 16 Russian requests each with 0 results."""
 
