@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "backend": "openai",
+  "model": "",
+  "model_allowlist": [],
+  "timeout_sec": 30,
+  "max_output_tokens": 400,
+  "allow_paid_calls": false,
+  "confirm_paid_calls": "",
+  "maximum_calls_per_project": 0,
+  "maximum_budget_usd": 0,
+  "estimated_cost_per_call_usd": 0
+}

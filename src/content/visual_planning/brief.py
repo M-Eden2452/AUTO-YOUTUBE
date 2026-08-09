@@ -113,6 +113,37 @@ class VisualBrief:
         return {key: value for key, value in data.items() if value}
 
 
+# The fields by which an author states *what the frame shows*, as opposed to bounding or
+# labelling an answer someone else supplies. ``visual_description`` replaces the scene's
+# meaning outright, ``subject`` is what must be in frame, and ``provider_queries`` skips
+# query building entirely - past any of those, nothing automatic can still change what the
+# scene is about.
+AUTHOR_SEMANTIC_FIELDS: tuple[str, ...] = ("visual_description", "subject", "provider_queries")
+
+
+def author_semantics_are_sufficient(brief: VisualBrief | None) -> bool:
+    """Whether this brief already answers "what should this scene show".
+
+    Not the same question as "is this brief non-empty", and the difference is the whole
+    point. ``must_include`` is a hard requirement a candidate is *refused* for missing and
+    ``must_avoid`` forbids material outright: both bound an answer without being one, and
+    an author who wrote ``must_include: ["orca"]`` has said the shot must contain an orca,
+    not what the orca is doing or where. ``notes``, ``media_types``, ``source_class``,
+    ``shot_type`` and ``exact_entities`` are metadata, delivery constraints and names -
+    ``fallback_visual`` and ``infographic`` say what to do when nothing is found. None of
+    them states the scene's meaning, and treating their presence as a full answer left the
+    scene with whatever extraction guessed, which is the failure this layer exists to fix.
+
+    ``action`` and ``place`` are deliberately not sufficient either, for the reason
+    ``semantic_brief.parse_response`` already refuses them from a model: a place without a
+    subject - "somewhere outdoors" - is how a scene turns into generic footage. An author
+    who stated only one of those still wins on that field, because they are applied last.
+    """
+    if brief is None:
+        return False
+    return any(bool(getattr(brief, name, None)) for name in AUTHOR_SEMANTIC_FIELDS)
+
+
 def parse_brief(data: dict[str, Any] | None) -> VisualBrief:
     """Read a brief off a script scene. Unknown keys are ignored, never guessed at."""
     if not isinstance(data, dict):
@@ -337,4 +368,12 @@ def _unique(values: list[str]) -> list[str]:
     return ordered
 
 
-__all__ = ["VisualBrief", "apply_brief", "parse_brief", "produce_brief", "scene_claim_texts"]
+__all__ = [
+    "AUTHOR_SEMANTIC_FIELDS",
+    "VisualBrief",
+    "apply_brief",
+    "author_semantics_are_sufficient",
+    "parse_brief",
+    "produce_brief",
+    "scene_claim_texts",
+]

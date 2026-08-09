@@ -146,16 +146,29 @@ def evidence_for_scene(
     *,
     script_scene: Any = None,
     claims: Iterable[dict[str, Any]] = (),
+    author_brief: VisualBrief | None = None,
 ) -> SceneBriefEvidence:
-    """Read one scene's evidence off the objects the pipeline already has."""
+    """Read one scene's evidence off the objects the pipeline already has.
+
+    ``author_brief`` supplies the constraints the author wrote but the plan does not carry
+    yet: the author's brief is applied *after* this pass, so a scene briefed with nothing
+    but ``must_avoid`` would otherwise be asked about without the prohibition being stated.
+    Only the constraints are read - a brief that states meaning is not asked about at all,
+    and nothing here gives a model authority over what it is told.
+    """
+    required = list(_texts(getattr(scene, "must_include", None)))
+    avoided = list(_texts(getattr(scene, "must_avoid", None)))
+    if author_brief is not None:
+        required += list(author_brief.exact_entities) + list(author_brief.must_include)
+        avoided += list(author_brief.must_avoid)
     return SceneBriefEvidence(
         scene_id=str(getattr(scene, "scene_id", "") or ""),
         narration=str(_value(script_scene, "narration") or getattr(scene, "meaning", "") or ""),
         on_screen_text=str(_value(script_scene, "on_screen_text") or ""),
         keywords=tuple(_texts(_value(script_scene, "keywords"))),
         claims=tuple(scene_claim_texts(scene, list(claims))),
-        must_include=tuple(_texts(getattr(scene, "must_include", None))),
-        must_avoid=tuple(_texts(getattr(scene, "must_avoid", None))),
+        must_include=tuple(_unique_texts(required)),
+        must_avoid=tuple(_unique_texts(avoided)),
         shot_type=str(getattr(scene, "shot_type", "") or ""),
     )
 
@@ -412,6 +425,18 @@ def _states_something_filmable(subject: str) -> bool:
         if key and key not in STOPWORDS and key not in NON_FACTUAL_QUERY_TERMS:
             return True
     return False
+
+
+def _unique_texts(values: Iterable[Any]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        text = " ".join(str(value).split())
+        key = text.casefold()
+        if key and key not in seen:
+            seen.add(key)
+            ordered.append(text)
+    return ordered
 
 
 def _texts(value: Any) -> list[str]:

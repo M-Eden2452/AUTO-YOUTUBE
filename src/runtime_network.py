@@ -15,8 +15,10 @@ Responsibilities:
 Does not own:
 - платные разрешения: озвучка — ``src.audio.voice_workflow.VoiceApproval`` и
   ``src.audio.tts.provider_manager``; OpenAI Vision — ``VisionBudgetGuard`` в
-  ``src.assets.semantic_visual_openai``. Network approval их не заменяет и не
-  выдаёт: разрешение на оплату и разрешение на сеть — разные вещи;
+  ``src.assets.semantic_visual_openai``; текстовая модель смыслового брифа —
+  ``src.content.semantic_brief_openai.paid_call_blockers``. Network approval их
+  не заменяет и не выдаёт: разрешение на оплату и разрешение на сеть — разные
+  вещи, и ``semantic_brief`` открывает только сеть;
 - права на медиа — ``src.assets.license_policy``;
 - сам HTTP, retry, timeout и валидацию скачанного — ``src.assets.http_client``
   и ``src.assets.download``;
@@ -59,6 +61,7 @@ NETWORK_ACTION_ASSET_DOWNLOAD = "asset_download"
 NETWORK_ACTION_PREVIEW_DOWNLOAD = "preview_download"
 NETWORK_ACTION_ARTICLE_FETCH = "article_fetch"
 NETWORK_ACTION_VOICE_PREFLIGHT = "voice_preflight"
+NETWORK_ACTION_SEMANTIC_BRIEF = "semantic_brief"
 
 # Порядок фиксирован: он же используется как порядок `choices` в CLI и в
 # сообщениях об отказе, поэтому подсказка пользователю стабильна.
@@ -68,6 +71,7 @@ NETWORK_ACTIONS: tuple[str, ...] = (
     NETWORK_ACTION_PREVIEW_DOWNLOAD,
     NETWORK_ACTION_ARTICLE_FETCH,
     NETWORK_ACTION_VOICE_PREFLIGHT,
+    NETWORK_ACTION_SEMANTIC_BRIEF,
 )
 
 NETWORK_ACTION_DESCRIPTIONS: dict[str, str] = {
@@ -76,6 +80,10 @@ NETWORK_ACTION_DESCRIPTIONS: dict[str, str] = {
     NETWORK_ACTION_PREVIEW_DOWNLOAD: "Скачивание превью кандидатов для визуальной проверки.",
     NETWORK_ACTION_ARTICLE_FETCH: "Загрузка исходной статьи по URL.",
     NETWORK_ACTION_VOICE_PREFLIGHT: "Проверка аккаунта, голосов и моделей ElevenLabs (без генерации).",
+    NETWORK_ACTION_SEMANTIC_BRIEF: (
+        "Запрос к текстовой модели о смысле сцены для визуального брифа "
+        "(без генерации сценария и без Vision). Разрешением на оплату не является."
+    ),
 }
 
 DENIED_REASON = "network_approval_required"
@@ -210,6 +218,7 @@ __all__ = [
     "NETWORK_ACTION_DESCRIPTIONS",
     "NETWORK_ACTION_PREVIEW_DOWNLOAD",
     "NETWORK_ACTION_PROVIDER_SEARCH",
+    "NETWORK_ACTION_SEMANTIC_BRIEF",
     "NETWORK_ACTION_VOICE_PREFLIGHT",
     "NetworkAccessDeniedError",
     "NetworkApproval",

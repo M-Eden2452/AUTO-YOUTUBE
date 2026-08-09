@@ -10,6 +10,13 @@ observation") for every video ever made, and a ``visual_type`` that alternated o
 signature and still returns the ``visual_plan.json`` dict the rest of the pipeline
 reads, so ``asset_manager``, ``final_renderer`` and ``visual_preview`` did not
 have to change.
+
+This is also where the model-assisted semantic adapter becomes reachable at all. It is
+asked for, never assumed: ``build_semantic_brief_adapter`` returns ``None`` unless the
+standing paid policy in ``config/semantic_brief.json`` and this run's network approval
+both allow it, and ``None`` is the shipped state of the repository. With ``None`` the
+plan is the deterministic plan it has always been, so nothing about an ordinary run
+changes by this module knowing the adapter exists.
 """
 
 from __future__ import annotations
@@ -17,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.content.script_engine import from_legacy_script
+from src.content.semantic_brief_openai import build_semantic_brief_adapter
 from src.content.visual_planning import VisualPlanRequest, build_plan
 
 __all__ = ["build_visual_plan", "build_visual_plan_result"]
@@ -61,4 +69,8 @@ def build_visual_plan_result(
         format_id="vertical_short",
         template_id="fullscreen_voiceover_v1",
     )
-    return build_plan(request, source_text=str(research.get("summary") or ""))
+    return build_plan(
+        request,
+        source_text=str(research.get("summary") or ""),
+        brief_adapter=build_semantic_brief_adapter(),
+    )

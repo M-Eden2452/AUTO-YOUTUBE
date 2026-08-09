@@ -6,7 +6,13 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-from .brief import VisualBrief, apply_brief, parse_brief, produce_brief
+from .brief import (
+    VisualBrief,
+    apply_brief,
+    author_semantics_are_sufficient,
+    parse_brief,
+    produce_brief,
+)
 from .contract import VisualPlanner, VisualPlannerError, VisualPlannerUnavailableError
 from .legacy_format import to_legacy_visual_plan
 from .models import (
@@ -171,20 +177,22 @@ def _produce_scene_briefs(
         if scene_id:
             by_id[scene_id] = raw
 
-    answered_by_author = set(author_briefs or {})
+    briefs_by_id = dict(author_briefs or {})
     for position, scene in enumerate(result.scenes):
         script_scene = by_id.get(scene.scene_id)
         if script_scene is None and position < len(script_scenes):
             script_scene = script_scenes[position]
         claims = list(request.claims or [])
+        author_brief = briefs_by_id.get(scene.scene_id)
         brief = produce_brief(scene, script_scene=script_scene, claims=claims)
-        if adapter is not None and _needs_semantic_help(scene, answered_by_author):
+        if adapter is not None and _needs_semantic_help(author_brief):
             semantic = _semantic_brief(
                 scene,
                 script_scene=script_scene,
                 claims=claims,
                 adapter=adapter,
                 language=result.language,
+                author_brief=author_brief,
             )
             # Only ever an addition. Offering assistance to a scene that already had
             # *some* provider-language evidence must not cost it that evidence when the
@@ -195,7 +203,7 @@ def _produce_scene_briefs(
             scene.brief = brief
 
 
-def _needs_semantic_help(scene: Any, answered_by_author: set[str]) -> bool:
+def _needs_semantic_help(author_brief: VisualBrief | None) -> bool:
     """Whether this scene is one an approved adapter may be asked about.
 
     Everything an automatic pass can observe about a scene has now been tried as an
@@ -220,6 +228,17 @@ def _needs_semantic_help(scene: Any, answered_by_author: set[str]) -> bool:
     this pass and replaces whatever a model would say, so asking about such a scene is
     spending on an answer that is thrown away.
 
+    *Which* brief, though, is the correction this slice makes. "The author wrote a brief"
+    was read as "the author answered what the scene shows", and a brief is per-field: one
+    saying only ``must_include: ["orca"]`` states a hard requirement and nothing about
+    what the orca is doing or where it is, yet it suppressed the only step that could have
+    said. The answer thrown away is only the part the author actually stated, so the
+    question asked here is now the semantic one -
+    ``brief.author_semantics_are_sufficient`` - and constraints, prohibitions, notes and
+    media policy no longer count as having answered it. Those constraints are still the
+    author's, still applied last, and are additionally *sent* to the model as limits on
+    what it may answer.
+
     Every other scene is planned automatically and is eligible for one call. That is
     deliberately more calls than the withdrawn rule made - correctness first; a cost
     policy built on a signal that cannot tell a right subject from a wrong one is not a
@@ -227,11 +246,11 @@ def _needs_semantic_help(scene: Any, answered_by_author: set[str]) -> bool:
     scene-level source of authority that does not exist yet rather than a new confidence
     field invented to justify skipping.
 
-    Nothing is spent by returning ``True``: the adapter's own preconditions still decide
-    whether a backend is reached, and no production caller injects one. C63 is unchanged -
-    this only skips scenes whose author brief actually reached visual planning.
+    Nothing is spent by returning ``True``: the adapter's own preconditions, its network
+    permission and its paid policy all still decide whether a backend is reached. C63 is
+    unchanged - this only reads author briefs that actually reached visual planning.
     """
-    return getattr(scene, "scene_id", "") not in answered_by_author
+    return not author_semantics_are_sufficient(author_brief)
 
 
 def _semantic_brief(
@@ -241,6 +260,7 @@ def _semantic_brief(
     claims: list[dict[str, Any]],
     adapter: Any,
     language: str,
+    author_brief: VisualBrief | None = None,
 ) -> VisualBrief:
     """What a model says this scene means, expressed as the existing brief.
 
@@ -260,7 +280,9 @@ def _semantic_brief(
     that situation has to leave the plan exactly as an adapter-less run leaves it. Once
     past this point the call happened, and every controlled way it can fail is recorded.
     """
-    evidence = evidence_for_scene(scene, script_scene=script_scene, claims=claims)
+    evidence = evidence_for_scene(
+        scene, script_scene=script_scene, claims=claims, author_brief=author_brief
+    )
     if not adapter.is_available() or evidence.is_empty:
         return VisualBrief()
     try:
