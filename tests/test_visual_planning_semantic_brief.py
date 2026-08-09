@@ -48,6 +48,19 @@ survived it:
   now decided before it is called, so every controlled failure of a real attempt leaves
   its warning and every adapter that never ran still leaves the plan untouched.
 
+The third repair pass, still before any model was wired, closes the last blocker in
+front of live activation. Both halves are about *authority*, not about meaning:
+
+- correcting the subject could not finish the job, because the requirement the planner
+  had guessed outlived the correction. ``must_include`` refuses candidates outright, and
+  the deterministic planner was writing it from its own extraction whenever the word was
+  Latin - so the right penguin footage was refused at 100% subject match for missing
+  ``NASA``. The planner no longer states requirements; an author still does, and that is
+  still hard and still blocking;
+- ``ENTITY_KIND_TOPIC`` on the subject is no longer read as "planning knows what this
+  scene shows". A topic is a statement about the video, and one that names both the
+  subject and its surroundings marks them alike, so it cannot choose between them.
+
 No network (``tests.network_guard`` is installed package-wide), no provider call, no
 model call: every "model" here is a dictionary.
 """
@@ -60,6 +73,8 @@ import unittest
 from pathlib import Path
 
 from src.assets.query_adapter import STATUS_OK, STATUS_TRANSLATION_REQUIRED, build_scene_queries
+from src.assets.semantic_selection.candidate_ranker import rank_candidates
+from src.assets.semantic_selection.scene_analyzer import analyze_scene
 from src.content.script_engine import ScriptResult, ScriptScene
 from src.content.visual_planning import (
     SHOT_ACTION,
@@ -68,6 +83,7 @@ from src.content.visual_planning import (
     build_plan,
 )
 from src.content.visual_planning.brief import VisualBrief, apply_brief
+from src.content.visual_planning.models import ENTITY_KIND_TOPIC
 from src.content.visual_planning.semantic_brief import (
     RESPONSE_CONTRACT,
     ModelSemanticBriefAdapter,
@@ -155,14 +171,51 @@ COAST_CLAIM = {
     "safe_for_script": True,
 }
 
-# An ordinary Russian scene that happens to name a place in Latin script. The
-# deterministic planner promotes that name to a hard requirement and then cannot build a
-# query from it alone - which is exactly the shape in which the semantic overlay used to
-# erase the requirement on its way past.
+# An ordinary Russian scene that happens to name a place in Latin script. Extraction
+# ranks that name above every Cyrillic word in the sentence, because a Latin token needs
+# no translation to reach a provider - so it becomes the subject of a scene that is not
+# about it.
 HARD_ENTITY_NARRATION = (
     "Полярная станция McMurdo стоит на краю ледника, и учёные каждый день выходят на лёд."
 )
 HARD_ENTITY = "McMurdo"
+
+# The same shape, production-reachable: an ordinary Russian sentence about penguins that
+# cites a satellite programme. ``NASA`` is Latin, so extraction makes it the subject, and
+# the scene is not about NASA at all. What the frame must contain here was never stated
+# by anyone - it was inferred from one word's alphabet.
+HEURISTIC_LATIN_NARRATION = (
+    "Спутники NASA показали, как пингвины на льду собираются в большую колонию."
+)
+HEURISTIC_EXTRACTED_SUBJECT = "NASA"
+PENGUIN_ANSWER = {
+    "subject": "penguin colony",
+    "action": "gathering on sea ice",
+    "place": "antarctic ice",
+}
+# The candidate a person would call correct for that scene. Stock metadata as a provider
+# writes it, so the ranker judges real text rather than the query it came from.
+PENGUIN_CANDIDATE = {
+    "asset_id": "stock-penguin-1",
+    "provider": "pexels",
+    "title": "Emperor penguin colony gathering on Antarctic sea ice",
+    "description": "A large colony of emperor penguins gathering on the sea ice in Antarctica.",
+    "media_type": "video",
+    "width": 1080,
+    "height": 1920,
+    "duration_sec": 12.0,
+    "allowed_for_render": True,
+}
+
+# A topic that names the subject *and* its surroundings. Both words are marked
+# ``topic_entity``, so "the topic names this word" cannot tell which of them the scene is
+# about - and extraction picks the wrong one.
+MULTI_ROLE_TOPIC = "Antarctic penguin colonies"
+
+# What an author states when they mean it: a scene-level brief, written beside the
+# narration. This is the only structured scene-level source in the repository that
+# carries authority over what the frame must contain.
+AUTHOR_REQUIREMENT = "research station"
 
 # What research linked to a scene looks like: English prose about a fact, not a
 # statement of what to put in frame.
@@ -551,12 +604,17 @@ class DeterministicSubjectSufficiencyTest(unittest.TestCase):
     sentence hands it the place instead of the thing standing in it - and a subject that
     is wrong but Latin was suppressing the only help that could correct it.
 
-    What replaces it is not a judgement about the word. It is the planner's own record of
-    where the word came from: ``collect_entities`` marks an entity ``topic_entity`` when
-    the topic stated for this video names it, which is a declaration rather than a count.
-    ``antarctic`` is refused because nothing declared it, not because it is a place;
-    ``penguin`` is accepted because the producer said the video is about it, not because
-    it is an animal.
+    What replaces it is not a judgement about the word either. Provenance decides, and the
+    owner decision of this repair narrows what counts: a word occurring inside the *global*
+    topic string is not a scene-level statement about *this* scene. ``Antarctic penguin
+    colonies`` marks ``antarctic`` and ``penguin`` alike, so the topic cannot say which of
+    them the scene is about - and extraction, left to choose, chose the place.
+
+    The only structured scene-level source in the repository that carries real authority
+    over what a scene shows is the author's own ``visual_brief``, which already skips the
+    model (``AuthorBriefCostsNoModelCallTest``). No second one was invented for this
+    repair: no confidence field, no score, no provenance enum, no classifier. An ordinary
+    automatically-planned scene is simply eligible for one model call.
     """
 
     SEMANTIC_ANSWER = {"subject": "emperor penguin", "action": "walking on sea ice"}
@@ -584,24 +642,61 @@ class DeterministicSubjectSufficiencyTest(unittest.TestCase):
             any(self.SEMANTIC_ANSWER["subject"] in query for query in assisted.brief.provider_queries["en"]),
             assisted.brief.provider_queries,
         )
-        # Unchanged and deliberately not this repair's subject: a requirement the planner
-        # set from its own extraction is not the model's to delete (MAJOR-2).
-        self.assertEqual(assisted.must_include, [UNDECLARED_EXTRACTED_SUBJECT])
+        # The requirement extraction used to state on its own behalf. It is not the
+        # model's to delete - and it is no longer the planner's to write.
+        self.assertEqual(assisted.must_include, [])
 
-    def test_a_subject_the_stated_topic_declares_is_answer_enough(self) -> None:
-        """The positive half. Sufficiency has to be provable, not merely plausible."""
+    def test_a_word_the_global_topic_names_does_not_settle_what_a_scene_shows(self) -> None:
+        """The topic route, withdrawn: one word of it is not a scene-level statement.
+
+        ``DECLARING_TOPIC`` names exactly one thing, which is the easiest case the
+        withdrawn rule had, and even here the topic is a statement about the *video*. The
+        scene is still planned automatically, so it is still eligible for the one call
+        that can confirm or correct the guess.
+        """
         script = _one_scene_script(PROVIDER_LANGUAGE_NARRATION, language="en")
-        model = _FakeSemanticModel()
+        model = _FakeSemanticModel({"scene_001": self.SEMANTIC_ANSWER})
         planning = build_plan(
             _request(script, language="en", topic=DECLARING_TOPIC, title=DECLARING_TOPIC),
             brief_adapter=_adapter(model),
         )
-        self.assertEqual(model.calls, [])
-        brief = planning.result.scenes[0].brief
-        self.assertEqual(brief.subject, DECLARED_SUBJECT)
-        self.assertTrue(brief.provider_queries["en"])
-        # The reason it was enough, stated rather than assumed.
-        self.assertEqual([entity.kind for entity in self._subject_entities(planning)], ["topic_entity"])
+        deterministic = build_plan(
+            _request(script, language="en", topic=DECLARING_TOPIC, title=DECLARING_TOPIC)
+        )
+        # The entity record is unchanged - this repair withdrew a use of it, not the mark.
+        self.assertEqual(
+            [entity.kind for entity in self._subject_entities(deterministic)], ["topic_entity"]
+        )
+        self.assertEqual(deterministic.result.scenes[0].brief.subject, DECLARED_SUBJECT)
+
+        self.assertEqual(len(model.calls), 1)
+        self.assertEqual(planning.result.scenes[0].brief.subject, self.SEMANTIC_ANSWER["subject"])
+
+    def test_a_topic_naming_both_the_subject_and_its_surroundings_cannot_choose(self) -> None:
+        """Why one topic word was never enough, reproduced.
+
+        The topic states the subject *and* where it is, so both words are marked
+        ``topic_entity`` and extraction still takes the place. Under the withdrawn rule
+        that mark was read as "the producer declared this subject" and the scene refused
+        assistance - the wrong subject protected by the presence of the right one.
+        """
+        script = _one_scene_script(PROVIDER_LANGUAGE_NARRATION, language="en")
+        request = _request(script, language="en", topic=MULTI_ROLE_TOPIC, title=MULTI_ROLE_TOPIC)
+        deterministic = build_plan(request).result.scenes[0]
+        self.assertEqual(deterministic.subject, UNDECLARED_EXTRACTED_SUBJECT)
+        # Both roles carry the same mark, which is why the mark cannot separate them.
+        marked = {
+            entity.surface.casefold()
+            for entity in deterministic.entities
+            if entity.kind == ENTITY_KIND_TOPIC
+        }
+        self.assertIn(UNDECLARED_EXTRACTED_SUBJECT, marked)
+        self.assertIn(DECLARED_SUBJECT, marked)
+
+        model = _FakeSemanticModel({"scene_001": self.SEMANTIC_ANSWER})
+        planning = build_plan(request, brief_adapter=_adapter(model))
+        self.assertEqual(len(model.calls), 1)
+        self.assertEqual(planning.result.scenes[0].brief.subject, self.SEMANTIC_ANSWER["subject"])
 
     def test_research_the_scene_cites_is_not_a_declaration_of_what_to_show(self) -> None:
         """Corroboration is not declaration, so ``source_refs`` is not a second route.
@@ -727,29 +822,27 @@ class SemanticReadinessTest(unittest.TestCase):
 class HardConstraintsSurviveSemanticOverlayTest(unittest.TestCase):
     """A model states meaning. It was never offered authority, so it cannot spend any."""
 
-    def test_a_hard_requirement_the_planner_set_survives_the_semantic_overlay(self) -> None:
-        script = _one_scene_script(HARD_ENTITY_NARRATION)
-        deterministic = build_plan(_request(script))
-        self.assertEqual(deterministic.result.scenes[0].must_include, [HARD_ENTITY])
-        # The name alone is one term, and the ladder's two-term floor rejects it: without
-        # a model this scene reaches the adapter with no brief at all.
-        self.assertIsNone(deterministic.result.scenes[0].brief)
+    def test_the_planner_states_no_requirement_of_its_own_any_more(self) -> None:
+        """The intentional delta, and the proof it costs no information.
 
-        model = _FakeSemanticModel(
-            {"scene_001": {"subject": "research station", "action": "standing on ice"}}
-        )
-        planning = build_plan(_request(script), brief_adapter=_adapter(model))
-        scene = planning.result.scenes[0]
-        self.assertEqual(scene.subject, "research station")
-        self.assertEqual(scene.must_include, [HARD_ENTITY])
-        self.assertEqual(scene.brief.must_include, [HARD_ENTITY])
-        self.assertEqual(scene.brief.exact_entities, [HARD_ENTITY])
-        self.assertTrue(
-            any(HARD_ENTITY in query for query in scene.brief.provider_queries["en"]),
-            scene.brief.provider_queries,
-        )
+        ``McMurdo`` used to become a hard requirement here purely because it is Latin.
+        It still becomes the subject and still leads every intent - what it no longer does
+        is refuse candidates. Authority was withdrawn; the extraction was not.
+        """
+        script = _one_scene_script(HARD_ENTITY_NARRATION)
+        scene = build_plan(_request(script)).result.scenes[0]
+        self.assertEqual(scene.must_include, [])
+        self.assertEqual(scene.subject, HARD_ENTITY)
+        self.assertEqual(scene.intents[0].subject, HARD_ENTITY)
 
     def test_a_semantic_brief_cannot_drop_a_constraint_it_was_never_asked_about(self) -> None:
+        """The preservation contract itself, exercised directly.
+
+        Since the planner stopped writing constraints, the only scenes carrying one are
+        the ones an author briefed - and those are never sent to a model. So this is now a
+        guard on the rule rather than a reproduction of a live path: whoever gives
+        ``apply_semantic_brief`` a scene with constraints gets them back.
+        """
         scene = build_plan(_request()).result.scenes[0]
         scene.must_include = [HARD_ENTITY]
         scene.must_avoid = ["sea lion"]
@@ -921,6 +1014,103 @@ class AuthorBriefCostsNoModelCallTest(unittest.TestCase):
 
         without_model = build_plan(_request(_script(briefs={"scene_003": self.AUTHOR})))
         self.assertEqual(scene.to_dict(), without_model.result.scenes[2].to_dict())
+
+
+class HeuristicRequirementIsNotAuthorAuthorityTest(unittest.TestCase):
+    """A guess may not be enforced like a statement.
+
+    ``must_include`` is a hard requirement: ``candidate_ranker`` refuses any candidate
+    whose provider metadata does not contain every term, whatever else it scores. The
+    repository describes that authority as the author's throughout - ``decision``,
+    ``evidence`` and the ranker itself all call it "what the author explicitly required" -
+    but the deterministic planner was writing it from its own extraction, purely because
+    the word happened to be Latin.
+
+    That made semantic correction unable to finish its job. The model rewrites what the
+    scene is *about*; it holds no authority over constraints and therefore cannot clear
+    one, so the guess outlived the correction and refused the very candidate the
+    correction was for.
+
+    These tests run the whole path a Short runs - plan, legacy plan, ``analyze_scene``,
+    ``rank_candidates`` - because a field-level assertion cannot show that the *blocking*
+    consequence is gone.
+    """
+
+    def _ranked(self, planning, script: ScriptResult, candidate: dict) -> dict:
+        plan = planning.to_legacy_plan(language="ru", script=script.to_dict())
+        semantic_scene = analyze_scene(plan["scenes"][0])
+        ranked = rank_candidates(
+            semantic_scene, [dict(candidate)], require_provider_metadata=True
+        )
+        # Named apart from the ranker's own ``semantic_scene``, which is that object
+        # already flattened to a dict.
+        return {**ranked[0], "analyzed_scene": semantic_scene}
+
+    def test_the_extracted_subject_is_not_promoted_to_a_hard_requirement(self) -> None:
+        """The source of the defect: extraction stating what the frame must contain."""
+        script = _one_scene_script(HEURISTIC_LATIN_NARRATION)
+        scene = build_plan(_request(script)).result.scenes[0]
+        # Unchanged: this *is* still the subject extraction picks, and picking it is not
+        # what this repair is about. Pinned so the reproduction stays honest.
+        self.assertEqual(scene.subject, HEURISTIC_EXTRACTED_SUBJECT)
+        self.assertEqual(scene.must_include, [])
+
+    def test_a_corrected_subject_is_not_refused_over_the_guess_it_replaced(self) -> None:
+        """The reproduction, end to end, at the owner of the decision.
+
+        Before this repair the same candidate came back
+        ``blocking_reject_reasons=['must_include_missing:NASA']`` at
+        ``subject_match=100.0`` - the ranker refusing the right penguin footage for a
+        space agency nobody asked to see.
+        """
+        script = _one_scene_script(HEURISTIC_LATIN_NARRATION)
+        model = _FakeSemanticModel({"scene_001": PENGUIN_ANSWER})
+        planning = build_plan(_request(script), brief_adapter=_adapter(model))
+
+        scene = planning.result.scenes[0]
+        self.assertEqual(scene.subject, PENGUIN_ANSWER["subject"])
+        self.assertEqual(scene.must_include, [])
+
+        result = self._ranked(planning, script, PENGUIN_CANDIDATE)
+        self.assertEqual(result["analyzed_scene"].must_include, [])
+        self.assertEqual(result["subject_match"], 100.0)
+        self.assertEqual(result["blocking_reject_reasons"], [])
+        self.assertFalse(result["rejected"])
+
+    def _authored(self, required: str) -> dict:
+        """The same scene an author described, differing only in what they required.
+
+        The brief states the shot as well, so the only variable between the two tests
+        below is the required term - and neither depends on a model having run.
+        """
+        script = _one_scene_script(
+            HEURISTIC_LATIN_NARRATION, visual_brief={**PENGUIN_ANSWER, "must_include": [required]}
+        )
+        planning = build_plan(_request(script))
+        self.assertEqual(planning.result.scenes[0].must_include, [required])
+        return self._ranked(planning, script, PENGUIN_CANDIDATE)
+
+    def test_an_explicit_author_requirement_still_refuses_a_candidate_that_misses_it(self) -> None:
+        """The other half: hard constraints are not weakened, only re-sourced.
+
+        The candidate is the right footage for the scene and scores as such. It is refused
+        anyway, because a person wrote down something the frame must contain and this frame
+        does not contain it. That is what ``must_include`` is for, and it still works.
+        """
+        result = self._authored(AUTHOR_REQUIREMENT)
+        self.assertEqual(result["analyzed_scene"].must_include, [AUTHOR_REQUIREMENT])
+        self.assertEqual(result["subject_match"], 100.0)
+        self.assertIn(
+            f"must_include_missing:{AUTHOR_REQUIREMENT}", result["blocking_reject_reasons"]
+        )
+        self.assertTrue(result["rejected"])
+
+    def test_an_author_requirement_the_candidate_satisfies_is_not_a_refusal(self) -> None:
+        """So the test above is proved to be about the requirement, not about the fixture."""
+        result = self._authored("sea ice")
+        self.assertEqual(result["analyzed_scene"].must_include, ["sea ice"])
+        self.assertEqual(result["blocking_reject_reasons"], [])
+        self.assertFalse(result["rejected"])
 
 
 class NoDiagnosticHardcodeTest(unittest.TestCase):

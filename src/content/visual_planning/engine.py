@@ -10,7 +10,6 @@ from .brief import VisualBrief, apply_brief, parse_brief, produce_brief
 from .contract import VisualPlanner, VisualPlannerError, VisualPlannerUnavailableError
 from .legacy_format import to_legacy_visual_plan
 from .models import (
-    ENTITY_KIND_TOPIC,
     VisualPlanRequest,
     VisualPlanResult,
     VisualPlanValidationResult,
@@ -179,7 +178,7 @@ def _produce_scene_briefs(
             script_scene = script_scenes[position]
         claims = list(request.claims or [])
         brief = produce_brief(scene, script_scene=script_scene, claims=claims)
-        if adapter is not None and _needs_semantic_help(brief, scene, answered_by_author):
+        if adapter is not None and _needs_semantic_help(scene, answered_by_author):
             semantic = _semantic_brief(
                 scene,
                 script_scene=script_scene,
@@ -196,74 +195,43 @@ def _produce_scene_briefs(
             scene.brief = brief
 
 
-def _needs_semantic_help(
-    brief: VisualBrief, scene: Any, answered_by_author: set[str]
-) -> bool:
-    """Whether the deterministic brief already says what this scene is about.
+def _needs_semantic_help(scene: Any, answered_by_author: set[str]) -> bool:
+    """Whether this scene is one an approved adapter may be asked about.
 
-    Not ``brief.is_empty``. A brief becomes non-empty as soon as *any* provider-language
-    evidence produces a query, and a linked English claim or a bag of prepared keywords
-    does that while the plan still calls the scene ``воды`` - so the scenes that most
-    needed a subject were the ones never offered one.
+    Everything an automatic pass can observe about a scene has now been tried as an
+    answer to "does planning already know what this scene is about", and each was the
+    same mistake wearing a different hat:
 
-    Nor is it ``brief.subject``, which was the same mistake one step later. That field is
-    non-empty as soon as extraction produced *something* a provider could search, and on
-    an ordinary English sentence extraction produces the place, the verb or the
-    preposition: ``antarctic`` for a scene about a penguin colony, ``across`` for one
-    about a penguin. Naming a subject and knowing the subject are different facts, and
-    reading the first as the second is what let the wrong ones refuse correction.
+    - ``brief.is_empty`` - non-empty as soon as *any* provider-language evidence produces
+      a query, so a linked English claim or a bag of prepared keywords qualified a scene
+      the plan still called ``воды``;
+    - ``brief.subject`` - non-empty as soon as extraction produced something searchable,
+      and on an ordinary English sentence extraction produces the place or the
+      preposition: ``antarctic`` for a scene about a penguin colony;
+    - the subject being marked ``ENTITY_KIND_TOPIC`` - closer, because a topic really is
+      a declaration, but a declaration about the *video*. ``Antarctic penguin colonies``
+      marks ``antarctic`` and ``penguin`` alike, so it cannot say which of them this scene
+      shows, and the wrong one was protected by the presence of the right one.
 
-    So the brief must name a subject *and* the plan must be able to say where that
-    subject came from - see ``_subject_is_declared``. A scene the author has already
-    briefed is skipped before either question: that brief is applied after this pass and
-    replaces whatever a model would say, so asking is spending on an answer that is thrown
-    away. C63 is unchanged - this only skips scenes whose author brief actually reached
-    visual planning.
+    A word's role in a global string is not a statement about one scene, so nothing
+    derived from the script's own text is asked again here. The remaining question is one
+    of authority, and exactly one source in this repository has it: the author's
+    ``visual_brief``, written per scene beside the narration. That brief is applied after
+    this pass and replaces whatever a model would say, so asking about such a scene is
+    spending on an answer that is thrown away.
+
+    Every other scene is planned automatically and is eligible for one call. That is
+    deliberately more calls than the withdrawn rule made - correctness first; a cost
+    policy built on a signal that cannot tell a right subject from a wrong one is not a
+    saving. Narrowing it again is a decision for real diagnostic evidence, and it needs a
+    scene-level source of authority that does not exist yet rather than a new confidence
+    field invented to justify skipping.
+
+    Nothing is spent by returning ``True``: the adapter's own preconditions still decide
+    whether a backend is reached, and no production caller injects one. C63 is unchanged -
+    this only skips scenes whose author brief actually reached visual planning.
     """
-    if scene.scene_id in answered_by_author:
-        return False
-    if not brief.subject:
-        return True
-    return not _subject_is_declared(scene)
-
-
-def _subject_is_declared(scene: Any) -> bool:
-    """Whether the material *stated* that this is what the scene is about.
-
-    Answered from the record the planner already keeps. ``entities.collect_entities``
-    marks an entity ``ENTITY_KIND_TOPIC`` when the topic given for this video names it,
-    and a topic is a declaration about the material - the same kind of evidence as an
-    author's brief, one step weaker. Every other signal on an entity is arithmetic over
-    how often a word occurs, which is exactly the reasoning that produced the wrong
-    subjects in the first place.
-
-    Nothing here reads the word. There is no score, no vocabulary, no part of speech and
-    no list of bad subjects: ``antarctic`` is refused because nothing declared it, not
-    because it is a place, and a declared subject is accepted whatever it happens to
-    name. A wrong subject can therefore still be trusted - but only when the producer
-    named it themselves, which is the same authority the author's brief already carries.
-
-    Deliberately not ``VisualPlanResult.topic_entity``, whose similar name hides the
-    opposite meaning: that is merely the highest-ranked entity of the whole script, so
-    consulting it would put counting back under a provenance heading.
-
-    Deliberately not ``VisualEntity.source_refs`` either. A claim reference records that
-    cited prose contains the word, and cited prose names the scene's surroundings as
-    readily as its subject - on the reproduced scene it corroborates ``coast``, which is
-    the very shape this question exists to catch.
-    """
-    subject = _match_key(getattr(scene, "subject", ""))
-    if not subject:
-        return False
-    return any(
-        _match_key(getattr(entity, "surface", "")) == subject
-        and getattr(entity, "kind", "") == ENTITY_KIND_TOPIC
-        for entity in getattr(scene, "entities", None) or []
-    )
-
-
-def _match_key(value: Any) -> str:
-    return " ".join(str(value or "").split()).casefold()
+    return getattr(scene, "scene_id", "") not in answered_by_author
 
 
 def _semantic_brief(

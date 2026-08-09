@@ -177,20 +177,6 @@ def _plan_scene(
     shot_type = _shot_type(role=role, action=action, place=place, claim_ids=claim_ids, text=narration)
     preferred, allowed = _media_kinds(subject=subject, period=period, place=place, shot_type=shot_type)
 
-    # ``must_include`` is a hard requirement: the term has to reach the provider query
-    # verbatim *and* be found in the returned metadata, or the candidate is refused.
-    # A term this planner extracted from Russian narration can do neither - every remote
-    # provider is English-only (src.assets.query_adapter), so the word is never sent and
-    # can never appear in an answer. Promoting it anyway made the requirement
-    # unverifiable by construction, and an unverifiable requirement refuses *every*
-    # candidate: the retest left scene_002 and scene_008 empty over `долинах` and
-    # `пластик`, words the author never asked for. The extracted subject and place stay
-    # where they can still be judged - the subject and location slots, which score
-    # partial evidence instead of demanding a literal hit.
-    must_include = [subject] if subject and is_latin(subject) else []
-    if shot_type in {SHOT_ESTABLISHING, SHOT_EVIDENCE} and place and is_latin(place):
-        must_include.append(place)
-
     warnings: list[str] = []
     if not subject:
         # An abstract scene is legitimate (a payoff often is), but it cannot be
@@ -219,10 +205,30 @@ def _plan_scene(
         shot_type=shot_type,
         allowed_media_kinds=allowed,
         preferred_media_kind=preferred,
-        must_include=must_include,
-        # Nothing is put here by default on purpose: inventing negatives without
-        # domain knowledge is exactly how the previous prototype ended up refusing
-        # deserts and mountains for every video because one of them was about whales.
+        # Both constraint lists are left empty by this planner, for the same reason.
+        #
+        # ``must_include`` is a *hard* requirement: src.assets.semantic_selection refuses
+        # any candidate whose provider metadata does not contain every term, whatever else
+        # it scores, and the whole of that package calls the field what the author
+        # explicitly required. Nothing here is explicit. This function does not know what
+        # the scene must contain - it ranks the words a sentence happens to use, which is
+        # why the subject it picks is routinely the place, the instrument or the agency
+        # the sentence mentions in passing. Enforcing that guess with the authority of a
+        # statement made every downstream stage treat a coincidence as a promise: a scene
+        # about a penguin colony that cited a satellite programme required ``NASA`` in
+        # frame, and the correct penguin footage was refused at 100% subject match for
+        # missing it.
+        #
+        # This is not a weakening of the requirement, and nothing about how it is enforced
+        # changed. What changed is who may state one: an author's brief (``brief``), where
+        # a person wrote the term down. An extracted subject and place still travel - in
+        # the subject and place slots, which score partial evidence instead of demanding a
+        # literal hit, and in the intents built from them - so a wrong guess costs ranking
+        # position rather than refusing the scene outright.
+        must_include=[],
+        # Inventing negatives without domain knowledge is how the previous prototype
+        # ended up refusing deserts and mountains for every video because one of them
+        # was about whales.
         must_avoid=[],
         intents=intents,
         claim_ids=claim_ids,
