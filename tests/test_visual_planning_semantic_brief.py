@@ -84,7 +84,10 @@ from src.content.visual_planning import (
 )
 from src.content.visual_planning.brief import VisualBrief, apply_brief
 from src.content.visual_planning.models import ENTITY_KIND_TOPIC
+from src.content.visual_planning.expansion import PROVIDER_LANGUAGE
 from src.content.visual_planning.semantic_brief import (
+    MAX_CONTEXT_ITEMS,
+    MAX_FIELD_TERMS,
     RESPONSE_CONTRACT,
     ModelSemanticBriefAdapter,
     SceneBriefEvidence,
@@ -363,6 +366,138 @@ class SceneEvidenceTest(unittest.TestCase):
         self.assertNotIn("Странные способности животных", prompt)
         for field in RESPONSE_CONTRACT:
             self.assertIn(field, prompt)
+
+
+class PromptStatesTheParserContractTest(unittest.TestCase):
+    """The first live run: three of six usable answers refused by unstated rules.
+
+    ``gpt-4.1`` understood every scene. What it did not know was that ``action`` is a
+    phrase and not a clause, that a ``context`` item is bound by the same ceiling, and
+    that the on-screen text it was shown is evidence rather than something to repeat.
+    Each of those was already enforced by ``parse_response`` and stated nowhere the
+    model could read it. The fix is on the asking side: the parser below is unchanged.
+    """
+
+    def _prompt(self, **overrides) -> str:
+        base = {
+            "scene_id": "scene_001",
+            "narration": NARRATIONS["scene_001"],
+            "on_screen_text": "Геккон бежит по стеклу",
+        }
+        base.update(overrides)
+        return build_prompt(SceneBriefEvidence(**base))
+
+    def _rules(self, **overrides) -> str:
+        """The instructions only - the schema dump is asserted on separately."""
+        return self._prompt(**overrides).split("Ответ — строго JSON")[0]
+
+    def test_the_word_ceiling_the_parser_enforces_is_stated_to_the_model(self) -> None:
+        self.assertIn(str(MAX_FIELD_TERMS), self._rules())
+
+    def test_the_context_item_ceiling_is_stated_to_the_model(self) -> None:
+        self.assertIn(str(MAX_CONTEXT_ITEMS), self._rules())
+
+    def test_the_provider_language_requirement_is_stated_to_the_model(self) -> None:
+        self.assertIn(PROVIDER_LANGUAGE, self._rules())
+
+    def test_the_model_is_told_the_values_are_search_phrases(self) -> None:
+        rules = self._rules()
+        self.assertIn("поисков", rules)
+        self.assertIn("не предложение", rules)
+
+    def test_the_model_is_told_not_to_quote_the_narration(self) -> None:
+        self.assertIn("не цитируй", self._rules().casefold())
+
+    def test_the_model_is_told_not_to_repeat_the_on_screen_text(self) -> None:
+        rules = self._rules()
+        self.assertIn("текст на экране", rules)
+        self.assertIn("не переноси", rules.casefold())
+        # The evidence is still sent: it is material to understand, not to copy.
+        self.assertIn("Геккон бежит по стеклу", self._prompt())
+
+    def test_the_model_is_told_not_to_explain_itself(self) -> None:
+        self.assertIn("пояснен", self._rules())
+
+    def test_the_contract_itself_carries_the_limits_it_is_judged_by(self) -> None:
+        """The schema dump travels with the prompt, so it may not contradict it."""
+        for field in ("subject", "action", "place"):
+            with self.subTest(field=field):
+                self.assertIn(str(MAX_FIELD_TERMS), RESPONSE_CONTRACT[field])
+                self.assertIn(PROVIDER_LANGUAGE, RESPONSE_CONTRACT[field])
+        context = RESPONSE_CONTRACT["context"][0]
+        self.assertIn(str(MAX_FIELD_TERMS), context)
+        self.assertIn(str(MAX_CONTEXT_ITEMS), context)
+
+    def test_the_limits_are_not_copied_by_hand_beside_the_constants(self) -> None:
+        """A number written twice is a number that drifts once."""
+        source = Path("src/content/visual_planning/semantic_brief.py").read_text(encoding="utf-8")
+        body = source.split("MAX_CONTEXT_ITEMS = ", 1)[1].split("\n", 1)[1]
+        for literal in (str(MAX_FIELD_TERMS), str(MAX_CONTEXT_ITEMS)):
+            with self.subTest(literal=literal):
+                self.assertNotIn(f" {literal} слов", body)
+                self.assertNotIn(f" {literal} элемент", body)
+
+
+class LiveRejectionsStayRejectionsTest(unittest.TestCase):
+    """The parser was not loosened to make the refused answers pass.
+
+    These are the three shapes the first real Russian diagnostic produced. Telling the
+    model about a rule is the repair; accepting the answers that broke it would be the
+    opposite of one.
+    """
+
+    def _evidence(self) -> SceneBriefEvidence:
+        return SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"])
+
+    def test_a_context_item_longer_than_a_phrase_is_still_refused(self) -> None:
+        with self.assertRaises(SemanticBriefResponseError):
+            parse_response(
+                {
+                    "subject": "gecko",
+                    "context": ["a close-up view of the gecko toes gripping the smooth glass"],
+                },
+                evidence=self._evidence(),
+            )
+
+    def test_an_action_longer_than_a_phrase_is_still_refused(self) -> None:
+        with self.assertRaises(SemanticBriefResponseError):
+            parse_response(
+                {
+                    "subject": "penguin",
+                    "action": "lying down on its belly and sliding across the snow and ice",
+                },
+                evidence=self._evidence(),
+            )
+
+    def test_the_scenes_own_on_screen_text_is_still_refused_as_context(self) -> None:
+        with self.assertRaises(SemanticBriefResponseError):
+            parse_response(
+                {
+                    "subject": "gecko",
+                    "context": ["visual text: 'Каждый из этих трюков выглядит'"],
+                },
+                evidence=self._evidence(),
+            )
+
+    def test_more_context_items_than_the_contract_allows_is_still_refused(self) -> None:
+        with self.assertRaises(SemanticBriefResponseError):
+            parse_response(
+                {"subject": "gecko", "context": ["glass"] * (MAX_CONTEXT_ITEMS + 1)},
+                evidence=self._evidence(),
+            )
+
+    def test_an_answer_that_obeys_every_stated_rule_is_accepted(self) -> None:
+        brief = parse_response(
+            {
+                "subject": "gecko",
+                "action": "running on glass",
+                "place": "smooth glass pane",
+                "context": ["gecko feet", "transparent surface"],
+            },
+            evidence=self._evidence(),
+        )
+        self.assertEqual(brief.subject, "gecko")
+        self.assertEqual(brief.context, ["gecko feet", "transparent surface"])
 
 
 class SemanticResponseContractTest(unittest.TestCase):

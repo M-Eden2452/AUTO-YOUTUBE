@@ -53,6 +53,7 @@ from src.config_resolver.paths import repository_path
 from src.content.visual_planning.semantic_brief import (
     ADAPTER_ID,
     MAX_CONTEXT_ITEMS,
+    RESPONSE_CONTRACT,
     ModelSemanticBriefAdapter,
     SemanticBriefUnavailableError,
 )
@@ -152,8 +153,15 @@ def paid_call_blockers(config: SemanticBriefModelConfig) -> list[str]:
 def response_schema() -> dict[str, Any]:
     """Схема запроса, выведенная из существующего контракта ответа.
 
-    Ничего нового не объявляет: поля и словарь ``shot_type`` берутся у владельца
-    контракта, поэтому строгий парсер и то, что просят у модели, не могут разойтись.
+    Ничего нового не объявляет: поля, описания и словарь ``shot_type`` берутся у
+    владельца контракта, поэтому строгий парсер и то, что просят у модели, не могут
+    разойтись.
+
+    Схема фиксирует то, что JSON Schema умеет выразить точно: набор полей, их типы,
+    словарь ``shot_type`` и потолок ``MAX_CONTEXT_ITEMS``. Ограничение в словах
+    ею не выражается — регулярное выражение на счётчик слов было бы вторым, менее
+    точным контрактом, — поэтому оно приходит к модели описанием поля и текстом
+    запроса, а окончательным судьёй остаётся ``parse_response``.
     """
     return {
         "type": "json_schema",
@@ -164,18 +172,26 @@ def response_schema() -> dict[str, Any]:
             "additionalProperties": False,
             "required": ["subject", "action", "place", "context", "shot_type"],
             "properties": {
-                "subject": {"type": "string"},
-                "action": {"type": "string"},
-                "place": {"type": "string"},
+                "subject": _described("subject"),
+                "action": _described("action"),
+                "place": _described("place"),
                 "context": {
                     "type": "array",
                     "maxItems": MAX_CONTEXT_ITEMS,
-                    "items": {"type": "string"},
+                    "items": _described("context"),
                 },
-                "shot_type": {"type": "string", "enum": ["", *SHOT_TYPES]},
+                "shot_type": {**_described("shot_type"), "enum": ["", *SHOT_TYPES]},
             },
         },
     }
+
+
+def _described(field: str) -> dict[str, Any]:
+    """Строковое поле схемы с описанием, взятым у владельца контракта."""
+    description = RESPONSE_CONTRACT[field]
+    if isinstance(description, list):
+        description = description[0]
+    return {"type": "string", "description": str(description)}
 
 
 class OpenAISemanticBriefBackend:

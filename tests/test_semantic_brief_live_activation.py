@@ -38,13 +38,19 @@ from src.content.semantic_brief_openai import (
     build_semantic_brief_adapter,
     load_semantic_brief_config,
     paid_call_blockers,
+    response_schema,
 )
+from src.content.visual_planning.models import SHOT_TYPES
 from src.content.visual_planning import VisualPlanRequest, build_plan
 from src.content.visual_planning.brief import (
     VisualBrief,
     author_semantics_are_sufficient,
 )
 from src.content.visual_planning.semantic_brief import (
+    MAX_CONTEXT_ITEMS,
+    MAX_FIELD_TERMS,
+    RESPONSE_CONTRACT,
+    RESPONSE_FIELDS,
     SemanticBriefUnavailableError,
     build_prompt,
     evidence_for_scene,
@@ -325,6 +331,59 @@ class BackendIsReachedTest(unittest.TestCase):
         self.assertEqual(client.call_count, 1)
         warnings = planning.result.scenes[1].warnings
         self.assertTrue(any(UNAVAILABLE_CODE in item for item in warnings), warnings)
+
+
+class RequestSchemaCarriesTheContractTest(unittest.TestCase):
+    """What the request tells the model, beyond the shape of the JSON.
+
+    The first live diagnostic refused three answers for limits the request never
+    mentioned. JSON Schema cannot count words, and a regular expression that tried
+    would be a second, less accurate contract with its own failure modes - so the
+    schema states what it can state exactly, carries the rest as the contract owner's
+    own field descriptions, and ``parse_response`` stays the final judge.
+    """
+
+    def _properties(self) -> dict[str, Any]:
+        return response_schema()["schema"]["properties"]
+
+    def test_the_schema_declares_exactly_the_parsers_fields(self) -> None:
+        schema = response_schema()["schema"]
+        self.assertEqual(set(schema["properties"]), set(RESPONSE_FIELDS))
+        self.assertEqual(set(schema["required"]), set(RESPONSE_FIELDS))
+        self.assertFalse(schema["additionalProperties"])
+
+    def test_every_field_carries_the_contract_owners_own_description(self) -> None:
+        properties = self._properties()
+        for field in ("subject", "action", "place", "shot_type"):
+            with self.subTest(field=field):
+                self.assertEqual(properties[field]["description"], RESPONSE_CONTRACT[field])
+        self.assertEqual(
+            properties["context"]["items"]["description"], RESPONSE_CONTRACT["context"][0]
+        )
+
+    def test_the_word_ceiling_reaches_the_model_through_the_schema_too(self) -> None:
+        properties = self._properties()
+        for field in ("subject", "action", "place"):
+            with self.subTest(field=field):
+                self.assertIn(str(MAX_FIELD_TERMS), properties[field]["description"])
+        self.assertIn(str(MAX_FIELD_TERMS), properties["context"]["items"]["description"])
+
+    def test_what_the_schema_can_state_exactly_it_still_states(self) -> None:
+        properties = self._properties()
+        self.assertEqual(properties["context"]["maxItems"], MAX_CONTEXT_ITEMS)
+        self.assertEqual(properties["shot_type"]["enum"], ["", *SHOT_TYPES])
+
+    def test_the_word_ceiling_is_not_faked_with_a_pattern(self) -> None:
+        """A near-miss regular expression would refuse answers the parser accepts."""
+        for field, spec in self._properties().items():
+            with self.subTest(field=field):
+                self.assertNotIn("pattern", spec)
+                self.assertNotIn("maxLength", spec)
+
+    def test_the_request_actually_sends_that_schema(self) -> None:
+        client = _FakeOpenAIClient()
+        _plan(client)
+        self.assertEqual(client.calls[0]["text"], {"format": response_schema()})
 
 
 class AuthorSemanticSufficiencyTest(unittest.TestCase):

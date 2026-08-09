@@ -82,22 +82,35 @@ ADAPTER_ID = "model_semantic_brief"
 # ``must_avoid`` is a rights- and meaning-level constraint, and ``provider_queries``
 # bypasses query building entirely. A model may say what the scene is about; it may not
 # invent what the author forbade or hand a provider a string of its own.
-RESPONSE_CONTRACT: dict[str, Any] = {
-    "subject": (
-        "str - what must be in frame, in the provider's language. "
-        "Empty when the evidence does not say what to show."
-    ),
-    "action": "str, optional - what the subject is doing",
-    "place": "str, optional - where it happens",
-    "context": ["str, optional - what surrounds the subject without replacing it"],
-    "shot_type": f"str, optional - one of: {' | '.join(SHOT_TYPES)}",
-}
-RESPONSE_FIELDS = frozenset(RESPONSE_CONTRACT)
-
 # One field is a phrase, not a sentence: the same eight-term ceiling the ladder applies
 # to a finished query, so a model cannot smuggle a paragraph into a subject.
 MAX_FIELD_TERMS = 8
 MAX_CONTEXT_ITEMS = 4
+
+# Every limit below is written *from* the constants above, never beside them. The first
+# live run refused three of six otherwise usable answers - a long ``action``, a long
+# ``context`` item and a ``context`` item that echoed the scene's own on-screen text -
+# and none of those rules had ever been stated to the model. A rule the parser enforces
+# and the prompt does not say is not a contract, it is a trap.
+_PHRASE_RULE = (
+    f"in {PROVIDER_LANGUAGE}, at most {MAX_FIELD_TERMS} words, a stock-search phrase, "
+    "not a sentence"
+)
+
+RESPONSE_CONTRACT: dict[str, Any] = {
+    "subject": (
+        f"str - what must be in frame, {_PHRASE_RULE}. "
+        "Empty when the evidence does not say what to show."
+    ),
+    "action": f"str, optional - what the subject is doing, {_PHRASE_RULE}",
+    "place": f"str, optional - where it happens, {_PHRASE_RULE}",
+    "context": [
+        f"str, optional - what surrounds the subject without replacing it, {_PHRASE_RULE}; "
+        f"at most {MAX_CONTEXT_ITEMS} items"
+    ],
+    "shot_type": f"str, optional - one of: {' | '.join(SHOT_TYPES)}",
+}
+RESPONSE_FIELDS = frozenset(RESPONSE_CONTRACT)
 
 SemanticBriefCompletionFn = Callable[[str, dict[str, Any]], "str | dict[str, Any]"]
 
@@ -174,17 +187,34 @@ def evidence_for_scene(
 
 
 def build_prompt(evidence: SceneBriefEvidence) -> str:
-    """The instruction a model would receive. Pure string building, no I/O."""
+    """The instruction a model would receive. Pure string building, no I/O.
+
+    Every limit stated here is read from the parser's own constants, so the rules the
+    model is given and the rules the answer is judged by cannot drift apart. The parser
+    stays the final validator: this only stops it refusing answers for a reason the
+    model was never told.
+    """
     lines = [
         "Ты определяешь, что должно быть в кадре одной сцены видео.",
         "Опиши смысл сцены, а не переводи отдельные слова: назови то, что зритель"
         " должен увидеть.",
-        f"Все значения — на языке провайдера ({PROVIDER_LANGUAGE}), короткими фразами.",
         "Не выдумывай сущность, место и факты, которых нет в материале ниже."
         " Если материал не говорит, что показывать, верни пустой subject.",
+        "Правила для значений (нарушение любого отменяет весь ответ целиком):",
+        f"- каждое значение — на языке провайдера ({PROVIDER_LANGUAGE}) и только на нём;",
+        f"- каждое значение — не длиннее {MAX_FIELD_TERMS} слов;",
+        "- каждое значение — короткая поисковая фраза для банка стоковых видео,"
+        " а не предложение и не пересказ;",
+        f"- поле context — не более {MAX_CONTEXT_ITEMS} элементов, каждый по тем же правилам;",
+        "- не цитируй закадровый текст и не переводи его дословно;",
+        "- не переноси в ответ текст на экране;",
+        "- никаких пояснений, причин и комментариев — ни отдельным полем, ни внутри значения;",
+        "- если что-то нельзя сказать на языке провайдера, оставь поле пустым,"
+        " а не пиши это на языке сцены.",
         "Ответ — строго JSON по схеме, без каких-либо других ключей:",
         json.dumps(RESPONSE_CONTRACT, ensure_ascii=False, indent=2),
         "",
+        "Материал ниже — только чтобы понять сцену, копировать его в ответ нельзя.",
         f"Текст сцены:\n{evidence.narration}",
     ]
     if evidence.on_screen_text:
