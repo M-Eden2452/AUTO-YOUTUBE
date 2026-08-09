@@ -74,6 +74,14 @@ INTENT_ATMOSPHERIC_FALLBACK = "atmospheric_fallback"
 
 INTENT_KINDS = (INTENT_PRIMARY, INTENT_ALTERNATIVE, INTENT_CONTEXT_FALLBACK, INTENT_ATMOSPHERIC_FALLBACK)
 
+# --- Entity kinds ------------------------------------------------------------
+# Why an entity is believed to matter. Only one kind is earned rather than assumed:
+# ``topic_entity`` says the topic stated for this video names the thing, which is a
+# declaration about the material and not a count of how often a word appears. Named
+# here rather than written out where it is set and where it is read, because those are
+# two modules and a string they both spell by hand is a string they can drift on.
+ENTITY_KIND_TOPIC = "topic_entity"
+
 
 @dataclass
 class VisualEntity:
@@ -346,6 +354,7 @@ class VisualPlanValidationResult:
 
 
 __all__ = [
+    "ENTITY_KIND_TOPIC",
     "INTENT_ALTERNATIVE",
     "INTENT_ATMOSPHERIC_FALLBACK",
     "INTENT_CONTEXT_FALLBACK",

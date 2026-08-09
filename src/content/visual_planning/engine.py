@@ -9,7 +9,13 @@ from typing import Any
 from .brief import VisualBrief, apply_brief, parse_brief, produce_brief
 from .contract import VisualPlanner, VisualPlannerError, VisualPlannerUnavailableError
 from .legacy_format import to_legacy_visual_plan
-from .models import VisualPlanRequest, VisualPlanResult, VisualPlanValidationResult, rebuild_intents
+from .models import (
+    ENTITY_KIND_TOPIC,
+    VisualPlanRequest,
+    VisualPlanResult,
+    VisualPlanValidationResult,
+    rebuild_intents,
+)
 from .registry import get_planner, resolve_planner_id
 from .semantic_brief import apply_semantic_brief, evidence_for_scene
 from .validation import validate_visual_plan
@@ -200,21 +206,64 @@ def _needs_semantic_help(
     does that while the plan still calls the scene ``воды`` - so the scenes that most
     needed a subject were the ones never offered one.
 
-    The criterion is the one this package already applies to a model's own answer:
-    ``semantic_brief.parse_response`` promotes an answer to a brief only when it names a
-    subject, because a place or an action without one is how a scene turns into generic
-    footage. The same question asked of the deterministic brief is the whole rule - not a
-    quality score, not a second classifier, and no wider than the existing empty case,
-    which has no subject either.
+    Nor is it ``brief.subject``, which was the same mistake one step later. That field is
+    non-empty as soon as extraction produced *something* a provider could search, and on
+    an ordinary English sentence extraction produces the place, the verb or the
+    preposition: ``antarctic`` for a scene about a penguin colony, ``across`` for one
+    about a penguin. Naming a subject and knowing the subject are different facts, and
+    reading the first as the second is what let the wrong ones refuse correction.
 
-    A scene the author has already briefed is skipped: that brief is applied after this
-    pass and replaces whatever a model would say, so asking is spending on an answer that
-    is thrown away. C63 is unchanged - this only skips scenes whose author brief actually
-    reached visual planning.
+    So the brief must name a subject *and* the plan must be able to say where that
+    subject came from - see ``_subject_is_declared``. A scene the author has already
+    briefed is skipped before either question: that brief is applied after this pass and
+    replaces whatever a model would say, so asking is spending on an answer that is thrown
+    away. C63 is unchanged - this only skips scenes whose author brief actually reached
+    visual planning.
     """
     if scene.scene_id in answered_by_author:
         return False
-    return not brief.subject
+    if not brief.subject:
+        return True
+    return not _subject_is_declared(scene)
+
+
+def _subject_is_declared(scene: Any) -> bool:
+    """Whether the material *stated* that this is what the scene is about.
+
+    Answered from the record the planner already keeps. ``entities.collect_entities``
+    marks an entity ``ENTITY_KIND_TOPIC`` when the topic given for this video names it,
+    and a topic is a declaration about the material - the same kind of evidence as an
+    author's brief, one step weaker. Every other signal on an entity is arithmetic over
+    how often a word occurs, which is exactly the reasoning that produced the wrong
+    subjects in the first place.
+
+    Nothing here reads the word. There is no score, no vocabulary, no part of speech and
+    no list of bad subjects: ``antarctic`` is refused because nothing declared it, not
+    because it is a place, and a declared subject is accepted whatever it happens to
+    name. A wrong subject can therefore still be trusted - but only when the producer
+    named it themselves, which is the same authority the author's brief already carries.
+
+    Deliberately not ``VisualPlanResult.topic_entity``, whose similar name hides the
+    opposite meaning: that is merely the highest-ranked entity of the whole script, so
+    consulting it would put counting back under a provenance heading.
+
+    Deliberately not ``VisualEntity.source_refs`` either. A claim reference records that
+    cited prose contains the word, and cited prose names the scene's surroundings as
+    readily as its subject - on the reproduced scene it corroborates ``coast``, which is
+    the very shape this question exists to catch.
+    """
+    subject = _match_key(getattr(scene, "subject", ""))
+    if not subject:
+        return False
+    return any(
+        _match_key(getattr(entity, "surface", "")) == subject
+        and getattr(entity, "kind", "") == ENTITY_KIND_TOPIC
+        for entity in getattr(scene, "entities", None) or []
+    )
+
+
+def _match_key(value: Any) -> str:
+    return " ".join(str(value or "").split()).casefold()
 
 
 def _semantic_brief(
@@ -236,9 +285,18 @@ def _semantic_brief(
     into a query has to leave the scene exactly as the planner left it - otherwise a
     brief this layer refused would still reach a provider through the rebuilt intents,
     which is the opposite of failing closed.
+
+    Whether a backend is reached at all is settled *here*, before it is called, from the
+    adapter's own preconditions: an adapter that is not wired or not approved, and a scene
+    with nothing to reason about, are all the same situation as having no adapter, and
+    that situation has to leave the plan exactly as an adapter-less run leaves it. Once
+    past this point the call happened, and every controlled way it can fail is recorded.
     """
+    evidence = evidence_for_scene(scene, script_scene=script_scene, claims=claims)
+    if not adapter.is_available() or evidence.is_empty:
+        return VisualBrief()
     try:
-        semantic = adapter.brief_for(evidence_for_scene(scene, script_scene=script_scene, claims=claims))
+        semantic = adapter.brief_for(evidence)
     except VisualPlannerError as error:
         _record_semantic_outcome(scene, error)
         return VisualBrief()
@@ -281,12 +339,15 @@ def _record_semantic_outcome(scene: Any, error: VisualPlannerError | None) -> No
     persisted and nothing new has to be read: ``planning_warnings`` already round-trips
     through ``legacy_format`` and no gate treats it as blocking.
 
-    An adapter that never ran records nothing. Not wired, not approved and a scene with
-    no evidence to send are all the same situation as having no adapter at all, and that
-    situation has to leave the plan exactly as an adapter-less run leaves it.
+    Reached only when a backend was actually asked, so every outcome here is recorded.
+    ``retryable`` used to decide that instead, and it cannot: it answers whether asking
+    again could help, and a backend that says *permanently* no - a rejected key, a model
+    the account may not select - answers that the same way an unwired adapter does. A real
+    failed call then left the plan byte-identical to a run with no adapter, which is the
+    one distinction a later diagnostic has to be able to make. ``_semantic_brief`` decides
+    "was anything asked" from the adapter's preconditions; this function no longer guesses
+    it from the error.
     """
-    if isinstance(error, VisualPlannerUnavailableError) and not error.retryable:
-        return
     warning = (
         f"{SEMANTIC_NO_ANSWER}: сцена {scene.scene_id} — модель не назвала, что показывать"
         if error is None

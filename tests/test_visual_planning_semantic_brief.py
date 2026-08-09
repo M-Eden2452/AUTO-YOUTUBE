@@ -34,6 +34,20 @@ wired:
 - a scene the author already briefed is not sent to a model whose answer that brief
   would overwrite anyway.
 
+The second repair pass, again before any model was wired, closes the two findings that
+survived it:
+
+- *naming* a provider-language subject was still being read as *knowing* the subject.
+  An ordinary English sentence hands deterministic extraction ``antarctic`` for a scene
+  about a penguin colony, and the scene then refused the only help that could correct
+  it. Sufficiency is now decided by where the subject came from - the topic the producer
+  stated for this video, which ``collect_entities`` already records on the entity - and
+  never by what the word looks like;
+- a backend that really ran and failed permanently recorded nothing, because
+  ``retryable`` was being read as "was anything asked". Whether a backend was reached is
+  now decided before it is called, so every controlled failure of a real attempt leaves
+  its warning and every adapter that never ran still leaves the plan untouched.
+
 No network (``tests.network_guard`` is installed package-wide), no provider call, no
 model call: every "model" here is a dictionary.
 """
@@ -119,9 +133,27 @@ SEMANTIC_ANSWERS = {
 EXPECTED_SUBJECTS = {scene_id: answer["subject"] for scene_id, answer in SEMANTIC_ANSWERS.items()}
 
 # A scene whose own words are already the provider's words. Deterministic extraction
-# names the subject here, so the deterministic brief states what the frame is about and
-# there is nothing a model needs to add.
+# names *a* subject here - and names the wrong one: the sentence is about the colony and
+# ``antarctic`` is merely where it is. Latin, queryable, and not what the frame is about.
 PROVIDER_LANGUAGE_NARRATION = "An emperor penguin colony crosses the antarctic sea ice."
+UNDECLARED_EXTRACTED_SUBJECT = "antarctic"
+
+# The same scene under a topic that states what the video is about. ``collect_entities``
+# marks the entity the topic names, which is how the plan can say *why* it believes its
+# subject rather than only that it has one.
+DECLARING_TOPIC = "How the penguin survives"
+DECLARED_SUBJECT = "penguin"
+
+# A provider-language scene with research linked to it. The cited prose names the coast
+# as readily as the animal, so "some claim mentions this word" corroborates the wrong
+# subject just as happily as the right one.
+RESEARCH_NARRATION = "The orca breaches completely out of the cold water off the coast."
+RESEARCH_EXTRACTED_SUBJECT = "coast"
+COAST_CLAIM = {
+    "claim_id": "claim_002",
+    "text": "Orca pods were observed hunting along the coast.",
+    "safe_for_script": True,
+}
 
 # An ordinary Russian scene that happens to name a place in Latin script. The
 # deterministic planner promotes that name to a hard requirement and then cannot build a
@@ -499,20 +531,102 @@ class DeterministicPathIsUnchangedTest(unittest.TestCase):
                     ),
                 )
 
-    def test_a_deterministic_subject_is_answer_enough_and_no_model_is_asked(self) -> None:
-        """The scene's own words are already the provider's words: nothing to add.
+    def test_a_provider_language_scene_is_untouched_by_an_adapter_that_never_ran(self) -> None:
+        script = _one_scene_script(PROVIDER_LANGUAGE_NARRATION, language="en")
+        self.assertEqual(
+            build_plan(_request(script, language="en")).result.to_dict(),
+            build_plan(
+                _request(script, language="en"),
+                brief_adapter=ModelSemanticBriefAdapter(approved=True),
+            ).result.to_dict(),
+        )
 
-        This is the readiness contract stated positively. A deterministic brief that
-        *names the subject* is what the scene is about; the repair widened assistance to
-        everything short of that, and this is the line it must not cross.
-        """
+
+class DeterministicSubjectSufficiencyTest(unittest.TestCase):
+    """When a deterministic subject is trusted enough to skip the model, and *why*.
+
+    "The brief names a provider-language subject" was being read as "deterministic
+    planning understood what this scene is about". The repository says those are not the
+    same fact: the planner ranks the words a sentence uses, so an ordinary English
+    sentence hands it the place instead of the thing standing in it - and a subject that
+    is wrong but Latin was suppressing the only help that could correct it.
+
+    What replaces it is not a judgement about the word. It is the planner's own record of
+    where the word came from: ``collect_entities`` marks an entity ``topic_entity`` when
+    the topic stated for this video names it, which is a declaration rather than a count.
+    ``antarctic`` is refused because nothing declared it, not because it is a place;
+    ``penguin`` is accepted because the producer said the video is about it, not because
+    it is an animal.
+    """
+
+    SEMANTIC_ANSWER = {"subject": "emperor penguin", "action": "walking on sea ice"}
+
+    def _subject_entities(self, planning) -> list:
+        """The planner's own record for the entity it made the subject."""
+        scene = planning.result.scenes[0]
+        return [entity for entity in scene.entities if entity.surface == scene.subject]
+
+    def test_a_provider_language_subject_nothing_declared_does_not_suppress_help(self) -> None:
+        script = _one_scene_script(PROVIDER_LANGUAGE_NARRATION, language="en")
+        deterministic = build_plan(_request(script, language="en"))
+        scene = deterministic.result.scenes[0]
+        # The reproduction: a brief that names a subject, in the provider's language, and
+        # names the wrong one. Nothing but the sentence's own word order chose it.
+        self.assertEqual(scene.brief.subject, UNDECLARED_EXTRACTED_SUBJECT)
+        self.assertEqual([entity.kind for entity in self._subject_entities(deterministic)], ["entity"])
+
+        model = _FakeSemanticModel({"scene_001": self.SEMANTIC_ANSWER})
+        planning = build_plan(_request(script, language="en"), brief_adapter=_adapter(model))
+        self.assertEqual(len(model.calls), 1)
+        assisted = planning.result.scenes[0]
+        self.assertEqual(assisted.brief.subject, self.SEMANTIC_ANSWER["subject"])
+        self.assertTrue(
+            any(self.SEMANTIC_ANSWER["subject"] in query for query in assisted.brief.provider_queries["en"]),
+            assisted.brief.provider_queries,
+        )
+        # Unchanged and deliberately not this repair's subject: a requirement the planner
+        # set from its own extraction is not the model's to delete (MAJOR-2).
+        self.assertEqual(assisted.must_include, [UNDECLARED_EXTRACTED_SUBJECT])
+
+    def test_a_subject_the_stated_topic_declares_is_answer_enough(self) -> None:
+        """The positive half. Sufficiency has to be provable, not merely plausible."""
         script = _one_scene_script(PROVIDER_LANGUAGE_NARRATION, language="en")
         model = _FakeSemanticModel()
-        planning = build_plan(_request(script, language="en"), brief_adapter=_adapter(model))
+        planning = build_plan(
+            _request(script, language="en", topic=DECLARING_TOPIC, title=DECLARING_TOPIC),
+            brief_adapter=_adapter(model),
+        )
         self.assertEqual(model.calls, [])
         brief = planning.result.scenes[0].brief
-        self.assertEqual(brief.subject, "antarctic")
+        self.assertEqual(brief.subject, DECLARED_SUBJECT)
         self.assertTrue(brief.provider_queries["en"])
+        # The reason it was enough, stated rather than assumed.
+        self.assertEqual([entity.kind for entity in self._subject_entities(planning)], ["topic_entity"])
+
+    def test_research_the_scene_cites_is_not_a_declaration_of_what_to_show(self) -> None:
+        """Corroboration is not declaration, so ``source_refs`` is not a second route.
+
+        A claim reference records that cited prose contains the word. Cited prose contains
+        the scene's environment too, and here it corroborates the coast - the same
+        wrong-subject shape the topic route exists to catch. Pinned so a later widening
+        has to argue with a reproduction rather than with a preference.
+        """
+        script = _one_scene_script(
+            RESEARCH_NARRATION, language="en", claim_ids=[COAST_CLAIM["claim_id"]]
+        )
+        deterministic = build_plan(_request(script, language="en", claims=[COAST_CLAIM]))
+        self.assertEqual(deterministic.result.scenes[0].brief.subject, RESEARCH_EXTRACTED_SUBJECT)
+        self.assertEqual(
+            [entity.source_refs for entity in self._subject_entities(deterministic)],
+            [[COAST_CLAIM["claim_id"]]],
+        )
+
+        model = _FakeSemanticModel({"scene_001": {"subject": "orca", "action": "breaching out of water"}})
+        planning = build_plan(
+            _request(script, language="en", claims=[COAST_CLAIM]), brief_adapter=_adapter(model)
+        )
+        self.assertEqual(len(model.calls), 1)
+        self.assertEqual(planning.result.scenes[0].brief.subject, "orca")
 
 
 class AuthorBriefStillWinsTest(unittest.TestCase):
@@ -721,6 +835,58 @@ class ExpectedFailureIsNotAProgrammingDefectTest(unittest.TestCase):
                 )
 
 
+class AttemptedBackendFailureIsVisibleTest(unittest.TestCase):
+    """A backend that ran and failed is a different event from an adapter that never ran.
+
+    ``retryable`` answers "would asking again help". It was being read as "was anything
+    asked at all", and those come apart precisely where it matters: every precondition of
+    the adapter raises the same non-retryable unavailable error that a backend raises when
+    it says *permanently* no - a rejected key, a model the account may not select. A real
+    call that failed for good therefore left the plan byte-identical to a run with no
+    adapter, which is the one distinction a later diagnostic has to be able to make.
+
+    Whether a backend was reached is decided from the adapter's own preconditions, before
+    it is called, so the two questions stop being answered by the same flag.
+    """
+
+    NARRATION = NARRATIONS["scene_004"]
+
+    def _warnings(self, adapter) -> list[str]:
+        return _scene_warnings(
+            build_plan(_request(_one_scene_script(self.NARRATION)), brief_adapter=adapter)
+        )
+
+    def test_a_backend_that_failed_for_good_is_recorded_like_one_that_may_recover(self) -> None:
+        for retryable in (True, False):
+            with self.subTest(retryable=retryable):
+                def refuse(prompt: str, options: dict, retryable: bool = retryable) -> str:
+                    raise SemanticBriefUnavailableError(
+                        "модель недоступна", planner="fixture", retryable=retryable
+                    )
+
+                warnings = self._warnings(_adapter(refuse))
+                self.assertTrue(
+                    any(warning.startswith(f"{UNAVAILABLE_CODE}:") for warning in warnings), warnings
+                )
+
+    def test_an_adapter_that_never_reached_a_backend_still_records_nothing(self) -> None:
+        silent = _scene_warnings(build_plan(_request(_one_scene_script(self.NARRATION))))
+        for label, adapter in (
+            ("unwired", ModelSemanticBriefAdapter(approved=True)),
+            ("unapproved", ModelSemanticBriefAdapter(_FakeSemanticModel(), approved=False)),
+        ):
+            with self.subTest(adapter=label):
+                self.assertEqual(self._warnings(adapter), silent)
+
+    def test_a_scene_with_nothing_to_ask_about_is_not_an_attempt(self) -> None:
+        """The remaining precondition, and the one that must stay silent."""
+        script = _one_scene_script("")
+        model = _FakeSemanticModel()
+        planning = build_plan(_request(script), brief_adapter=_adapter(model))
+        self.assertEqual(model.calls, [])
+        self.assertEqual(_scene_warnings(planning), _scene_warnings(build_plan(_request(script))))
+
+
 class AuthorBriefCostsNoModelCallTest(unittest.TestCase):
     """A scene whose answer is already written is not a question worth paying for."""
 
@@ -737,6 +903,12 @@ class AuthorBriefCostsNoModelCallTest(unittest.TestCase):
         asked = [options["scene_id"] for _, options in model.calls]
         self.assertNotIn("scene_003", asked)
         self.assertEqual(sorted(asked), ["scene_001", "scene_002", "scene_004"])
+
+    def test_a_script_briefed_throughout_costs_no_model_call_at_all(self) -> None:
+        script = _script(briefs={scene_id: self.AUTHOR for scene_id in NARRATIONS})
+        model = _FakeSemanticModel()
+        build_plan(_request(script), brief_adapter=_adapter(model))
+        self.assertEqual(model.calls, [])
 
     def test_what_the_author_asked_for_is_exactly_what_it_was_before(self) -> None:
         script = _script(briefs={"scene_003": self.AUTHOR})

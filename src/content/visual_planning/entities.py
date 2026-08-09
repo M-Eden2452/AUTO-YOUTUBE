@@ -28,7 +28,7 @@ import re
 
 from src.content.script_engine.text_analysis import STOPWORDS, words
 
-from .models import VisualEntity
+from .models import ENTITY_KIND_TOPIC, VisualEntity
 
 # Endings stripped to compare two inflections of the same word. Longest first, so
 # "ами" wins over "и". Crude on purpose: over-stripping merges two related words,
@@ -221,7 +221,7 @@ def collect_entities(
         entity.salience = float(len(entity.scene_ids))
         if key in topic_stems:
             entity.salience += 3.0
-            entity.kind = "topic_entity"
+            entity.kind = ENTITY_KIND_TOPIC
         if key in title_stems:
             entity.salience += 1.5
         refs = claim_stems.get(key) or []
