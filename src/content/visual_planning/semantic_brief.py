@@ -97,15 +97,39 @@ _PHRASE_RULE = (
     "not a sentence"
 )
 
+# The four meaning fields are four *roles*, not four chances to say the same thing.
+# Everything downstream is built on that: ``expansion.expand_queries`` widens a scene by
+# dropping one role at a time, ``models`` builds an intent that is deliberately the
+# subject without its action, and the ranker weighs a subject match and an action match
+# separately against the same metadata. A subject that already contains its own action
+# defeats all three at once - the widening rung does not widen, the action-free intent
+# still carries the action, and the two ranker slots count one phrase twice.
+#
+# The third live run answered every scene inside every stated limit and did exactly that
+# in six of six scenes. Nothing the parser can see is wrong with such an answer: each
+# field is short, in the provider's language and within the ceiling. What had never been
+# stated is which role each field holds, so that is stated here - generally, in terms of
+# the roles themselves, never as a list of the subjects one diagnostic script happened
+# to use.
 RESPONSE_CONTRACT: dict[str, Any] = {
     "subject": (
-        f"str - what must be in frame, {_PHRASE_RULE}. "
+        "str - the entity or object to be shown: a noun phrase naming *what* is in "
+        "frame, never what it is doing and never where it is, "
+        f"{_PHRASE_RULE}. "
         "Empty when the evidence does not say what to show."
     ),
-    "action": f"str, optional - what the subject is doing, {_PHRASE_RULE}",
-    "place": f"str, optional - where it happens, {_PHRASE_RULE}",
+    "action": (
+        "str, optional - the observable action the subject performs: the scene's own "
+        "central visible event, not the mechanism that explains it, "
+        f"{_PHRASE_RULE}"
+    ),
+    "place": (
+        "str, optional - the environment or location the action happens in, stating "
+        f"neither the subject nor the action again, {_PHRASE_RULE}"
+    ),
     "context": [
-        f"str, optional - what surrounds the subject without replacing it, {_PHRASE_RULE}; "
+        "str, optional - one secondary visual cue around the subject, repeating nothing "
+        f"already stated as subject, action or place, {_PHRASE_RULE}; "
         f"at most {MAX_CONTEXT_ITEMS} items"
     ],
     "shot_type": f"str, optional - one of: {' | '.join(SHOT_TYPES)}",
@@ -193,6 +217,12 @@ def build_prompt(evidence: SceneBriefEvidence) -> str:
     model is given and the rules the answer is judged by cannot drift apart. The parser
     stays the final validator: this only stops it refusing answers for a reason the
     model was never told.
+
+    The field roles are stated alongside those limits rather than left to the schema
+    dump below, and for a different reason: a role is not something the parser can check
+    at all. An answer that packs the action into the subject is short, English and inside
+    every ceiling, so nothing downstream can tell it apart from a well-formed one - see
+    the note on ``RESPONSE_CONTRACT``.
     """
     lines = [
         "Ты определяешь, что должно быть в кадре одной сцены видео.",
@@ -200,6 +230,14 @@ def build_prompt(evidence: SceneBriefEvidence) -> str:
         " должен увидеть.",
         "Не выдумывай сущность, место и факты, которых нет в материале ниже."
         " Если материал не говорит, что показывать, верни пустой subject.",
+        "У каждого поля своя роль, и одно и то же не повторяется в двух полях:",
+        "- subject — только сама сущность или объект в кадре: назови, что показывать,"
+        " без действия и без места;",
+        "- action — наблюдаемое действие этой сущности: главное видимое событие сцены,"
+        " а не механизм, который его объясняет;",
+        "- place — только среда или место, где это происходит;",
+        "- context — второстепенные визуальные признаки, которых нет ни в subject,"
+        " ни в action, ни в place.",
         "Правила для значений (нарушение любого отменяет весь ответ целиком):",
         f"- каждое значение — на языке провайдера ({PROVIDER_LANGUAGE}) и только на нём;",
         f"- каждое значение — не длиннее {MAX_FIELD_TERMS} слов;",

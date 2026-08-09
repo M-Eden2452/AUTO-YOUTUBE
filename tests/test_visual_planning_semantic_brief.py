@@ -438,6 +438,151 @@ class PromptStatesTheParserContractTest(unittest.TestCase):
                 self.assertNotIn(f" {literal} элемент", body)
 
 
+class FieldRolesAreDistinctTest(unittest.TestCase):
+    """The third live run: every rule obeyed, and every field saying the same thing.
+
+    ``gpt-4.1`` answered six of six scenes inside every limit it had been told about,
+    and six of six put the action inside the subject: ``hummingbird hovering midair``
+    with ``wings beating rapidly`` beside it, ``orcas jumping out of water`` with
+    ``leaping fully above surface``, ``penguins sliding on ice`` with ``gliding on
+    stomachs``. Nothing there is wrong as a sentence. It is wrong as a *record*, because
+    every consumer of these four fields treats them as separate roles:
+    ``expansion.expand_queries`` composes ``[subject]``, ``[subject, action]`` and
+    ``[subject, action, place]`` as widening rungs, ``models`` builds an intent whose
+    own note is "предмет брифа без действия", and ``candidate_ranker`` weighs
+    ``subject_match`` and ``action_match`` separately against the same metadata.
+
+    A subject that already contains the action makes all three meaningless: the widening
+    rung does not widen, the action-free intent still carries the action, and the two
+    ranker slots measure the same words twice. The parser cannot see any of this - each
+    field is a short, provider-language, in-limit phrase. The rule that was never stated
+    is which *role* each field holds, so that is what is stated here.
+    """
+
+    def _rules(self) -> str:
+        prompt = build_prompt(
+            SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"])
+        )
+        return prompt.split("Ответ — строго JSON")[0]
+
+    def test_the_subject_is_defined_as_the_entity_and_not_what_it_does(self) -> None:
+        """``subject`` answers *what is shown*, which is a thing, not an event."""
+        subject = RESPONSE_CONTRACT["subject"].casefold()
+        self.assertIn("entity", subject)
+        # Stating the role is not enough: the observed failure is a model that names the
+        # entity *and* what it is doing, so the exclusion has to be said out loud.
+        self.assertIn("never what it", subject)
+
+    def test_the_subject_is_told_it_is_not_the_place_either(self) -> None:
+        """``midair`` and ``on ice`` arrived inside a subject for the same reason."""
+        self.assertIn("never where", RESPONSE_CONTRACT["subject"].casefold())
+
+    def test_the_action_is_defined_as_the_scenes_own_visible_event(self) -> None:
+        """The mechanism is not the event.
+
+        ``wings beating rapidly`` is true of the hummingbird and is not what the scene
+        is about; the scene is about hovering, and hovering had been spent on ``subject``.
+        """
+        action = RESPONSE_CONTRACT["action"].casefold()
+        self.assertIn("action", action)
+        self.assertIn("observable", action)
+        self.assertIn("mechanism", action)
+
+    def test_the_place_is_defined_as_the_environment_and_nothing_else(self) -> None:
+        place = RESPONSE_CONTRACT["place"].casefold()
+        self.assertIn("environment", place)
+        self.assertIn("location", place)
+        self.assertIn("subject", place)
+        self.assertIn("action", place)
+
+    def test_the_context_is_defined_as_what_the_other_three_do_not_already_say(self) -> None:
+        context = RESPONSE_CONTRACT["context"][0].casefold()
+        self.assertIn("secondary", context)
+        for role in ("subject", "action", "place"):
+            with self.subTest(role=role):
+                self.assertIn(role, context)
+
+    def test_every_role_is_stated_in_the_prompt_the_model_actually_reads(self) -> None:
+        """The schema dump alone is not the instruction: the rules block is read first."""
+        rules = self._rules()
+        for field in ("subject", "action", "place", "context"):
+            with self.subTest(field=field):
+                self.assertIn(field, rules)
+
+    def test_the_prompt_forbids_one_meaning_being_written_into_two_fields(self) -> None:
+        """The defect is duplication, so duplication is what has to be named."""
+        rules = self._rules().casefold()
+        self.assertIn("не повторя", rules)
+
+    def test_the_roles_did_not_replace_the_limits_the_parser_still_enforces(self) -> None:
+        """The previous repair stays: both sets of rules reach the model together."""
+        rules = self._rules()
+        self.assertIn(str(MAX_FIELD_TERMS), rules)
+        self.assertIn(str(MAX_CONTEXT_ITEMS), rules)
+        self.assertIn(PROVIDER_LANGUAGE, rules)
+        self.assertIn("не цитируй", rules.casefold())
+        self.assertIn("не переноси", rules.casefold())
+
+    def test_the_roles_are_stated_generally_and_not_as_a_list_of_animals(self) -> None:
+        """A contract that names the diagnostic script is a contract for one script."""
+        stated = json.dumps(RESPONSE_CONTRACT, ensure_ascii=False).casefold() + self._rules().casefold()
+        for term in DIAGNOSTIC_TERMS:
+            with self.subTest(term=term):
+                self.assertNotIn(term, stated)
+
+
+class RoleSplitFieldsSurviveTheQueryLadderTest(unittest.TestCase):
+    """Why the roles are worth stating, measured on the ladder that consumes them.
+
+    Nothing here changes: ``expand_queries`` is exercised exactly as it ships. The point
+    is what the two answer shapes cost once the eight-term ceiling applies. A composite
+    subject spends five of the eight terms before the action starts, so the rung that is
+    supposed to state subject *and* action *and* place is truncated mid-phrase and the
+    place is the part that falls off - which is how live-3 reached its providers with
+    ``orcas jumping water leaping fully above surface open``.
+    """
+
+    def _queries(self, **fields: str) -> list[str]:
+        from src.content.visual_planning.expansion import expand_queries, planning_input
+
+        return expand_queries(planning_input(**fields))
+
+    def test_a_composite_subject_truncates_the_place_out_of_the_widest_rung(self) -> None:
+        queries = self._queries(
+            subject="orcas jumping out of water",
+            action="leaping fully above surface",
+            place="open ocean",
+        )
+        widest = [query for query in queries if "leaping" in query]
+        self.assertTrue(widest, "the subject+action rung should exist at all")
+        self.assertFalse(
+            [query for query in widest if "ocean" in query],
+            "the place did not survive next to a subject that already stated the action",
+        )
+
+    def test_the_same_scene_stated_by_role_keeps_subject_action_and_place_together(self) -> None:
+        queries = self._queries(
+            subject="orca", action="breaching out of water", place="open ocean"
+        )
+        self.assertTrue([query for query in queries if "breaching" in query and "ocean" in query])
+
+    def test_a_role_compliant_answer_is_accepted_by_the_unchanged_parser(self) -> None:
+        """Section 13: the shape the repaired contract asks for still parses today."""
+        brief = parse_response(
+            {
+                "subject": "orca",
+                "action": "breaching out of water",
+                "place": "open ocean",
+                "context": ["ocean spray"],
+            },
+            evidence=SceneBriefEvidence(scene_id="scene_004", narration=NARRATIONS["scene_004"]),
+        )
+        self.assertEqual(brief.subject, "orca")
+        self.assertEqual(brief.action, "breaching out of water")
+        self.assertEqual(brief.place, "open ocean")
+        self.assertEqual(brief.context, ["ocean spray"])
+
+
 class LiveRejectionsStayRejectionsTest(unittest.TestCase):
     """The parser was not loosened to make the refused answers pass.
 

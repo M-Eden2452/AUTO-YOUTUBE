@@ -373,6 +373,20 @@ class RequestSchemaCarriesTheContractTest(unittest.TestCase):
         self.assertEqual(properties["context"]["maxItems"], MAX_CONTEXT_ITEMS)
         self.assertEqual(properties["shot_type"]["enum"], ["", *SHOT_TYPES])
 
+    def test_the_field_roles_reach_the_model_through_the_schema_too(self) -> None:
+        """live-3 answered inside every limit and put the action inside the subject.
+
+        A strict schema is the one part of the request the model cannot skim past, so
+        the role of each field travels there as well - still as the contract owner's own
+        description, never as a second contract stated here.
+        """
+        properties = self._properties()
+        self.assertIn("entity", properties["subject"]["description"].casefold())
+        self.assertIn("never what it", properties["subject"]["description"].casefold())
+        self.assertIn("observable", properties["action"]["description"].casefold())
+        self.assertIn("environment", properties["place"]["description"].casefold())
+        self.assertIn("secondary", properties["context"]["items"]["description"].casefold())
+
     def test_the_word_ceiling_is_not_faked_with_a_pattern(self) -> None:
         """A near-miss regular expression would refuse answers the parser accepts."""
         for field, spec in self._properties().items():
