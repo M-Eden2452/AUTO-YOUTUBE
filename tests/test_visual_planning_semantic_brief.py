@@ -21,6 +21,19 @@ What is pinned here:
 - the author's explicit brief still wins, applied last, on the path that actually
   delivers one.
 
+The repair pass adds four more, all found by independent review before any model was
+wired:
+
+- assistance is offered when the deterministic brief does not *name a subject*, not
+  merely when it is empty - a linked English claim or a bag of prepared keywords makes
+  a brief technically non-empty while the plan still calls the scene ``воды``;
+- a model states meaning and holds no authority over constraints, so overlaying its
+  answer can never drop a ``must_include`` or a ``must_avoid`` the scene already had;
+- an expected model failure and a defect in the injected callable are different
+  outcomes, and only the first one is caught;
+- a scene the author already briefed is not sent to a model whose answer that brief
+  would overwrite anyway.
+
 No network (``tests.network_guard`` is installed package-wide), no provider call, no
 model call: every "model" here is a dictionary.
 """
@@ -40,12 +53,14 @@ from src.content.visual_planning import (
     VisualPlannerError,
     build_plan,
 )
+from src.content.visual_planning.brief import VisualBrief, apply_brief
 from src.content.visual_planning.semantic_brief import (
     RESPONSE_CONTRACT,
     ModelSemanticBriefAdapter,
     SceneBriefEvidence,
     SemanticBriefResponseError,
     SemanticBriefUnavailableError,
+    apply_semantic_brief,
     build_prompt,
     evidence_for_scene,
     parse_response,
@@ -103,6 +118,34 @@ SEMANTIC_ANSWERS = {
 # Each scene's own subject, for asserting the query is about that scene.
 EXPECTED_SUBJECTS = {scene_id: answer["subject"] for scene_id, answer in SEMANTIC_ANSWERS.items()}
 
+# A scene whose own words are already the provider's words. Deterministic extraction
+# names the subject here, so the deterministic brief states what the frame is about and
+# there is nothing a model needs to add.
+PROVIDER_LANGUAGE_NARRATION = "An emperor penguin colony crosses the antarctic sea ice."
+
+# An ordinary Russian scene that happens to name a place in Latin script. The
+# deterministic planner promotes that name to a hard requirement and then cannot build a
+# query from it alone - which is exactly the shape in which the semantic overlay used to
+# erase the requirement on its way past.
+HARD_ENTITY_NARRATION = (
+    "Полярная станция McMurdo стоит на краю ледника, и учёные каждый день выходят на лёд."
+)
+HARD_ENTITY = "McMurdo"
+
+# What research linked to a scene looks like: English prose about a fact, not a
+# statement of what to put in frame.
+LINKED_CLAIM = {
+    "claim_id": "claim_001",
+    "text": "Field observations were recorded during the survey season.",
+    "safe_for_script": True,
+}
+
+# The warning codes the plan carries when semantic assistance did not help. They are how
+# a later diagnostic tells "the model had no answer" from "the model never answered".
+NO_ANSWER_CODE = "semantic_brief_no_answer"
+UNAVAILABLE_CODE = "semantic_brief_unavailable"
+RESPONSE_CODE = "semantic_brief_response"
+
 
 class _FakeSemanticModel:
     """A model that already understood the scene. Answers by ``scene_id``, records calls."""
@@ -137,6 +180,24 @@ def _script(scene_ids: list[str] | None = None, briefs: dict[str, dict] | None =
     return ScriptResult(scenes=scenes, title="Странные способности животных", language="ru")
 
 
+def _one_scene_script(narration: str, *, language: str = "ru", **scene_fields) -> ScriptResult:
+    """One scene written out in full, for the cases the shared fixture cannot express."""
+    return ScriptResult(
+        scenes=[
+            ScriptScene(
+                scene_id="scene_001",
+                index=1,
+                role="hook",
+                narration=narration,
+                duration_sec=6.0,
+                **scene_fields,
+            )
+        ],
+        title="Странные способности животных",
+        language=language,
+    )
+
+
 def _request(script: ScriptResult | None = None, **overrides) -> VisualPlanRequest:
     base = {
         "script": script or _script(),
@@ -152,6 +213,19 @@ def _adapter(model: _FakeSemanticModel | None = None, **overrides) -> ModelSeman
     options = {"approved": True, "model_id": "fixture"}
     options.update(overrides)
     return ModelSemanticBriefAdapter(model if model is not None else _FakeSemanticModel(), **options)
+
+
+def _plan_without_warnings(planning) -> dict:
+    """The plan itself, with the notes about *why* semantic assistance did not help removed."""
+    plan = planning.result.to_dict()
+    plan.pop("warnings", None)
+    for scene in plan.get("scenes") or []:
+        scene.pop("warnings", None)
+    return plan
+
+
+def _scene_warnings(planning, index: int = 0) -> list[str]:
+    return list(planning.result.scenes[index].warnings)
 
 
 def _provider_queries(planning, script: ScriptResult, scene_id: str, provider: str = "pexels"):
@@ -301,14 +375,15 @@ class SemanticAdapterAvailabilityTest(unittest.TestCase):
             adapter.brief_for(SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"]))
         self.assertEqual(model.calls, [])
 
-    def test_a_raising_model_becomes_a_controlled_planner_error(self) -> None:
+    def test_a_backend_that_does_not_answer_becomes_a_controlled_planner_error(self) -> None:
         def explode(prompt: str, options: dict) -> str:
-            raise RuntimeError("connection reset")
+            raise ConnectionError("connection reset")
 
         adapter = _adapter(explode)
         with self.assertRaises(SemanticBriefUnavailableError) as caught:
             adapter.brief_for(SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"]))
         self.assertIsInstance(caught.exception, VisualPlannerError)
+        self.assertTrue(caught.exception.retryable)
 
     def test_a_scene_with_no_evidence_is_never_sent_to_a_model(self) -> None:
         model = _FakeSemanticModel()
@@ -404,6 +479,10 @@ class DeterministicPathIsUnchangedTest(unittest.TestCase):
     def test_a_model_answer_that_fails_validation_leaves_the_scene_alone(self) -> None:
         # ``wildlife`` passes the parser and is still refused, one gate later: the ladder
         # will not build a query from a single category term, so nothing is overlaid.
+        #
+        # Compared with the warnings normalised away, because a refused answer *is*
+        # recorded: what must be identical is the plan - the meaning, the intents and the
+        # brief a provider is searched with - not the note saying the model did not help.
         for answer in (
             {"subject": "пингвин"},
             {"subject": "nature footage"},
@@ -414,17 +493,26 @@ class DeterministicPathIsUnchangedTest(unittest.TestCase):
             with self.subTest(answer=answer):
                 refused = _FakeSemanticModel({scene_id: answer for scene_id in NARRATIONS})
                 self.assertEqual(
-                    build_plan(_request()).result.to_dict(),
-                    build_plan(_request(), brief_adapter=_adapter(refused)).result.to_dict(),
+                    _plan_without_warnings(build_plan(_request())),
+                    _plan_without_warnings(
+                        build_plan(_request(), brief_adapter=_adapter(refused))
+                    ),
                 )
 
-    def test_sufficient_provider_language_evidence_never_asks_a_model(self) -> None:
-        script = _script(scene_ids=["scene_003"])
-        script.scenes[0].keywords = ["emperor penguin colony", "antarctic sea ice"]
+    def test_a_deterministic_subject_is_answer_enough_and_no_model_is_asked(self) -> None:
+        """The scene's own words are already the provider's words: nothing to add.
+
+        This is the readiness contract stated positively. A deterministic brief that
+        *names the subject* is what the scene is about; the repair widened assistance to
+        everything short of that, and this is the line it must not cross.
+        """
+        script = _one_scene_script(PROVIDER_LANGUAGE_NARRATION, language="en")
         model = _FakeSemanticModel()
-        planning = build_plan(_request(script), brief_adapter=_adapter(model))
+        planning = build_plan(_request(script, language="en"), brief_adapter=_adapter(model))
         self.assertEqual(model.calls, [])
-        self.assertIn("emperor", " ".join(planning.result.scenes[0].brief.provider_queries["en"]))
+        brief = planning.result.scenes[0].brief
+        self.assertEqual(brief.subject, "antarctic")
+        self.assertTrue(brief.provider_queries["en"])
 
 
 class AuthorBriefStillWinsTest(unittest.TestCase):
@@ -453,6 +541,214 @@ class AuthorBriefStillWinsTest(unittest.TestCase):
         script = _script()
         build_plan(_request(script), brief_adapter=_adapter())
         self.assertEqual([scene.visual_brief for scene in script.scenes], [{}] * len(script.scenes))
+
+
+class SemanticReadinessTest(unittest.TestCase):
+    """When assistance is offered at all - the finding that gated it on ``is_empty``.
+
+    A brief becomes technically non-empty as soon as *any* provider-language evidence
+    produces a query, and a linked English claim or a bag of prepared keywords does that
+    without the plan ever learning what the scene is about. Gating on emptiness meant the
+    scenes that most needed a subject were exactly the ones never offered one.
+    """
+
+    def test_an_english_claim_does_not_suppress_assistance_for_a_russian_scene(self) -> None:
+        script = _one_scene_script(NARRATIONS["scene_004"], claim_ids=[LINKED_CLAIM["claim_id"]])
+        model = _FakeSemanticModel({"scene_001": SEMANTIC_ANSWERS["scene_004"]})
+        planning = build_plan(
+            _request(script, claims=[LINKED_CLAIM]), brief_adapter=_adapter(model)
+        )
+
+        # Without the repair the brief was non-empty - it carried the claim as a query -
+        # so the model was never asked and the plan kept `воды` as its subject.
+        deterministic = build_plan(_request(script, claims=[LINKED_CLAIM]))
+        self.assertFalse(deterministic.result.scenes[0].brief.is_empty)
+        self.assertEqual(deterministic.result.scenes[0].brief.subject, "")
+        self.assertIn(deterministic.result.scenes[0].subject, MISLEADING_EXTRACTED_SUBJECTS)
+
+        self.assertEqual(len(model.calls), 1)
+        scene = planning.result.scenes[0]
+        self.assertEqual(scene.brief.subject, "orca")
+        executable = [
+            query
+            for query in _provider_queries(planning, script, "scene_001").queries
+            if query.status == STATUS_OK
+        ]
+        self.assertTrue(executable)
+        self.assertTrue(any("orca" in query.query for query in executable))
+        for query in executable:
+            for misleading in MISLEADING_EXTRACTED_SUBJECTS:
+                self.assertNotIn(misleading, query.query)
+
+    def test_weak_prepared_keywords_do_not_suppress_assistance(self) -> None:
+        script = _one_scene_script(NARRATIONS["scene_004"], keywords=["amazing animal moments"])
+        deterministic = build_plan(_request(script))
+        self.assertFalse(deterministic.result.scenes[0].brief.is_empty)
+        self.assertEqual(deterministic.result.scenes[0].brief.subject, "")
+
+        model = _FakeSemanticModel({"scene_001": SEMANTIC_ANSWERS["scene_004"]})
+        planning = build_plan(_request(script), brief_adapter=_adapter(model))
+        self.assertEqual(len(model.calls), 1)
+        self.assertEqual(planning.result.scenes[0].brief.subject, "orca")
+
+    def test_evidence_the_deterministic_producer_found_survives_a_refused_answer(self) -> None:
+        """Offering assistance may not cost the scene what it already had.
+
+        The wider gate reaches scenes whose deterministic brief is *not* empty, so a
+        refused semantic answer now has something to destroy that it never had before.
+        """
+        script = _one_scene_script(NARRATIONS["scene_004"], claim_ids=[LINKED_CLAIM["claim_id"]])
+        refused = _FakeSemanticModel({"scene_001": "not json"})
+        planning = build_plan(
+            _request(script, claims=[LINKED_CLAIM]), brief_adapter=_adapter(refused)
+        )
+        deterministic = build_plan(_request(script, claims=[LINKED_CLAIM]))
+        self.assertEqual(
+            planning.result.scenes[0].brief.provider_queries,
+            deterministic.result.scenes[0].brief.provider_queries,
+        )
+        self.assertTrue(planning.result.scenes[0].brief.provider_queries["en"])
+
+
+class HardConstraintsSurviveSemanticOverlayTest(unittest.TestCase):
+    """A model states meaning. It was never offered authority, so it cannot spend any."""
+
+    def test_a_hard_requirement_the_planner_set_survives_the_semantic_overlay(self) -> None:
+        script = _one_scene_script(HARD_ENTITY_NARRATION)
+        deterministic = build_plan(_request(script))
+        self.assertEqual(deterministic.result.scenes[0].must_include, [HARD_ENTITY])
+        # The name alone is one term, and the ladder's two-term floor rejects it: without
+        # a model this scene reaches the adapter with no brief at all.
+        self.assertIsNone(deterministic.result.scenes[0].brief)
+
+        model = _FakeSemanticModel(
+            {"scene_001": {"subject": "research station", "action": "standing on ice"}}
+        )
+        planning = build_plan(_request(script), brief_adapter=_adapter(model))
+        scene = planning.result.scenes[0]
+        self.assertEqual(scene.subject, "research station")
+        self.assertEqual(scene.must_include, [HARD_ENTITY])
+        self.assertEqual(scene.brief.must_include, [HARD_ENTITY])
+        self.assertEqual(scene.brief.exact_entities, [HARD_ENTITY])
+        self.assertTrue(
+            any(HARD_ENTITY in query for query in scene.brief.provider_queries["en"]),
+            scene.brief.provider_queries,
+        )
+
+    def test_a_semantic_brief_cannot_drop_a_constraint_it_was_never_asked_about(self) -> None:
+        scene = build_plan(_request()).result.scenes[0]
+        scene.must_include = [HARD_ENTITY]
+        scene.must_avoid = ["sea lion"]
+        apply_semantic_brief(scene, VisualBrief(subject="research station", place="polar coast"))
+        self.assertEqual(scene.subject, "research station")
+        self.assertEqual(scene.place, "polar coast")
+        self.assertEqual(scene.must_include, [HARD_ENTITY])
+        self.assertEqual(scene.must_avoid, ["sea lion"])
+
+    def test_the_authors_own_overlay_semantics_are_left_exactly_as_they_were(self) -> None:
+        """The author *was* asked, so their silence is still an answer. Unchanged."""
+        scene = build_plan(_request()).result.scenes[0]
+        scene.must_include = [HARD_ENTITY]
+        scene.must_avoid = ["sea lion"]
+        apply_brief(scene, VisualBrief(subject="emperor penguin"))
+        self.assertEqual(scene.must_include, [])
+        self.assertEqual(scene.must_avoid, ["sea lion"])
+
+
+class ExpectedFailureIsNotAProgrammingDefectTest(unittest.TestCase):
+    """Four ways semantic assistance can fail to help, and four distinguishable outcomes."""
+
+    def _evidence(self) -> SceneBriefEvidence:
+        return SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"])
+
+    def test_a_backend_that_declares_itself_unavailable_is_passed_through(self) -> None:
+        def unavailable(prompt: str, options: dict) -> str:
+            raise SemanticBriefUnavailableError("модель недоступна", planner="fixture", retryable=True)
+
+        with self.assertRaises(SemanticBriefUnavailableError) as caught:
+            _adapter(unavailable).brief_for(self._evidence())
+        self.assertTrue(caught.exception.retryable)
+
+    def test_a_malformed_answer_is_a_response_error_not_an_unavailable_model(self) -> None:
+        with self.assertRaises(SemanticBriefResponseError):
+            _adapter(_FakeSemanticModel({"scene_001": "not json"})).brief_for(self._evidence())
+
+    def test_a_callable_with_the_wrong_signature_is_not_reported_as_a_model_failure(self) -> None:
+        def wrong_arity(prompt: str) -> str:  # the integration is wrong, not the model
+            return "{}"
+
+        with self.assertRaises(TypeError):
+            _adapter(wrong_arity).brief_for(self._evidence())
+
+    def test_a_defect_inside_the_callable_is_not_reported_as_a_model_failure(self) -> None:
+        def defect(prompt: str, options: dict) -> str:
+            return {}["absent"]
+
+        with self.assertRaises(KeyError):
+            _adapter(defect).brief_for(self._evidence())
+
+    def test_each_expected_outcome_leaves_its_own_evidence_on_the_plan(self) -> None:
+        def unreachable(prompt: str, options: dict) -> str:
+            raise ConnectionError("connection reset")
+
+        cases = {
+            UNAVAILABLE_CODE: unreachable,
+            RESPONSE_CODE: _FakeSemanticModel({"scene_001": "not json"}),
+            NO_ANSWER_CODE: _FakeSemanticModel({"scene_001": {"subject": ""}}),
+        }
+        script = _one_scene_script(NARRATIONS["scene_004"])
+        for code, model in cases.items():
+            with self.subTest(code=code):
+                planning = build_plan(_request(script), brief_adapter=_adapter(model))
+                warnings = _scene_warnings(planning)
+                self.assertTrue(
+                    any(warning.startswith(f"{code}:") for warning in warnings), warnings
+                )
+                other = {UNAVAILABLE_CODE, RESPONSE_CODE, NO_ANSWER_CODE} - {code}
+                for warning in warnings:
+                    self.assertFalse(warning.startswith(tuple(f"{item}:" for item in other)), warning)
+
+    def test_an_adapter_that_never_ran_records_nothing_at_all(self) -> None:
+        """An unwired adapter has to be indistinguishable from no adapter, warnings included."""
+        for adapter in (
+            ModelSemanticBriefAdapter(approved=True),
+            ModelSemanticBriefAdapter(_FakeSemanticModel(), approved=False),
+        ):
+            with self.subTest(adapter=adapter):
+                self.assertEqual(
+                    build_plan(_request()).result.to_dict(),
+                    build_plan(_request(), brief_adapter=adapter).result.to_dict(),
+                )
+
+
+class AuthorBriefCostsNoModelCallTest(unittest.TestCase):
+    """A scene whose answer is already written is not a question worth paying for."""
+
+    AUTHOR = {
+        "subject": "emperor penguin",
+        "action": "tobogganing across sea ice",
+        "provider_queries": {"en": ["author emperor penguin tobogganing"]},
+    }
+
+    def test_a_scene_the_author_already_briefed_is_never_sent_to_a_model(self) -> None:
+        script = _script(briefs={"scene_003": self.AUTHOR})
+        model = _FakeSemanticModel()
+        build_plan(_request(script), brief_adapter=_adapter(model))
+        asked = [options["scene_id"] for _, options in model.calls]
+        self.assertNotIn("scene_003", asked)
+        self.assertEqual(sorted(asked), ["scene_001", "scene_002", "scene_004"])
+
+    def test_what_the_author_asked_for_is_exactly_what_it_was_before(self) -> None:
+        script = _script(briefs={"scene_003": self.AUTHOR})
+        model = _FakeSemanticModel()
+        planning = build_plan(_request(script), brief_adapter=_adapter(model))
+        scene = planning.result.scenes[2]
+        self.assertEqual(scene.subject, "emperor penguin")
+        self.assertEqual(scene.brief.subject, "emperor penguin")
+        self.assertEqual(scene.brief.provider_queries, {"en": ["author emperor penguin tobogganing"]})
+
+        without_model = build_plan(_request(_script(briefs={"scene_003": self.AUTHOR})))
+        self.assertEqual(scene.to_dict(), without_model.result.scenes[2].to_dict())
 
 
 class NoDiagnosticHardcodeTest(unittest.TestCase):

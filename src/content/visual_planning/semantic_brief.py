@@ -43,6 +43,14 @@ vocabulary and anything the scene forbade are all refused outright. A refused an
 leaves the scene exactly as the planner left it, keeping the honest
 ``query_translation_required`` state rather than a plausible brief nobody can trace
 back to the script.
+
+Failing closed is for the failures that are *expected*. A model that times out, a
+backend that is down and an answer that does not match the contract are all ordinary
+outcomes of asking, and each becomes one of this module's own errors so a caller can
+tell them apart. A callable with the wrong signature, or one that raises out of its own
+defect, is none of those: it is the integration being wrong, and it is left to escape
+exactly as ``script_engine.providers.llm`` leaves it. Swallowing it would spend the run
+looking for a model that was never the problem.
 """
 
 from __future__ import annotations
@@ -54,7 +62,7 @@ from typing import Any, Callable
 
 from src.content.script_engine.text_analysis import STOPWORDS
 
-from .brief import VisualBrief, scene_claim_texts
+from .brief import VisualBrief, apply_brief, scene_claim_texts
 from .contract import VisualPlannerError, VisualPlannerUnavailableError
 from .expansion import (
     NON_FACTUAL_QUERY_TERMS,
@@ -261,7 +269,12 @@ class ModelSemanticBriefAdapter:
         return self.completion_fn is not None and self.approved
 
     def brief_for(self, evidence: SceneBriefEvidence) -> VisualBrief:
-        """What this scene should show, or a ``VisualPlannerError`` explaining why not."""
+        """What this scene should show, or a ``VisualPlannerError`` explaining why not.
+
+        Only the expected failures become that error. Anything else the injected callable
+        raises is a defect in the caller's own integration and is not disguised as a
+        model that could not answer - see the module docstring.
+        """
         if self.completion_fn is None:
             raise SemanticBriefUnavailableError(
                 "Смысловой адаптер брифа не подключён: вызов модели не передан.",
@@ -284,16 +297,46 @@ class ModelSemanticBriefAdapter:
         }
         try:
             raw = self.completion_fn(prompt, options)
-        except Exception as exc:  # noqa: BLE001 - any failure of an injected call is one outcome
-            # Whatever the injected call raises, the pipeline needs one answer: this
-            # scene has no model brief. Letting an arbitrary exception escape would make
-            # a transport error look like a planner defect.
+        except VisualPlannerError:
+            # A backend built on this package's own error contract has already said which
+            # kind of failure this is - unavailable, refused, retryable. Re-raising it
+            # unchanged keeps that answer instead of flattening every outcome into one.
+            raise
+        except OSError as exc:
+            # The stdlib family that means "the outside world did not answer" - a dropped
+            # connection, a refused socket, ``TimeoutError``. This is the expected way a
+            # model call fails, and the pipeline's answer is that the scene has no model
+            # brief.
             raise SemanticBriefUnavailableError(
                 f"Вызов модели для сцены {evidence.scene_id or '?'} не выполнен: {exc}",
                 planner=ADAPTER_ID,
                 retryable=True,
             ) from exc
         return parse_response(raw, evidence=evidence)
+
+
+def apply_semantic_brief(scene: Any, brief: VisualBrief) -> Any:
+    """Overlay a brief a *model* stated: meaning only, never authority.
+
+    ``brief.apply_brief`` implements the **author's** authority, where an unstated field
+    is itself an answer: an author who rewrote the subject has also answered what the
+    scene must contain, so ``must_include`` is replaced by what they listed and a stem
+    the planner guessed at does not survive next to a subject the author rewrote.
+
+    A model is never asked that question - ``RESPONSE_CONTRACT`` has no constraint field,
+    because ``must_include`` is a hard requirement a candidate is refused for missing and
+    ``must_avoid`` is a rights- and meaning-level limit. Its silence is therefore not an
+    answer, and applying the author's rule to it let a model that merely named a subject
+    delete a requirement it was never offered. The constraints are restored rather than
+    the mapping duplicated, so there stays exactly one place that knows which brief field
+    lands on which scene field.
+    """
+    required = list(getattr(scene, "must_include", None) or [])
+    avoided = list(getattr(scene, "must_avoid", None) or [])
+    apply_brief(scene, brief)
+    scene.must_include = required
+    scene.must_avoid = avoided
+    return scene
 
 
 def _decode(raw: Any) -> dict[str, Any]:
@@ -394,6 +437,7 @@ __all__ = [
     "SemanticBriefCompletionFn",
     "SemanticBriefResponseError",
     "SemanticBriefUnavailableError",
+    "apply_semantic_brief",
     "build_prompt",
     "evidence_for_scene",
     "parse_response",
