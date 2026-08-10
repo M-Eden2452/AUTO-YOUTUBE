@@ -27,7 +27,9 @@ Does not prove:
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from src.assets.semantic_selection import (
@@ -279,6 +281,255 @@ class ProductionBuilderCompletionWiringTests(unittest.TestCase):
         self.assertNotIn("prefer_video", kwargs)
         self.assertEqual(state.selected["asset_id"], "img_full")
         self.assertEqual(state.assembly.primary_asset["asset_id"], "img_full")
+
+
+def _technical_analysis(asset_id: str, technical_score: float) -> dict:
+    return {
+        "asset_id": asset_id,
+        "analysis_status": "passed",
+        "technical_quality_score": technical_score,
+        "technical_metrics": {"technical_quality_score": technical_score},
+        "crop_scores": {
+            "9:16": {"heuristic_crop_suitability": technical_score}
+        },
+        "duplicate_scores": [],
+        "sampled_frames": [],
+    }
+
+
+def _run_production_technical_review(
+    *,
+    candidates: list[dict],
+    selected: dict,
+    analyses: list[dict],
+    allowed_media_kinds: list[str] | None = None,
+    technical_rerank_enabled: bool = True,
+):
+    """Exercise the config-reachable production review seam without I/O."""
+    from src.news.asset_manifest_builder import AssetManifestBuilder, SceneBuildState
+
+    semantic_scene = _scene()
+    with tempfile.TemporaryDirectory() as tmp:
+        builder = AssetManifestBuilder(
+            visual_plan={"scenes": []},
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=[],
+            dry_run=True,
+            channel="nature_science_news_ru",
+            allow_generated_fallback=False,
+            asset_selection={
+                "visual_preview": {
+                    "enabled": True,
+                    "shortlist_size": 5,
+                    "technical_rerank_enabled": technical_rerank_enabled,
+                    "offline": True,
+                    "no_html": True,
+                }
+            },
+            project_root=Path(tmp),
+            project_id="va_new_03",
+            max_download_attempts=1,
+            completion_mode="strict",
+            reuse_ledger=None,
+            allow_infographic_fallback=False,
+            allow_emergency_backdrop=False,
+            prefer_video=False,
+            minimum_video_clips=0,
+            minimum_video_duration_ratio=0.0,
+        )
+        state = SceneBuildState(
+            scene={
+                "scene_id": semantic_scene.scene_id,
+                "allowed_media_kinds": list(allowed_media_kinds or []),
+            },
+            semantic_scene=semantic_scene,
+            candidates=candidates,
+            scene_provider_attempts=[],
+            provider_capabilities={},
+            routing_decision={},
+            query_plan=None,
+            source_class="",
+            required_duration=5.0,
+            user_ranked=[],
+            selected=selected,
+        )
+        with patch(
+            "src.news.asset_manifest_builder.prepare_candidate_preview_analyses",
+            return_value=analyses,
+        ), patch.object(
+            builder,
+            "_apply_semantic_visual_evidence",
+            return_value=None,
+        ):
+            builder._prepare_visual_review(state)
+        return state
+
+
+class TechnicalReviewDecisionBoundaryTests(unittest.TestCase):
+    """VA-NEW-03: technical evidence cannot become a post-policy selector."""
+
+    def test_manual_winner_survives_higher_technical_score(self):
+        manual_candidate = _candidate(
+            "manual_image", "image", "Author-selected hummingbird image"
+        )
+        manual_winner = {
+            **manual_candidate,
+            "selected_by": "user_asset_priority_manual",
+        }
+        technical_video = _candidate(
+            "technical_video", "video", "Generic technically clean footage"
+        )
+
+        state = _run_production_technical_review(
+            candidates=[manual_candidate, technical_video],
+            selected=manual_winner,
+            analyses=[
+                _technical_analysis("manual_image", 1.0),
+                _technical_analysis("technical_video", 100.0),
+            ],
+        )
+
+        self.assertEqual(state.selected["asset_id"], "manual_image")
+        self.assertEqual(state.selected["selected_by"], "user_asset_priority_manual")
+
+    def test_semantically_rejected_candidate_cannot_win_technical_review(self):
+        canonical = _full_image("canonical_image")
+        rejected = _candidate(
+            "rejected_video",
+            "video",
+            "Technically excellent but semantically forbidden footage",
+            rejected=True,
+            reject_reason="must_avoid_present:desert",
+            blocking_reject_reasons=["must_avoid_present:desert"],
+        )
+
+        state = _run_production_technical_review(
+            candidates=[canonical, rejected],
+            selected=canonical,
+            analyses=[
+                _technical_analysis("canonical_image", 1.0),
+                _technical_analysis("rejected_video", 100.0),
+            ],
+        )
+
+        self.assertEqual(state.selected["asset_id"], "canonical_image")
+
+    def test_conflict_candidate_cannot_win_technical_review(self):
+        canonical = _full_image("canonical_image")
+        conflict = _candidate(
+            "conflict_video",
+            "video",
+            "Technically excellent conflicting footage",
+            rejected=True,
+            reject_reason="declared_conflict:desert",
+            blocking_reject_reasons=["declared_conflict:desert"],
+        )
+
+        state = _run_production_technical_review(
+            candidates=[canonical, conflict],
+            selected=canonical,
+            analyses=[
+                _technical_analysis("canonical_image", 1.0),
+                _technical_analysis("conflict_video", 100.0),
+            ],
+        )
+
+        self.assertEqual(state.selected["asset_id"], "canonical_image")
+
+    def test_image_only_winner_survives_higher_scoring_video(self):
+        canonical = _full_image("canonical_image")
+        off_kind = _candidate(
+            "off_kind_video", "video", "Technically excellent generic footage"
+        )
+
+        state = _run_production_technical_review(
+            candidates=[canonical, off_kind],
+            selected=canonical,
+            analyses=[
+                _technical_analysis("canonical_image", 1.0),
+                _technical_analysis("off_kind_video", 100.0),
+            ],
+            allowed_media_kinds=["image"],
+        )
+
+        self.assertEqual(state.selected["asset_id"], "canonical_image")
+
+    def test_media_policy_winner_survives_and_technical_evidence_is_retained(self):
+        selected, ranked = select_with_media_policy(
+            _scene(),
+            [_full_image("policy_image"), _partial_video("technical_video")],
+            prefer_video=True,
+            required_duration_sec=5.0,
+        )
+        self.assertEqual(selected["asset_id"], "policy_image")
+        self.assertEqual(
+            selected["selected_by"], MEDIA_POLICY_VIDEO_PREFERENCE_FALLBACK
+        )
+
+        state = _run_production_technical_review(
+            candidates=ranked,
+            selected=selected,
+            analyses=[
+                _technical_analysis("policy_image", 1.0),
+                _technical_analysis("technical_video", 100.0),
+            ],
+        )
+
+        self.assertEqual(state.selected["asset_id"], "policy_image")
+        self.assertEqual(
+            state.selected["selected_by"], MEDIA_POLICY_VIDEO_PREFERENCE_FALLBACK
+        )
+        self.assertEqual(
+            state.scene_review_bundle.technical_scores["technical_video"], 100.0
+        )
+        self.assertEqual(
+            state.scene_review_bundle.reranking["technical_rerank_enabled"], True
+        )
+        self.assertEqual(state.visual_review_entry["analysis_mode"], "technical_analysis")
+        self.assertEqual(
+            state.visual_review_entry["selected_candidate_before_rerank"],
+            state.visual_review_entry["selected_candidate_after_rerank"],
+        )
+
+    def test_rights_blocked_candidate_remains_ineligible(self):
+        canonical = _full_image("canonical_image")
+        blocked = _candidate(
+            "blocked_video",
+            "video",
+            "Technically excellent blocked footage",
+            allowed_for_render=False,
+            review_required=True,
+        )
+
+        state = _run_production_technical_review(
+            candidates=[canonical, blocked],
+            selected=canonical,
+            analyses=[
+                _technical_analysis("canonical_image", 1.0),
+                _technical_analysis("blocked_video", 100.0),
+            ],
+        )
+
+        self.assertEqual(state.selected["asset_id"], "canonical_image")
+
+    def test_default_false_path_keeps_the_canonical_winner(self):
+        canonical = _full_image("canonical_image")
+        technical_video = _candidate(
+            "technical_video", "video", "Technically excellent generic footage"
+        )
+
+        state = _run_production_technical_review(
+            candidates=[canonical, technical_video],
+            selected=canonical,
+            analyses=[
+                _technical_analysis("canonical_image", 1.0),
+                _technical_analysis("technical_video", 100.0),
+            ],
+            technical_rerank_enabled=False,
+        )
+
+        self.assertEqual(state.selected["asset_id"], "canonical_image")
 
 
 class MediaPolicyAcceptanceCaseTests(unittest.TestCase):

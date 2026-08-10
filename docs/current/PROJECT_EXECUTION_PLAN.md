@@ -2729,10 +2729,13 @@ PLAN-9B-2 не являются.
     `src/assets/semantic_selection/candidate_ranker.py`, и только на метаданных
     провайдера. `src/news/asset_manifest_builder.py` добавляет лишь
     video-preference и приоритет пользовательского ассета; собственного
-    критерия пригодности у него нет. Вторая точка, способная изменить выбор, —
-    `select_candidate_after_review` в `_prepare_visual_review`, включаемая
-    только `technical_rerank_enabled` (по умолчанию `false`) и работающая на
-    технических признаках. Роли разведены: evidence producers
+    критерия пригодности у него нет. Исторически второй точкой, способной
+    изменить выбор, был `select_candidate_after_review` в
+    `_prepare_visual_review`, включаемый только `technical_rerank_enabled` (по
+    умолчанию `false`) и работающий на технических признаках. Post-audit
+    correction **VA-NEW-03** 2026-08-10 удалил этот production caller:
+    technical analysis сохраняется в review evidence, но больше не меняет
+    canonical semantic/media/manual winner. Роли разведены: evidence producers
     (`scene_analyzer`, `evidence`, `visual_preview`, `semantic_visual_service`)
     · decision owner (`candidate_ranker`, плюс `completion/ladder` и
     `completion/modes`) · orchestration owner (`asset_manifest_builder`) ·
@@ -5222,7 +5225,8 @@ misleading/conflict · paid approval.
 - **status:** completed 2026-08-10 · owner-issued 2026-08-10 (plan
   reconciliation после LIVE-4 и comparative audit) · unified policy commit
   `388b9b1`; blocking repair **PLAN-9C-2-B1** commit `709eaec`; retrieval
-  symmetry — **этот commit**. Других обязательных sub-slices секция не содержит.
+  symmetry — `ae6d46c`; post-audit correction **VA-NEW-03** — **этот commit**.
+  Других обязательных sub-slices секция не содержит.
 - **policy implementation `388b9b1`.** Канонический decision owner —
   `src/assets/semantic_selection/media_policy.py`
   (`select_with_media_policy`): ранжирование остаётся у
@@ -5265,6 +5269,21 @@ misleading/conflict · paid approval.
   выбранного primary вместо прокладки второго policy-input набора. Evidence:
   policy + completion radius 64 OK; owning radius 243 OK; PLAN-9D
   characterization 167 OK; полный offline suite 2123 OK.
+- **post-audit correction VA-NEW-03.** Integrity audit доказал ещё один
+  config-reachable post-selection owner: `_prepare_visual_review` при
+  `technical_rerank_enabled=true` заменял уже выбранный manual/media-policy
+  asset результатом `select_candidate_after_review`, который не применял
+  semantic rejection/conflict/must-avoid и `allowed_media_kinds`. RED на
+  baseline `963bfff`: 5 из 7 production-builder checks заменяли manual,
+  rejected/conflicting, image-only и canonical media-policy winner технически
+  более сильным video. Builder больше не вызывает legacy helper и не присваивает
+  новый winner после preview; flag сохранён default OFF как compatibility
+  advisory/report input, technical scores/crop/duplicate/reasons остаются в
+  существующем review bundle, а честный `analysis_mode=technical_analysis`
+  отличает evidence от rerank. Rights-blocked и default-false contracts не
+  ослаблены; Vision, nonsemantic mode, download/completion, continuity и
+  providers не менялись. GREEN: новые checks 7/7, owning offline radius 431 OK,
+  полный offline suite 2150 OK.
 - **routing.** `current_checkpoint` остаётся **PLAN-9D**. Bounded
   correctness-слайс decision-слоя; суффикс родственного ID следует существующей
   конвенции (PLAN-9B-2, PLAN-9D-A…G). Evidence-семейством PLAN-9D не является;
@@ -5328,8 +5347,8 @@ misleading/conflict · paid approval.
   selection/manifest/provider/network radius и полный offline suite. Для
   retrieval symmetry: 8/8 новых checks, 226 owning tests и 2131 full-suite
   tests — OK; docs/scope QA фиксируются этим commit.
-- **rollback:** retrieval-symmetry commit + `709eaec` + `388b9b1`, revert в
-  обратном порядке; миграций данных нет.
+- **rollback:** этот correction commit + `ae6d46c` + `709eaec` + `388b9b1`,
+  revert в обратном порядке; миграций данных нет.
 
 ### PLAN-9C-3 — metadata evidence repair (рабочий ярлык R-2b)
 

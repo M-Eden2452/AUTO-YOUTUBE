@@ -93,7 +93,6 @@ from src.assets.query_adapter import (
 from src.assets.review_bundle import (
     attach_selected_asset,
     create_scene_review_bundle,
-    select_candidate_after_review,
     write_review_bundle,
 )
 from src.assets.scene_strategy import CLASS_DATA_INFOGRAPHIC
@@ -625,14 +624,13 @@ class AssetManifestBuilder:
                 else ""
             )
         )
-        if bool(settings.get("technical_rerank_enabled", False)):
-            state.selected = select_candidate_after_review(
-                state.candidates[:top_k],
-                analyses,
-                metadata_selected_id=before_id,
-                technical_rerank=True,
-                target_aspect_ratio=request.target_aspect_ratio,
-            )
+        technical_analysis_requested = bool(
+            settings.get("technical_rerank_enabled", False)
+        )
+        # The compatibility flag still requests and records technical analysis,
+        # but that evidence cannot replace the canonical semantic/media/manual
+        # decision made above. Any future technical tie-break must enter through
+        # that canonical decision path rather than becoming a post-selection owner.
         after_id = str((state.selected or {}).get("asset_id") or before_id)
         bundle = create_scene_review_bundle(
             project_id=self.project_id,
@@ -645,17 +643,15 @@ class AssetManifestBuilder:
             selected_candidate_id=after_id,
             target_aspect_ratio=request.target_aspect_ratio,
             manual_request=state.manual_request,
-            technical_rerank_enabled=bool(
-                settings.get("technical_rerank_enabled", False)
-            ),
+            technical_rerank_enabled=technical_analysis_requested,
         )
         self.review_bundles.append(bundle)
         state.scene_review_bundle = bundle
         state.visual_review_entry = {
             "status": "prepared",
             "analysis_mode": (
-                "technical_rerank"
-                if bool(settings.get("technical_rerank_enabled", False))
+                "technical_analysis"
+                if technical_analysis_requested
                 else "analyse_and_report"
             ),
             "analysed_candidates": len(analyses),
