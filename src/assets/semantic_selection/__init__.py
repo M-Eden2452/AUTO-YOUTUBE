@@ -29,6 +29,14 @@ expansion ladder); собственного генератора запросо�
 детерминирован; ``validate_candidate_vision`` потребляет только предвычисленные
 теги и платных Vision-вызовов не делает.
 
+Media policy: ``media_policy.select_with_media_policy`` - единственный владелец
+решения «какой вид медиа может победить»: hard whitelist через существующий
+``allowed_media_kinds`` сцены и bounded video-предпочтение только среди
+конкурентных кандидатов (тот же support-класс, не хуже по правам, внутри
+review-окна). Это не второй selector: ранжирует по-прежнему
+``select_best_candidate``, политика лишь применяет ограничения вида поверх его
+результата и вызывается одинаково до и после Vision.
+
 Расширение: новый признак — новое требование сцены и новое правило evidence в
 существующих модулях; дополнительный Vision-источник подключается через
 ``src.assets.semantic_visual_backend``. Второй candidate selector и второй
@@ -41,6 +49,11 @@ from __future__ import annotations
 
 from .candidate_ranker import rank_candidates, select_best_candidate
 from .continuity_checker import check_continuity
+from .media_policy import (
+    candidate_media_kind,
+    media_kind_restriction,
+    select_with_media_policy,
+)
 from .models import (
     SCENE_ABSTRACT_EXPLANATION,
     SCENE_ENVIRONMENT,
@@ -62,8 +75,11 @@ __all__ = [
     "SCENE_TRANSITION",
     "SemanticScene",
     "analyze_scene",
+    "candidate_media_kind",
     "check_continuity",
+    "media_kind_restriction",
     "rank_candidates",
     "select_best_candidate",
+    "select_with_media_policy",
     "validate_candidate_vision",
 ]

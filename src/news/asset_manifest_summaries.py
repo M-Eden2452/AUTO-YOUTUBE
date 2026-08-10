@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from src.assets.completion import ReuseLedger, normalize_mode, read_assembly
 from src.assets.semantic_selection.candidate_ranker import SUPPORT_RANK
 from src.assets.semantic_selection.decision import SUPPORT_FULL, read_decision
 
+# The media-kind vocabulary moved to the selection policy so that coverage
+# summaries and the selection decision can never classify one asset differently.
+# These names stay importable here for their existing callers.
+from src.assets.semantic_selection.media_policy import (
+    IMAGE_EXTENSIONS,
+    VIDEO_EXTENSIONS,
+    candidate_media_kind as slot_media_type,
+)
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v"}
 DEFAULT_MIN_VIDEO_CLIPS = 1
 DEFAULT_MIN_VIDEO_DURATION_RATIO = 0.4
 
@@ -78,23 +83,6 @@ def video_first_policy(
         "image_fallback_allowed_in_draft": True,
         "image_fallback_publish_ready": False,
     }
-
-
-def slot_media_type(asset: dict[str, Any]) -> str:
-    media_type = str(asset.get("media_type") or asset.get("type") or "").strip().casefold()
-    if media_type in {"video", "clip", "movie"}:
-        return "video"
-    if media_type in {"image", "photo", "photograph", "animated_image", "diagram"}:
-        return "image"
-    path = str(
-        asset.get("path") or asset.get("local_path") or asset.get("downloaded_path") or ""
-    )
-    suffix = Path(path).suffix.casefold()
-    if suffix in VIDEO_EXTENSIONS:
-        return "video"
-    if suffix in IMAGE_EXTENSIONS:
-        return "image"
-    return "unknown"
 
 
 def summarize_media_coverage(

@@ -216,23 +216,68 @@ class NewsToShortAssetTests(unittest.TestCase):
         self.assertTrue(ranked[0]["rejected"])
         self.assertIn("missing_orca_evidence_for_orca_scene", ranked[0]["reject_reason"])
 
-    def test_strict_selector_prefers_non_rejected_video_candidate(self) -> None:
+    def test_strict_selector_prefers_video_only_among_competitive_candidates(self) -> None:
+        """Retargeted from the retired first-video-at-any-rank pin (PLAN-9C-2).
+
+        The facade used to duplicate the unconditional override; it now
+        delegates to the canonical media policy, so the preference may promote
+        a video only inside the best candidate's own support class.
+        """
+        from src.assets.semantic_selection import SemanticScene
         from src.news.asset_manager import _select_best_candidate
 
-        image = {"asset_id": "image", "media_type": "image", "rejected": False}
-        video = {"asset_id": "video", "media_type": "video", "rejected": False}
-        with patch(
-            "src.news.asset_manager.select_best_candidate",
-            return_value=(image, [image, video]),
-        ):
-            selected, ranked = _select_best_candidate(
-                None,
-                [image, video],
-                prefer_video=True,
-            )
+        scene = SemanticScene(
+            scene_id="scene_001",
+            subject=["hummingbird"],
+            action=["hovering"],
+            environment=["flowers"],
+        )
 
-        self.assertEqual(selected["asset_id"], "video")
-        self.assertEqual(ranked, [image, video])
+        def candidate(asset_id: str, media_type: str, title: str) -> dict:
+            data = {
+                "asset_id": asset_id,
+                "provider": "pexels",
+                "media_type": media_type,
+                "title": title,
+                "description": title,
+                "tags": [],
+                "tags_source": "provider",
+                "width": 1080,
+                "height": 1920,
+                "rights_status": "licensed",
+                "license_name": "Pexels License",
+                "allowed_for_render": True,
+                "review_required": False,
+            }
+            if media_type == "video":
+                data["duration_sec"] = 12.0
+            return data
+
+        full_image = candidate(
+            "image", "image", "Hummingbird hovering among flowers"
+        )
+        full_video = candidate(
+            "video", "video", "Hummingbird hovering in slow motion"
+        )
+        partial_video = candidate(
+            "partial_video", "video", "Hummingbird among colorful flowers"
+        )
+
+        promoted, _ranked = _select_best_candidate(
+            scene,
+            [full_image, full_video],
+            prefer_video=True,
+            required_duration_sec=5.0,
+        )
+        kept, _ranked = _select_best_candidate(
+            scene,
+            [full_image, partial_video],
+            prefer_video=True,
+            required_duration_sec=5.0,
+        )
+
+        self.assertEqual(promoted["asset_id"], "video")
+        self.assertEqual(kept["asset_id"], "image")
 
     def test_standard_news_manifest_never_creates_emergency_infographic(self) -> None:
         from src.news.asset_manager import build_news_asset_manifest

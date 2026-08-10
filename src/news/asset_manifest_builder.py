@@ -101,7 +101,7 @@ from src.assets.semantic_selection import (
     analyze_scene,
     check_continuity,
     rank_candidates,
-    select_best_candidate,
+    select_with_media_policy,
 )
 from src.assets.semantic_selection.decision import (
     DECISION_KEY,
@@ -137,7 +137,6 @@ from .asset_manifest_summaries import (
     VIDEO_EXTENSIONS,
     apply_video_first_readiness,
     completion_summary,
-    slot_media_type,
     summarize_media_coverage,
     video_first_policy,
     visual_support_summary,
@@ -560,6 +559,8 @@ class AssetManifestBuilder:
                     state.semantic_scene,
                     state.candidates,
                     prefer_video=self.prefer_video,
+                    allowed_media_kinds=state.scene.get("allowed_media_kinds"),
+                    review_window_size=self._review_window_size(),
                     used_asset_ids=self.used_asset_ids,
                     required_duration_sec=state.required_duration,
                     require_provider_metadata=bool(
@@ -574,6 +575,8 @@ class AssetManifestBuilder:
                 state.semantic_scene,
                 state.candidates,
                 prefer_video=self.prefer_video,
+                allowed_media_kinds=state.scene.get("allowed_media_kinds"),
+                review_window_size=self._review_window_size(),
                 used_asset_ids=self.used_asset_ids,
                 required_duration_sec=state.required_duration,
                 require_provider_metadata=bool(
@@ -605,11 +608,7 @@ class AssetManifestBuilder:
             and bool(settings.get("enabled", True))
         ):
             return
-        top_k = int(
-            settings.get("shortlist_size")
-            or self.visual_preview_config.get("shortlist_size")
-            or 5
-        )
+        top_k = self._review_window_size()
         request = self._preview_request(state, settings, top_k)
         analyses = prepare_candidate_preview_analyses(
             state.candidates,
@@ -773,10 +772,14 @@ class AssetManifestBuilder:
                 observed = True
         if not (observed and self._semantic_reselection_allowed(state)):
             return
+        # The same canonical policy as the metadata pass, with the same window:
+        # Vision evidence may re-rank, it may not widen what media kind can win.
         state.selected, state.candidates = select_best_with_video(
             state.semantic_scene,
             state.candidates,
             prefer_video=self.prefer_video,
+            allowed_media_kinds=state.scene.get("allowed_media_kinds"),
+            review_window_size=top_k,
             used_asset_ids=self.used_asset_ids,
             required_duration_sec=state.required_duration,
             require_provider_metadata=bool(
@@ -788,6 +791,21 @@ class AssetManifestBuilder:
             state.selected,
             scene_id=str(state.scene.get("scene_id") or ""),
             source_class=state.source_class,
+        )
+
+    def _review_window_size(self) -> int:
+        """The one shortlist number: preview, review board and media policy agree.
+
+        The media policy's video preference may only reach candidates a reviewer
+        would actually be shown, so the selection window and the preview window
+        must be the same value from the same settings.
+        """
+        settings = self.selection_config.get("visual_preview")
+        values = settings if isinstance(settings, dict) else {}
+        return int(
+            values.get("shortlist_size")
+            or self.visual_preview_config.get("shortlist_size")
+            or 5
         )
 
     def _semantic_reselection_allowed(self, state: SceneBuildState) -> bool:
@@ -1241,25 +1259,29 @@ def select_best_with_video(
     candidates: list[dict[str, Any]],
     *,
     prefer_video: bool,
+    allowed_media_kinds: list[str] | None = None,
+    review_window_size: int | None = None,
     **selection_kwargs: Any,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
-    selected, ranked = select_best_candidate(
+    """Compatibility wrapper over the canonical media-selection policy.
+
+    This used to be the unconditional video-first override: the first
+    non-rejected video at any rank replaced the ranker's choice (LIVE-4
+    scene_003/004, 7 of 12 PLAN-9D-C scenes). The decision now belongs to
+    ``src.assets.semantic_selection.media_policy``; the name and signature stay
+    for existing callers and the PLAN-9D harnesses until their retirement gate.
+    """
+    window_kwargs: dict[str, Any] = (
+        {} if review_window_size is None else {"review_window_size": review_window_size}
+    )
+    return select_with_media_policy(
         semantic_scene,
         candidates,
+        prefer_video=prefer_video,
+        allowed_media_kinds=allowed_media_kinds,
+        **window_kwargs,
         **selection_kwargs,
     )
-    if not prefer_video:
-        return selected, ranked
-    preferred = next(
-        (
-            candidate
-            for candidate in ranked
-            if slot_media_type(candidate) == "video"
-            and not candidate.get("rejected", False)
-        ),
-        None,
-    )
-    return (preferred or selected), ranked
 
 
 def ensure_decision(

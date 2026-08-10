@@ -6,7 +6,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from src.assets.completion import ReuseLedger, SceneVisualAssembly
-from src.assets.semantic_selection import select_best_candidate
+from src.assets.semantic_selection import select_with_media_policy
 from src.media_library import load_media_index
 
 from .asset_manifest_builder import (
@@ -154,23 +154,18 @@ def _select_best_candidate(
     prefer_video: bool,
     **selection_kwargs: Any,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
-    selected, ranked = select_best_candidate(
+    """Compatibility patch-point; the decision belongs to the canonical policy.
+
+    This duplicate used to repeat the unconditional first-video override on its
+    own. It now delegates to ``select_with_media_policy``, so a test that patches
+    here observes exactly what production decides and nothing else.
+    """
+    return select_with_media_policy(
         semantic_scene,
         candidates,
+        prefer_video=prefer_video,
         **selection_kwargs,
     )
-    if not prefer_video:
-        return selected, ranked
-    preferred = next(
-        (
-            candidate
-            for candidate in ranked
-            if _slot_media_type(candidate) == "video"
-            and not candidate.get("rejected", False)
-        ),
-        None,
-    )
-    return (preferred or selected), ranked
 
 
 def create_default_asset_providers() -> list[AssetProvider]:
