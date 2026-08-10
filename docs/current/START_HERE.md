@@ -30,16 +30,14 @@ source_paths:
 
 # Start Here
 
-AI-YouTube — локальная offline-first платформа создания видео и переработки
-длинных source videos. Сейчас production-ready только два Shorts templates;
-код и Git имеют приоритет над этим документом.
+AI-YouTube — локальная offline-first платформа создания видео и переработки длинных
+source videos. Сейчас production-ready только два Shorts templates; код и Git имеют приоритет над этим документом.
 
 Для начала работы достаточно:
 
 1. Прочитать [AGENTS.md](../../AGENTS.md).
 2. Проверить Git указанными там read-only командами.
-3. Прочитать [CURRENT_STATE.md](CURRENT_STATE.md). Открывать
-   [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
+3. Прочитать [CURRENT_STATE.md](CURRENT_STATE.md). Открывать [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
 
 Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
 Он задаёт порядок работ; PLAN-6E завершён 2026-08-02: canonical read-only policy
@@ -94,9 +92,7 @@ D03 `packages/` placeholder. 9B-P01 зафиксировал два target engin
 должен получить exit condition в cleanup registry; бессрочный wrapper не
 является финальным состоянием.
 
-Для отдельного runtime workspace используй глобальный `--workspace`, переменную
-`AI_YOUTUBE_WORKSPACE` или path config. Без явной настройки legacy workspace остаётся
-корнем репозитория; физическая миграция runtime ещё не выполнялась.
+Для отдельного runtime workspace используй глобальный `--workspace`, переменную `AI_YOUTUBE_WORKSPACE`
+или path config. Без явной настройки legacy workspace остаётся корнем репозитория; физическая миграция runtime ещё не выполнялась.
 
-Не запускай сеть, providers, Vision, TTS, скачивание или платные действия без
-отдельного разрешения пользователя.
+Не запускай сеть, providers, Vision, TTS, скачивание или платные действия без отдельного разрешения пользователя.

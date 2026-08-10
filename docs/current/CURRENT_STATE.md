@@ -234,12 +234,10 @@ Retrieval-symmetry closure **PLAN-9C-2** (2026-08-10) supersedes the pending wor
 - `applications list` по умолчанию показывает только active/enabled приложения;
   planned/disabled доступны только при явном запросе и сохраняют честный статус.
 - Активное приложение: `content_creator`.
-- Активные live-tested шаблоны: `fullscreen_voiceover_v1` и
-  `story_card_text_only_v1`.
+- Активные live-tested шаблоны: `fullscreen_voiceover_v1` и `story_card_text_only_v1`.
 - `video_repurposer`, `longform` и `horizontal_clip` остаются disabled/planned.
 - Общий `ProjectRepository` читает старые `job.json` и `project.json`.
-- Offline CI, pinned core lock, artifact schemas и characterization baseline добавлены
-  этапом 1.
+- Offline CI, pinned core lock, artifact schemas и characterization baseline добавлены этапом 1.
 - `WorkspacePaths`/`ApplicationPaths` задают единый runtime workspace через
   CLI, `AI_YOUTUBE_WORKSPACE` или path config; CLI имеет наивысший приоритет.
 - Default workspace и legacy fallback остаются в корне репозитория, поэтому старые
@@ -249,46 +247,31 @@ Retrieval-symmetry closure **PLAN-9C-2** (2026-08-10) supersedes the pending wor
 
 Известные переходные долги:
 
-- две формы project manifests сохраняются tolerant readers; lock сериализует
-  отдельные news JSON writes; output validation покрывает повторяемые стадии от
-  `research` до `export`. `input` и потенциально сетевой `article_ingestion`
-  намеренно не включены в автоматическую retry-policy ADR 0006;
-- documentary gate 8E закрыт без migration; ADR 0016 определил future
-  documentary как workflow/template `content_creator`, которому нужны реальный
-  catalog template, canonical project/approval/provider contracts и targeted
-  evidence; физические Anime
-  Factory workflow/output contracts остаются у `anime_factory`, root legacy
-  engine/patch-point contracts — у `pipeline.py`, а documentary и
-  fixed-production-plan HTTP paths остаются внутри будущего bounded slice;
-- D01 news-only provider names, D02 standalone downloader и D03 planning
-  directory удалены отдельными проверенными commits; stage 10 cleanup
-  candidates A01/A02/D04 ещё не начаты;
-- этап 8 установил application boundaries, но не завершил ownership transfer:
-  `src.news`, `src.templates.story_card`, `anime_factory`, `pipeline.py` и
-  `src.legacy_pipeline` всё ещё владеют частью реализации;
-- capability owner gates активного плана (PLAN-1A, PLAN-1B, PLAN-1C′), которые
-  заменили монолитный inventory, должны дополнить cleanup registry точными
-  production/test/docs callers и exit conditions для package roots/wrappers,
-  Anime project/transcription/subtitle/render modules и legacy/shared music
-  paths. До закрытия соответствующего gate перенос и удаление этих paths
-  запрещены.
+- две формы project manifests сохраняются tolerant readers; lock сериализует отдельные news JSON writes;
+  output validation покрывает повторяемые стадии от `research` до `export`. `input` и потенциально
+  сетевой `article_ingestion` намеренно не включены в автоматическую retry-policy ADR 0006;
+- documentary gate 8E закрыт без migration; ADR 0016 определил future documentary как workflow/template
+  `content_creator`, которому нужны реальный catalog template, canonical project/approval/provider contracts
+  и targeted evidence; физические Anime Factory workflow/output contracts остаются у `anime_factory`, root legacy
+  engine/patch-point contracts — у `pipeline.py`, а documentary и fixed-production-plan HTTP paths остаются внутри будущего bounded slice;
+- D01 news-only provider names, D02 standalone downloader и D03 planning directory удалены отдельными
+  проверенными commits; stage 10 cleanup candidates A01/A02/D04 ещё не начаты;
+- этап 8 установил application boundaries, но не завершил ownership transfer: `src.news`,
+  `src.templates.story_card`, `anime_factory`, `pipeline.py` и `src.legacy_pipeline` всё ещё владеют частью реализации;
+- capability owner gates активного плана (PLAN-1A, PLAN-1B, PLAN-1C′), которые заменили монолитный inventory,
+  должны дополнить cleanup registry точными production/test/docs callers и exit conditions для package roots/wrappers,
+  Anime project/transcription/subtitle/render modules и legacy/shared music paths. До закрытия соответствующего gate перенос и удаление этих paths запрещены.
 
-Создание, продолжение, TTS, render и визуальная проверка reference video больше
-не являются этапами rescue plan. Архитектурные изменения выполняются малыми
-slices после карты callers/tests; удаление без доказанной замены запрещено.
-Сохранённые full-suite отчёты исторические; для каждого изменения запускаются
-только targeted tests в радиусе зависимости.
+Создание, продолжение, TTS, render и визуальная проверка reference video больше не являются этапами rescue plan.
+Архитектурные изменения выполняются малыми slices после карты callers/tests; удаление без доказанной замены запрещено.
+Сохранённые full-suite отчёты исторические; для каждого изменения запускаются только targeted tests в радиусе зависимости.
 
-PLAN-9C-3 (metadata evidence repair) closed 2026-08-10 одним bounded commit.
-Canonical owner `src/assets/semantic_selection/evidence.py` теперь сохраняет
-field provenance: title/provider labels остаются strong, а broad description
-доказывает multiword concept только локально; hard must-include/must-avoid и
-conflicts не ослаблены. LIVE-4 offline evidence: Sierra Negra subject 100→50,
-Life On Earth hummingbird 100→75, positive Pexels hummingbird/orca остаются
-100. IA normalizer, rights, provider-confidence scoring, negative-terms
-consumers, PLAN-9C-2/PLAN-10C/PLAN-9A/PLAN-10D и Vision не менялись. PLAN-9D
-raw corpus сохранён; derived checksum re-finalized до
-`bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4`.
-Targeted radius 375 и full offline suite 2143 — OK. Текущий checkpoint —
-**PLAN-9D**; следующее точное действие — отдельный owner-issued LIVE-5
-acceptance diagnostic, PLAN-9D-D остаётся NOT STARTED / blocked.
+PLAN-9C-3 (metadata evidence repair) closed 2026-08-10 одним bounded commit. Canonical owner
+`src/assets/semantic_selection/evidence.py` теперь сохраняет field provenance: title/provider labels остаются strong,
+а broad description доказывает multiword concept только локально; hard must-include/must-avoid и conflicts не ослаблены.
+LIVE-4 offline evidence: Sierra Negra subject 100→50, Life On Earth hummingbird 100→75, positive Pexels
+hummingbird/orca остаются 100. IA normalizer, rights, provider-confidence scoring, negative-terms consumers,
+PLAN-9C-2/PLAN-10C/PLAN-9A/PLAN-10D и Vision не менялись. PLAN-9D raw corpus сохранён; derived checksum
+re-finalized до `bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4`.
+Targeted radius 375 и full offline suite 2143 — OK. Текущий checkpoint — **PLAN-9D**; следующее точное действие —
+отдельный owner-issued LIVE-5 acceptance diagnostic, PLAN-9D-D остаётся NOT STARTED / blocked.

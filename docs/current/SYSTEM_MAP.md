@@ -80,8 +80,7 @@ source_paths:
 
 # System Map
 
-Код и Git имеют приоритет. Карта описывает существующие границы, а не разрешает
-массовое перемещение.
+Код и Git имеют приоритет. Карта описывает существующие границы, а не разрешает массовое перемещение.
 
 | Область | Текущий авторитет | Роль |
 |---|---|---|
@@ -113,11 +112,9 @@ video_repurposer
   └─ planned/disabled (Anime Clipper adapter существует, product capability не включён)
 ```
 
-Целевая модель ADR 0016: два application engines поверх общих services.
-`content_creator` создаёт short/long; `video_repurposer` обобщает существующий
-Anime Factory для Anime/stream/film/podcast source videos. Documentary — future
-template/workflow `content_creator`, не третье приложение. Это target boundary:
-repurposer остаётся disabled до migration и evidence.
+Целевая модель ADR 0016: два application engines поверх общих services. `content_creator`
+создаёт short/long; `video_repurposer` обобщает существующий Anime Factory для Anime/stream/film/podcast source videos.
+Documentary — future template/workflow `content_creator`, не третье приложение. Это target boundary: repurposer остаётся disabled до migration и evidence.
 
 Ключевые переходные ограничения:
 
@@ -162,16 +159,12 @@ repurposer остаётся disabled до migration и evidence.
   `anime_factory`; `apps.anime_factory` использует эту canonical boundary, но
   catalog остаётся planned/disabled.
 
-`docs/implementation/` — каталог implementation evidence и истории capabilities,
-а не источник текущих границ: индекс и статусы находятся в
-[docs/implementation/README.md](../implementation/README.md), и ни один документ
-оттуда не переопределяет эту карту, ADR или код.
+`docs/implementation/` — каталог implementation evidence и истории capabilities, а не источник текущих границ:
+индекс и статусы находятся в [docs/implementation/README.md](../implementation/README.md), и ни один документ оттуда не переопределяет эту карту, ADR или код.
 
-Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted
-contracts и runtime roots зафиксированы в
-[ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md); классификация
-`keep/split/merge/move/archive/delete/do_not_touch`, delete evidence и очередь
-малых slices — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md). Slice 5A перевёл
+Этап 4.6 завершил read-only инвентаризацию. Полные callers/tests, persisted contracts и runtime roots
+зафиксированы в [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md); классификация
+`keep/split/merge/move/archive/delete/do_not_touch`, delete evidence и очередь малых slices — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md). Slice 5A перевёл
 `NewsProjectStore` на существующий atomic write primitive без создания нового
 storage layer. Slice 5B добавил additive news schema version v1: новые записи
 версионированы, а старые `job.json` без поля читаются как v1 без массовой
@@ -239,10 +232,7 @@ PLAN-STAB-3 (`9222519`) завершены: атомарный final-output prom
 в зелёное состояние (GitHub Actions run `31039985187`, 1/1 checks, OK; local suite — 1589 тестов, OK);
 PLAN-STAB-16 частично выполнена — green CI baseline готов, остальное pending/non-blocking. Финальная цель — один physical `src/ai_youtube` package и один owner business logic на capability; это цель плана, а не текущее состояние кода.
 
-PLAN-9C-3 closed 2026-08-10 без новой boundary: canonical positive metadata
-evidence остаётся в `src/assets/semantic_selection/evidence.py`, decision owner
-остаётся `candidate_ranker.py`, а slot consumer — `decision.py`. Field-aware
-locality не создаёт второй matcher: hard requirements/conflicts используют тот
-же owner с прежней strict semantics. Provider normalizers, rights owner,
-media-selection owner и persisted schema не менялись. Текущий checkpoint —
-**PLAN-9D**; следующий шаг — отдельный LIVE-5 acceptance diagnostic.
+PLAN-9C-3 closed 2026-08-10 без новой boundary: canonical positive metadata evidence остаётся в
+`src/assets/semantic_selection/evidence.py`, decision owner остаётся `candidate_ranker.py`, а slot consumer — `decision.py`.
+Field-aware locality не создаёт второй matcher: hard requirements/conflicts используют тот же owner с прежней strict semantics.
+Provider normalizers, rights owner, media-selection owner и persisted schema не менялись. Текущий checkpoint — **PLAN-9D**; следующий шаг — отдельный LIVE-5 acceptance diagnostic.
