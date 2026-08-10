@@ -86,17 +86,18 @@ def search_provider(
 ) -> list[dict[str, Any]]:
     if supports_stock_contract(provider):
         preferred = scene_media_type(scene)
-        media_types = [preferred]
-        allowed = {str(item) for item in (scene.get("allowed_media_kinds") or [])}
         try:
             supported = {
-                str(item)
+                str(item).strip().casefold()
                 for item in provider.capabilities().media_types  # type: ignore[attr-defined]
             }
         except Exception:
             supported = {preferred}
-        if preferred == "video" and "image" in allowed and "image" in supported:
-            media_types.append("image")
+        media_types = _retrieval_media_types(
+            scene,
+            preferred=preferred,
+            supported=supported,
+        )
 
         results: list[dict[str, Any]] = []
         for media_type in media_types:
@@ -132,6 +133,37 @@ def search_provider(
         return provider.search(query, scene, limit=limit)
     except TypeError:
         return provider.search(query, scene)
+
+
+def _retrieval_media_types(
+    scene: dict[str, Any],
+    *,
+    preferred: str,
+    supported: set[str],
+) -> list[str]:
+    """Kinds to request: allowed is the boundary; preferred only orders it.
+
+    Older persisted scenes without routable ``allowed_media_kinds`` keep their
+    legacy preferred-only request. Once image and/or video are stated, the
+    request pool is their intersection with provider capabilities. This keeps
+    IMAGE_ONLY/VIDEO_ONLY hard while giving both allowed kinds to the downstream
+    canonical media-selection policy.
+    """
+
+    allowed = {
+        str(item).strip().casefold()
+        for item in (scene.get("allowed_media_kinds") or [])
+        if str(item).strip()
+    }
+    routable = allowed & {"image", "video"}
+    if not routable:
+        return [preferred]
+    other = "image" if preferred == "video" else "video"
+    return [
+        media_type
+        for media_type in (preferred, other)
+        if media_type in routable and media_type in supported
+    ]
 
 
 def candidate_to_rankable(candidate: AssetCandidate) -> dict[str, Any]:

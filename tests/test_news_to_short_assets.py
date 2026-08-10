@@ -9,7 +9,177 @@ from unittest.mock import patch
 from PIL import Image
 
 
+class _CapturingStockProvider:
+    name = "capture"
+
+    def __init__(self, *, media_types: list[str] | None = None) -> None:
+        self.media_types = list(media_types or ["video", "image"])
+        self.requests = []
+
+    def capabilities(self):
+        from src.assets.models import ProviderCapabilities
+
+        return ProviderCapabilities(
+            provider=self.name,
+            media_types=self.media_types,
+            query_languages=["en", "ru"],
+        )
+
+    def search(self, request):
+        self.requests.append(request)
+        return []
+
+    @staticmethod
+    def resolve_license(candidate):
+        return candidate
+
+    @staticmethod
+    def download(candidate, destination, context):
+        return candidate
+
+    @staticmethod
+    def health_check():
+        return None
+
+
 class NewsToShortAssetTests(unittest.TestCase):
+    def _search_media_types(
+        self,
+        *,
+        visual_type: str | None,
+        allowed_media_kinds: list[str] | None,
+        supported_media_types: list[str] | None = None,
+    ) -> list[str]:
+        from src.news.asset_manager import _search_provider
+
+        provider = _CapturingStockProvider(media_types=supported_media_types)
+        scene = {"scene_id": "scene_001"}
+        if visual_type is not None:
+            scene["visual_type"] = visual_type
+        if allowed_media_kinds is not None:
+            scene["allowed_media_kinds"] = allowed_media_kinds
+        _search_provider(
+            provider,
+            "orca ocean",
+            scene,
+            {"must_not_include": []},
+            project_id="retrieval_symmetry",
+            limit=5,
+        )
+        return [request.media_type for request in provider.requests]
+
+    def test_mixed_media_retrieval_requests_both_kinds_when_image_is_preferred(self) -> None:
+        """PLAN-9C-2 R1: image preference may order, but may not filter."""
+        self.assertEqual(
+            self._search_media_types(
+                visual_type="image",
+                allowed_media_kinds=["image", "video"],
+            ),
+            ["image", "video"],
+        )
+
+    def test_mixed_media_retrieval_keeps_both_kinds_when_video_is_preferred(self) -> None:
+        """PLAN-9C-2 R2: protect the existing mixed-video retrieval path."""
+        self.assertEqual(
+            self._search_media_types(
+                visual_type="video",
+                allowed_media_kinds=["image", "video"],
+            ),
+            ["video", "image"],
+        )
+
+    def test_image_only_retrieval_never_requests_video(self) -> None:
+        """PLAN-9C-2 R3: allowed kinds are the hard retrieval boundary."""
+        self.assertEqual(
+            self._search_media_types(
+                visual_type="video",
+                allowed_media_kinds=["image"],
+            ),
+            ["image"],
+        )
+
+    def test_video_only_retrieval_never_requests_image(self) -> None:
+        """PLAN-9C-2 R4: allowed kinds override an opposing image hint."""
+        self.assertEqual(
+            self._search_media_types(
+                visual_type="image",
+                allowed_media_kinds=["video"],
+            ),
+            ["video"],
+        )
+
+    def test_preference_changes_request_order_not_the_allowed_kind_set(self) -> None:
+        """PLAN-9C-2 R5: both preferences expose the same candidate kinds."""
+        image_first = self._search_media_types(
+            visual_type="image",
+            allowed_media_kinds=["image", "video"],
+        )
+        video_first = self._search_media_types(
+            visual_type="video",
+            allowed_media_kinds=["image", "video"],
+        )
+
+        self.assertEqual(set(image_first), {"image", "video"})
+        self.assertEqual(set(video_first), {"image", "video"})
+        self.assertEqual(image_first, ["image", "video"])
+        self.assertEqual(video_first, ["video", "image"])
+
+    def test_retrieval_respects_provider_media_capabilities(self) -> None:
+        self.assertEqual(
+            self._search_media_types(
+                visual_type="video",
+                allowed_media_kinds=["image", "video"],
+                supported_media_types=["image"],
+            ),
+            ["image"],
+        )
+
+    def test_missing_or_empty_allowed_kinds_keep_legacy_preferred_only_behavior(self) -> None:
+        for allowed in (None, []):
+            with self.subTest(allowed=allowed):
+                self.assertEqual(
+                    self._search_media_types(
+                        visual_type="image",
+                        allowed_media_kinds=allowed,
+                    ),
+                    ["image"],
+                )
+
+    def test_manifest_builder_passes_mixed_scene_kinds_to_provider_retrieval(self) -> None:
+        """Production path: scene constraints reach the real retrieval owner."""
+        from src.news.asset_manager import build_assets_manifest
+
+        provider = _CapturingStockProvider()
+        manifest = build_assets_manifest(
+            visual_plan={
+                "language": "en",
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "visual_type": "image",
+                        "allowed_media_kinds": ["image", "video"],
+                        "primary_query": "orca ocean",
+                    }
+                ],
+            },
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=[provider],
+            dry_run=False,
+            project_id="retrieval_symmetry_integration",
+            allow_infographic_fallback=False,
+            allow_emergency_backdrop=False,
+        )
+
+        self.assertEqual(
+            [request.media_type for request in provider.requests],
+            ["image", "video"],
+        )
+        self.assertTrue(
+            all(request.scene_id == "scene_001" for request in provider.requests)
+        )
+        self.assertEqual(manifest["provider_attempts"][0]["result_count"], 0)
+
     def test_stock_video_search_keeps_full_hd_landscape_sources_for_vertical_crop(self) -> None:
         from src.assets.models import ProviderCapabilities
         from src.news.asset_manager import _search_provider

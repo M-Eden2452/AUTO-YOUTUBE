@@ -19,8 +19,8 @@ Protects:
   review window or bypass the hard media-kind whitelist.
 
 Does not prove:
-- retrieval symmetry (``search_provider`` still asks for images only when the
-  scene prefers an image) - that is the second PLAN-9C-2 sub-slice;
+- retrieval symmetry, which is owned by ``test_news_to_short_assets`` and the
+  completed second PLAN-9C-2 sub-slice;
 - metadata evidence quality (PLAN-9C-3), shortlist dedup / evaluated-set
   identity (PLAN-10C), download-walk redecision (PLAN-9A).
 """

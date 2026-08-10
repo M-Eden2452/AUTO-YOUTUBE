@@ -60,7 +60,7 @@ Correction **PLAN-9C-2-B1** (2026-08-10) supersedes the preceding first-commit c
 вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run `31039985187`,
 1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16 частично
 выполнена — green CI baseline готов, secret scan/dependency audit/lint/type-check остаются pending.
-Точное значение и следующее действие — в самом плане. [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md) остаётся историческим контекстом и текущий порядок выполнения не задаёт.
+Retrieval-symmetry closure **PLAN-9C-2** (2026-08-10) supersedes the pending wording above: allowed image+video now reaches provider retrieval as both supported request kinds regardless of preference; single-kind modes remain hard, and legacy missing/empty allowed lists remain preferred-only. New checks 8/8, owning radius 226 and full offline suite 2131 are green. **PLAN-9C-2 is complete**; next exact action is a separate owner-issued **PLAN-9C-3**. Current checkpoint remains **PLAN-9D**; PLAN-9D-D remains NOT STARTED / blocked. Точное значение и следующее действие — в самом плане. [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md) остаётся историческим контекстом и текущий порядок выполнения не задаёт.
 
 Продуктовое направление: [PRODUCT_PLAN.md](PRODUCT_PLAN.md). Разделение простое:
 execution plan отвечает за **порядок реализации** (checkpoint, статусы,
