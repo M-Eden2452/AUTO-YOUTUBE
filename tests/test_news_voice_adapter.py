@@ -112,7 +112,6 @@ class NewsVoiceAdapterTests(unittest.TestCase):
                 self.assertEqual(manifest["status"], "provider_selection_required")
 
     def test_execute_true_with_approval_generates_completed_manifest_via_fake_http(self) -> None:
-        from src.audio.tts.models import compute_settings_hash, compute_text_hash
         from src.audio.voice_workflow import create_voice_approval_record
         from src.news.voice_stage import build_or_generate_voice_manifest
 

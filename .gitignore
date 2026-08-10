@@ -103,3 +103,6 @@ manual_assets/**/*.webp
 
 # Local agent permissions are machine-specific and must never enter the repository.
 /.claude/settings.local.json
+
+# Codex remote-session attachments are machine-local scratch, never repository content.
+/.codex-remote-attachments/

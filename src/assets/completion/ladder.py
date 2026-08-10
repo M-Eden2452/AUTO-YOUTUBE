@@ -837,7 +837,6 @@ def _composite_assembly(
         raise ValueError("composite_slot_budget_exceeds_scene_duration")
     slots = []
     for position, (candidate, window) in enumerate(zip(candidates, windows, strict=True)):
-        asset_id = str(candidate.get("asset_id") or "")
         reuse_count = ledger.count(candidate)
         own_tier = quality_tier_for(candidate)
         tier = TIER_COMPOSITE if complete else own_tier

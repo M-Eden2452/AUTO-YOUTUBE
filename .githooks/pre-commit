@@ -1,0 +1,6 @@
+#!/bin/sh
+# WP0-A: машинные гейты перед каждым коммитом. Обход (--no-verify) запрещён
+# без явного разрешения владельца (AGENTS.md, секция Gates).
+repo_root="$(git rev-parse --show-toplevel)" || exit 1
+cd "$repo_root" || exit 1
+exec ./venv/Scripts/python.exe scripts/gates.py

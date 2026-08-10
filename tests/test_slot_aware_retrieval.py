@@ -398,7 +398,7 @@ class StrictModeUnaffectedTests(unittest.TestCase):
             provider = SlotAwareFakeProvider(fixture=fixture)
             visual_plan = {"scenes": [_exact_location_scene()], "intent_language": "ru", "language": "ru"}
 
-            manifest = build_assets_manifest(
+            build_assets_manifest(
                 visual_plan=visual_plan,
                 user_assets=[],
                 media_index={"version": 1, "items": []},

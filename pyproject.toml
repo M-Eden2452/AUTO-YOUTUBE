@@ -39,3 +39,89 @@ py-modules = ["pipeline"]
 where = ["."]
 include = ["ai_youtube*", "src*", "anime_factory*", "apps*"]
 exclude = ["tests*", "venv*", "projects*", "outputs*", "assets*"]
+
+[tool.ruff]
+extend-exclude = [
+    "venv",
+    "MOSS_TTS_Nano",
+    "legacy",
+    "anime_factory",
+    ".codex-remote-attachments",
+    "projects",
+    "outputs",
+    "tmp",
+    "content",
+]
+
+[tool.ruff.lint]
+select = ["F", "E9"]
+
+[tool.ruff.lint.per-file-ignores]
+# Осознанные compatibility/patch-point поверхности: неиспользуемые импорты здесь
+# являются контрактом (module-level patch-points и re-exports), а не мусором.
+"pipeline.py" = ["F401"]
+"src/news/asset_manager.py" = ["F401"]
+"src/content_creation/service.py" = ["F401"]
+"src/news/models.py" = ["F401"]
+"src/content_creation/fullscreen_voiceover_use_case.py" = ["F401"]
+# Lazy __getattr__ adapter: имена из __all__ резолвятся динамически.
+"src/ai_youtube/apps/legacy_pipeline/adapter.py" = ["F822"]
+# baseline WP0-A: существующие неиспользуемые импорты не удаляются этим слайсом,
+# чтобы не порвать цепочки re-export/facade; снятие строки из списка — работа
+# будущего слайса, который трогает файл вместе с его owning tests.
+"src/asset_finder.py" = ["F401"]
+"src/assets/generated_infographic.py" = ["F401"]
+"src/assets/provider_diagnostics.py" = ["F401"]
+"src/assets/semantic_selection/candidate_ranker.py" = ["F401"]
+"src/assets/semantic_visual_evaluation_runtime.py" = ["F401"]
+"src/assets/semantic_visual_mock.py" = ["F401"]
+"src/assets/visual_preview.py" = ["F401"]
+"src/content/visual_planning/entities.py" = ["F401"]
+"src/layout_renderer.py" = ["F401"]
+"src/music_finder.py" = ["F401"]
+"src/news/asset_manifest_summaries.py" = ["F401"]
+"src/project_foundation/cli.py" = ["F401"]
+"src/providers/fake_provider.py" = ["F401"]
+"src/size_comparison_engine.py" = ["F401"]
+"src/video_asset_engine.py" = ["F401"]
+
+[tool.mypy]
+files = ["src/assets", "src/news"]
+ignore_missing_imports = true
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+# baseline WP0-A: 150 существующих ошибок в 28 модулях подавлены целиком на
+# уровне модуля; остальные 40 файлов scope и все новые модули проверяются
+# полностью. Снятие модуля из списка — ratchet будущих слайсов.
+module = [
+    "src.assets.attribution_export",
+    "src.assets.completion.ladder",
+    "src.assets.completion.modes",
+    "src.assets.completion.replacement",
+    "src.assets.completion.report",
+    "src.assets.frame_sampling",
+    "src.assets.generated_infographic",
+    "src.assets.license_policy",
+    "src.assets.models",
+    "src.assets.query_adapter",
+    "src.assets.review_bundle",
+    "src.assets.scene_strategy",
+    "src.assets.semantic_selection.decision",
+    "src.assets.semantic_selection.scene_analyzer",
+    "src.assets.semantic_visual_evaluation_tooling",
+    "src.assets.semantic_visual_models",
+    "src.assets.semantic_visual_openai",
+    "src.assets.semantic_visual_service",
+    "src.assets.visual_preview",
+    "src.news.asset_manager",
+    "src.news.asset_manifest_builder",
+    "src.news.asset_manifest_summaries",
+    "src.news.asset_provider_adapters",
+    "src.news.asset_scene_completion",
+    "src.news.draft_completion",
+    "src.news.final_renderer",
+    "src.news.models",
+    "src.news.quality_check",
+]
+ignore_errors = true

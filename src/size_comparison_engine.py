@@ -512,7 +512,6 @@ def _draw_stage(
     height: int,
     progress: float,
 ) -> None:
-    font_big = _font(30)
     font_small = _font(20)
     label_font = _font(24)
     draw.text((54, 48), f"STAGE {stage['stage']} / ADAPTIVE SCALE", fill=(170, 205, 214, 190), font=font_small)

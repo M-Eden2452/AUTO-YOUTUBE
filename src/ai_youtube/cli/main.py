@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 from typing import Any
 
 from src.ai_youtube.cli.commands import assets, create, diagnostics, project

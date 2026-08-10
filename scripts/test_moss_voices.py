@@ -13,7 +13,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config_loader import load_config
 from src.tts_providers.moss_tts_provider import MossTtsProviderError, synthesize_text
-from src.utils import ensure_dir
 
 
 MAIN_SAMPLE_DIR = PROJECT_ROOT / "assets" / "voice_samples"

@@ -35,6 +35,12 @@
 - После изменения документации запускай
   `.\venv\Scripts\python.exe -m tools.qa.check_agent_docs`.
 
+## Gates
+
+Перед коммитом выполняй `.\venv\Scripts\python.exe scripts\gates.py`; все
+гейты обязаны быть зелёными. Обход хука (`--no-verify`) запрещён без явного
+разрешения владельца. Отдельные команды линта/тестов заменой gates.py не являются.
+
 ## Безопасность
 
 - Не читай и не изменяй `.env`, `.env.*`, secrets, credentials и private keys.

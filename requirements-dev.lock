@@ -1,0 +1,9 @@
+# Dev-only tooling для машинных гейтов (WP0-A). Ставится поверх requirements.lock:
+#   .\venv\Scripts\python.exe -m pip install --requirement requirements-dev.lock
+# Версии — фактически установленные при создании слайса (pip freeze diff).
+ast_serialize==0.8.0
+librt==0.15.0
+mypy==2.3.0
+mypy_extensions==1.1.0
+pathspec==1.1.1
+ruff==0.16.2

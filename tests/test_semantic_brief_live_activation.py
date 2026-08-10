@@ -51,7 +51,6 @@ from src.content.visual_planning.semantic_brief import (
     MAX_FIELD_TERMS,
     RESPONSE_CONTRACT,
     RESPONSE_FIELDS,
-    SemanticBriefUnavailableError,
     build_prompt,
     evidence_for_scene,
 )
