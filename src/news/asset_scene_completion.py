@@ -20,6 +20,10 @@ from src.assets.provider_contract import ProviderError
 from src.assets.query_adapter import STATUS_OK, build_slot_queries
 from src.assets.semantic_selection import rank_candidates
 from src.assets.semantic_selection.decision import carry_decision
+from src.assets.semantic_selection.media_policy import (
+    candidate_media_kind,
+    media_kind_restriction,
+)
 
 
 DownloadSelected = Callable[..., tuple[dict[str, Any] | None, list[dict[str, Any]]]]
@@ -93,9 +97,8 @@ def complete_scene_assembly(
     provider_capabilities: dict[str, dict[str, Any]] | None = None,
     scene_provider_attempts: list[dict[str, Any]] | None = None,
     allow_emergency_backdrop: bool = True,
-    prefer_video: bool = False,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
-    """Fill one scene under ``draft_complete`` using the existing completion ladder."""
+    """Assemble ``draft_complete`` around the canonical primary selection."""
 
     scene_id = str(scene.get("scene_id") or "")
     attempts: list[dict[str, Any]] = []
@@ -144,13 +147,33 @@ def complete_scene_assembly(
     triggered_slots: list[str] = []
 
     excluded: set[str] = set()
+    restriction = media_kind_restriction(scene.get("allowed_media_kinds"))
     assembly = SceneVisualAssembly(scene_id=scene_id, scene_duration_sec=duration)
     for _attempt in range(5):
+        selected_id = str((strict_selection or {}).get("asset_id") or "")
+        active_primary = (
+            strict_selection
+            if strict_selection is not None and selected_id not in excluded
+            else None
+        )
         pool = [
             candidate
             for candidate in (*candidates, *pool_candidates)
             if str(candidate.get("asset_id") or "") not in excluded
+            and (
+                not restriction
+                or candidate_media_kind(candidate) == restriction
+            )
         ]
+        if active_primary is not None:
+            pool = [
+                active_primary,
+                *[
+                    candidate
+                    for candidate in pool
+                    if str(candidate.get("asset_id") or "") != selected_id
+                ],
+            ]
         trial = reuse.copy()
         assembly = build_scene_assembly(
             scene=scene,
@@ -163,7 +186,7 @@ def complete_scene_assembly(
             requested_slot_count=len(
                 [part for part in (scene.get("visual_parts") or []) if part]
             ),
-            prefer_video=prefer_video,
+            authoritative_primary=active_primary,
         )
         if not assembly.slots:
             reuse.adopt(trial)

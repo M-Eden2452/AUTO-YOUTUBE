@@ -14,15 +14,15 @@ Protects:
 - the wiring: ``select_best_with_video`` (builder, also the post-Vision
   reselection entry) and the facade patch-point ``_select_best_candidate``
   both delegate to the one canonical policy in
-  ``src.assets.semantic_selection.media_policy``.
+  ``src.assets.semantic_selection.media_policy``; draft completion receives
+  that decision as its authoritative primary and cannot widen the media-policy
+  review window or bypass the hard media-kind whitelist.
 
 Does not prove:
 - retrieval symmetry (``search_provider`` still asks for images only when the
   scene prefers an image) - that is the second PLAN-9C-2 sub-slice;
 - metadata evidence quality (PLAN-9C-3), shortlist dedup / evaluated-set
-  identity (PLAN-10C), download-walk redecision (PLAN-9A);
-- the completion ladder's own draft-mode video pool, which keeps its current
-  behaviour until it is unified onto this policy (audit §31).
+  identity (PLAN-10C), download-walk redecision (PLAN-9A).
 """
 
 from __future__ import annotations
@@ -45,6 +45,8 @@ from src.assets.semantic_selection.media_policy import (
     candidate_media_kind,
     media_kind_restriction,
 )
+from src.assets.completion import ReuseLedger
+from src.news.asset_scene_completion import complete_scene_assembly
 
 
 def _scene(**overrides) -> SemanticScene:
@@ -93,6 +95,190 @@ def _partial_video(asset_id: str = "vid_partial") -> dict:
 # Matches subject + action (environment unmatched): same full class, lower score.
 def _weaker_full_video(asset_id: str = "vid_full") -> dict:
     return _candidate(asset_id, "video", "Hummingbird hovering in slow motion")
+
+
+def _complete_draft(
+    candidates: list[dict],
+    *,
+    prefer_video: bool,
+    allowed_media_kinds: list[str] | None = None,
+    review_window_size: int = DEFAULT_REVIEW_WINDOW_SIZE,
+) -> tuple[dict | None, dict | None, object, list[dict]]:
+    """Exercise the canonical selection -> production completion boundary."""
+    semantic_scene = _scene()
+    selected, ranked = select_with_media_policy(
+        semantic_scene,
+        candidates,
+        prefer_video=prefer_video,
+        allowed_media_kinds=allowed_media_kinds,
+        review_window_size=review_window_size,
+        required_duration_sec=5.0,
+    )
+    completed, assembly, _attempts = complete_scene_assembly(
+        scene={
+            "scene_id": semantic_scene.scene_id,
+            "allowed_media_kinds": list(allowed_media_kinds or []),
+        },
+        semantic_scene=semantic_scene,
+        candidates=ranked,
+        strict_selection=selected,
+        scene_index=0,
+        duration=5.0,
+        reuse=ReuseLedger(),
+        providers_by_name={},
+        project_root=None,
+        project_id="plan_9c_2_b1",
+        media_index={"version": 1, "items": []},
+        dry_run=True,
+        project_pool=[],
+        source_class="",
+        download_selected=lambda **_kwargs: (None, []),
+        ensure_decision=lambda asset, **_kwargs: asset,
+        rank_provider_results=lambda *_args, **_kwargs: [],
+        search_provider=lambda *_args, **_kwargs: [],
+        allow_emergency_backdrop=False,
+    )
+    return selected, completed, assembly, ranked
+
+
+class DraftCompletionMediaPolicyBoundaryTests(unittest.TestCase):
+    """PLAN-9C-2-B1: completion may assemble, but not reselect media kind."""
+
+    def test_full_image_survives_draft_completion_over_partial_video(self):
+        """B1-1: the old ladder replaced this canonical image with a video."""
+        selected, completed, assembly, ranked = _complete_draft(
+            [_full_image(), _partial_video()],
+            prefer_video=True,
+        )
+
+        by_id = {item["asset_id"]: item for item in ranked}
+        self.assertEqual(by_id["img_full"]["support_status"], SUPPORT_FULL)
+        self.assertEqual(by_id["vid_partial"]["support_status"], SUPPORT_PARTIAL)
+        self.assertEqual(selected["asset_id"], "img_full")
+        self.assertEqual(completed["asset_id"], "img_full")
+        self.assertEqual(assembly.primary_asset["asset_id"], "img_full")
+        self.assertNotIn("video_first:video_pool", assembly.ladder_trace)
+
+    def test_image_whitelist_survives_draft_completion(self):
+        """B1-2: a video cannot bypass the canonical hard whitelist."""
+        selected, completed, assembly, _ranked = _complete_draft(
+            [_full_image(), _weaker_full_video()],
+            prefer_video=True,
+            allowed_media_kinds=["image"],
+        )
+
+        self.assertEqual(selected["asset_id"], "img_full")
+        self.assertEqual(completed["asset_id"], "img_full")
+        self.assertEqual(assembly.primary_asset["media_type"], "image")
+
+    def test_competitive_video_preference_survives_draft_completion(self):
+        """B1-3: repair must not turn the bounded preference into a no-op."""
+        selected, completed, assembly, _ranked = _complete_draft(
+            [_full_image(), _weaker_full_video()],
+            prefer_video=True,
+        )
+
+        self.assertEqual(selected["asset_id"], "vid_full")
+        self.assertEqual(completed["asset_id"], "vid_full")
+        self.assertEqual(assembly.primary_asset["media_type"], "video")
+
+    def test_video_outside_review_window_is_not_resurrected_by_completion(self):
+        """B1-4: completion cannot widen the evaluated media-policy boundary."""
+        images = [
+            _candidate(f"img_{index}", "image", "Hummingbird hovering among flowers")
+            for index in range(DEFAULT_REVIEW_WINDOW_SIZE)
+        ]
+        selected, completed, assembly, ranked = _complete_draft(
+            [*images, _weaker_full_video()],
+            prefer_video=True,
+        )
+
+        video_rank = next(
+            index for index, item in enumerate(ranked) if item["asset_id"] == "vid_full"
+        )
+        self.assertGreaterEqual(video_rank, DEFAULT_REVIEW_WINDOW_SIZE)
+        self.assertEqual(selected["asset_id"], "img_0")
+        self.assertEqual(completed["asset_id"], "img_0")
+        self.assertEqual(assembly.primary_asset["asset_id"], "img_0")
+
+    def test_video_only_abstention_is_not_replaced_with_an_image(self):
+        """The opposite hard-whitelist direction remains fail-closed too."""
+        selected, completed, assembly, _ranked = _complete_draft(
+            [_full_image()],
+            prefer_video=False,
+            allowed_media_kinds=["video"],
+        )
+
+        self.assertIsNone(selected)
+        self.assertIsNone(completed)
+        self.assertFalse(assembly.slots)
+
+
+class ProductionBuilderCompletionWiringTests(unittest.TestCase):
+    """M3: the production builder hands completion the canonical decision."""
+
+    def test_builder_passes_selected_candidate_as_authoritative_primary(self):
+        from src.news.asset_manifest_builder import AssetManifestBuilder, SceneBuildState
+
+        semantic_scene = _scene()
+        selected, ranked = select_with_media_policy(
+            semantic_scene,
+            [_full_image(), _weaker_full_video()],
+            prefer_video=True,
+            allowed_media_kinds=["image"],
+            required_duration_sec=5.0,
+        )
+        builder = AssetManifestBuilder(
+            visual_plan={"scenes": []},
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=[],
+            dry_run=True,
+            channel="nature_science_news_ru",
+            allow_generated_fallback=False,
+            asset_selection={"visual_preview": {"enabled": False}},
+            project_root=None,
+            project_id="plan_9c_2_b1",
+            max_download_attempts=1,
+            completion_mode="draft_complete",
+            reuse_ledger=None,
+            allow_infographic_fallback=False,
+            allow_emergency_backdrop=False,
+            prefer_video=True,
+            minimum_video_clips=0,
+            minimum_video_duration_ratio=0.0,
+        )
+        state = SceneBuildState(
+            scene={
+                "scene_id": semantic_scene.scene_id,
+                "allowed_media_kinds": ["image"],
+            },
+            semantic_scene=semantic_scene,
+            candidates=ranked,
+            scene_provider_attempts=[],
+            provider_capabilities={},
+            routing_decision={},
+            query_plan=None,
+            source_class="",
+            required_duration=5.0,
+            user_ranked=[],
+            selected=selected,
+        )
+
+        with patch(
+            "src.news.asset_manifest_builder.ensure_selected_asset_downloaded",
+            return_value=(selected, []),
+        ), patch(
+            "src.news.asset_manifest_builder.complete_scene_assembly",
+            wraps=complete_scene_assembly,
+        ) as completion:
+            builder._download_and_complete(state)
+
+        kwargs = completion.call_args.kwargs
+        self.assertIs(kwargs["strict_selection"], selected)
+        self.assertNotIn("prefer_video", kwargs)
+        self.assertEqual(state.selected["asset_id"], "img_full")
+        self.assertEqual(state.assembly.primary_asset["asset_id"], "img_full")
 
 
 class MediaPolicyAcceptanceCaseTests(unittest.TestCase):

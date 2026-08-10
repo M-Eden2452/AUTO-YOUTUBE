@@ -206,7 +206,6 @@ def _complete_scene_assembly(
     provider_capabilities: dict[str, dict[str, Any]] | None = None,
     scene_provider_attempts: list[dict[str, Any]] | None = None,
     allow_emergency_backdrop: bool = True,
-    prefer_video: bool = False,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     return complete_scene_assembly(
         scene=scene,
@@ -231,7 +230,6 @@ def _complete_scene_assembly(
         provider_capabilities=provider_capabilities,
         scene_provider_attempts=scene_provider_attempts,
         allow_emergency_backdrop=allow_emergency_backdrop,
-        prefer_video=prefer_video,
     )
 
 

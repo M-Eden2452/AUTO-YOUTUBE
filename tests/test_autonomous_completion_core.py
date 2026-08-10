@@ -458,7 +458,7 @@ class VisualAssemblyTests(unittest.TestCase):
         self.assertEqual(assembly.slots[0].end_offset_sec, 5.0)
         self.assertEqual(assembly.primary_asset["asset_id"], "legacy")
 
-    def test_video_first_prefers_usable_video_over_exact_image(self) -> None:
+    def test_authoritative_primary_is_not_reselected_by_completion(self) -> None:
         image = _candidate("exact_image", final_score=100.0)
         video = _candidate(
             "partial_video",
@@ -473,34 +473,41 @@ class VisualAssemblyTests(unittest.TestCase):
             ranked_candidates=[image, video],
             scene_duration_sec=5.0,
             mode=MODE_DRAFT_COMPLETE,
-            prefer_video=True,
-        )
-
-        self.assertEqual(assembly.primary_asset["asset_id"], "partial_video")
-        self.assertEqual(assembly.primary_asset["media_type"], "video")
-        self.assertIn("video_first:video_pool", assembly.ladder_trace)
-
-    def test_video_first_uses_image_fallback_when_video_is_not_usable(self) -> None:
-        image = _candidate("exact_image", final_score=80.0)
-        unsafe_video = _candidate(
-            "unverified_video",
-            support=SUPPORT_UNVERIFIED,
-            slot_verdict="unverified",
-            final_score=100.0,
-            media_type="video",
-        )
-
-        assembly = build_scene_assembly(
-            scene={"scene_id": "scene_001"},
-            ranked_candidates=[unsafe_video, image],
-            scene_duration_sec=5.0,
-            mode=MODE_DRAFT_COMPLETE,
-            prefer_video=True,
+            authoritative_primary=image,
         )
 
         self.assertEqual(assembly.primary_asset["asset_id"], "exact_image")
         self.assertEqual(assembly.primary_asset["media_type"], "image")
-        self.assertIn("video_first:image_fallback", assembly.ladder_trace)
+        self.assertIn("canonical_primary:authoritative", assembly.ladder_trace)
+        self.assertNotIn("video_first:video_pool", assembly.ladder_trace)
+
+    def test_strict_and_draft_preserve_the_same_authoritative_media_decision(self) -> None:
+        image = _candidate("exact_image", final_score=80.0)
+        video = _candidate(
+            "competitive_video",
+            final_score=70.0,
+            media_type="video",
+        )
+
+        strict = build_scene_assembly(
+            scene={"scene_id": "scene_strict"},
+            ranked_candidates=[image, video],
+            scene_duration_sec=5.0,
+            mode=MODE_STRICT,
+            authoritative_primary=video,
+        )
+        draft = build_scene_assembly(
+            scene={"scene_id": "scene_draft"},
+            ranked_candidates=[image, video],
+            scene_duration_sec=5.0,
+            mode=MODE_DRAFT_COMPLETE,
+            authoritative_primary=video,
+        )
+
+        self.assertEqual(strict.primary_asset["asset_id"], "competitive_video")
+        self.assertEqual(draft.primary_asset["asset_id"], "competitive_video")
+        self.assertEqual(strict.primary_asset["media_type"], "video")
+        self.assertEqual(draft.primary_asset["media_type"], "video")
 
     def test_explicit_unresolved_assembly_does_not_resurrect_legacy_asset(self) -> None:
         unresolved = SceneVisualAssembly(

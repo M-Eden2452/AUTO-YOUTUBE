@@ -415,7 +415,7 @@ def build_scene_assembly(
     require_local_file: bool = False,
     emergency_asset_factory: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
     requested_slot_count: int = 0,
-    prefer_video: bool = False,
+    authoritative_primary: dict[str, Any] | None = None,
 ) -> SceneVisualAssembly:
     """Fill one scene by walking the ladder. Never raises; may return an unresolved scene.
 
@@ -427,6 +427,10 @@ def build_scene_assembly(
     ``emergency_asset_factory`` builds the last-rung neutral card. It is a callable so
     that this module stays free of the filesystem; passing ``None`` means the scene is
     allowed to stay unresolved, which is what ``strict`` mode wants.
+
+    ``authoritative_primary`` is the candidate already chosen by the canonical media
+    policy.  When present, the ladder may add complementary slots around it or fall
+    back when it cannot be used, but it may not elect a different primary.
     """
     mode = normalize_mode(mode)
     scene_id = str(scene.get("scene_id") or "")
@@ -439,30 +443,44 @@ def build_scene_assembly(
         assembly_status=ASSEMBLY_UNRESOLVED,
     )
 
-    eligible = eligible_candidates(ranked_candidates, require_local_file=require_local_file)
+    candidate_pool = list(ranked_candidates)
+    if authoritative_primary is not None:
+        candidate_pool = [
+            authoritative_primary,
+            *[
+                candidate
+                for candidate in candidate_pool
+                if not _same_candidate(candidate, authoritative_primary)
+            ],
+        ]
+    eligible = eligible_candidates(candidate_pool, require_local_file=require_local_file)
     if not eligible:
         assembly.ladder_trace.append("no_eligible_candidate")
     ordered = order_candidates(eligible, reuse=ledger)
+    authoritative = next(
+        (
+            candidate
+            for candidate in ordered
+            if authoritative_primary is not None
+            and _same_candidate(candidate, authoritative_primary)
+        ),
+        None,
+    )
+    if authoritative_primary is not None:
+        assembly.ladder_trace.append(
+            "canonical_primary:authoritative"
+            if authoritative is not None
+            else "canonical_primary:not_eligible"
+        )
 
     # In strict mode nothing below the top rung may be chosen automatically: a scene
     # that has no fully supported, fully cleared candidate stays unresolved exactly as
     # it did before this stage existed.
     if mode != MODE_DRAFT_COMPLETE:
-        strict_video = [
-            candidate
-            for candidate in ordered
-            if _candidate_media_type(candidate) == "video"
-            and evaluate_usability(
-                candidate,
-                mode=mode,
-                quality_tier=quality_tier_for(candidate),
-            ).automatic_render_allowed
-        ]
-        strict_pool = strict_video if prefer_video and strict_video else ordered
-        if prefer_video:
-            assembly.ladder_trace.append(
-                "video_first:video_pool" if strict_video else "video_first:image_fallback"
-            )
+        if authoritative_primary is not None:
+            strict_pool = [authoritative] if authoritative is not None else []
+        else:
+            strict_pool = ordered
         for candidate in strict_pool:
             verdict = evaluate_usability(candidate, mode=mode, quality_tier=quality_tier_for(candidate))
             if verdict.automatic_render_allowed:
@@ -485,22 +503,80 @@ def build_scene_assembly(
         if ledger.count(candidate) == 0
         and ledger.can_use(candidate, scene_index)
     ]
-    if prefer_video:
-        usable_fresh_video = [
-            candidate
-            for candidate in fresh
-            if _candidate_media_type(candidate) == "video"
-            and evaluate_usability(
-                candidate,
-                mode=mode,
-                quality_tier=quality_tier_for(candidate),
-            ).usable_in_draft
-        ]
-        if usable_fresh_video:
-            fresh = usable_fresh_video
-            assembly.ladder_trace.append("video_first:video_pool")
+
+    if authoritative_primary is not None:
+        if authoritative is None:
+            # The canonical choice failed a completion safety gate.  Do not silently
+            # turn that abstention into a new primary; only the ordinary emergency
+            # fallback below may fill the scene.
+            ordered = []
+            fresh = []
+        elif ledger.count(authoritative) > 0:
+            if ledger.can_use(authoritative, scene_index):
+                assembly.ladder_trace.append("F_emergency:authoritative_reuse")
+                return _single_slot_assembly(
+                    assembly,
+                    authoritative,
+                    duration,
+                    mode=mode,
+                    ladder_level=TIER_EMERGENCY,
+                    ledger=ledger,
+                    scene_index=scene_index,
+                    scene=scene,
+                    reused=True,
+                    forced_tier=TIER_EMERGENCY,
+                )
+            assembly.ladder_trace.append("canonical_primary:reuse_limit_reached")
+            ordered = []
+            fresh = []
         else:
-            assembly.ladder_trace.append("video_first:image_fallback")
+            tier = quality_tier_for(authoritative)
+            verdict = evaluate_usability(authoritative, mode=mode, quality_tier=tier)
+            if verdict.usable_in_draft:
+                if tier in {TIER_GOOD_CONTEXT, TIER_PARTIAL} and slot_budget >= 2:
+                    composite = _composite_group(
+                        fresh,
+                        ledger=ledger,
+                        scene_index=scene_index,
+                        slot_budget=slot_budget,
+                        mode=mode,
+                        authoritative_primary=authoritative,
+                    )
+                    if composite is not None:
+                        group, covered_by_position, complete = composite
+                        covered = [
+                            name for names in covered_by_position for name in names
+                        ]
+                        assembly.ladder_trace.append(
+                            "B_composite:canonical_primary:"
+                            f"{'covers_all' if complete else 'covers_part'}:"
+                            f"{','.join(covered) or '-'}"
+                        )
+                        return _composite_assembly(
+                            assembly,
+                            group,
+                            duration,
+                            mode=mode,
+                            ledger=ledger,
+                            scene_index=scene_index,
+                            covered_by_position=covered_by_position,
+                            complete=complete,
+                            scene=scene,
+                        )
+                assembly.ladder_trace.append(f"{tier}:canonical_primary")
+                return _single_slot_assembly(
+                    assembly,
+                    authoritative,
+                    duration,
+                    mode=mode,
+                    ladder_level=tier,
+                    ledger=ledger,
+                    scene_index=scene_index,
+                    scene=scene,
+                )
+            assembly.ladder_trace.append("canonical_primary:not_usable_in_draft")
+            ordered = []
+            fresh = []
 
     # --- rung A: one exact asset ---------------------------------------------
     exact = _first_usable_at_tier(fresh, TIER_EXACT, mode=mode)
@@ -603,8 +679,16 @@ def build_scene_assembly(
     return assembly
 
 
-def _candidate_media_type(candidate: dict[str, Any]) -> str:
-    return str(candidate.get("media_type") or candidate.get("type") or "").strip().casefold()
+def _same_candidate(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    if left is right:
+        return True
+    left_id = str(left.get("asset_id") or "")
+    right_id = str(right.get("asset_id") or "")
+    if left_id and right_id:
+        return left_id == right_id
+    left_stable = stable_candidate_id(left)
+    right_stable = stable_candidate_id(right)
+    return bool(left_stable and right_stable and left_stable == right_stable)
 
 
 def _first_usable_at_tier(
@@ -628,6 +712,7 @@ def _composite_group(
     scene_index: int,
     slot_budget: int,
     mode: str,
+    authoritative_primary: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[list[str]], bool] | None:
     """The best deterministic group of complementary fresh assets.
 
@@ -637,7 +722,8 @@ def _composite_group(
     because ``ordered`` already has a total stable order.
     """
     best_partial: tuple[list[dict[str, Any]], list[list[str]], bool] | None = None
-    for primary in ordered:
+    primaries = [authoritative_primary] if authoritative_primary is not None else ordered
+    for primary in primaries:
         primary_id = str(primary.get("asset_id") or "")
         if not primary_id or ledger.count(primary) or not ledger.can_use(primary, scene_index):
             continue

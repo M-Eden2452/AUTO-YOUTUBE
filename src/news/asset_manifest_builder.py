@@ -910,7 +910,6 @@ class AssetManifestBuilder:
                 provider_capabilities=state.provider_capabilities,
                 scene_provider_attempts=state.scene_provider_attempts,
                 allow_emergency_backdrop=self.allow_emergency_backdrop,
-                prefer_video=self.prefer_video,
             )
             state.download_attempts.extend(ladder_attempts)
         if state.scene_review_bundle is not None:
