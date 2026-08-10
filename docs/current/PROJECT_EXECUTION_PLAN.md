@@ -7,7 +7,20 @@ baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-08
 current_checkpoint: PLAN-9D
-next_exact_action: PLAN-9C-2 ЗАВЕРШЁН 2026-08-10 — policy implementation `388b9b1`, blocking repair `709eaec` и retrieval-symmetry (этот commit) образуют один завершённый PLAN step. `src/news/asset_provider_adapters.py::search_provider` теперь трактует `allowed_media_kinds` как hard retrieval boundary — mixed image+video запрашивает оба поддерживаемых типа в порядке preference; IMAGE_ONLY/VIDEO_ONLY не тратят вызов на запрещённый тип; missing/empty legacy scenes сохраняют preferred-only fallback. Selection остаётся у `src/assets/semantic_selection/media_policy.py`; schema, rights, budgets, network/paid gates, PLAN-10C, PLAN-9A и PLAN-10D не менялись. RED на HEAD `709eaec` — 6 failures из 8 новых checks; GREEN — 8/8, owning radius 226 OK, full offline suite 2131 OK. THE NEXT EXACT ACTION — отдельный owner-issued PLAN-9C-3 metadata evidence repair; затем прежний acceptance gate LIVE-5 отдельным owner-issued действием. current_checkpoint остаётся PLAN-9D; PLAN-9D-D остаётся NOT STARTED / blocked.
+next_exact_action: >-
+  PLAN-9C-3 ЗАВЕРШЁН 2026-08-10 — shared metadata evidence сохраняет field
+  provenance, coherent multiword locality и ослабляет одиночное упоминание
+  только в broad description; title/provider tags/keywords/Vision tags остаются
+  strong. LIVE-4 persisted evidence — Sierra Negra subject 100→50, Life On Earth
+  hummingbird 100→75; Pexels hummingbird/orca остаются 100. `METADATA_FIELDS`
+  синхронизирован с canonical AssetCandidate (`title`, `description`;
+  tags/keywords отдельно); IA normalizer, provider_confidence scoring,
+  negative_terms consumers, rights, media policy и schema не менялись. RED 5
+  failures из 10 первоначальных checks; GREEN 12/12, owning/expanded radius 375
+  OK, full offline suite 2143 OK. THE NEXT EXACT ACTION — отдельный owner-issued
+  LIVE-5 acceptance diagnostic на тех же шести русских сценах против LIVE-4,
+  metadata-only/Vision OFF; current_checkpoint остаётся PLAN-9D, PLAN-9D-D
+  остаётся NOT STARTED / blocked до результата и owner decision.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -5320,30 +5333,53 @@ misleading/conflict · paid approval.
 
 ### PLAN-9C-3 — metadata evidence repair (рабочий ярлык R-2b)
 
-- **status:** pending / not started · owner-issued 2026-08-10 · **commit:** — ·
-  **зависимость:** после PLAN-9C-2; общий acceptance gate (повтор diagnostic).
-- **routing.** `current_checkpoint` остаётся **PLAN-9D**; выполняется до
-  PLAN-9D-D. Владельцы — `src/assets/semantic_selection/evidence.py` и
-  IA-normalizer (`src/providers/internet_archive_provider.py`); с PLAN-9C-2 не
-  смешивается (разные owners, разные commits).
-- **зачем.** Длинная каталожная проза Internet Archive + bag-of-words
-  `concept_score` дают ложное semantic evidence: LIVE-4 scene_001 — «Lava at
-  Sierra Negra» получил subject_match=100 для «unusual animals» (оба слова
-  разбросаны по 2726-символьному описанию Galapagos), scene_003 — «Life On
-  Earth» получил hummingbird=100 из википедийного описания сериала. Оба кейса
-  воспроизводимы offline из persisted LIVE-4 manifests функциями репозитория.
-- **цель.** Ограничить/взвесить длинный невизуальный текст как evidence;
-  фразовость/близость для многословных концептов; синхронизировать
-  `METADATA_FIELDS` (categories/depicts/location никем не эмитятся); решить
-  судьбу рассчитанного-но-неиспользуемого `provider_confidence` в score и
-  висячего `AssetSearchRequest.negative_terms` (потребителя нет). Права и
-  parser semantic brief не трогаются.
-- **acceptance:** lava и «Life On Earth» перестают получать subject=100;
-  честные матчи LIVE-4 (hummingbird/orcas subject=100 на настоящих метаданных
-  Pexels/Wikimedia) сохраняются.
-- **required verification:** красные-сначала tests на оба кейса из persisted
-  LIVE-4 manifests; owning radius evidence/ranker.
-- **rollback:** один commit, revert.
+- **status:** completed 2026-08-10 · owner-issued 2026-08-10 · **commit:** этот
+  commit · **зависимость:** PLAN-9C-2 выполнена; общий acceptance gate остаётся
+  отдельным LIVE-5 diagnostic.
+- **routing.** `current_checkpoint` остаётся **PLAN-9D**; PLAN-9D-D остаётся
+  NOT STARTED / blocked до LIVE-5 и owner decision. С PLAN-9C-2 не смешан:
+  media policy, completion ladder и retrieval symmetry не менялись.
+- **causal root.** `provider_evidence_text` терял field boundaries, после чего
+  один global token set питал `concept_score`, `_field_match` и slot verdict.
+  Поэтому слова многословного concept из разных частей catalogue prose и одно
+  случайное имя внутри series synopsis получали тот же score 100, что title.
+- **repair.** Canonical owner `src/assets/semantic_selection/evidence.py`
+  сохраняет provider-authored поля отдельно. `title`, provider `tags`/
+  compatibility `keywords` и Vision tags остаются strong; multiword concept в
+  `description` получает full evidence только из coherent lexical window
+  (не более шести intervening tokens), а одиночное слово только в broad
+  description даёт supporting 75, не matched 100. Общая длина description
+  ничего сама по себе не запрещает: локальная многословная фраза остаётся 100.
+  `candidate_ranker` и positive subject/action/location/context slots используют
+  один этот owner; hard `must_include`, `must_avoid` и declared conflicts
+  намеренно сохраняют прежний strict corpus-wide matcher.
+- **field synchronization.** `METADATA_FIELDS` теперь соответствует canonical
+  `AssetCandidate`: `title`, `description`; `tags` и `keywords` обрабатываются
+  отдельной существующей label-веткой. Мёртвые flat fields `categories`,
+  `depicts`, `location` удалены из evidence contract; schema не расширялась.
+- **IA normalizer.** Не изменён: он уже честно отображает `title`, `description`
+  и `subject → tags`; defect был provider-neutral в shared evidence owner.
+- **provider_confidence disposition.** Не подключён к semantic/final score и
+  не менялся. Repository truth: поле уже persisted и служит поздним tie-break
+  completion ladder; превращать provider brand в evidence penalty запрещено.
+- **negative_terms disposition.** `AssetSearchRequest.negative_terms` сохранён
+  как публичное dormant compatibility field; producer остаётся прежним,
+  provider-consumer не добавлялся и поле не удалялось, поскольку это было бы
+  новым provider behavior, не causal repair.
+- **LIVE-4 acceptance evidence.** Persisted manifests перепроверены read-only:
+  Sierra Negra subject `100/matched → 50/partial`, natural-habitat evidence тоже
+  `100 → 50`; Life On Earth hummingbird `100/matched → 75/partial`. Positive
+  Pexels hummingbird и orca остаются `100/matched`; rights неизменны.
+- **RED/GREEN/verification.** На baseline первые 10 checks дали 5 failures;
+  итоговый contract — 12/12. Owning + integration + PLAN-9D radius — 375 OK;
+  full offline suite — 2143 OK. PLAN-9D frozen raw pool не менялся; только
+  recomputable scene_004 category `regression_capable → no_acceptable_candidate`,
+  два derived counters и corpus checksum re-finalized до
+  `bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4`.
+- **unchanged/out of scope.** Rights, semantic-brief parser, Vision/backend,
+  media policy/PLAN-9C-2, PLAN-10C, PLAN-9A, PLAN-10D, shortlist/dedup,
+  download walk, LocalLibrary, Motion/legacy cleanup не менялись.
+- **rollback:** один commit, revert; миграций данных и provider calls нет.
 
 ### PLAN-9D — offline visual-quality evidence
 
@@ -5482,10 +5518,14 @@ current-quality benchmark. Production logic этой записью не мен�
   retrieval-пути (через `AssetManifestBuilder`, без единой написанной вручную
   строки запроса и без изменения `src`/`config`/`schemas`) заморожен в
   `tests/data/plan9d/current_corpus_v1.json` — 14 сцен, 1064 наблюдения, 1052
-  уникальных ассета, 64 кадра, `corpus_sha256`
+  уникальных ассета, 64 кадра, original capture-time `corpus_sha256`
   `da8e50a968afc72fcc427ffeb9b0e58fe264119f9d191d17849ce2265fa89b35` (значение
   прочитано из самого файла и независимо перепроверено этим docs closure, а не
-  взято из implementation report). `capture_head_sha` =
+  взято из implementation report). PLAN-9C-3 позднее re-finalized только
+  recomputable derived categories/counters под новым evidence contract; текущий
+  checksum файла —
+  `bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4`, raw
+  retrieval pools/queries/frames не менялись. `capture_head_sha` =
   `d01914d77822057569a491216cfecf21b08f5d0c` — этим closure подтверждено, что
   это production HEAD, чьё поведение снято, а не отдельная ревизия harness:
   `git diff --stat d01914d 69af3ca -- src/ config/ schemas/` пуст.
@@ -5565,8 +5605,11 @@ current-quality benchmark. Production logic этой записью не мен�
 - **integrity входа (перепроверено этим слайсом, не принято из отчёта
   PLAN-9D-B).** `validate_corpus`, `validate_current_capture` и
   `assert_current_benchmark_input` проходят; пересчитанный `corpus_digest`
-  совпадает с записанным `corpus_sha256`
-  `da8e50a968afc72fcc427ffeb9b0e58fe264119f9d191d17849ce2265fa89b35`; все 64
+  совпадал с capture-time `corpus_sha256`
+  `da8e50a968afc72fcc427ffeb9b0e58fe264119f9d191d17849ce2265fa89b35`;
+  после PLAN-9C-3 current checksum re-finalized до
+  `bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4` без
+  изменения raw pool/queries/frames; все 64
   кадра присутствуют на диске и их SHA256 совпадают с заявленными; 14 сцен,
   1064 наблюдения, 56 previewed candidates, 745 licensed / 319
   review_required.

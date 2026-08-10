@@ -278,3 +278,17 @@ Retrieval-symmetry closure **PLAN-9C-2** (2026-08-10) supersedes the pending wor
 slices после карты callers/tests; удаление без доказанной замены запрещено.
 Сохранённые full-suite отчёты исторические; для каждого изменения запускаются
 только targeted tests в радиусе зависимости.
+
+PLAN-9C-3 (metadata evidence repair) closed 2026-08-10 одним bounded commit.
+Canonical owner `src/assets/semantic_selection/evidence.py` теперь сохраняет
+field provenance: title/provider labels остаются strong, а broad description
+доказывает multiword concept только локально; hard must-include/must-avoid и
+conflicts не ослаблены. LIVE-4 offline evidence: Sierra Negra subject 100→50,
+Life On Earth hummingbird 100→75, positive Pexels hummingbird/orca остаются
+100. IA normalizer, rights, provider-confidence scoring, negative-terms
+consumers, PLAN-9C-2/PLAN-10C/PLAN-9A/PLAN-10D и Vision не менялись. PLAN-9D
+raw corpus сохранён; derived checksum re-finalized до
+`bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4`.
+Targeted radius 375 и full offline suite 2143 — OK. Текущий checkpoint —
+**PLAN-9D**; следующее точное действие — отдельный owner-issued LIVE-5
+acceptance diagnostic, PLAN-9D-D остаётся NOT STARTED / blocked.

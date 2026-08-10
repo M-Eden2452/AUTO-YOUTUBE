@@ -27,9 +27,12 @@ METADATA_AVAILABLE = "available"
 METADATA_UNAVAILABLE = "unavailable"
 METADATA_QUERY_DERIVED = "query_derived_only"
 
-# Fields that carry description written by the provider about the asset. Deliberately
-# excludes ``search_query``/``query`` and anything derived from them.
-METADATA_FIELDS = ("title", "description", "categories", "depicts", "location")
+# Fields emitted by the canonical ``AssetCandidate`` contract that carry prose written
+# by the provider about the asset. Provider labels live in ``tags``; ``keywords`` is a
+# tolerated compatibility alias added by manifest adapters. Deliberately excludes
+# ``search_query``/``query`` and anything derived from them.
+METADATA_FIELDS = ("title", "description")
+TAG_FIELDS = ("tags", "keywords")
 QUERY_FIELDS = ("search_query", "query")
 
 WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
@@ -40,6 +43,61 @@ CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 # enough to tell those apart. Used only by the slot layer - see ``stem_match``.
 MIN_STEM_LENGTH = 5
 
+# A positive multiword claim from broad prose is coherent only when all of its words
+# fit inside a small lexical neighbourhood. Six intervening words allow ordinary
+# descriptions ("hummingbird hovering almost motionless in the open air") while
+# refusing tokens collected from unrelated sentences or catalogue sections. Strong
+# provider labels (title/tags/keywords) are already bounded fields and do not need this
+# window. Boundary behaviour is covered by PLAN-9C-3 regressions.
+LOCAL_MATCH_MAX_GAP = 6
+
+# One word in a free-form description is useful supporting evidence, but it cannot by
+# itself prove that a catalogue item depicts that entity. Titles, provider tags and
+# Vision tags remain full-strength. A multiword phrase/local window in a description
+# may also remain full-strength, regardless of the description's total length.
+DESCRIPTION_SINGLE_WORD_SCORE = 75.0
+
+
+@dataclass(frozen=True)
+class EvidenceField:
+    """One provider-authored field, kept separate so provenance is not flattened."""
+
+    name: str
+    text: str
+
+    @property
+    def token_sequence(self) -> tuple[str, ...]:
+        return tuple(WORD_RE.findall(self.text.lower()))
+
+    @property
+    def token_set(self) -> set[str]:
+        return set(self.token_sequence)
+
+
+def provider_evidence_fields(candidate: dict[str, Any]) -> tuple[EvidenceField, ...]:
+    """Provider-authored evidence with field boundaries preserved.
+
+    The old evidence path joined everything before matching. That made unrelated words
+    in a long description indistinguishable from a coherent title or provider tag.
+    """
+    queries = {str(candidate.get(key) or "").strip().lower() for key in QUERY_FIELDS}
+    queries.discard("")
+    fields: list[EvidenceField] = []
+    for key in METADATA_FIELDS:
+        values = evidence_values(candidate.get(key, ""), queries)
+        if values:
+            fields.append(EvidenceField(key, _normalize_text(" ".join(values))))
+    if str(candidate.get("tags_source") or "provider") != "query_derived":
+        for key in TAG_FIELDS:
+            values = evidence_values(candidate.get(key, ""), queries)
+            if values:
+                fields.append(EvidenceField(key, _normalize_text(" ".join(values))))
+    return tuple(field for field in fields if field.text)
+
+
+def _normalize_text(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "").lower()).strip()
+
 
 def provider_evidence_text(candidate: dict[str, Any]) -> str:
     """Everything the *provider* said about this asset - and nothing we said to it.
@@ -48,15 +106,7 @@ def provider_evidence_text(candidate: dict[str, Any]) -> str:
     (``tags_source="query_derived"``), which is what the Pexels adapter does for videos
     because the API returns no description.
     """
-    queries = {str(candidate.get(key) or "").strip().lower() for key in QUERY_FIELDS}
-    queries.discard("")
-    pieces: list[str] = []
-    for key in METADATA_FIELDS:
-        pieces.extend(evidence_values(candidate.get(key, ""), queries))
-    if str(candidate.get("tags_source") or "provider") != "query_derived":
-        for key in ("tags", "keywords"):
-            pieces.extend(evidence_values(candidate.get(key, ""), queries))
-    return re.sub(r"\s+", " ", " ".join(piece for piece in pieces if piece).lower()).strip()
+    return _normalize_text(" ".join(field.text for field in provider_evidence_fields(candidate)))
 
 
 def evidence_values(value: Any, queries: set[str]) -> list[str]:
@@ -159,6 +209,72 @@ def stem_concept_score(concept: str, token_set: set[str], text: str) -> float:
     return 100.0 * matched / len(words)
 
 
+def semantic_concept_score(
+    concept: str,
+    fields: tuple[EvidenceField, ...],
+    *,
+    stem: bool = False,
+) -> float:
+    """Positive semantic evidence, preserving field quality and lexical locality.
+
+    Hard requirements and declared conflicts intentionally continue to use the strict
+    corpus-wide literal/stem primitives above. Weakening negative evidence would turn
+    this correctness repair into a way around ``must_avoid``.
+    """
+    normalized = concept.lower().strip()
+    if not normalized:
+        return 100.0
+    words = [word for word in WORD_RE.findall(normalized) if word]
+    if not words:
+        return 0.0
+    scores: list[float] = []
+    for evidence_field in fields:
+        if evidence_field.name == "description":
+            scores.append(_description_concept_score(words, evidence_field.token_sequence, stem=stem))
+            continue
+        scorer = stem_concept_score if stem else concept_score
+        scores.append(scorer(concept, evidence_field.token_set, evidence_field.text))
+    return max(scores, default=0.0)
+
+
+def _description_concept_score(
+    words: list[str],
+    sequence: tuple[str, ...],
+    *,
+    stem: bool,
+) -> float:
+    if not sequence:
+        return 0.0
+    if len(words) == 1:
+        return (
+            DESCRIPTION_SINGLE_WORD_SCORE
+            if any(_token_matches(words[0], token, stem=stem) for token in sequence)
+            else 0.0
+        )
+
+    window_size = len(words) + LOCAL_MATCH_MAX_GAP
+    best = 0
+    for start in range(len(sequence)):
+        window = sequence[start : start + window_size]
+        matched = sum(
+            1
+            for word in words
+            if any(_token_matches(word, token, stem=stem) for token in window)
+        )
+        best = max(best, matched)
+        if best == len(words):
+            return 100.0
+    return 100.0 * best / len(words)
+
+
+def _token_matches(word: str, token: str, *, stem: bool) -> bool:
+    if word == token:
+        return True
+    if not stem or len(word) < MIN_STEM_LENGTH or len(token) < MIN_STEM_LENGTH:
+        return False
+    return token.startswith(word) or word.startswith(token)
+
+
 @dataclass(frozen=True)
 class CandidateEvidence:
     """One candidate's provider metadata, read once and asked many questions."""
@@ -166,6 +282,7 @@ class CandidateEvidence:
     text: str = ""
     token_set: frozenset[str] = field(default_factory=frozenset)
     vision_tags: tuple[str, ...] = ()
+    fields: tuple[EvidenceField, ...] = ()
     metadata_status: str = METADATA_UNAVAILABLE
     metadata_score: float = 0.0
 
@@ -186,18 +303,31 @@ class CandidateEvidence:
     def stem_score(self, concept: str) -> float:
         return stem_concept_score(concept, set(self.token_set), self.text)
 
+    def semantic_literal_score(self, concept: str) -> float:
+        return semantic_concept_score(concept, self.fields, stem=False)
+
+    def semantic_stem_score(self, concept: str) -> float:
+        return semantic_concept_score(concept, self.fields, stem=True)
+
     def contains(self, concept: str) -> bool:
         return contains_concept(concept, set(self.token_set), self.text)
 
 
 def build_evidence(candidate: dict[str, Any]) -> CandidateEvidence:
-    text = provider_evidence_text(candidate)
+    provider_fields = provider_evidence_fields(candidate)
+    text = _normalize_text(" ".join(field.text for field in provider_fields))
     vision_tags = tuple(str(tag).lower() for tag in candidate.get("vision_tags", []) or [])
+    vision_fields = (
+        (EvidenceField("vision_tags", _normalize_text(" ".join(vision_tags))),)
+        if vision_tags
+        else ()
+    )
     status, score = metadata_status(candidate, text, list(vision_tags))
     return CandidateEvidence(
         text=text,
         token_set=frozenset(tokens(text)) | frozenset(vision_tags),
         vision_tags=vision_tags,
+        fields=provider_fields + vision_fields,
         metadata_status=status,
         metadata_score=score,
     )
@@ -205,12 +335,16 @@ def build_evidence(candidate: dict[str, Any]) -> CandidateEvidence:
 
 __all__ = [
     "CYRILLIC_RE",
+    "DESCRIPTION_SINGLE_WORD_SCORE",
+    "EvidenceField",
+    "LOCAL_MATCH_MAX_GAP",
     "METADATA_AVAILABLE",
     "METADATA_FIELDS",
     "METADATA_QUERY_DERIVED",
     "METADATA_UNAVAILABLE",
     "MIN_STEM_LENGTH",
     "QUERY_FIELDS",
+    "TAG_FIELDS",
     "WORD_RE",
     "CandidateEvidence",
     "build_evidence",
@@ -218,7 +352,9 @@ __all__ = [
     "contains_concept",
     "evidence_values",
     "metadata_status",
+    "provider_evidence_fields",
     "provider_evidence_text",
+    "semantic_concept_score",
     "script_mismatch",
     "stem_concept_score",
     "stem_match",

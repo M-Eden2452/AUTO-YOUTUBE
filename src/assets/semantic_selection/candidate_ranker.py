@@ -53,11 +53,10 @@ from .evidence import (
     METADATA_AVAILABLE,
     METADATA_QUERY_DERIVED,
     METADATA_UNAVAILABLE,
+    CandidateEvidence,
     build_evidence,
-    concept_score,
     contains_concept,
     script_mismatch,
-    tokens,
 )
 from .models import (
     SCENE_ENVIRONMENT,
@@ -225,11 +224,11 @@ def _score_candidate(
     metadata_status, metadata_score = evidence.metadata_status, evidence.metadata_score
     has_evidence = evidence.has_metadata
 
-    subject_match, subject_decidable = _field_match(scene.subject, all_tokens, text, aliases={"southern right whale": ["southern right whale", "right whale", "whale"]})
-    action_match, action_decidable = _field_match(scene.action, all_tokens, text)
-    environment_match, environment_decidable = _field_match(scene.environment, all_tokens, text, aliases={"coastal waters": ["coast", "coastline", "coastal", "ocean", "sea"]})
-    location_match, _ = _field_match(scene.location, all_tokens, text)
-    camera_match, camera_decidable = _field_match(scene.camera, all_tokens, text)
+    subject_match, subject_decidable = _field_match(scene.subject, evidence, aliases={"southern right whale": ["southern right whale", "right whale", "whale"]})
+    action_match, action_decidable = _field_match(scene.action, evidence)
+    environment_match, environment_decidable = _field_match(scene.environment, evidence, aliases={"coastal waters": ["coast", "coastline", "coastal", "ocean", "sea"]})
+    location_match, _ = _field_match(scene.location, evidence)
+    camera_match, camera_decidable = _field_match(scene.camera, evidence)
     quality_score = _normal_score(candidate.get("quality_score"), _quality_score(candidate))
     vertical_score = _normal_score(candidate.get("vertical_score"), _vertical_score(candidate))
     technical_score = round(0.5 * quality_score + 0.5 * vertical_score, 3)
@@ -580,7 +579,7 @@ def _duration_check(candidate: dict[str, Any], required_duration_sec: float) -> 
 
 
 def _field_match(
-    values: list[str], tokens: set[str], text: str, aliases: dict[str, list[str]] | None = None
+    values: list[str], evidence: CandidateEvidence, aliases: dict[str, list[str]] | None = None
 ) -> tuple[float, bool]:
     """Return ``(score, decidable)``.
 
@@ -599,18 +598,16 @@ def _field_match(
     decidable = False
     for value in values:
         terms = alias_map.get(value, [value])
-        if any(not _script_mismatch(term, text) for term in terms):
+        if any(not evidence.is_undecidable(term) for term in terms):
             decidable = True
-        scores.append(max(_concept_score(term, tokens, text) for term in terms))
+        scores.append(max(evidence.semantic_literal_score(term) for term in terms))
     return sum(scores) / len(scores), decidable
 
 
 # The matching primitives live in ``evidence`` so that the slot layer asks the same
 # questions of the same text. These aliases keep the wording of this file intact.
 _script_mismatch = script_mismatch
-_concept_score = concept_score
 _contains_concept = contains_concept
-_tokens = tokens
 
 
 def _normal_score(value: Any, fallback: float) -> float:

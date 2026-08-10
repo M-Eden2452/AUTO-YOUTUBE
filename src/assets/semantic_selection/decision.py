@@ -310,7 +310,11 @@ def _describe_slot(
         if evidence.is_undecidable(text):
             undecidable.append(text)
             continue
-        score = evidence.literal_score(text) if literal else evidence.stem_score(text)
+        score = (
+            evidence.literal_score(text)
+            if literal
+            else evidence.semantic_stem_score(text)
+        )
         scores.append(score)
         (matched if score >= SLOT_MATCH_SCORE else missing).append(text)
     average = sum(scores) / len(scores) if scores else 0.0
