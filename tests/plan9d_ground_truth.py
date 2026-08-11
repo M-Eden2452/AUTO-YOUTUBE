@@ -985,11 +985,23 @@ def evaluate_arm(
         undecidable = preferred == PREFERENCE_UNDECIDABLE
         chosen_flags = dict(flags.get(chosen) or {}) if chosen else {}
 
+        # The annotator only ever saw candidates carrying a frame, because that is
+        # all the pack shows and all the capture previewed. So a win by any other
+        # candidate can be neither agreed with nor disagreed with: ``preferred``
+        # names something else only because nothing else was on the page, and
+        # scoring that as a mismatch would measure preview coverage while
+        # reporting it as decision quality. Abstention is a different state and
+        # stays fully scorable - "chose nothing" is visible to both parties.
+        visible = {str(entry["blind_id"]) for entry in scene["candidates"] if entry["frames"]}
+        winner_not_visible = bool(chosen) and chosen not in visible
+
         rows.append(
             {
                 "scene_key": key,
                 "categories": list(scene.get("categories") or []),
                 "system_selected": chosen,
+                "system_selected_visible": bool(chosen) and chosen in visible,
+                "unscorable_winner_not_visible": winner_not_visible,
                 "human_preferred": preferred,
                 "selection_matches_preferred": bool(chosen and chosen == preferred),
                 "unacceptable_selected": bool(chosen and chosen in unacceptable),
@@ -1012,6 +1024,11 @@ def evaluate_arm(
 
     aggregate = {
         "scenes": len(rows),
+        # ``scenes`` counts what was measured; ``scorable_scenes`` is the only
+        # honest denominator for a match rate, because the difference is scenes
+        # where the owner was never shown the winner.
+        "scorable_scenes": sum(1 for r in rows if not r["unscorable_winner_not_visible"]),
+        "unscorable_winner_not_visible": sum(1 for r in rows if r["unscorable_winner_not_visible"]),
         "preferred_matches": sum(1 for r in rows if r["selection_matches_preferred"]),
         "unacceptable_selected": sum(1 for r in rows if r["unacceptable_selected"]),
         "abstentions": sum(1 for r in rows if r["system_selected"] is None),
@@ -1071,14 +1088,28 @@ def compare_arms(baseline: dict[str, Any], candidate_arm: dict[str, Any]) -> dic
             or (row["non_real_footage_selected"] and not before["non_real_footage_selected"])
             or (row["wrong_abstention"] and not before["wrong_abstention"])
         )
+        # A scene whose winner the annotator never saw carries no verdict either
+        # way; see ``evaluate_arm``. Only the preference axis is gated by it: an
+        # unacceptable pick, a ``must_avoid`` hit, non-real footage and a wrong
+        # abstention stay blocking, because none of them needs the owner to have
+        # seen the winner in order to be true.
+        scorable = not (
+            row["unscorable_winner_not_visible"] or before["unscorable_winner_not_visible"]
+        )
         got_better = (
-            (row["selection_matches_preferred"] and not before["selection_matches_preferred"])
+            (
+                scorable
+                and row["selection_matches_preferred"]
+                and not before["selection_matches_preferred"]
+            )
             or (row["correct_abstention"] and not before["correct_abstention"])
             or (before["unacceptable_selected"] and not row["unacceptable_selected"])
             or (before["must_avoid_escaped"] and not row["must_avoid_escaped"])
         )
         got_worse_soft = (
-            before["selection_matches_preferred"] and not row["selection_matches_preferred"]
+            scorable
+            and before["selection_matches_preferred"]
+            and not row["selection_matches_preferred"]
         ) or (before["correct_abstention"] and not row["correct_abstention"])
 
         if got_worse_hard:

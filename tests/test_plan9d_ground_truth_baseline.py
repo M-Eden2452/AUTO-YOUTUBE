@@ -33,6 +33,7 @@ from __future__ import annotations
 import hashlib
 import json
 import unittest
+from dataclasses import replace
 from typing import Any
 
 from tests.plan9d_corpus_builder import annotation_template, render_pack
@@ -184,6 +185,19 @@ def _current_corpus() -> dict[str, Any]:
     corpus["observation_count"] = sum(len(s["candidates"]) for s in corpus["scenes"])
     corpus["corpus_sha256"] = corpus_digest(corpus)
     return corpus
+
+
+def _scene_block(pack: str, scene_key: str) -> str:
+    """One scene's markup, so an assertion cannot match a neighbouring card.
+
+    Blind identifiers restart at ``C1`` in every scene, so a whole-page search for
+    one would find another scene's candidate and pass for the wrong reason.
+    """
+
+    for block in pack.split("<div class='scene'"):
+        if f'data-key="{scene_key}"' in block:
+            return block
+    raise AssertionError(f"scene {scene_key} is not in the pack")
 
 
 def _historical_corpus() -> dict[str, Any]:
@@ -386,6 +400,27 @@ class BlindingTests(unittest.TestCase):
         for forbidden in ("license", "rights", "provider_confidence", "metadata_score"):
             self.assertNotIn(forbidden, pack.casefold())
 
+    def test_pack_offers_only_candidates_the_annotator_can_see(self) -> None:
+        """A candidate with no frame is corpus data, not a question for a human.
+
+        The capture previews a shortlist, so most candidates carry no picture at
+        all - in the frozen corpus, 64 frames against 1064 candidates. Rendering
+        the rest anyway asked the owner to choose BEST between blind identifiers
+        with nothing to look at, and such an answer would say nothing about the
+        scene. They stay in the corpus, which is the measured input, and off the
+        page, which is the human question.
+        """
+
+        corpus = _current_corpus()
+        scene = corpus["scenes"][0]
+        hidden, *visible = scene["candidates"]
+        hidden["frames"] = []
+        block = _scene_block(render_pack(corpus), scene["scene_key"])
+        self.assertNotIn(f"data-blind='{hidden['blind_id']}'", block)
+        self.assertNotIn(f">{hidden['blind_id']}<", block)
+        for entry in visible:
+            self.assertIn(f"data-blind='{entry['blind_id']}'", block)
+
     def test_no_pack_is_rendered_for_historical_evidence(self) -> None:
         with self.assertRaises(BenchmarkError):
             render_pack(_historical_corpus())
@@ -546,6 +581,73 @@ class MeasurementTests(unittest.TestCase):
         for row in report["scenes"]:
             self.assertNotIn("confidence", json.dumps(row))
 
+    def test_a_winner_the_annotator_never_saw_is_unscorable_not_a_mismatch(self) -> None:
+        """Disagreement needs both parties to have seen the same thing.
+
+        The capture previews a shortlist, so an arm may win a scene with a
+        candidate that carries no frame. The owner could not choose it and did
+        not, so ``preferred`` names something else - and counting that as a
+        mismatch would measure preview coverage while claiming to measure the
+        decision. Such a scene is scored as neither.
+        """
+
+        corpus, scene = self.corpus, self.corpus["scenes"][0]
+        chosen = str(self.selections[scene["scene_key"]].selected_blind_id or "")
+        self.assertTrue(chosen, "this scene has to have a winner for the case to exist")
+        for entry in scene["candidates"]:
+            if entry["blind_id"] == chosen:
+                entry["frames"] = []
+        selections = run_metadata_baseline(corpus)
+        self.assertEqual(
+            selections[scene["scene_key"]].selected_blind_id,
+            chosen,
+            "a frame is preview material; removing it must not move the decision",
+        )
+        annotations = _complete(corpus)
+        annotations["scenes"][0]["preferred_candidate"] = next(
+            e["blind_id"] for e in scene["candidates"] if e["blind_id"] != chosen
+        )
+
+        report = evaluate_arm(corpus, annotations, selections)
+        row = report["scenes"][0]
+        self.assertEqual(row["system_selected"], chosen)
+        self.assertFalse(row["system_selected_visible"])
+        self.assertTrue(row["unscorable_winner_not_visible"])
+        self.assertFalse(row["selection_matches_preferred"])
+        aggregate = report["aggregate"]
+        self.assertEqual(aggregate["unscorable_winner_not_visible"], 1)
+        self.assertEqual(aggregate["scorable_scenes"], aggregate["scenes"] - 1)
+
+    def test_an_unscorable_scene_is_not_reported_as_a_regression(self) -> None:
+        """The A/B step must not read preview coverage as a worse decision.
+
+        Two arms over one corpus: the baseline wins the scene with the candidate
+        the owner preferred, the candidate arm wins it with one that was never
+        previewed. That is not evidence the second arm chose worse, so it is
+        neither an improvement nor a regression.
+        """
+
+        corpus, scene = self.corpus, self.corpus["scenes"][0]
+        key = scene["scene_key"]
+        preferred = str(self.selections[key].selected_blind_id or "")
+        self.assertTrue(preferred)
+        unseen = next(e for e in scene["candidates"] if e["blind_id"] != preferred)
+        unseen["frames"] = []
+        annotations = _complete(corpus)
+        annotations["scenes"][0]["preferred_candidate"] = preferred
+
+        baseline = evaluate_arm(corpus, annotations, self.selections)
+        moved = dict(self.selections)
+        moved[key] = replace(self.selections[key], selected_blind_id=unseen["blind_id"])
+        candidate_arm = evaluate_arm(corpus, annotations, moved)
+
+        self.assertTrue(baseline["scenes"][0]["selection_matches_preferred"])
+        self.assertTrue(candidate_arm["scenes"][0]["unscorable_winner_not_visible"])
+        verdict = compare_arms(baseline, candidate_arm)
+        self.assertNotIn(key, verdict["safe_regressions"])
+        self.assertNotIn(key, verdict["blocking_regressions"])
+        self.assertNotIn(key, verdict["improvements"])
+
     def test_no_arm_is_measured_against_historical_evidence(self) -> None:
         historical = _historical_corpus()
         with self.assertRaises(BenchmarkError):
@@ -586,6 +688,11 @@ class ArmComparisonTests(unittest.TestCase):
             "wrong_abstention": False,
             "must_avoid_escaped": False,
             "non_real_footage_selected": False,
+            # Every row ``evaluate_arm`` produces declares whether the annotator
+            # could see the winner, and ``compare_arms`` indexes it rather than
+            # defaulting: a row that does not say is a programming error, not a
+            # scorable scene.
+            "unscorable_winner_not_visible": False,
         }
         base.update(row)
         return {"status": STATUS_COMPLETE, "arm": name, "corpus_sha256": "x", "scenes": [base]}

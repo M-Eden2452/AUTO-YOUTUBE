@@ -920,6 +920,17 @@ def render_pack(corpus: dict[str, Any]) -> str:
 
     Same gate as the template it feeds: a pack is only ever rendered for the
     frozen current capture.
+
+    What the resulting ground truth may be used to claim
+    ----------------------------------------------------
+    Only candidates that carry a frame are shown, and the capture sampled frames
+    for a preview shortlist. So a label produced here reads *the best visually
+    checkable candidate inside the captured preview shortlist* - never "the best
+    asset in the pool". Two consequences are load-bearing and must not be argued
+    away by a later reader: the benchmark cannot show that retrieval missed a
+    better candidate before the shortlist, and it cannot speak for a media type
+    the capture did not preview. The frozen corpus previewed 54 images and 2
+    videos, so its labels are a statement about still images.
     """
 
     assert_current_benchmark_input(corpus, context="annotation pack")
@@ -959,7 +970,14 @@ def render_pack(corpus: dict[str, Any]) -> str:
             f"<dt>Кадр</dt><dd>{html.escape(str(scene.get('target_aspect_ratio') or ''))}, "
             f"{scene.get('required_duration_sec', 0)} с</dd></dl><div class='cands'>"
         )
-        for candidate in scene["candidates"]:
+        # Only a candidate with a picture is a question a human can answer. The
+        # capture previews a shortlist, so most of the pool carries no frame at all
+        # - 64 frames against 1064 candidates in the frozen corpus. Those stay in
+        # the corpus, which is what gets measured, and off the page, which is what
+        # the owner is asked to judge: choosing BEST between blind identifiers with
+        # nothing to look at would produce a label about nothing.
+        visible = [entry for entry in scene["candidates"] if entry["frames"]]
+        for candidate in visible:
             blind_id = html.escape(str(candidate["blind_id"]))
             parts.append(f"<div class='cand' data-blind='{blind_id}'><h3>{blind_id}</h3>")
             for frame in candidate["frames"]:
@@ -976,7 +994,7 @@ def render_pack(corpus: dict[str, Any]) -> str:
             parts.append("</div></div>")
         best_options = "".join(
             f"<option value='{html.escape(str(c['blind_id']))}'>{html.escape(str(c['blind_id']))}</option>"
-            for c in scene["candidates"]
+            for c in visible
         )
         parts.append(
             "</div><div class='best'><b>BEST:</b> <select data-best><option value=''>—</option>"
