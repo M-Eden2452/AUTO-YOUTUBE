@@ -5352,8 +5352,9 @@ misleading/conflict · paid approval.
 
 ### PLAN-9C-3 — metadata evidence repair (рабочий ярлык R-2b)
 
-- **status:** completed 2026-08-10 · owner-issued 2026-08-10 · **commit:** этот
-  commit · **зависимость:** PLAN-9C-2 выполнена; общий acceptance gate остаётся
+- **status:** completed 2026-08-10 · owner-issued 2026-08-10 · **commit:**
+  `7e9b34a`; post-audit correction **VA-NEW-01** — **этот commit** ·
+  **зависимость:** PLAN-9C-2 выполнена; общий acceptance gate остаётся
   отдельным LIVE-5 diagnostic.
 - **routing.** `current_checkpoint` остаётся **PLAN-9D**; PLAN-9D-D остаётся
   NOT STARTED / blocked до LIVE-5 и owner decision. С PLAN-9C-2 не смешан:
@@ -5398,6 +5399,29 @@ misleading/conflict · paid approval.
 - **unchanged/out of scope.** Rights, semantic-brief parser, Vision/backend,
   media policy/PLAN-9C-2, PLAN-10C, PLAN-9A, PLAN-10D, shortlist/dedup,
   download walk, LocalLibrary, Motion/legacy cleanup не менялись.
+- **post-audit correction VA-NEW-01.** Integrity audit нашёл последнего
+  consumer, читавшего evidence мимо canonical owner этой секции.
+  `_environment_for_scene` (`continuity_checker.py`) склеивал `search_query`,
+  `source_url` и `source_page` с provider prose, поэтому запрос к провайдеру и
+  папка хранения доказывали *содержание* кадра, а `build` дописывал уже
+  **resolved** сцену в `missing_scenes` — а это попадает в
+  `missing_assets.json` и делает `src/projects/rights.py` отчёт `blocked`
+  вместе с exit code CLI. На замороженном реальном capture
+  `tests/data/plan9d/current_corpus_v1.json` (1064 кандидата текущего HEAD)
+  непустой `search_query` и source URL несут **все** кандидаты; environment-
+  слово присутствует только в `search_query` у 55 и только в source URL у 6, а
+  инференс среды меняется под canonical evidence у 63. Repair: continuity
+  читает `evidence.build_evidence` этой же секции (provider `title`/
+  `description`/`tags`/`keywords` без query-эха и без `tags_source=
+  "query_derived"`, плюс validated Vision tags), а builder больше не пишет
+  `missing_scenes` из continuity. Authority: единственный владелец
+  разрешённости сцены — `_record_scene`; блок `continuity` манифеста не
+  менялся и остаётся отчётом. Инференс (три английских набора слов и один
+  переход) намеренно не трогался, второй matcher не создан. RED на `a9bfc11`:
+  11 из 16 новых checks; GREEN 16/16, targeted radius 568 OK, полный offline
+  suite 2166 OK, `scripts/gates.py` зелёный без новых ruff/mypy suppressions.
+  Отбор, media policy, rights, `must_avoid`, conflicts, strict/draft, Vision
+  activation, providers и schema не менялись.
 - **rollback:** один commit, revert; миграций данных и provider calls нет.
 
 ### PLAN-9D — offline visual-quality evidence

@@ -254,12 +254,12 @@ class AssetManifestBuilder:
             self._download_and_complete(state)
             self._apply_fallbacks(state)
             self._record_scene(state)
+        # Advisory only. ``_record_scene`` above is the sole owner of scene
+        # resolution, and an entry here is read downstream as "this scene has no
+        # material": it reaches ``missing_assets.json`` and makes the rights
+        # report blocking. A cross-scene keyword heuristic may not return a scene
+        # it already resolved, so continuity travels in the manifest report.
         continuity = check_continuity(self.scene_entries)
-        if continuity["status"] == "failed":
-            for issue in continuity["issues"]:
-                self.missing_scenes.append(
-                    {"scene_id": issue["scene_id"], "reason": issue["reason"]}
-                )
         self._write_reviews()
         return self._final_manifest(continuity)
 
