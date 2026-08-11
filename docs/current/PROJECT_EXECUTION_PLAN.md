@@ -2,25 +2,29 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-10
+updated_at: 2026-08-11
 baseline_head: 38fed31
 working_branch: governance-reset
-owner_decisions_date: 2026-08-08
+owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  PLAN-9C-3 ЗАВЕРШЁН 2026-08-10 — shared metadata evidence сохраняет field
-  provenance, coherent multiword locality и ослабляет одиночное упоминание
-  только в broad description; title/provider tags/keywords/Vision tags остаются
-  strong. LIVE-4 persisted evidence — Sierra Negra subject 100→50, Life On Earth
-  hummingbird 100→75; Pexels hummingbird/orca остаются 100. `METADATA_FIELDS`
-  синхронизирован с canonical AssetCandidate (`title`, `description`;
-  tags/keywords отдельно); IA normalizer, provider_confidence scoring,
-  negative_terms consumers, rights, media policy и schema не менялись. RED 5
-  failures из 10 первоначальных checks; GREEN 12/12, owning/expanded radius 375
-  OK, full offline suite 2143 OK. THE NEXT EXACT ACTION — отдельный owner-issued
-  LIVE-5 acceptance diagnostic на тех же шести русских сценах против LIVE-4,
-  metadata-only/Vision OFF; current_checkpoint остаётся PLAN-9D, PLAN-9D-D
-  остаётся NOT STARTED / blocked до результата и owner decision.
+  Mini plan reconciliation 2026-08-11 (docs-only) supersedes прежнюю
+  формулировку «next exact action — LIVE-5». Закрыты WP0-A machine gates
+  (`98e58fe`, `a9bfc11`) и VA-NEW-01 / M1-A (`15cb20d`, correction внутри
+  PLAN-9C-3); ранее — VA-NEW-03 (`37ca498`, correction внутри PLAN-9C-2).
+  LIVE-5 перестал быть следующим действием, потому что
+  `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` (§40, ответ 12 и
+  «Краткий отчёт владельцу») требует до него закрыть ещё VA-NEW-02, 04, 05,
+  06, 08, 09 и минимальные budget guards 10/12. THE NEXT EXACT ACTION —
+  отдельный owner-issued bounded correction **VA-NEW-02** (source-snapshot
+  identity локального preview cache; owner packaging label M1-B) внутри
+  существующего canonical owner **PLAN-9A**; полный contract PLAN-9A этим не
+  начинается, и уже выданный ему persisted approval на новый состав полей не
+  распространяется. `current_checkpoint` остаётся **PLAN-9D**; PLAN-9D-D
+  остаётся NOT STARTED / blocked до LIVE-5 и owner decision, а сам LIVE-5
+  остаётся network-действием и требует отдельного owner approval
+  непосредственно перед запуском. Полная сводка маршрута — блок «Mini plan
+  reconciliation 2026-08-11» в разделе «Current checkpoint».
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -63,6 +67,160 @@ source_paths:
 и сохраняется одним архивным snapshot — см. «Completion and archive policy».
 
 ## Current checkpoint
+
+### Mini plan reconciliation 2026-08-11
+
+Авторитетная сводка маршрута: новый чат обязан восстанавливать route отсюда, а
+не из внешней истории. Блок **не создаёт PLAN-ID**. `WP0-A`, `WP0-B`,
+`M1-A…M1-E`, `M2-A`, `M2-B`, `M3`, `M4`, `M5` и `LIVE-5` — owner packaging
+labels и owner-issued действия, а не plan steps; canonical traceability
+остаётся на существующих PLAN owners.
+
+**CURRENT CHECKPOINT.** **PLAN-9D** (in progress). Этой сверкой не менялся.
+
+**WHAT JUST COMPLETED.** `WP0-A` machine gates существуют фактически:
+`requirements-dev.lock`, Ruff (`F`, `E9`) и Mypy (`files = src/assets`,
+`src/news`) baselines в `pyproject.toml`, `scripts/gates.py` (ruff · mypy ·
+`check_agent_docs` · `git diff --check` · `git diff --cached --check`),
+git hook `.githooks/pre-commit` через `core.hooksPath`, CI-шаг «Run machine
+quality gates» и правило «Gates» в `AGENTS.md` — commits `98e58fe` и
+`a9bfc11`. Стратегия — ratchet: подавленный модуль снимается из baseline тем
+слайсом, который и так трогает файл вместе с его owning tests; численные
+baseline-счётчики живут в `pyproject.toml` и в routing-документы не
+копируются. `VA-NEW-01` / `M1-A` закрыт commit `15cb20d` как post-audit
+correction внутри `PLAN-9C-3`; `VA-NEW-03` — commit `37ca498` внутри
+`PLAN-9C-2`. Ни один из них checkpoint не двигал.
+
+**WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
+plan step. Он измеряет качество отбора по persisted evidence, а
+`docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` доказал, что часть
+этого evidence сегодня недостоверна (candidate A против downloaded B, preview
+о старых bytes, потерянные partial mixed-media результаты) и что бюджет
+запросов не ограничен. Аудит (§40, ответ 12; «Краткий отчёт владельцу») прямо
+называет обязательный до LIVE-5 набор: **VA-NEW-01, 02, 03, 04, 05, 06, 08,
+09 плюс минимальные budget guards 10/12**. Из него закрыты 01 и 03.
+
+**WHAT MUST HAPPEN BEFORE LIVE-5.** Каждый пункт — bounded correction внутри
+уже существующего owner; новых PLAN-ID нет. Класс **A** — прямо искажает
+evidence самого LIVE-5; **A′** — не искажает evidence, но делает сам live-run
+небезопасным по стоимости/rate-limit; **B** — обязателен до Vision / render /
+resume acceptance, но не до LIVE-5 по контракту аудита.
+
+| Label | Finding | Canonical owner | Existing PLAN step | Почему там | Класс | До LIVE-5 | До v1 |
+|---|---|---|---|---|---|---|---|
+| M1-A | VA-NEW-01 continuity self-evidence | `continuity_checker` → `evidence.build_evidence` | **PLAN-9C-3** (correction) | evidence ownership границы 9C-3 | A | **закрыт** `15cb20d` | да |
+| — | VA-NEW-03 technical rerank | `_prepare_visual_review` | **PLAN-9C-2** (correction) | второй post-selection owner | A | **закрыт** `37ca498` | да |
+| M1-B | VA-NEW-02 preview cache не идентифицирует source snapshot | `src/assets/visual_preview.py` | **PLAN-9A** | persistence/provenance | A | да | да |
+| M1-C | VA-NEW-04 review artifact смешивает candidate A с downloaded B | `src/assets/review_bundle.py` | **PLAN-9A** | provenance selected asset | A | да | да |
+| M1-C | VA-NEW-05 Vision tags теряются при download rebuild | `asset_manifest_builder` / `asset_provider_adapters` | **PLAN-9A** | evidence carry across representation | B (blocker Vision) | да, пакетом с 04 | нет для v1 без Vision, да для Vision |
+| M1-D | VA-NEW-08 resume без input/policy/provider fingerprints | `src/news/pipeline.py`, `project_store` | **PLAN-9A** | persisted resume contract | B (до опоры на resume в LIVE) | да | да |
+| M1-E | VA-NEW-09 strict render TOCTOU | `src/news/final_renderer.py` | **PLAN-9E** | render authorization gate | B (до LIVE render) | да | да |
+| M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | да | да |
+| M2-A | VA-NEW-10 nested retries R² | `src/assets/http_client.py` | **PLAN-10B** | один retry owner | A′ | да, минимально | да |
+| M2-B | VA-NEW-12 uncapped request budget/stop | retrieval budget | **PLAN-10C** | budget/plateau policy | A′ | да, минимально | да |
+
+Уточнения к mapping аудита, проверенные по репозиторию:
+
+- **Все шесть пакетов — bounded corrections внутри чужих секций, а не старт их
+  контрактов.** Это уже действующий паттерн: VA-NEW-01 и VA-NEW-03 закрыты
+  именно так. Порядок «M1-B…M2-B раньше PLAN-9D-D» — owner-approved reorder,
+  зафиксированный здесь **до** работы, как требует правило порядка в разделе
+  «Что осознанно не оптимизировано».
+- **PLAN-9A** достижим: его prerequisite chain (`PLAN-9B-2` + `PLAN-1C′` +
+  `PLAN-6E`) закрыта 2026-08-07. Но выданный ему owner approval покрывает
+  только перечисленный в его секции состав полей. `VA-NEW-08` fingerprint и
+  `replaces_asset_id` из `VA-NEW-04` в этот состав **не входят** →
+  **OWNER DECISION REQUIRED** на persisted-расширение перед M1-C и M1-D.
+- **PLAN-9E** (M1-E) и **PLAN-10B/PLAN-10C** (M2-A/M2-B) формально blocked
+  своими секциями. Bounded correction выполняется под их ID, статус секции при
+  этом не переводится в completed — так же, как PLAN-9C-2/9C-3 приняли
+  corrections после closure.
+- **VA-NEW-18** и **VA-NEW-19** остаются `NO OWNER` → **OWNER DECISION
+  REQUIRED**; новый PLAN-ID автоматически не создаётся.
+
+**WHAT MUST HAPPEN BEFORE V1.** Проверено по `PRODUCT_PLAN.md` разделы 5, 6,
+10 (MSP direction и критерии выхода в beta) и по ADR: канонический CLI/Wizard
+путь · достоверный decision/evidence путь (набор LIVE-5 выше) · bounded
+retrieval · user assets как канонический вход (**PLAN-9B-5b**, PD-4) ·
+обязательный human review · работоспособный preview (registry **C58**, owner
+**MOTION-CS1**) · rights · voice · субтитры · render · truthful export
+(registry **C44**: owner gate **PLAN-11** + будущий bounded catalog slice) ·
+resume без потери результата · реальные acceptance-evidence и несколько
+настоящих Shorts без правки кода между обычными прогонами.
+
+**WHAT DOES NOT BLOCK V1.** Платный Vision · Vision A/B · semantic model
+default-on · longform · legacy retirement · полная governance diet · крупный
+structural cleanup. Основание: `PRODUCT_PLAN.md` раздел 8 («Vision никогда не
+mandatory runtime dependency», статус `COMMITTED_LATER`), раздел 7.1 (longform
+`COMMITTED_LATER`) и раздел 10 (MSP не содержит ни одного из них).
+
+**WHERE VISION LIVES.** Wiring — **PLAN-9C** (закрыт). Offline evidence и A/B —
+**PLAN-9D-F** / **PLAN-9D-G**, оба остаются optional quality track и v1 не
+блокируют. Активация — **PLAN-9E**, default OFF, отдельные network и paid
+gates. Обязательные до активации: `VA-NEW-02`, `04`, `05`, `08` и единый
+post-review decision invariant (аудит §40, ответ 15).
+
+**WHERE SEMANTIC DEFAULT ACTIVATION LIVES.** Там же — **PLAN-9E**. Для v1
+semantic assistance остаётся opt-in: `semantic_brief` в
+`src.runtime_network.NETWORK_ACTIONS` (default deny) плюс
+`config/semantic_brief.json` (в репозитории выключено). v1 обязан проходить
+acceptance через manual / provider-metadata / human-review путь.
+
+**WHEN M3 / M4 / M5.** `M3` (user product slice) начинается после LIVE-5:
+user assets в canonical create (**PLAN-9B-5b**), pre-search/pre-paid control
+point (**PRODUCT_PLAN** 16.3.2, требует **OD-P-2** → OWNER DECISION REQUIRED),
+preview (**C58** / **MOTION-CS1**, требует **OD-P-12**), **C63** (author brief
+на topic/article paths — `MISSING OWNER CANDIDATE` в реестре → OWNER DECISION
+REQUIRED). `M4` (acceptance / v1) — существующий product evidence gate
+**PLAN-11** плюс product test-video checkpoint секции **PLAN-9E**. `M5`
+(longform / v1.1) — после v1.
+
+**WHEN LONGFORM V1.1 STARTS.** После v1, и подтверждено репозиторием:
+ADR 0016 («`content_creator` owns creation of both short and long videos;
+documentary — future workflow/template, not a separate application»),
+`PRODUCT_PLAN.md` PD-9 и раздел 7.1 («один `content_creator` с format/workflow
+profiles»; общее ядро — input · script · scenes · visual planning · query
+planning · retrieval · rights · ranking/selection · evidence · audio ·
+persistence; различается только format policy: aspect ratio, длительность,
+pacing, плотность сцен, главы, crop, раскладка субтитров, render profile,
+motion policy). **Route-level requirement:** все shared-core исправления
+M1–M3 обязаны быть **format-neutral** — новые portrait/1080x1920 допущения в
+shared services без продуктовой необходимости запрещены. Второй video engine
+запрещён (ADR 0016, PD-9).
+
+**WHAT IS POST-V1.** `M5` longform/v1.1 · retirement legacy (**PLAN-L1…L4**,
+**PLAN-9B-5b** wrapper retirement) · Vision activation при желании владельца ·
+**PLAN-10D** · **PLAN-12**…**PLAN-15** · Motion (`MOTION-CS1…CS4`) ·
+`WP0-B`.
+
+**REVIEW BATCHING STRATEGY.** Recommended execution policy; контракт review в
+`AGENTS.md` и `skills/review-change/` не меняется. Review #1 — M1-A…M1-C
+(identity / evidence lineage: один и тот же вопрос «доказывает ли evidence
+именно тот asset»). Review #2 — M1-D…M1-E (authorization над persisted
+state: resume и strict render). Review #3 — M2-A…M2-B, до LIVE-5 (retrieval
+resilience и budget). Границы совпадают с фактическими risk boundaries:
+каждая тройка меняет один класс инвариантов и один набор owners.
+
+**WP0-B (governance/docs diet) — placement.** Рекомендация: **parallel,
+между M2-B и LIVE-5**, не раньше и не позже. Раньше — задержит блокеры
+LIVE-5; позже — переносит контекстный налог на весь M3/M4. Обоснование
+измеримо: `START_HERE.md` — 98 строк при лимите 100, `SYSTEM_MAP.md` — 239 при
+240, `CURRENT_STATE.md` — 278 при 280 (`tests/test_stage2_agent_onboarding.py`),
+то есть суммарный запас всех трёх routing mirrors — пять строк, и следующая
+сверка маршрута в них уже не поместится. Состав WP0-B (ROUTE.md, упрощение
+mirrors, архив журналов и completed-секций, docs diet, README/COMMANDS truth,
+size guards) этой сверкой **не выполняется**.
+
+**FIRST OWNER SHORT (optional product diagnostic).** Владелец может получить
+первый настоящий draft Short раньше acceptance, не выдавая его за
+publish-ready: manual assets плюс ручной `visual_brief` по сценам, режим
+`draft_complete` (всегда `publish_ready=false`), script/text path вместо
+произвольной темы. Ограничения, которые нужно знать заранее: `C63` — author
+brief не доходит до сцен на topic/article paths, поэтому нужен user-supplied
+script; `C58` — честного pre-final preview нет, оценивать придётся готовый
+`draft_1080x1920.mp4`. Это диагностика продукта, а не acceptance; сеть и
+платные действия требуют отдельного owner approval. Этой сверкой не
+запускается.
 
 - **Текущий шаг:** **PLAN-9D — offline visual-quality evidence.**
   Шаг **in progress**: `04fe035` выполнен под `Plan-Step: PLAN-9D` и дал
@@ -658,9 +816,10 @@ source_paths:
     PLAN-STAB-7 (implementation commit `42fa741`, repair commit `8357402`);
     non-blocking follow-up для PLAN-9B-2; PLAN-ID и contract остаются
     отдельными от PLAN-STAB-7;
-  - **PLAN-STAB-6** — **текущий checkpoint**; implementation completed
-    2026-08-06, independent review pending; следующее действие — сам
-    independent review implementation commit, шаг им не закрывается;
+  - **PLAN-STAB-6** — closed 2026-08-07 (`3cedff10` + repair `b0a3547`,
+    re-review ACCEPT WITH MINOR, blocking findings 0). Прежняя формулировка
+    «текущий checkpoint» устарела и исправлена сверкой 2026-08-11:
+    авторитетом остаётся `current_checkpoint` во frontmatter;
   - **PLAN-STAB-10…PLAN-STAB-15, PLAN-STAB-17** — pending/not started; состав,
     порядок и blocking-статус каждого — раздел «POST-AUDIT STABILIZATION
     PROGRAM»;
@@ -670,9 +829,9 @@ source_paths:
     run `31039985187`, 1/1 checks, failures=0, errors=0); secret scan,
     dependency audit, lint baseline и type-check baseline остаются
     pending/non-blocking;
-  - **PLAN-9B-2** — pending/not started; PLAN-L0/PLAN-9B-4/PLAN-9B-PRODUCER/
-    PLAN-6D/PLAN-6E завершены, stabilization gate пройден 2026-08-07, и слайс
-    требует отдельного owner-issued implementation prompt;
+  - **PLAN-9B-2** — closed 2026-08-07 (`66fd2431` + repair `8c60295`);
+    прежняя запись «pending/not started» устарела и исправлена сверкой
+    2026-08-11;
   - **PLAN-6D-1** — completed 2026-08-02;
   - **PLAN-6D-2** — completed 2026-08-02;
   - **PLAN-6D-3** — completed 2026-08-02;
@@ -689,13 +848,13 @@ source_paths:
     PLAN-1C′, PLAN-12\*, PLAN-13\*, PLAN-14\* и PLAN-L1…PLAN-L4** — параллельны и
     **не блокируют первый product fix**;
   - PLAN-11 M2 — до подтверждения бюджета.
-- **Следующее точное действие:** PLAN-STAB-7 и PLAN-STAB-8 closed 2026-08-06
-  (implementation commit `42fa741`, repair commit `8357402`; independent
-  review verdict ACCEPT WITH MINOR, repair re-review verdict ACCEPT WITH
-  MINOR, blocking findings: 0; пункт 7 blocking gate satisfied). Следующий
-  шаг — independent review implementation commit PLAN-STAB-6 (Claude permission
-  hardening); implementation PLAN-STAB-6 завершена 2026-08-06, шаг остаётся
-  открытым. PLAN-STAB-9 остаётся closed и non-blocking follow-up для PLAN-9B-2.
+- **Следующее точное действие:** запись этого буллета устарела и снята сверкой
+  2026-08-11. Единственный авторитет следующего действия — поле
+  `next_exact_action` во frontmatter и блок «Mini plan reconciliation
+  2026-08-11» выше. Историческая часть, остающаяся верной: PLAN-STAB-7 и
+  PLAN-STAB-8 closed 2026-08-06 (`42fa741`, repair `8357402`, verdicts ACCEPT
+  WITH MINOR, blocking findings 0, пункт 7 gate satisfied), PLAN-STAB-6 closed
+  2026-08-07, PLAN-STAB-9 остаётся closed и non-blocking.
 - **После PLAN-9B-PRODUCER:** не начинать PLAN-9B-2 до закрытого stabilization
   gate и отдельного implementation prompt; не начинать ни один PLAN-STAB-слайс
   без собственного implementation prompt. PLAN-L1…PLAN-L4 закрытием PLAN-L0 не
@@ -3871,9 +4030,20 @@ misleading/conflict · paid approval.
 
 - **status:** pending / not started · **commit:** — . Prerequisite chain
   выполнена целиком 2026-08-07 (`PLAN-9B-2` closed, `PLAN-1C′` closed,
-  `PLAN-6E` completed), но по действующему route
-  (`PLAN-1C′ → PLAN-9C → PLAN-9D → PLAN-9A → PLAN-10A → PLAN-10B → PLAN-10C →
-  PLAN-9E`) текущим checkpoint становится **PLAN-9C**, а не этот шаг.
+  `PLAN-6E` completed). Прежняя формулировка «текущим checkpoint становится
+  PLAN-9C» устарела: PLAN-9C закрыт 2026-08-08, и по действующему route
+  (`PLAN-9D → PLAN-9A → PLAN-10A → PLAN-10B → PLAN-10C → PLAN-9E`) текущим
+  checkpoint остаётся **PLAN-9D**, а не этот шаг. Исправлено сверкой
+  2026-08-11.
+- **bounded corrections до полного контракта (сверка 2026-08-11).** Этот owner
+  принимает три post-audit correction, не начиная свой полный contract:
+  **VA-NEW-02** (M1-B, source-snapshot identity preview cache), **VA-NEW-04**
+  (M1-C, review artifact A→B rebind) и **VA-NEW-08** (M1-D, resume
+  fingerprints); **VA-NEW-05** (M1-C, Vision-tag carry) идёт пакетом с 04.
+  Таблица классов и порядок — блок «Mini plan reconciliation 2026-08-11».
+  Уже выданный этому шагу persisted approval покрывает только перечисленный
+  ниже состав полей: `replaces_asset_id` и resume fingerprint в него **не
+  входят** и требуют отдельного owner decision перед implementation.
 - **prerequisite chain (единственная действующая, ревизия 2.1):**
   `PLAN-9B-2` + `PLAN-1C′` + **`PLAN-6E`**. Прежняя цепочка
   `…PLAN-5 → PLAN-6A → PLAN-6D → PLAN-6E → PLAN-1C′` отменена ревизией 2.1:
@@ -3914,8 +4084,19 @@ misleading/conflict · paid approval.
 
 ### PLAN-9B — input/query truth (bounded family)
 
-- **status:** pending. **Первый product-этап программы** (ревизия 2.1);
-  PLAN-9A его больше не блокирует.
+- **status:** in progress — открыт только `PLAN-9B-5b` · **обновлено сверкой
+  2026-08-11.** Прежнее `pending` устарело: все capability-под-слайсы
+  семейства закрыты — PLAN-9B-0, PLAN-9B-1, PLAN-9B-5a, PLAN-9B-4,
+  PLAN-9B-PRODUCER, PLAN-9B-PRODUCER-M, PLAN-9B-PRODUCER-M-LIVE, PLAN-9B-2 и
+  PLAN-9B-3. Заголовок-этап не объявляется `completed`, потому что Execution
+  protocol п.5 закрывает его только после **всех** под-слайсов, а открытым
+  остаётся **PLAN-9B-5b** — отдельный destructive retirement path wrapper'а
+  `apps/news_to_short`. Сам этот раздел prerequisite PLAN-9A из него не делает,
+  поэтому для потребителей, объявлявших `PLAN-9B` своим blocker, capability-
+  содержание семейства **удовлетворено**, и блокировать их может только
+  собственный retirement gate PLAN-9B-5b, если он им действительно нужен.
+  **Первый product-этап программы** (ревизия 2.1); PLAN-9A его больше не
+  блокирует.
 - **цель семейства:** **input/query truth — provider-language adaptation,
   query expansion, truthful source input и cleanup старых query paths.**
 - **зависимости семейства:** `PLAN-1D-routing → PLAN-2 → PLAN-3 → PLAN-4`.
@@ -5746,11 +5927,15 @@ current-quality benchmark. Production logic этой записью не мен�
 
 #### PLAN-9D-D — human ground truth
 
-- **status:** blocked (PLAN-9B-PRODUCER-M-LIVE + owner decision по входу) ·
-  **commit:** — · NOT STARTED.
-  Обновлено 2026-08-09: блокирующим шагом теперь назван
-  **PLAN-9B-PRODUCER-M-LIVE**, потому что PLAN-9B-PRODUCER-M закрыт, а
-  недостающим остаётся не адаптер, а его достижимость. Диагностический Short по
+- **status:** blocked (LIVE-5 + owner decision по входу) · **commit:** — ·
+  NOT STARTED.
+  **Обновлено сверкой 2026-08-11:** прежний блокер **PLAN-9B-PRODUCER-M-LIVE**
+  закрыт 2026-08-09, поэтому запись устарела. Фактический блокер теперь —
+  owner-issued **LIVE-5** acceptance diagnostic, а до него — bounded
+  corrections VA-NEW-02, 04, 05, 06, 08, 09 и минимальные budget guards 10/12
+  (`docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` §40, ответы 12 и
+  14: ядро к PLAN-9D-D не готово, пока current offline evidence может быть
+  загрязнено continuity/preview/override gaps). Диагностический Short по
   этому слайсу **не запускался**, поэтому PLAN-9D-D остаётся NOT STARTED.
   Подраздел говорил `next` с момента закрытия PLAN-9D-C, тогда как
   authoritative `next_exact_action` уже вёл в PLAN-9B-PRODUCER-M и называл
@@ -5812,6 +5997,22 @@ current-quality benchmark. Production logic этой записью не мен�
 ### PLAN-9E — controlled semantic activation
 
 - **status:** blocked (PLAN-9D, PLAN-10C + owner approval) · **commit:** —
+- **bounded correction до полного контракта (сверка 2026-08-11).** Этот owner
+  принимает **VA-NEW-09** (M1-E: strict render получает тот же fresh
+  authorization snapshot, что и draft — сегодня draft-ветка сильнее strict) как
+  bounded correction до LIVE render, не начиная activation contract и не
+  переводя статус в completed. Активация Vision этим не приближается.
+  Дополнительно зафиксировано аудитом (§40, ответ 15): архитектурная готовность
+  к Vision после PLAN-10C требует ещё **VA-NEW-02/04/05/08** и единого
+  post-review decision invariant. Классы и порядок — блок «Mini plan
+  reconciliation 2026-08-11».
+- **v1 boundary (owner decision D0.4/D0.5, 2026-08-11).** Платный Vision не
+  является blocker v1; PLAN-9D-F / PLAN-9D-G остаются optional quality track.
+  Semantic assistance для v1 остаётся opt-in за двумя раздельными gates
+  (`semantic_brief` в `NETWORK_ACTIONS`, default deny; `config/semantic_brief.json`).
+  Это совместимо с уже записанным здесь контрактом «Vision не является
+  обязательной runtime-зависимостью» и с `PRODUCT_PLAN.md` разделом 8; статус,
+  зависимости и запреты этого шага не меняются.
 - **цель:** включить доказанный semantic decision path только для явно
   выбранного template/project policy.
 - **implementation-time verification моделей (2026-08-01).** До первого
@@ -5884,6 +6085,13 @@ current-quality benchmark. Production logic этой записью не мен�
 ### PLAN-10B — pagination и provider contract
 
 - **status:** blocked (PLAN-10A) · **commit:** —
+- **bounded corrections до полного контракта (сверка 2026-08-11).** Этот owner
+  принимает **VA-NEW-06** (M2-A: partial mixed-media success не теряется из-за
+  соседнего failure — регрессия, появившаяся именно после retrieval symmetry
+  `ae6d46c`) и **VA-NEW-10** (M2-A: один retry owner вместо вложенных R²
+  попыток) как bounded corrections до LIVE-5, не начиная pagination contract и
+  не переводя статус в completed. Класс и порядок — блок «Mini plan
+  reconciliation 2026-08-11».
 - **цель:** поиск не ограничен первой страницей результатов и фиксированным
   лимитом на пару provider × query.
 - **граница:** сначала additive pagination/cursor contract и
@@ -5907,7 +6115,15 @@ current-quality benchmark. Production logic этой записью не мен�
 
 ### PLAN-10C — adaptive budget и plateau policy
 
-- **status:** blocked (PLAN-9B, PLAN-10B) · **commit:** —
+- **status:** blocked (PLAN-10B) · **commit:** — · **обновлено сверкой
+  2026-08-11:** `PLAN-9B` снят из блокеров — семейство закрыто, кроме
+  отдельного destructive path PLAN-9B-5b, который к бюджету поиска отношения
+  не имеет. Шаг остаётся blocked своим вторым блокером **PLAN-10B**.
+- **bounded correction до полного контракта (сверка 2026-08-11).** Этот owner
+  принимает **VA-NEW-12** (M2-B: минимальный hard per-scene request budget и
+  stop guard) как bounded correction до LIVE-5, не начиная свой полный
+  adaptive-budget contract и не переводя статус в completed. Класс, порядок и
+  обоснование — блок «Mini plan reconciliation 2026-08-11».
 - **цель:** политика `quick` / `standard` / `deep` вместо одного фиксированного
   лимита. Бюджет учитывает важность и длительность сцены, сложность субъекта,
   число новых уникальных кандидатов, улучшение best-so-far, число providers,
