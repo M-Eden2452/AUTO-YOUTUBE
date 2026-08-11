@@ -274,4 +274,4 @@ hummingbird/orca остаются 100. IA normalizer, rights, provider-confidenc
 PLAN-9C-2/PLAN-10C/PLAN-9A/PLAN-10D и Vision не менялись. PLAN-9D raw corpus сохранён; derived checksum
 re-finalized до `bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4`.
 Targeted radius 375 и full offline suite 2143 — OK. Текущий checkpoint — **PLAN-9D**; PLAN-9D-D остаётся NOT STARTED / blocked.
-M1-C / VA-NEW-04+05 is closed as a bounded correction inside PLAN-9A: normal materialization preserves logical identity, fallback A-to-B has explicit persisted lineage, and Vision evidence is source-snapshot bound and fail-closed. The current checkpoint remains **PLAN-9D**. Next exact action: one independent read-only review of the exact M1-A, M1-B and M1-C commits plus the net identity/evidence path; do not start M1-D.
+Review #1 (M1-A...M1-C) closed 2026-08-11: verdict ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run `31526039612` green. The current checkpoint remains **PLAN-9D**; next exact action is **M1-D / VA-NEW-08** (owner decision on persisted fingerprints required before implementation).

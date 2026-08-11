@@ -8,11 +8,12 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  M1-C / VA-NEW-04+05 and its bounded PLAN-9A repair are implementation-complete.
-  The current checkpoint remains PLAN-9D. THE NEXT EXACT ACTION is one focused
-  independent read-only re-review of the exact M1-A, M1-B, M1-C original and
-  M1-C repair commits plus the net production identity/evidence path. Do not
-  start M1-D.
+  Review #1 (M1-A...M1-C, identity/evidence lineage) is closed: verdict cluster
+  ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run 31526039612
+  (headSha 2577307) conclusion success. The current checkpoint remains PLAN-9D.
+  THE NEXT EXACT ACTION is M1-D / VA-NEW-08 (resume fingerprints) inside
+  PLAN-9A; it requires a separate owner decision on the persisted fingerprint
+  field set before implementation.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -116,6 +117,16 @@ fields remain readable and unmodified; changed, missing or unreadable sources fa
 closed for Vision authority. RED: one owning failure; GREEN: owning 6, targeted 146,
 full canonical offline suite 2190. Checkpoint and next focused re-review are unchanged.
 
+**REVIEW #1 CLOSURE (2026-08-11).** Independent read-only review of the exact
+M1-A (`15cb20d`), M1-B (`1bf7ecc`), M1-C original (`c9537fa`), M1-C repair
+(`a7bec3c`) and M1-C MAJOR-RR-01 repair (`2577307`) commits, plus the net
+production identity/evidence path, is complete. Verdict: cluster ACCEPT,
+MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR findings; CI run `31526039612`
+(headSha `2577307`) conclusion success. This supersedes the "Next: Review #1
+... do not start M1-D" wording earlier in this section (the M1-C and repair
+closure records above are not rewritten). Next exact action is **M1-D /
+VA-NEW-08**; checkpoint remains PLAN-9D.
+
 **WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
 plan step. Он измеряет качество отбора по persisted evidence, а
 `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` доказал, что часть
@@ -123,7 +134,7 @@ plan step. Он измеряет качество отбора по persisted ev
 о старых bytes, потерянные partial mixed-media результаты) и что бюджет
 запросов не ограничен. Аудит (§40, ответ 12; «Краткий отчёт владельцу») прямо
 называет обязательный до LIVE-5 набор: **VA-NEW-01, 02, 03, 04, 05, 06, 08,
-09 плюс минимальные budget guards 10/12**. Из него закрыты 01, 02 и 03.
+09 плюс минимальные budget guards 10/12**. Из него закрыты 01, 02, 03, 04 и 05.
 
 **WHAT MUST HAPPEN BEFORE LIVE-5.** Каждый пункт — bounded correction внутри
 уже существующего owner; новых PLAN-ID нет. Класс **A** — прямо искажает
@@ -152,10 +163,12 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
   зафиксированный здесь **до** работы, как требует правило порядка в разделе
   «Что осознанно не оптимизировано».
 - **PLAN-9A** достижим: его prerequisite chain (`PLAN-9B-2` + `PLAN-1C′` +
-  `PLAN-6E`) закрыта 2026-08-07. Но выданный ему owner approval покрывает
-  только перечисленный в его секции состав полей. `VA-NEW-08` fingerprint и
-  `replaces_asset_id` из `VA-NEW-04` в этот состав **не входят** →
-  **OWNER DECISION REQUIRED** на persisted-расширение перед M1-C и M1-D.
+  `PLAN-6E`) закрыта 2026-08-07. Выданный ему owner approval покрывает только
+  перечисленный в его секции состав полей. `replaces_asset_id` из `VA-NEW-04`
+  вышел за этот состав, и owner decision на него был выдан текстом M1-C
+  prompt — **satisfied**, closed commit `c9537fa` (Review #1 ACCEPT
+  2026-08-11). `VA-NEW-08` fingerprint остаётся вне состава →
+  **OWNER DECISION REQUIRED** на persisted-расширение перед M1-D.
 - **PLAN-9E** (M1-E) и **PLAN-10B/PLAN-10C** (M2-A/M2-B) формально blocked
   своими секциями. Bounded correction выполняется под их ID, статус секции при
   этом не переводится в completed — так же, как PLAN-9C-2/9C-3 приняли
@@ -1329,6 +1342,13 @@ approval — это факт, а не исключение из правила. 
 чтение старых manifests без миграции, best-so-far/persistence contract в
 перечисленном там составе. Повторно спрашивать владельца о самом PLAN-9A не
 нужно.
+
+**M1-C extension (2026-08-11).** Отдельное owner approval, выданное текстом
+M1-C prompt, расширило этот состав ровно на `replaces_asset_id` и Vision
+evidence envelope (`vision_tags`, `vision_tags_asset_id`,
+`vision_tags_source_sha256`, `vision_tags_cache_key`) в `AssetCandidate`;
+closed commits `c9537fa`/`a7bec3c`/`2577307`, Review #1 ACCEPT. Дальнейшее
+расширение вне этого состава снова требует отдельного owner decision.
 
 Любое расширение за эти границы — non-additive изменение, новый layout файлов,
 переименование каталога проекта, второй manifest, схема вне названного состава
@@ -4053,7 +4073,9 @@ misleading/conflict · paid approval.
 
 ### PLAN-9A — best-so-far foundation и tolerant persistence/resume
 
-- **status:** pending / not started · **commit:** — . Prerequisite chain
+- **status:** pending / not started · **commit:** — (bounded corrections
+  `1bf7ecc`/`c9537fa`/`a7bec3c`/`2577307` closed inside this section; full
+  contract not started). Prerequisite chain
   выполнена целиком 2026-08-07 (`PLAN-9B-2` closed, `PLAN-1C′` closed,
   `PLAN-6E` completed). Прежняя формулировка «текущим checkpoint становится
   PLAN-9C» устарела: PLAN-9C закрыт 2026-08-08, и по действующему route
@@ -4067,8 +4089,10 @@ misleading/conflict · paid approval.
   fingerprints); **VA-NEW-05** (M1-C, Vision-tag carry) идёт пакетом с 04.
   Таблица классов и порядок — блок «Mini plan reconciliation 2026-08-11».
   Уже выданный этому шагу persisted approval покрывает только перечисленный
-  ниже состав полей: `replaces_asset_id` и resume fingerprint в него **не
-  входят** и требуют отдельного owner decision перед implementation.
+  ниже состав полей: `replaces_asset_id` вышел за этот состав, и owner
+  decision на него выдан и закрыт (M1-C, commit `c9537fa`, Review #1 ACCEPT
+  2026-08-11); resume fingerprint (M1-D) остаётся вне состава и требует
+  отдельного owner decision перед implementation.
 - **prerequisite chain (единственная действующая, ревизия 2.1):**
   `PLAN-9B-2` + `PLAN-1C′` + **`PLAN-6E`**. Прежняя цепочка
   `…PLAN-5 → PLAN-6A → PLAN-6D → PLAN-6E → PLAN-1C′` отменена ревизией 2.1:

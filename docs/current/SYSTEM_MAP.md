@@ -235,4 +235,4 @@ PLAN-STAB-16 частично выполнена — green CI baseline гото�
 PLAN-9C-3 closed 2026-08-10 без новой boundary: canonical positive metadata evidence остаётся в
 `src/assets/semantic_selection/evidence.py`, decision owner остаётся `candidate_ranker.py`, а slot consumer — `decision.py`.
 Field-aware locality не создаёт второй matcher: hard requirements/conflicts используют тот же owner с прежней strict semantics.
-M1-C / VA-NEW-04+05 is closed as a bounded correction inside PLAN-9A: normal materialization preserves logical identity, fallback A-to-B has explicit persisted lineage, and Vision evidence is source-snapshot bound and fail-closed. The current checkpoint remains **PLAN-9D**. Next exact action: one independent read-only review of the exact M1-A, M1-B and M1-C commits plus the net identity/evidence path; do not start M1-D.
+Review #1 (M1-A...M1-C) closed 2026-08-11: verdict ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run `31526039612` green. The current checkpoint remains **PLAN-9D**; next exact action is **M1-D / VA-NEW-08** (owner decision on persisted fingerprints required before implementation).
