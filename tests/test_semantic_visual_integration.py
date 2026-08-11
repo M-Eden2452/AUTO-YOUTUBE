@@ -951,6 +951,124 @@ class M1CLocalVisionEnvelopeCarryTests(unittest.TestCase):
         self.assertEqual(len(ranked), 1)
         self.assertEqual(build_evidence(ranked[0]).vision_tags, ())
 
+    def test_rank_local_assets_rejects_stale_vision_after_same_path_bytes_change(self) -> None:
+        import os
+
+        from src.assets.frame_primitives import sha256_file
+        from src.assets.semantic_selection.evidence import build_evidence
+        from src.news.asset_manifest_builder import rank_local_assets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "desert.png"
+            source.write_bytes(b"A" * 4096)
+            original_stat = source.stat()
+            checksum_a = sha256_file(source)
+            item = _local_vision_item(source, checksum_a)
+
+            before = rank_local_assets(
+                {"version": 1, "items": [item]},
+                {"visual_type": "image", "primary_query": "desert"},
+                "",
+                set(),
+            )
+            self.assertEqual(build_evidence(before[0]).vision_tags, ("desert",))
+
+            source.write_bytes(b"B" * 4096)
+            os.utime(
+                source,
+                ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns),
+            )
+            checksum_b = sha256_file(source)
+            self.assertEqual(source.stat().st_size, original_stat.st_size)
+            self.assertEqual(source.stat().st_mtime_ns, original_stat.st_mtime_ns)
+            self.assertNotEqual(checksum_b, checksum_a)
+
+            ranked = rank_local_assets(
+                {"version": 1, "items": [item]},
+                {"visual_type": "image", "primary_query": "desert"},
+                "",
+                set(),
+            )
+
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(item["checksum_sha256"], checksum_a)
+        self.assertEqual(item["vision_tags_source_sha256"], checksum_a)
+        self.assertEqual(ranked[0]["checksum_sha256"], checksum_b)
+        self.assertEqual(ranked[0]["vision_tags_source_sha256"], checksum_a)
+        self.assertEqual(build_evidence(ranked[0]).vision_tags, ())
+
+    def test_rank_local_assets_missing_source_has_no_vision_authority(self) -> None:
+        from src.news.asset_manifest_builder import rank_local_assets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "missing.png"
+            item = _local_vision_item(missing, "a" * 64)
+            ranked = rank_local_assets(
+                {"version": 1, "items": [item]},
+                {"visual_type": "image", "primary_query": "desert"},
+                "",
+                set(),
+            )
+
+        self.assertEqual(ranked, [])
+        self.assertEqual(item["vision_tags"], ["desert"])
+        self.assertEqual(item["vision_tags_source_sha256"], "a" * 64)
+
+    def test_rank_local_assets_unreadable_source_fails_closed_without_erasing_envelope(self) -> None:
+        from unittest.mock import patch
+
+        from src.assets.frame_primitives import sha256_file
+        from src.assets.semantic_selection.evidence import build_evidence
+        from src.news.asset_manifest_builder import rank_local_assets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "desert.png"
+            source.write_bytes(b"A" * 4096)
+            checksum = sha256_file(source)
+            item = _local_vision_item(source, checksum)
+            with patch(
+                "src.news.asset_manifest_builder.sha256_file",
+                side_effect=PermissionError("unreadable"),
+            ):
+                ranked = rank_local_assets(
+                    {"version": 1, "items": [item]},
+                    {"visual_type": "image", "primary_query": "desert"},
+                    "",
+                    set(),
+                )
+
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(ranked[0]["checksum_sha256"], "")
+        self.assertEqual(ranked[0]["vision_tags"], ["desert"])
+        self.assertEqual(ranked[0]["vision_tags_source_sha256"], checksum)
+        self.assertEqual(ranked[0]["vision_tags_cache_key"], "semantic-cache-key")
+        self.assertEqual(build_evidence(ranked[0]).vision_tags, ())
+
+    def test_rank_local_assets_hashes_each_included_source_once(self) -> None:
+        from unittest.mock import patch
+
+        from src.assets.frame_primitives import sha256_file
+        from src.news.asset_manifest_builder import rank_local_assets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "desert.png"
+            source.write_bytes(b"A" * 4096)
+            checksum = sha256_file(source)
+            item = _local_vision_item(source, checksum)
+            with patch(
+                "src.news.asset_manifest_builder.sha256_file",
+                wraps=sha256_file,
+            ) as current_hash:
+                ranked = rank_local_assets(
+                    {"version": 1, "items": [item]},
+                    {"visual_type": "image", "primary_query": "desert"},
+                    "",
+                    set(),
+                )
+
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(current_hash.call_count, 1)
+
 
 def _fallback_provider(image_fixture: Path):
     from src.assets.models import AssetCandidate, AssetLicense

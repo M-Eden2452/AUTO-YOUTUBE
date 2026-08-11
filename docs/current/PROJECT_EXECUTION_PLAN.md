@@ -109,6 +109,13 @@ RED; owning radius 85 OK, expanded targeted radius 407 OK, full canonical
 offline suite 2186 OK. Next remains one focused independent re-review of these
 four repairs and shared M1-A...M1-C invariants; do not start M1-D.
 
+**M1-C MAJOR-RR-01 REPAIR CLOSURE.** The local representation adapter now
+hashes current local bytes once per included asset and exposes that observed checksum
+to the unchanged canonical Vision-envelope validator. Persisted checksum/envelope
+fields remain readable and unmodified; changed, missing or unreadable sources fail
+closed for Vision authority. RED: one owning failure; GREEN: owning 6, targeted 146,
+full canonical offline suite 2190. Checkpoint and next focused re-review are unchanged.
+
 **WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
 plan step. Он измеряет качество отбора по persisted evidence, а
 `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` доказал, что часть

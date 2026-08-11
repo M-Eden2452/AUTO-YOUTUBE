@@ -72,7 +72,8 @@ from src.assets.completion import (
     blocking_reasons,
     normalize_mode,
 )
-from src.assets.download import sha256_file, validate_local_asset
+from src.assets.download import validate_local_asset
+from src.assets.frame_primitives import sha256_file
 from src.assets.generated_infographic import build_generated_asset, spec_from_scene
 from src.assets.license_policy import apply_policy_to_candidate
 from src.assets.models import (
@@ -133,6 +134,7 @@ from src.assets.visual_preview import (
 from src.content.visual_planning import semantic_scene_queries
 from src.media_library import search_local_assets
 from src.providers.envato_manual_provider import EnvatoManualProvider
+from src.utils import project_path
 
 from .asset_manifest_summaries import (
     DEFAULT_MIN_VIDEO_CLIPS,
@@ -1492,6 +1494,17 @@ def rank_user_assets(
     return ranked
 
 
+def _current_local_checksum(asset: dict[str, Any]) -> str:
+    local_path = str(asset.get("local_path") or "")
+    if not local_path:
+        return ""
+    try:
+        return sha256_file(project_path(local_path))
+    except OSError:
+        # Keep tolerant local records readable without granting stale evidence authority.
+        return ""
+
+
 def rank_local_assets(
     media_index: dict[str, Any],
     scene: dict[str, Any],
@@ -1523,6 +1536,7 @@ def rank_local_assets(
         asset_id = asset.get("id") or stable_asset_id(asset)
         if asset_id in used_asset_ids:
             continue
+        current_checksum = _current_local_checksum(asset)
         duplicate_penalty = 25 if asset_id in used_asset_ids else 0
         width = int(asset.get("width") or 0)
         height = int(asset.get("height") or 0)
@@ -1554,7 +1568,7 @@ def rank_local_assets(
             "author": asset.get("author", ""),
             "license": asset.get("license", asset.get("license_note", "")),
             "provenance": asset.get("provenance", {}),
-            "checksum_sha256": asset.get("checksum_sha256", ""),
+            "checksum_sha256": current_checksum,
             "technical_validation": asset.get("technical_validation", {}),
             "rights_status": rights_status,
             "allowed_for_render": allowed,
