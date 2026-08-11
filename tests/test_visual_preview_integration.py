@@ -541,3 +541,58 @@ class M1CReviewIdentityIntegrationTests(unittest.TestCase):
         self.assertEqual(bundle.selected_candidate["vision_tags"], ["ocean"])
         self.assertEqual(bundle.selected_candidate["local_path"], "assets/downloaded/b.jpg")
         self.assertEqual(bundle.alternatives[0]["asset_id"], "candidate_a")
+
+    def test_compatibility_preview_rebuild_preserves_selected_fallback_lineage(self) -> None:
+        import json
+
+        from src.assets.download import sha256_file
+        from src.assets.visual_preview import prepare_visual_preview_for_project
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project_001"
+            source = project / "assets" / "downloaded" / "candidate_b.png"
+            source.parent.mkdir(parents=True)
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(source)
+            checksum = sha256_file(source)
+            candidate_a = _candidate("candidate_a")
+            ranked_b = _candidate("candidate_b")
+            selected_b = {
+                **ranked_b,
+                "path": str(source),
+                "local_path": str(source),
+                "downloaded_path": str(source),
+                "checksum_sha256": checksum,
+                "download_status": "downloaded",
+                "replaces_asset_id": "candidate_a",
+            }
+            manifest = {
+                "schema_version": 1,
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "ranked_candidates": [candidate_a, ranked_b],
+                        "selected_asset": selected_b,
+                    }
+                ],
+            }
+            (project / "assets" / "assets_manifest.json").write_text(
+                json.dumps(manifest),
+                encoding="utf-8",
+            )
+
+            prepare_visual_preview_for_project(
+                project_root=project,
+                project_id="project_001",
+                all_scenes=True,
+                offline=True,
+                no_html=True,
+            )
+            review = json.loads(
+                (project / "assets" / "review" / "visual_review_manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        reviewed = review["scenes"][0]["selected_candidate"]
+        self.assertEqual(reviewed["asset_id"], "candidate_b")
+        self.assertEqual(reviewed["replaces_asset_id"], "candidate_a")

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from src.assets.semantic_selection.decision import DECISION_KEY, has_decision, read_decision
+from src.assets.semantic_selection.evidence import current_vision_tags
 
 
 REVIEW_BUNDLE_REQUIRED_FIELDS = [
@@ -80,7 +81,7 @@ def create_scene_review_bundle(
             "source_page_url": candidate.get("source_page_url") or candidate.get("source_page") or candidate.get("source_url", ""),
             "author_name": candidate.get("author_name") or candidate.get("author", ""),
             "license": _safe_license(candidate.get("license")),
-            "vision_tags": list(candidate.get("vision_tags") or []),
+            "vision_tags": list(current_vision_tags(candidate)),
             "vision_tags_asset_id": str(candidate.get("vision_tags_asset_id") or ""),
             "vision_tags_source_sha256": str(
                 candidate.get("vision_tags_source_sha256") or ""
@@ -484,7 +485,7 @@ def attach_selected_asset(bundle: "SceneReviewBundle", selected: dict[str, Any] 
             or selected.get("author", ""),
             "license": _safe_license(selected.get("license")),
             "policy_status": _policy_status(selected),
-            "vision_tags": list(selected.get("vision_tags") or []),
+            "vision_tags": list(current_vision_tags(selected)),
             "vision_tags_asset_id": str(selected.get("vision_tags_asset_id") or ""),
             "vision_tags_source_sha256": str(
                 selected.get("vision_tags_source_sha256") or ""

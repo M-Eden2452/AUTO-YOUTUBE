@@ -245,6 +245,7 @@ def ensure_selected_asset_downloaded(
     scene_id: str,
     media_index: dict[str, Any],
     max_attempts: int,
+    fallback_from_asset_id: str = "",
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     ordered: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -263,15 +264,16 @@ def ensure_selected_asset_downloaded(
         ordered.append(candidate)
     attempts: list[dict[str, Any]] = []
     selected_asset_id = str(selected.get("asset_id") or "")
+    lineage_origin_asset_id = str(fallback_from_asset_id or selected_asset_id)
     for raw_candidate in ordered[: max(1, max_attempts)]:
         candidate = with_policy_decision(raw_candidate)
         candidate_asset_id = str(candidate.get("asset_id") or "")
-        if selected_asset_id and candidate_asset_id != selected_asset_id:
-            candidate["replaces_asset_id"] = selected_asset_id
+        if lineage_origin_asset_id and candidate_asset_id != lineage_origin_asset_id:
+            candidate["replaces_asset_id"] = lineage_origin_asset_id
             canonical_data = candidate.get("canonical_asset")
             if isinstance(canonical_data, dict):
                 rebound = AssetCandidate.from_dict(dict(canonical_data))
-                rebound.replaces_asset_id = selected_asset_id
+                rebound.replaces_asset_id = lineage_origin_asset_id
                 candidate["canonical_asset"] = rebound.to_dict()
 
         if candidate.get("review_required") or not candidate.get(

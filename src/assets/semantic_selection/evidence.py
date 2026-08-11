@@ -323,8 +323,8 @@ def bind_vision_tags(
     candidate: dict[str, Any],
     tags: list[str],
     *,
-    source_sha256: str = "",
-    cache_key: str = "",
+    source_sha256: str,
+    cache_key: str,
 ) -> dict[str, Any]:
     """Attach Vision evidence to the candidate and source snapshot it observed."""
     normalized = list(dict.fromkeys(str(tag).strip() for tag in tags if str(tag).strip()))
@@ -349,13 +349,16 @@ def current_vision_tags(candidate: dict[str, Any]) -> tuple[str, ...]:
     tags = tuple(str(tag).lower() for tag in candidate.get("vision_tags", []) or [])
     if not tags:
         return ()
-    asset_id = str(candidate.get("asset_id") or candidate.get("id") or "")
-    bound_asset_id = str(candidate.get("vision_tags_asset_id") or "")
-    if bound_asset_id and bound_asset_id != asset_id:
+    asset_id = str(candidate.get("asset_id") or candidate.get("id") or "").strip()
+    bound_asset_id = str(candidate.get("vision_tags_asset_id") or "").strip()
+    if not asset_id or not bound_asset_id or bound_asset_id != asset_id:
         return ()
-    current_sha256 = str(candidate.get("checksum_sha256") or "").casefold()
-    source_sha256 = str(candidate.get("vision_tags_source_sha256") or "").casefold()
-    if current_sha256 and (not source_sha256 or source_sha256 != current_sha256):
+    current_sha256 = str(candidate.get("checksum_sha256") or "").strip().casefold()
+    source_sha256 = str(candidate.get("vision_tags_source_sha256") or "").strip().casefold()
+    cache_key = str(candidate.get("vision_tags_cache_key") or "").strip()
+    if not current_sha256 or not source_sha256 or not cache_key:
+        return ()
+    if source_sha256 != current_sha256:
         return ()
     return tags
 

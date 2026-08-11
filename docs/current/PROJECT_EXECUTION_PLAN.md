@@ -8,10 +8,11 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  M1-C / VA-NEW-04+05 is closed as a bounded correction inside PLAN-9A.
-  The current checkpoint remains PLAN-9D. THE NEXT EXACT ACTION is one
-  independent read-only review of the exact M1-A, M1-B, and M1-C commits
-  plus the net production identity/evidence path. Do not start M1-D.
+  M1-C / VA-NEW-04+05 and its bounded PLAN-9A repair are implementation-complete.
+  The current checkpoint remains PLAN-9D. THE NEXT EXACT ACTION is one focused
+  independent read-only re-review of the exact M1-A, M1-B, M1-C original and
+  M1-C repair commits plus the net production identity/evidence path. Do not
+  start M1-D.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -93,6 +94,20 @@ repository or second evidence owner. Evidence: characterization RED (2 failures,
 4 errors), targeted 217 OK, full canonical offline suite 2177 OK. Owner permission
 in the M1-C prompt satisfies the earlier decision gate. Next: Review #1 for M1-A...
 M1-C; do not start M1-D. Checkpoint remains PLAN-9D.
+
+**M1-C REPAIR CLOSURE.** The bounded PLAN-9A repair in the commit containing
+this record closes the four confirmed independent-review gaps without changing
+selection, readiness or schema ownership. Vision tags now have content-evidence
+authority only when asset id, observed-source SHA-256, semantic cache key and
+current representation checksum form a complete matching envelope; old/partial
+objects remain readable but fail closed. Draft completion preserves the
+original A identity when materializing fallback B, active local ranking carries
+the canonical envelope, and compatibility preview rebuild keeps existing
+fallback lineage. No migration, schema-version bump, new evidence store or
+second selector/readiness owner was added. Evidence: all four paths reproduced
+RED; owning radius 85 OK, expanded targeted radius 407 OK, full canonical
+offline suite 2186 OK. Next remains one focused independent re-review of these
+four repairs and shared M1-A...M1-C invariants; do not start M1-D.
 
 **WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
 plan step. Он измеряет качество отбора по persisted evidence, а

@@ -148,9 +148,27 @@ class ContinuityEvidenceLineageTests(unittest.TestCase):
         # Offline: no Vision call is made here. This fixes the future contract --
         # validated Vision evidence reaches continuity through the canonical
         # evidence owner and needs no second route.
-        report = check_continuity(_entries(_asset("seen", vision_tags=["desert", "sand"])))
+        report = check_continuity(
+            _entries(
+                _asset(
+                    "seen",
+                    checksum_sha256="observed-bytes",
+                    vision_tags=["desert", "sand"],
+                    vision_tags_asset_id="seen",
+                    vision_tags_source_sha256="observed-bytes",
+                    vision_tags_cache_key="semantic-cache-key",
+                )
+            )
+        )
 
         self.assertEqual(report["environments"][1], "desert")
+
+    def test_bare_vision_tags_are_not_continuity_evidence(self) -> None:
+        report = check_continuity(
+            _entries(_asset("unbound", vision_tags=["desert", "sand"]))
+        )
+
+        self.assertEqual(report["environments"][1], "unknown")
 
 
 def _library_item(asset_id: str, words: list[str], local_path: Path, source_url: str) -> dict:

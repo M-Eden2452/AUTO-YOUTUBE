@@ -123,6 +123,7 @@ from src.assets.semantic_visual_service import (
 from src.assets.semantic_selection.evidence import (
     bind_vision_tags,
     carry_vision_evidence,
+    current_vision_tags,
 )
 from src.assets.visual_preview import (
     VisualPreviewRequest,
@@ -799,7 +800,7 @@ class AssetManifestBuilder:
                 candidate["canonical_asset"] = AssetCandidate.from_dict(
                     carry_vision_evidence(candidate, dict(canonical))
                 ).to_dict()
-            observed = True
+            observed = bool(current_vision_tags(candidate)) or observed
         if not (observed and self._semantic_reselection_allowed(state)):
             return
         # The same canonical policy as the metadata pass, with the same window:
@@ -889,6 +890,7 @@ class AssetManifestBuilder:
         )
 
     def _download_and_complete(self, state: SceneBuildState) -> None:
+        original_selected_asset_id = str((state.selected or {}).get("asset_id") or "")
         if (
             state.generated_asset is not None
             and state.selected is state.generated_asset
@@ -940,6 +942,7 @@ class AssetManifestBuilder:
                 provider_capabilities=state.provider_capabilities,
                 scene_provider_attempts=state.scene_provider_attempts,
                 allow_emergency_backdrop=self.allow_emergency_backdrop,
+                original_selected_asset_id=original_selected_asset_id,
             )
             state.download_attempts.extend(ladder_attempts)
         if state.scene_review_bundle is not None:
@@ -1578,6 +1581,7 @@ def rank_local_assets(
             ),
             "selected_by": "local_library",
         }
+        carry_vision_evidence(asset, item)
         ranked.append(with_policy_decision(item))
     return ranked
 

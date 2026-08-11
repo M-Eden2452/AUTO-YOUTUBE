@@ -111,7 +111,15 @@ class SemanticAssetSelectionTests(unittest.TestCase):
 
         scene = analyze_scene({"primary_query": "whale ocean aerial", "visual_priority": "exact_subject"})
         candidate = _candidate("tagged_desert", "ocean aerial", "ocean")
-        candidate["vision_tags"] = ["desert", "road"]
+        candidate.update(
+            {
+                "checksum_sha256": "observed-bytes",
+                "vision_tags": ["desert", "road"],
+                "vision_tags_asset_id": candidate["asset_id"],
+                "vision_tags_source_sha256": "observed-bytes",
+                "vision_tags_cache_key": "semantic-cache-key",
+            }
+        )
         ranked = rank_candidates(scene, [candidate])
 
         self.assertTrue(ranked[0]["rejected"])
@@ -180,6 +188,53 @@ if __name__ == "__main__":
     unittest.main()
 
 class M1CVisionEvidenceBindingTests(unittest.TestCase):
+    def test_bare_vision_tags_have_no_content_authority(self) -> None:
+        from src.assets.semantic_selection.evidence import build_evidence
+
+        evidence = build_evidence(
+            {"asset_id": "candidate_a", "vision_tags": ["desert", "road"]}
+        )
+
+        self.assertEqual(evidence.vision_tags, ())
+        self.assertNotIn("desert", evidence.token_set)
+
+    def test_partial_vision_envelopes_have_no_content_authority(self) -> None:
+        from src.assets.semantic_selection.evidence import build_evidence
+
+        complete = {
+            "asset_id": "candidate_a",
+            "checksum_sha256": "same-bytes",
+            "vision_tags": ["desert"],
+            "vision_tags_asset_id": "candidate_a",
+            "vision_tags_source_sha256": "same-bytes",
+            "vision_tags_cache_key": "semantic-cache-key",
+        }
+        for missing_field in (
+            "vision_tags_asset_id",
+            "vision_tags_source_sha256",
+            "vision_tags_cache_key",
+        ):
+            with self.subTest(missing_field=missing_field):
+                candidate = dict(complete)
+                candidate[missing_field] = ""
+
+                self.assertEqual(build_evidence(candidate).vision_tags, ())
+
+    def test_vision_tags_without_current_checksum_have_no_content_authority(self) -> None:
+        from src.assets.semantic_selection.evidence import build_evidence
+
+        evidence = build_evidence(
+            {
+                "asset_id": "candidate_a",
+                "vision_tags": ["desert"],
+                "vision_tags_asset_id": "candidate_a",
+                "vision_tags_source_sha256": "observed-bytes",
+                "vision_tags_cache_key": "semantic-cache-key",
+            }
+        )
+
+        self.assertEqual(evidence.vision_tags, ())
+
     def test_snapshot_specific_tags_fail_closed_for_different_representation(self) -> None:
         from src.assets.semantic_selection.evidence import build_evidence
 
@@ -190,6 +245,7 @@ class M1CVisionEvidenceBindingTests(unittest.TestCase):
                 "vision_tags": ["desert", "road"],
                 "vision_tags_asset_id": "candidate_a",
                 "vision_tags_source_sha256": "preview-bytes",
+                "vision_tags_cache_key": "semantic-cache-key",
             }
         )
 
@@ -206,7 +262,24 @@ class M1CVisionEvidenceBindingTests(unittest.TestCase):
                 "vision_tags": ["ocean", "whale"],
                 "vision_tags_asset_id": "candidate_a",
                 "vision_tags_source_sha256": "same-bytes",
+                "vision_tags_cache_key": "semantic-cache-key",
             }
         )
 
         self.assertEqual(evidence.vision_tags, ("ocean", "whale"))
+
+    def test_old_candidate_reads_but_bare_vision_tags_are_not_trusted(self) -> None:
+        from src.assets.models import AssetCandidate
+        from src.assets.semantic_selection.evidence import build_evidence
+
+        loaded = AssetCandidate.from_dict(
+            {
+                "asset_id": "legacy_candidate",
+                "provider": "local",
+                "media_type": "image",
+                "vision_tags": ["desert"],
+            }
+        )
+
+        self.assertEqual(loaded.vision_tags, ["desert"])
+        self.assertEqual(build_evidence(loaded.to_dict()).vision_tags, ())

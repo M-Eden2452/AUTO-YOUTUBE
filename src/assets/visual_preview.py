@@ -439,7 +439,11 @@ def prepare_visual_preview_for_project(
     no_html: bool = False,
     offline: bool = False,
 ) -> dict[str, Any]:
-    from .review_bundle import create_scene_review_bundle, write_review_bundle
+    from .review_bundle import (
+        attach_selected_asset,
+        create_scene_review_bundle,
+        write_review_bundle,
+    )
 
     root = Path(project_root)
     visual_plan = _read_json(_visual_plan_path(root))
@@ -479,7 +483,7 @@ def prepare_visual_preview_for_project(
             target_aspect_ratio=target_aspect_ratio,
             manual_request=scene_entry.get("manual_request", {}),
         )
-        bundles.append(bundle)
+        bundles.append(attach_selected_asset(bundle, selected))
     result = write_review_bundle(root, bundles, write_html=not no_html)
     return {"status": "completed", "scene_count": len(bundles), **result}
 

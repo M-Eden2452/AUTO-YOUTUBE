@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 from src.assets.completion import (
     MODE_DRAFT_COMPLETE,
+    SLOT_PRIMARY,
     ReuseLedger,
     SceneVisualAssembly,
     blocking_reasons,
@@ -96,6 +97,7 @@ def complete_scene_assembly(
     routing_decision: dict[str, Any] | None = None,
     provider_capabilities: dict[str, dict[str, Any]] | None = None,
     scene_provider_attempts: list[dict[str, Any]] | None = None,
+    original_selected_asset_id: str = "",
     allow_emergency_backdrop: bool = True,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     """Assemble ``draft_complete`` around the canonical primary selection."""
@@ -196,7 +198,15 @@ def complete_scene_assembly(
             asset = slot.selected_asset
             if dry_run or project_root is None:
                 continue
-            if has_local_file(asset):
+            asset_id = str(asset.get("asset_id") or "")
+            fallback_from_asset_id = (
+                original_selected_asset_id
+                if slot.purpose == SLOT_PRIMARY
+                and original_selected_asset_id
+                and asset_id != original_selected_asset_id
+                else ""
+            )
+            if has_local_file(asset) and not fallback_from_asset_id:
                 downloaded = asset
             else:
                 download_candidate = dict(asset)
@@ -210,6 +220,7 @@ def complete_scene_assembly(
                     scene_id=scene_id,
                     media_index=media_index,
                     max_attempts=1,
+                    fallback_from_asset_id=fallback_from_asset_id,
                 )
                 attempts.extend(slot_attempts)
                 if downloaded:

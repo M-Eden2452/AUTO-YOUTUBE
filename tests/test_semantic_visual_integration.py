@@ -537,18 +537,22 @@ def _build(
 
 
 def _library_item(asset_id: str, root: Path, title: str, keywords: list[str]) -> dict[str, Any]:
+    from src.assets.download import sha256_file
+
+    local_path = root / f"{asset_id}.png"
     return {
         "schema_version": 1,
         "id": asset_id,
         "type": "image",
         "provider": "local",
         "provider_asset_id": asset_id,
-        "local_path": str(root / f"{asset_id}.png"),
+        "local_path": str(local_path),
         "title": title,
         "description": title,
         "keywords": keywords,
         "tags": keywords,
         "source_url": f"file://{asset_id}",
+        "checksum_sha256": sha256_file(local_path),
         "width": 1080,
         "height": 1920,
         "rights_status": "licensed",
@@ -815,40 +819,11 @@ class M1CProductionMaterializationIntegrationTests(unittest.TestCase):
         self.assertEqual(sorted(build_evidence(selected).vision_tags), ["ocean", "whale"])
         self.assertEqual(selected["provenance"]["provider_asset_id"], "scene_001_image_001")
         self.assertEqual(selected["license"]["rights_status"], "licensed")
+        self.assertEqual(selected["replaces_asset_id"], "")
 
     def test_download_fallback_persists_actual_candidate_and_lineage(self) -> None:
-        import json
         from PIL import Image
-        from src.assets.models import AssetCandidate
-        from src.assets.provider_contract import ProviderValidationError
         from src.news.asset_manager import build_assets_manifest
-        from src.providers.fake_provider import FakeStockProvider
-
-        class FallbackProvider(FakeStockProvider):
-            def search(self, request):
-                base = super().search(request)[0]
-                first = AssetCandidate.from_dict(base.to_dict())
-                first.asset_id = "fallback_candidate_a"
-                first.provider_asset_id = "candidate-a"
-                first.source_page_url = "https://fake.local/assets/candidate-a"
-                first.provenance.provider_asset_id = "candidate-a"
-                first.provenance.source_page_url = first.source_page_url
-                second = AssetCandidate.from_dict(base.to_dict())
-                second.asset_id = "fallback_candidate_b"
-                second.provider_asset_id = "candidate-b"
-                second.source_page_url = "https://fake.local/assets/candidate-b"
-                second.provenance.provider_asset_id = "candidate-b"
-                second.provenance.source_page_url = second.source_page_url
-                return [first, second]
-
-            def download(self, candidate, destination, context):
-                if candidate.asset_id == "fallback_candidate_a":
-                    raise ProviderValidationError(
-                        "candidate A cannot be materialized",
-                        provider=self.name,
-                        query=candidate.search_query,
-                    )
-                return super().download(candidate, destination, context)
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -859,7 +834,7 @@ class M1CProductionMaterializationIntegrationTests(unittest.TestCase):
                 visual_plan=_m1c_visual_plan(),
                 user_assets=[],
                 media_index={"version": 1, "items": []},
-                providers=[FallbackProvider(image_fixture=fixture)],
+                providers=[_fallback_provider(fixture)],
                 dry_run=False,
                 project_root=project,
                 project_id="project_001",
@@ -877,10 +852,179 @@ class M1CProductionMaterializationIntegrationTests(unittest.TestCase):
         self.assertEqual(selected["replaces_asset_id"], "fallback_candidate_a")
         self.assertEqual(selected["provider_asset_id"], "candidate-b")
         self.assertEqual(selected["license"]["rights_status"], "licensed")
+        self.assertEqual(
+            selected["license"]["attribution_text"],
+            "Fallback candidate B attribution",
+        )
+        self.assertEqual(
+            selected["provenance"]["source_page_url"],
+            "https://fake.local/assets/candidate-b",
+        )
         self.assertEqual(reviewed["asset_id"], "fallback_candidate_b")
         self.assertEqual(reviewed["provider_asset_id"], "candidate-b")
         self.assertEqual(reviewed["replaces_asset_id"], "fallback_candidate_a")
         self.assertEqual(review["scenes"][0]["alternatives"][0]["asset_id"], "fallback_candidate_a")
+
+    def test_draft_complete_download_fallback_keeps_original_selection_lineage(self) -> None:
+        from PIL import Image
+        from src.assets.completion import MODE_DRAFT_COMPLETE
+        from src.news.asset_manager import build_assets_manifest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fallback.png"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(fixture)
+            project = root / "project_001"
+            manifest = build_assets_manifest(
+                visual_plan=_m1c_visual_plan(),
+                user_assets=[],
+                media_index={"version": 1, "items": []},
+                providers=[_fallback_provider(fixture)],
+                dry_run=False,
+                project_root=project,
+                project_id="project_001",
+                asset_selection={"semantic_visual": {}},
+                max_download_attempts=1,
+                completion_mode=MODE_DRAFT_COMPLETE,
+                allow_infographic_fallback=False,
+                allow_emergency_backdrop=False,
+            )
+            review = json.loads(
+                (project / "assets" / "review" / "visual_review_manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        selected = manifest["scenes"][0]["selected_asset"]
+        reviewed = review["scenes"][0]["selected_candidate"]
+        self.assertEqual(selected["asset_id"], "fallback_candidate_b")
+        self.assertEqual(selected["replaces_asset_id"], "fallback_candidate_a")
+        self.assertEqual(reviewed["asset_id"], "fallback_candidate_b")
+        self.assertEqual(reviewed["replaces_asset_id"], "fallback_candidate_a")
+        self.assertEqual(manifest["completion"]["mode"], MODE_DRAFT_COMPLETE)
+
+
+class M1CLocalVisionEnvelopeCarryTests(unittest.TestCase):
+    def test_rank_local_assets_preserves_complete_valid_vision_envelope(self) -> None:
+        from PIL import Image
+        from src.assets.download import sha256_file
+        from src.assets.semantic_selection.evidence import build_evidence
+        from src.news.asset_manifest_builder import rank_local_assets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "desert.png"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(source)
+            checksum = sha256_file(source)
+            ranked = rank_local_assets(
+                {"version": 1, "items": [_local_vision_item(source, checksum)]},
+                {"visual_type": "image", "primary_query": "desert"},
+                "",
+                set(),
+            )
+
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(ranked[0]["vision_tags"], ["desert"])
+        self.assertEqual(ranked[0]["vision_tags_asset_id"], "local_a")
+        self.assertEqual(ranked[0]["vision_tags_source_sha256"], checksum)
+        self.assertEqual(ranked[0]["vision_tags_cache_key"], "semantic-cache-key")
+        self.assertEqual(build_evidence(ranked[0]).vision_tags, ("desert",))
+
+    def test_rank_local_assets_does_not_validate_mismatched_vision_envelope(self) -> None:
+        from PIL import Image
+        from src.assets.download import sha256_file
+        from src.assets.semantic_selection.evidence import build_evidence
+        from src.news.asset_manifest_builder import rank_local_assets
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "desert.png"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(source)
+            checksum = sha256_file(source)
+            item = _local_vision_item(source, checksum)
+            item["vision_tags_source_sha256"] = "different-bytes"
+            ranked = rank_local_assets(
+                {"version": 1, "items": [item]},
+                {"visual_type": "image", "primary_query": "desert"},
+                "",
+                set(),
+            )
+
+        self.assertEqual(len(ranked), 1)
+        self.assertEqual(build_evidence(ranked[0]).vision_tags, ())
+
+
+def _fallback_provider(image_fixture: Path):
+    from src.assets.models import AssetCandidate, AssetLicense
+    from src.assets.provider_contract import ProviderValidationError
+    from src.providers.fake_provider import FakeStockProvider
+
+    class FallbackProvider(FakeStockProvider):
+        def search(self, request):
+            base = super().search(request)[0]
+            first = AssetCandidate.from_dict(base.to_dict())
+            first.asset_id = "fallback_candidate_a"
+            first.provider_asset_id = "candidate-a"
+            first.source_page_url = "https://fake.local/assets/candidate-a"
+            first.provenance.provider_asset_id = "candidate-a"
+            first.provenance.source_page_url = first.source_page_url
+            second = AssetCandidate.from_dict(base.to_dict())
+            second.asset_id = "fallback_candidate_b"
+            second.provider_asset_id = "candidate-b"
+            second.source_page_url = "https://fake.local/assets/candidate-b"
+            second.provenance.provider_asset_id = "candidate-b"
+            second.provenance.source_page_url = second.source_page_url
+            return [first, second]
+
+        def resolve_license(self, candidate):
+            resolved = super().resolve_license(candidate)
+            if candidate.asset_id != "fallback_candidate_b":
+                return resolved
+            candidate.license = AssetLicense.from_dict(
+                {
+                    **resolved.to_dict(),
+                    "attribution_text": "Fallback candidate B attribution",
+                    "notes": "License evidence resolved specifically for candidate B.",
+                }
+            )
+            return candidate.license
+
+        def download(self, candidate, destination, context):
+            if candidate.asset_id == "fallback_candidate_a":
+                raise ProviderValidationError(
+                    "candidate A cannot be materialized",
+                    provider=self.name,
+                    query=candidate.search_query,
+                )
+            return super().download(candidate, destination, context)
+
+    return FallbackProvider(image_fixture=image_fixture)
+
+
+def _local_vision_item(source: Path, checksum: str) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "id": "local_a",
+        "type": "image",
+        "provider": "local_library",
+        "provider_asset_id": "local_a",
+        "local_path": str(source),
+        "title": "Desert landscape",
+        "keywords": ["desert"],
+        "rights_status": "licensed",
+        "allowed_for_render": True,
+        "review_required": False,
+        "license": {
+            "license_name": "local_test_license",
+            "rights_status": "licensed",
+            "allowed_for_render": True,
+            "review_required": False,
+        },
+        "provenance": {"provider": "local_library", "provider_asset_id": "local_a"},
+        "checksum_sha256": checksum,
+        "vision_tags": ["desert"],
+        "vision_tags_asset_id": "local_a",
+        "vision_tags_source_sha256": checksum,
+        "vision_tags_cache_key": "semantic-cache-key",
+    }
 
 
 def _m1c_visual_plan() -> dict:
