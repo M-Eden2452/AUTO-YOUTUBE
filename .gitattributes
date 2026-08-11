@@ -1,3 +1,38 @@
+* text=auto
+
+*.py text eol=lf
+*.pyi text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+*.tsv text eol=lf
+*.srt text eol=lf
+*.ass text eol=lf
+*.svg text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.mp3 binary
+*.wav binary
+*.mp4 binary
+*.mov binary
+*.mkv binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+
 # sh-хуки обязаны оставаться LF: CRLF после autocrlf-checkout ломает /bin/sh
 # ("bad interpreter" / "\r: command not found"), и pre-commit гейт молча исчезает.
 .githooks/* text eol=lf
