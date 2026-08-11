@@ -11,16 +11,16 @@ next_exact_action: >-
   Mini plan reconciliation 2026-08-11 (docs-only) supersedes прежнюю
   формулировку «next exact action — LIVE-5». Закрыты WP0-A machine gates
   (`98e58fe`, `a9bfc11`) и VA-NEW-01 / M1-A (`15cb20d`, correction внутри
-  PLAN-9C-3); ранее — VA-NEW-03 (`37ca498`, correction внутри PLAN-9C-2).
+  PLAN-9C-3), VA-NEW-03 (`37ca498`) и VA-NEW-02 / M1-B (этот commit).
   LIVE-5 перестал быть следующим действием, потому что
   `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` (§40, ответ 12 и
-  «Краткий отчёт владельцу») требует до него закрыть ещё VA-NEW-02, 04, 05,
-  06, 08, 09 и минимальные budget guards 10/12. THE NEXT EXACT ACTION —
-  отдельный owner-issued bounded correction **VA-NEW-02** (source-snapshot
-  identity локального preview cache; owner packaging label M1-B) внутри
-  существующего canonical owner **PLAN-9A**; полный contract PLAN-9A этим не
-  начинается, и уже выданный ему persisted approval на новый состав полей не
-  распространяется. `current_checkpoint` остаётся **PLAN-9D**; PLAN-9D-D
+  «Краткий отчёт владельцу») требует до него закрыть ещё VA-NEW-04, 05, 06,
+  08, 09 и минимальные budget guards 10/12. THE NEXT EXACT ACTION — отдельный
+  owner decision для bounded correction **M1-C / VA-NEW-04+05** внутри
+  существующего canonical owner **PLAN-9A**: до implementation отдельно
+  утвердить persisted `replaces_asset_id` и evidence-carry scope. Полный
+  contract PLAN-9A этим не начинается. `current_checkpoint` остаётся
+  **PLAN-9D**; PLAN-9D-D
   остаётся NOT STARTED / blocked до LIVE-5 и owner decision, а сам LIVE-5
   остаётся network-действием и требует отдельного owner approval
   непосредственно перед запуском. Полная сводка маршрута — блок «Mini plan
@@ -89,7 +89,11 @@ quality gates» и правило «Gates» в `AGENTS.md` — commits `98e58fe`
 baseline-счётчики живут в `pyproject.toml` и в routing-документы не
 копируются. `VA-NEW-01` / `M1-A` закрыт commit `15cb20d` как post-audit
 correction внутри `PLAN-9C-3`; `VA-NEW-03` — commit `37ca498` внутри
-`PLAN-9C-2`. Ни один из них checkpoint не двигал.
+`PLAN-9C-2`. `VA-NEW-02` / `M1-B` закрыт содержащим эту запись commit:
+локальный preview key v2 связывает evidence с SHA-256 текущих source bytes и
+фактическим local transform (`max_dimension`, `video_preview_max_duration_sec`),
+а missing/unreadable source fail closed. Evidence: baseline RED на `104e5a3`,
+targeted radius 206 OK, full offline suite 2170 OK, gates OK. Checkpoint не двигался.
 
 **WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
 plan step. Он измеряет качество отбора по persisted evidence, а
@@ -98,7 +102,7 @@ plan step. Он измеряет качество отбора по persisted ev
 о старых bytes, потерянные partial mixed-media результаты) и что бюджет
 запросов не ограничен. Аудит (§40, ответ 12; «Краткий отчёт владельцу») прямо
 называет обязательный до LIVE-5 набор: **VA-NEW-01, 02, 03, 04, 05, 06, 08,
-09 плюс минимальные budget guards 10/12**. Из него закрыты 01 и 03.
+09 плюс минимальные budget guards 10/12**. Из него закрыты 01, 02 и 03.
 
 **WHAT MUST HAPPEN BEFORE LIVE-5.** Каждый пункт — bounded correction внутри
 уже существующего owner; новых PLAN-ID нет. Класс **A** — прямо искажает
@@ -110,7 +114,7 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
 |---|---|---|---|---|---|---|---|
 | M1-A | VA-NEW-01 continuity self-evidence | `continuity_checker` → `evidence.build_evidence` | **PLAN-9C-3** (correction) | evidence ownership границы 9C-3 | A | **закрыт** `15cb20d` | да |
 | — | VA-NEW-03 technical rerank | `_prepare_visual_review` | **PLAN-9C-2** (correction) | второй post-selection owner | A | **закрыт** `37ca498` | да |
-| M1-B | VA-NEW-02 preview cache не идентифицирует source snapshot | `src/assets/visual_preview.py` | **PLAN-9A** | persistence/provenance | A | да | да |
+| M1-B | VA-NEW-02 preview cache не идентифицирует source snapshot | `src/assets/visual_preview.py` | **PLAN-9A** | persistence/provenance | A | **закрыт этим M1-B commit** | да |
 | M1-C | VA-NEW-04 review artifact смешивает candidate A с downloaded B | `src/assets/review_bundle.py` | **PLAN-9A** | provenance selected asset | A | да | да |
 | M1-C | VA-NEW-05 Vision tags теряются при download rebuild | `asset_manifest_builder` / `asset_provider_adapters` | **PLAN-9A** | evidence carry across representation | B (blocker Vision) | да, пакетом с 04 | нет для v1 без Vision, да для Vision |
 | M1-D | VA-NEW-08 resume без input/policy/provider fingerprints | `src/news/pipeline.py`, `project_store` | **PLAN-9A** | persisted resume contract | B (до опоры на resume в LIVE) | да | да |

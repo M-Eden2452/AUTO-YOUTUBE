@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -267,6 +268,109 @@ class VisualPreviewIntegrationTests(unittest.TestCase):
             self.assertEqual(analyses[0]["analysis_status"], "passed")
             self.assertEqual(analyses[0]["preview"]["preview_media_type"], "image")
 
+    def test_local_preview_cache_reuses_unchanged_source_bytes(self) -> None:
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "manual.png"
+            _write_fixed_size_image(source, (220, 20, 20))
+            candidate = {
+                **_candidate("manual_asset", provider="user"),
+                "local_path": str(source),
+                "path": str(source),
+                "checksum_sha256": "declared-provenance-is-not-source-identity",
+            }
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1, project_root=str(root), offline=True)
+
+            first = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)[0]
+            second = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)[0]
+
+            self.assertEqual(first["preview"]["cache_key"], second["preview"]["cache_key"])
+            self.assertEqual(first["preview"]["cache_status"], "stored")
+            self.assertEqual(second["preview"]["cache_status"], "hit")
+
+    def test_local_preview_cache_tracks_current_bytes_at_same_path(self) -> None:
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "manual.png"
+            _write_fixed_size_image(source, (220, 20, 20))
+            source_stat = source.stat()
+            candidate = {
+                **_candidate("manual_asset", provider="user"),
+                "local_path": str(source),
+                "path": str(source),
+                "checksum_sha256": "unchanged-stale-provenance",
+            }
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1, project_root=str(root), offline=True)
+
+            first = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)[0]
+            _write_fixed_size_image(source, (20, 20, 220))
+            os.utime(source, ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns))
+            self.assertEqual(source.stat().st_size, source_stat.st_size)
+            self.assertEqual(source.stat().st_mtime_ns, source_stat.st_mtime_ns)
+
+            second = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)[0]
+
+            self.assertNotEqual(first["preview"]["cache_key"], second["preview"]["cache_key"])
+            self.assertEqual(second["preview"]["cache_status"], "stored")
+            with Image.open(second["preview"]["local_path"]) as image:
+                red, _green, blue = image.convert("RGB").getpixel((image.width // 2, image.height // 2))
+            self.assertGreater(blue, red)
+
+    def test_missing_local_source_does_not_use_stale_preview(self) -> None:
+        from src.assets.visual_preview import VisualPreviewRequest, prepare_candidate_preview_analyses
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "manual.png"
+            _write_fixed_size_image(source, (220, 20, 20))
+            candidate = {**_candidate("manual_asset", provider="user"), "local_path": str(source), "path": str(source)}
+            request = VisualPreviewRequest(project_id="p", scene_id="s", top_k=1, project_root=str(root), offline=True)
+            first = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)[0]
+            source.unlink()
+
+            second = prepare_candidate_preview_analyses([candidate], providers_by_name={}, request=request)[0]
+
+            self.assertEqual(first["analysis_status"], "passed")
+            self.assertEqual(second["analysis_status"], "failed")
+            self.assertFalse(second["sampled_frames"])
+
+    def test_local_video_preview_cache_tracks_duration_transform(self) -> None:
+        from src.assets.models import AssetCandidate
+        from src.assets.visual_preview import VisualPreviewRequest, resolve_candidate_preview
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "manual.mp4"
+            source.write_bytes(b"stable-local-video-source")
+            candidate = AssetCandidate.from_dict(
+                {
+                    **_candidate("manual_video", provider="user"),
+                    "media_type": "video",
+                    "type": "video",
+                    "local_path": str(source),
+                    "path": str(source),
+                }
+            )
+            request = VisualPreviewRequest(project_id="p", scene_id="s", offline=True)
+
+            longer = resolve_candidate_preview(
+                candidate,
+                provider=None,
+                request=request,
+                video_preview_max_duration_sec=8.0,
+            )
+            shorter = resolve_candidate_preview(
+                candidate,
+                provider=None,
+                request=request,
+                video_preview_max_duration_sec=4.0,
+            )
+
+            self.assertNotEqual(longer.cache_key, shorter.cache_key)
+
     def test_provider_specific_preview_selection(self) -> None:
         from src.assets.models import AssetCandidate
         from src.assets.visual_preview import VisualPreviewRequest, resolve_candidate_preview
@@ -338,6 +442,13 @@ def _candidate(asset_id: str, *, provider: str = "fake", preview_url: str = "") 
         "final_score": 50.0,
         "total_score": 50.0,
     }
+
+
+def _write_fixed_size_image(path: Path, color: tuple[int, int, int]) -> None:
+    # BMP has a fixed byte size for fixed dimensions, independent of pixel values.
+    # The .png suffix keeps this on the active image-preview path while Pillow reads
+    # the actual encoded format. This lets the characterization defeat path+stat keys.
+    Image.new("RGB", (96, 128), color).save(path, format="BMP")
 
 
 def _analysis(asset_id: str, *, status: str = "passed", technical: float = 75.0, frame_path: Path | None = None) -> dict[str, Any]:

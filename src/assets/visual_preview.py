@@ -16,7 +16,7 @@ from PIL import Image
 
 from src.runtime_network import NETWORK_ACTION_PREVIEW_DOWNLOAD
 
-from .frame_sampling import SampledFrame, ffprobe_media_info, sample_frames, sha256_file
+from .frame_sampling import ffprobe_media_info, sample_frames, sha256_file
 from .http_client import ProviderHttpClient
 from .models import AssetCandidate, utc_now_iso
 from .perceptual_similarity import signature_from_frames, signature_from_image
@@ -227,7 +227,9 @@ def compute_preview_cache_key(
     *,
     preview_source_url: str,
     rendition: str = "provider_preview",
+    video_preview_max_duration_sec: float = 8.0,
 ) -> str:
+    local_source = _preview_local_source_path(preview_source_url)
     payload = {
         "version": 1,
         "provider": candidate.provider,
@@ -240,6 +242,16 @@ def compute_preview_cache_key(
         "sample_count": request.sample_count,
         "top_k": request.top_k,
     }
+    if local_source is not None:
+        # A pathname identifies a location, not the bytes technical review or
+        # Vision will observe. Hash the current local snapshot before any cache
+        # lookup so in-place/manual replacements cannot inherit old evidence.
+        payload["version"] = 2
+        payload["source_sha256"] = sha256_file(local_source)
+        payload["local_preview_transform"] = {
+            "max_dimension": 720,
+            "video_max_duration_sec": float(video_preview_max_duration_sec),
+        }
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -274,6 +286,7 @@ def resolve_candidate_preview(
     *,
     provider: Any | None,
     request: VisualPreviewRequest,
+    video_preview_max_duration_sec: float = 8.0,
 ) -> CandidatePreview:
     preview = CandidatePreview(
         candidate_id=candidate.asset_id,
@@ -317,7 +330,13 @@ def resolve_candidate_preview(
         preview.fallback_reason = "safe_original_fallback"
         preview.rendition = "original_fallback"
     source = preview.preview_local_source or preview.preview_source_url
-    preview.cache_key = compute_preview_cache_key(candidate, request, preview_source_url=source, rendition=preview.rendition)
+    preview.cache_key = compute_preview_cache_key(
+        candidate,
+        request,
+        preview_source_url=source,
+        rendition=preview.rendition,
+        video_preview_max_duration_sec=video_preview_max_duration_sec,
+    )
     return preview
 
 
@@ -336,8 +355,19 @@ def prepare_candidate_preview_analyses(
     for raw in list(candidates)[: max(1, request.top_k)]:
         candidate = AssetCandidate.from_dict(raw)
         provider = providers_by_name.get(candidate.provider)
-        preview = resolve_candidate_preview(candidate, provider=provider, request=request)
+        preview = CandidatePreview(
+            candidate_id=candidate.asset_id,
+            provider=candidate.provider,
+            provider_asset_id=candidate.provider_asset_id,
+            preview_media_type=candidate.media_type,
+        )
         try:
+            preview = resolve_candidate_preview(
+                candidate,
+                provider=provider,
+                request=request,
+                video_preview_max_duration_sec=float(config.get("video_preview_max_duration_sec", 8.0)),
+            )
             record = _materialize_preview(preview, cache, request, config)
             frames = sample_frames(
                 record.local_path,
@@ -737,6 +767,22 @@ def _file_url_to_path(url: str) -> Path | None:
         raw = raw[1:]
     path = Path(raw)
     return path if path.exists() else None
+
+
+def _preview_local_source_path(source: str) -> Path | None:
+    if not source:
+        return None
+    if re.match(r"^[A-Za-z]:[\\/]", source):
+        return Path(source)
+    parsed = urlparse(source)
+    if parsed.scheme == "file":
+        raw = unquote(parsed.path)
+        if re.match(r"^/[A-Za-z]:/", raw):
+            raw = raw[1:]
+        return Path(raw)
+    if parsed.scheme:
+        return None
+    return Path(source)
 
 
 def _media_type_from_path(path: Path, *, fallback: str) -> str:
