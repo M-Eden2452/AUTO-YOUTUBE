@@ -779,3 +779,125 @@ def _semantic_request(case: str):
 
 if __name__ == "__main__":
     unittest.main()
+
+class M1CProductionMaterializationIntegrationTests(unittest.TestCase):
+    def test_remote_materialization_preserves_bound_evidence_and_provenance(self) -> None:
+        from unittest.mock import patch
+        from PIL import Image
+        from src.assets.semantic_selection.evidence import build_evidence
+        from src.news.asset_manager import build_assets_manifest
+        from src.providers.fake_provider import FakeStockProvider
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "remote.png"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(fixture)
+            with patch(
+                "src.assets.semantic_visual_service.create_semantic_visual_backend",
+                return_value=_ScriptedBackend({}),
+            ):
+                manifest = build_assets_manifest(
+                    visual_plan=_m1c_visual_plan(),
+                    user_assets=[],
+                    media_index={"version": 1, "items": []},
+                    providers=[FakeStockProvider(image_fixture=fixture)],
+                    dry_run=False,
+                    project_root=root / "project_001",
+                    project_id="project_001",
+                    asset_selection={"semantic_visual": _WIRED},
+                )
+
+        selected = manifest["scenes"][0]["selected_asset"]
+        self.assertEqual(sorted(selected["vision_tags"]), ["ocean", "whale"])
+        self.assertEqual(selected["vision_tags_asset_id"], selected["asset_id"])
+        self.assertEqual(selected["vision_tags_source_sha256"], selected["checksum_sha256"])
+        self.assertTrue(selected["vision_tags_cache_key"])
+        self.assertEqual(sorted(build_evidence(selected).vision_tags), ["ocean", "whale"])
+        self.assertEqual(selected["provenance"]["provider_asset_id"], "scene_001_image_001")
+        self.assertEqual(selected["license"]["rights_status"], "licensed")
+
+    def test_download_fallback_persists_actual_candidate_and_lineage(self) -> None:
+        import json
+        from PIL import Image
+        from src.assets.models import AssetCandidate
+        from src.assets.provider_contract import ProviderValidationError
+        from src.news.asset_manager import build_assets_manifest
+        from src.providers.fake_provider import FakeStockProvider
+
+        class FallbackProvider(FakeStockProvider):
+            def search(self, request):
+                base = super().search(request)[0]
+                first = AssetCandidate.from_dict(base.to_dict())
+                first.asset_id = "fallback_candidate_a"
+                first.provider_asset_id = "candidate-a"
+                first.source_page_url = "https://fake.local/assets/candidate-a"
+                first.provenance.provider_asset_id = "candidate-a"
+                first.provenance.source_page_url = first.source_page_url
+                second = AssetCandidate.from_dict(base.to_dict())
+                second.asset_id = "fallback_candidate_b"
+                second.provider_asset_id = "candidate-b"
+                second.source_page_url = "https://fake.local/assets/candidate-b"
+                second.provenance.provider_asset_id = "candidate-b"
+                second.provenance.source_page_url = second.source_page_url
+                return [first, second]
+
+            def download(self, candidate, destination, context):
+                if candidate.asset_id == "fallback_candidate_a":
+                    raise ProviderValidationError(
+                        "candidate A cannot be materialized",
+                        provider=self.name,
+                        query=candidate.search_query,
+                    )
+                return super().download(candidate, destination, context)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fallback.png"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(fixture)
+            project = root / "project_001"
+            manifest = build_assets_manifest(
+                visual_plan=_m1c_visual_plan(),
+                user_assets=[],
+                media_index={"version": 1, "items": []},
+                providers=[FallbackProvider(image_fixture=fixture)],
+                dry_run=False,
+                project_root=project,
+                project_id="project_001",
+                asset_selection={"semantic_visual": {}},
+            )
+            review = json.loads(
+                (project / "assets" / "review" / "visual_review_manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        selected = manifest["scenes"][0]["selected_asset"]
+        reviewed = review["scenes"][0]["selected_candidate"]
+        self.assertEqual(selected["asset_id"], "fallback_candidate_b")
+        self.assertEqual(selected["replaces_asset_id"], "fallback_candidate_a")
+        self.assertEqual(selected["provider_asset_id"], "candidate-b")
+        self.assertEqual(selected["license"]["rights_status"], "licensed")
+        self.assertEqual(reviewed["asset_id"], "fallback_candidate_b")
+        self.assertEqual(reviewed["provider_asset_id"], "candidate-b")
+        self.assertEqual(reviewed["replaces_asset_id"], "fallback_candidate_a")
+        self.assertEqual(review["scenes"][0]["alternatives"][0]["asset_id"], "fallback_candidate_a")
+
+
+def _m1c_visual_plan() -> dict:
+    return {
+        "scenes": [
+            {
+                "scene_id": "scene_001",
+                "visual_type": "image",
+                "primary_query": "whale ocean",
+                "target_duration_sec": 4,
+                "semantic": {
+                    "subject": ["whale"],
+                    "environment": ["ocean"],
+                    "must_include": ["whale"],
+                    "must_not_include": ["desert"],
+                    "visual_priority": "exact_subject",
+                },
+            }
+        ]
+    }

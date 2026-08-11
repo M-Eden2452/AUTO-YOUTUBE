@@ -120,6 +120,10 @@ from src.assets.semantic_visual_service import (
     analyse_semantic_visual_for_shortlist,
     load_semantic_visual_config,
 )
+from src.assets.semantic_selection.evidence import (
+    bind_vision_tags,
+    carry_vision_evidence,
+)
 from src.assets.visual_preview import (
     VisualPreviewRequest,
     load_visual_preview_config,
@@ -162,6 +166,16 @@ from .asset_scene_completion import complete_scene_assembly
 # rather than inferred from ``paid_backend``: a local model would cost nothing and still
 # be looking at the actual frames.
 FIXTURE_SEMANTIC_BACKENDS = frozenset({"mock"})
+
+
+
+def _vision_source_sha256(analysis: dict[str, Any]) -> str:
+    """Identify the exact preview/source bytes observed by semantic analysis."""
+    preview = analysis.get("preview") if isinstance(analysis.get("preview"), dict) else {}
+    local_source = Path(str(preview.get("preview_local_source") or ""))
+    if str(local_source) not in {"", "."} and local_source.is_file():
+        return sha256_file(local_source)
+    return str(preview.get("sha256") or "")
 
 
 @dataclass
@@ -755,17 +769,37 @@ class AssetManifestBuilder:
             config=self.semantic_visual_config,
         )
         observed = False
-        tags_by_asset = {
-            str(entry.get("asset_id") or ""): [
-                str(tag) for tag in entry.get("vision_tags") or []
-            ]
-            for entry in board.shortlist
+        entries_by_asset = {
+            str(entry.get("asset_id") or ""): entry for entry in board.shortlist
+        }
+        analyses_by_asset = {
+            str(analysis.get("asset_id") or ""): analysis for analysis in analyses
         }
         for candidate in state.candidates:
-            tags = tags_by_asset.get(str(candidate.get("asset_id") or ""))
-            if tags:
-                candidate["vision_tags"] = tags
-                observed = True
+            asset_id = str(candidate.get("asset_id") or "")
+            entry = entries_by_asset.get(asset_id, {})
+            tags = [str(tag) for tag in entry.get("vision_tags") or []]
+            if not tags:
+                continue
+            semantic = (
+                entry.get("semantic_analysis")
+                if isinstance(entry.get("semantic_analysis"), dict)
+                else {}
+            )
+            bind_vision_tags(
+                candidate,
+                tags,
+                source_sha256=_vision_source_sha256(
+                    analyses_by_asset.get(asset_id, {})
+                ),
+                cache_key=str(semantic.get("cache_key") or ""),
+            )
+            canonical = candidate.get("canonical_asset")
+            if isinstance(canonical, dict):
+                candidate["canonical_asset"] = AssetCandidate.from_dict(
+                    carry_vision_evidence(candidate, dict(canonical))
+                ).to_dict()
+            observed = True
         if not (observed and self._semantic_reselection_allowed(state)):
             return
         # The same canonical policy as the metadata pass, with the same window:

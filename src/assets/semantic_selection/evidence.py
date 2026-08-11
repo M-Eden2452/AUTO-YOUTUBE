@@ -33,6 +33,12 @@ METADATA_QUERY_DERIVED = "query_derived_only"
 # ``search_query``/``query`` and anything derived from them.
 METADATA_FIELDS = ("title", "description")
 TAG_FIELDS = ("tags", "keywords")
+VISION_EVIDENCE_FIELDS = (
+    "vision_tags",
+    "vision_tags_asset_id",
+    "vision_tags_source_sha256",
+    "vision_tags_cache_key",
+)
 QUERY_FIELDS = ("search_query", "query")
 
 WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
@@ -313,10 +319,51 @@ class CandidateEvidence:
         return contains_concept(concept, set(self.token_set), self.text)
 
 
+def bind_vision_tags(
+    candidate: dict[str, Any],
+    tags: list[str],
+    *,
+    source_sha256: str = "",
+    cache_key: str = "",
+) -> dict[str, Any]:
+    """Attach Vision evidence to the candidate and source snapshot it observed."""
+    normalized = list(dict.fromkeys(str(tag).strip() for tag in tags if str(tag).strip()))
+    candidate["vision_tags"] = normalized
+    candidate["vision_tags_asset_id"] = str(candidate.get("asset_id") or "")
+    candidate["vision_tags_source_sha256"] = str(source_sha256 or "")
+    candidate["vision_tags_cache_key"] = str(cache_key or "")
+    return candidate
+
+
+def carry_vision_evidence(source: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+    """Carry only the canonical Vision evidence envelope during object rebuilds."""
+    for field_name in VISION_EVIDENCE_FIELDS:
+        if field_name in source:
+            value = source[field_name]
+            target[field_name] = list(value) if field_name == "vision_tags" else value
+    return target
+
+
+def current_vision_tags(candidate: dict[str, Any]) -> tuple[str, ...]:
+    """Return Vision tags only when their candidate/bytes binding is still valid."""
+    tags = tuple(str(tag).lower() for tag in candidate.get("vision_tags", []) or [])
+    if not tags:
+        return ()
+    asset_id = str(candidate.get("asset_id") or candidate.get("id") or "")
+    bound_asset_id = str(candidate.get("vision_tags_asset_id") or "")
+    if bound_asset_id and bound_asset_id != asset_id:
+        return ()
+    current_sha256 = str(candidate.get("checksum_sha256") or "").casefold()
+    source_sha256 = str(candidate.get("vision_tags_source_sha256") or "").casefold()
+    if current_sha256 and (not source_sha256 or source_sha256 != current_sha256):
+        return ()
+    return tags
+
+
 def build_evidence(candidate: dict[str, Any]) -> CandidateEvidence:
     provider_fields = provider_evidence_fields(candidate)
     text = _normalize_text(" ".join(field.text for field in provider_fields))
-    vision_tags = tuple(str(tag).lower() for tag in candidate.get("vision_tags", []) or [])
+    vision_tags = current_vision_tags(candidate)
     vision_fields = (
         (EvidenceField("vision_tags", _normalize_text(" ".join(vision_tags))),)
         if vision_tags

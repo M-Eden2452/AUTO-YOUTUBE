@@ -178,3 +178,35 @@ def _candidate(asset_id: str, title: str, keywords: str, width: int = 1920, heig
 
 if __name__ == "__main__":
     unittest.main()
+
+class M1CVisionEvidenceBindingTests(unittest.TestCase):
+    def test_snapshot_specific_tags_fail_closed_for_different_representation(self) -> None:
+        from src.assets.semantic_selection.evidence import build_evidence
+
+        evidence = build_evidence(
+            {
+                "asset_id": "candidate_a",
+                "checksum_sha256": "current-bytes",
+                "vision_tags": ["desert", "road"],
+                "vision_tags_asset_id": "candidate_a",
+                "vision_tags_source_sha256": "preview-bytes",
+            }
+        )
+
+        self.assertEqual(evidence.vision_tags, ())
+        self.assertNotIn("desert", evidence.token_set)
+
+    def test_snapshot_specific_tags_remain_evidence_for_matching_representation(self) -> None:
+        from src.assets.semantic_selection.evidence import build_evidence
+
+        evidence = build_evidence(
+            {
+                "asset_id": "candidate_a",
+                "checksum_sha256": "same-bytes",
+                "vision_tags": ["ocean", "whale"],
+                "vision_tags_asset_id": "candidate_a",
+                "vision_tags_source_sha256": "same-bytes",
+            }
+        )
+
+        self.assertEqual(evidence.vision_tags, ("ocean", "whale"))

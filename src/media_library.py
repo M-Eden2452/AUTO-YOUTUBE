@@ -493,6 +493,24 @@ def _normalize_asset(asset: dict[str, Any]) -> dict[str, Any]:
         "downloaded_at": asset.get("downloaded_at") or datetime.now(timezone.utc).isoformat(),
         "used_in": list(asset.get("used_in", [])),
     }
+    replaces_asset_id = str(asset.get("replaces_asset_id") or "")
+    if replaces_asset_id:
+        item["replaces_asset_id"] = replaces_asset_id
+    if "vision_tags" in asset:
+        item.update(
+            {
+                "vision_tags": _as_list(asset.get("vision_tags")),
+                "vision_tags_asset_id": str(
+                    asset.get("vision_tags_asset_id") or ""
+                ),
+                "vision_tags_source_sha256": str(
+                    asset.get("vision_tags_source_sha256") or ""
+                ),
+                "vision_tags_cache_key": str(
+                    asset.get("vision_tags_cache_key") or ""
+                ),
+            }
+        )
     return item
 
 

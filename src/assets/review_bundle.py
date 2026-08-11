@@ -80,6 +80,12 @@ def create_scene_review_bundle(
             "source_page_url": candidate.get("source_page_url") or candidate.get("source_page") or candidate.get("source_url", ""),
             "author_name": candidate.get("author_name") or candidate.get("author", ""),
             "license": _safe_license(candidate.get("license")),
+            "vision_tags": list(candidate.get("vision_tags") or []),
+            "vision_tags_asset_id": str(candidate.get("vision_tags_asset_id") or ""),
+            "vision_tags_source_sha256": str(
+                candidate.get("vision_tags_source_sha256") or ""
+            ),
+            "vision_tags_cache_key": str(candidate.get("vision_tags_cache_key") or ""),
             "policy_status": _policy_status(candidate),
             "metadata_rank": rank,
             "metadata_score": float(candidate.get("final_score") or candidate.get("total_score") or candidate.get("relevance_score") or 0.0),
@@ -455,12 +461,49 @@ def attach_selected_asset(bundle: "SceneReviewBundle", selected: dict[str, Any] 
     """
     if not isinstance(selected, dict) or not selected:
         return bundle
-    entry = dict(bundle.selected_candidate or {})
-    entry.setdefault("asset_id", str(selected.get("asset_id") or ""))
+    selected_id = str(selected.get("asset_id") or "")
+    entry = next(
+        (
+            dict(candidate)
+            for candidate in bundle.shortlist
+            if str(candidate.get("asset_id") or "") == selected_id
+        ),
+        {},
+    )
+    entry.update(
+        {
+            "asset_id": selected_id,
+            "provider": selected.get("provider", ""),
+            "provider_asset_id": selected.get("provider_asset_id", ""),
+            "source_page_url": (
+                selected.get("source_page_url")
+                or selected.get("source_page")
+                or selected.get("source_url", "")
+            ),
+            "author_name": selected.get("author_name")
+            or selected.get("author", ""),
+            "license": _safe_license(selected.get("license")),
+            "policy_status": _policy_status(selected),
+            "vision_tags": list(selected.get("vision_tags") or []),
+            "vision_tags_asset_id": str(selected.get("vision_tags_asset_id") or ""),
+            "vision_tags_source_sha256": str(
+                selected.get("vision_tags_source_sha256") or ""
+            ),
+            "vision_tags_cache_key": str(selected.get("vision_tags_cache_key") or ""),
+        }
+    )
+    replaces_asset_id = str(selected.get("replaces_asset_id") or "")
+    if replaces_asset_id:
+        entry["replaces_asset_id"] = replaces_asset_id
     entry.update(_decision_fields(selected))
     entry["local_path"] = str(selected.get("path") or selected.get("local_path") or "")
     entry["download_status"] = str(selected.get("download_status") or "")
     bundle.selected_candidate = entry
+    bundle.alternatives = [
+        dict(candidate)
+        for candidate in bundle.shortlist
+        if str(candidate.get("asset_id") or "") != selected_id
+    ][:4]
     return bundle
 
 

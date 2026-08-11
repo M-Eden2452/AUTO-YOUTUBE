@@ -96,3 +96,4 @@ D03 `packages/` placeholder. 9B-P01 зафиксировал два target engin
 или path config. Без явной настройки legacy workspace остаётся корнем репозитория; физическая миграция runtime ещё не выполнялась.
 
 Не запускай сеть, providers, Vision, TTS, скачивание или платные действия без отдельного разрешения пользователя.
+M1-C / VA-NEW-04+05 is closed inside PLAN-9A. The current checkpoint remains **PLAN-9D**. Next exact action: one independent read-only review of exact M1-A, M1-B and M1-C commits plus the net identity/evidence path; do not start M1-D.

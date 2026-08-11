@@ -19,6 +19,7 @@ from src.assets.provider_contract import (
     StockProvider,
 )
 from src.assets.semantic_selection.decision import carry_decision
+from src.assets.semantic_selection.evidence import carry_vision_evidence
 from src.media_library import register_asset
 from src.providers import (
     create_default_stock_providers,
@@ -188,11 +189,12 @@ def candidate_to_rankable(candidate: AssetCandidate) -> dict[str, Any]:
 
 def with_policy_decision(candidate: dict[str, Any]) -> dict[str, Any]:
     stored_canonical = candidate.get("canonical_asset")
-    canonical_data = (
+    canonical_data = dict(
         stored_canonical
         if isinstance(stored_canonical, dict) and stored_canonical
         else candidate
     )
+    carry_vision_evidence(candidate, canonical_data)
     canonical = AssetCandidate.from_dict(canonical_data)
     if not canonical.provider_asset_id:
         canonical.provider_asset_id = str(
@@ -260,8 +262,18 @@ def ensure_selected_asset_downloaded(
         seen.add(asset_id)
         ordered.append(candidate)
     attempts: list[dict[str, Any]] = []
+    selected_asset_id = str(selected.get("asset_id") or "")
     for raw_candidate in ordered[: max(1, max_attempts)]:
         candidate = with_policy_decision(raw_candidate)
+        candidate_asset_id = str(candidate.get("asset_id") or "")
+        if selected_asset_id and candidate_asset_id != selected_asset_id:
+            candidate["replaces_asset_id"] = selected_asset_id
+            canonical_data = candidate.get("canonical_asset")
+            if isinstance(canonical_data, dict):
+                rebound = AssetCandidate.from_dict(dict(canonical_data))
+                rebound.replaces_asset_id = selected_asset_id
+                candidate["canonical_asset"] = rebound.to_dict()
+
         if candidate.get("review_required") or not candidate.get(
             "allowed_for_render", True
         ):
@@ -450,6 +462,10 @@ def rank_provider_results(
             "keywords": raw.get("keywords", []),
             "tags": raw.get("tags", []),
             "vision_tags": raw.get("vision_tags", []),
+            "vision_tags_asset_id": raw.get("vision_tags_asset_id", ""),
+            "vision_tags_source_sha256": raw.get("vision_tags_source_sha256", ""),
+            "vision_tags_cache_key": raw.get("vision_tags_cache_key", ""),
+            "replaces_asset_id": raw.get("replaces_asset_id", ""),
             "source_url": raw.get("source_url")
             or raw.get("source_page_url", ""),
             "source_page": raw.get("source_page")

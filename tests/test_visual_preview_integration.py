@@ -487,3 +487,57 @@ def _analysis(asset_id: str, *, status: str = "passed", technical: float = 75.0,
 
 if __name__ == "__main__":
     unittest.main()
+
+class M1CReviewIdentityIntegrationTests(unittest.TestCase):
+    def test_attach_selected_asset_rebinds_identity_and_records_lineage(self) -> None:
+        from src.assets.review_bundle import attach_selected_asset, create_scene_review_bundle
+
+        candidates = [
+            {
+                "asset_id": "candidate_a",
+                "provider": "fake",
+                "provider_asset_id": "provider-a",
+                "source_page_url": "https://fake.local/a",
+                "license": {"rights_status": "licensed", "allowed_for_render": True},
+            },
+            {
+                "asset_id": "candidate_b",
+                "provider": "fake",
+                "provider_asset_id": "provider-b",
+                "source_page_url": "https://fake.local/b",
+                "license": {"rights_status": "licensed", "allowed_for_render": True},
+                "vision_tags": ["ocean"],
+                "vision_tags_asset_id": "candidate_b",
+                "vision_tags_source_sha256": "same-bytes",
+                "vision_tags_cache_key": "cache-b",
+            },
+        ]
+        bundle = create_scene_review_bundle(
+            project_id="project_001",
+            scene={"scene_id": "scene_001", "primary_query": "ocean"},
+            semantic_scene={},
+            metadata_queries=[],
+            provider_routing={},
+            candidates=candidates,
+            analyses=[],
+            selected_candidate_id="candidate_a",
+            target_aspect_ratio="9:16",
+        )
+        attach_selected_asset(
+            bundle,
+            {
+                **candidates[1],
+                "replaces_asset_id": "candidate_a",
+                "path": "assets/downloaded/b.jpg",
+                "download_status": "downloaded",
+                "checksum_sha256": "same-bytes",
+            },
+        )
+
+        self.assertEqual(bundle.selected_candidate["asset_id"], "candidate_b")
+        self.assertEqual(bundle.selected_candidate["provider_asset_id"], "provider-b")
+        self.assertEqual(bundle.selected_candidate["source_page_url"], "https://fake.local/b")
+        self.assertEqual(bundle.selected_candidate["replaces_asset_id"], "candidate_a")
+        self.assertEqual(bundle.selected_candidate["vision_tags"], ["ocean"])
+        self.assertEqual(bundle.selected_candidate["local_path"], "assets/downloaded/b.jpg")
+        self.assertEqual(bundle.alternatives[0]["asset_id"], "candidate_a")

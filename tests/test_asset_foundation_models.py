@@ -116,3 +116,37 @@ class AssetFoundationModelTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
+class M1CAssetLineageModelTests(unittest.TestCase):
+    def test_optional_lineage_and_vision_evidence_roundtrip(self) -> None:
+        from src.assets.models import AssetCandidate
+
+        candidate = AssetCandidate(
+            asset_id="candidate_b",
+            provider="fake",
+            replaces_asset_id="candidate_a",
+            vision_tags=["ocean", "whale"],
+            vision_tags_asset_id="candidate_b",
+            vision_tags_source_sha256="abc123",
+            vision_tags_cache_key="semantic-cache-key",
+        )
+        loaded = AssetCandidate.from_dict(candidate.to_dict())
+
+        self.assertEqual(loaded.replaces_asset_id, "candidate_a")
+        self.assertEqual(loaded.vision_tags, ["ocean", "whale"])
+        self.assertEqual(loaded.vision_tags_asset_id, "candidate_b")
+        self.assertEqual(loaded.vision_tags_source_sha256, "abc123")
+        self.assertEqual(loaded.vision_tags_cache_key, "semantic-cache-key")
+
+    def test_legacy_candidate_without_optional_lineage_fields_still_reads(self) -> None:
+        from src.assets.models import AssetCandidate
+
+        loaded = AssetCandidate.from_dict(
+            {"asset_id": "legacy", "provider": "local", "media_type": "image"}
+        )
+
+        self.assertEqual(loaded.replaces_asset_id, "")
+        self.assertEqual(loaded.vision_tags, [])
+        self.assertEqual(loaded.vision_tags_asset_id, "")
+        self.assertEqual(loaded.vision_tags_source_sha256, "")
+        self.assertEqual(loaded.vision_tags_cache_key, "")

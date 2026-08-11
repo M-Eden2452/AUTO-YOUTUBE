@@ -231,6 +231,11 @@ class AssetCandidate:
     crop_suitability_score: float = 0.0
     policy_decision: dict[str, Any] = field(default_factory=dict)
     rights_declaration: dict[str, Any] = field(default_factory=dict)
+    replaces_asset_id: str = ""
+    vision_tags: list[str] = field(default_factory=list)
+    vision_tags_asset_id: str = ""
+    vision_tags_source_sha256: str = ""
+    vision_tags_cache_key: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AssetCandidate":
@@ -277,6 +282,11 @@ class AssetCandidate:
             crop_suitability_score=float(data.get("crop_suitability_score") or data.get("vertical_score") or 0),
             policy_decision=dict(data.get("policy_decision") or {}),
             rights_declaration=dict(data.get("rights_declaration") or {}),
+            replaces_asset_id=str(data.get("replaces_asset_id") or ""),
+            vision_tags=_as_list(data.get("vision_tags")),
+            vision_tags_asset_id=str(data.get("vision_tags_asset_id") or ""),
+            vision_tags_source_sha256=str(data.get("vision_tags_source_sha256") or ""),
+            vision_tags_cache_key=str(data.get("vision_tags_cache_key") or ""),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -314,6 +324,11 @@ class AssetCandidate:
                 "crop_suitability_score": self.crop_suitability_score,
                 "policy_decision": self.policy_decision,
                 "rights_declaration": self.rights_declaration,
+                "replaces_asset_id": self.replaces_asset_id,
+                "vision_tags": self.vision_tags,
+                "vision_tags_asset_id": self.vision_tags_asset_id,
+                "vision_tags_source_sha256": self.vision_tags_source_sha256,
+                "vision_tags_cache_key": self.vision_tags_cache_key,
             }
         )
 

@@ -8,23 +8,10 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Mini plan reconciliation 2026-08-11 (docs-only) supersedes прежнюю
-  формулировку «next exact action — LIVE-5». Закрыты WP0-A machine gates
-  (`98e58fe`, `a9bfc11`) и VA-NEW-01 / M1-A (`15cb20d`, correction внутри
-  PLAN-9C-3), VA-NEW-03 (`37ca498`) и VA-NEW-02 / M1-B (этот commit).
-  LIVE-5 перестал быть следующим действием, потому что
-  `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` (§40, ответ 12 и
-  «Краткий отчёт владельцу») требует до него закрыть ещё VA-NEW-04, 05, 06,
-  08, 09 и минимальные budget guards 10/12. THE NEXT EXACT ACTION — отдельный
-  owner decision для bounded correction **M1-C / VA-NEW-04+05** внутри
-  существующего canonical owner **PLAN-9A**: до implementation отдельно
-  утвердить persisted `replaces_asset_id` и evidence-carry scope. Полный
-  contract PLAN-9A этим не начинается. `current_checkpoint` остаётся
-  **PLAN-9D**; PLAN-9D-D
-  остаётся NOT STARTED / blocked до LIVE-5 и owner decision, а сам LIVE-5
-  остаётся network-действием и требует отдельного owner approval
-  непосредственно перед запуском. Полная сводка маршрута — блок «Mini plan
-  reconciliation 2026-08-11» в разделе «Current checkpoint».
+  M1-C / VA-NEW-04+05 is closed as a bounded correction inside PLAN-9A.
+  The current checkpoint remains PLAN-9D. THE NEXT EXACT ACTION is one
+  independent read-only review of the exact M1-A, M1-B, and M1-C commits
+  plus the net production identity/evidence path. Do not start M1-D.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -95,6 +82,18 @@ correction внутри `PLAN-9C-3`; `VA-NEW-03` — commit `37ca498` внутр
 а missing/unreadable source fail closed. Evidence: baseline RED на `104e5a3`,
 targeted radius 206 OK, full offline suite 2170 OK, gates OK. Checkpoint не двигался.
 
+**M1-C CLOSURE.** VA-NEW-04 and VA-NEW-05 are closed by the bounded PLAN-9A
+correction in the commit containing this record. Normal materialization keeps one
+logical asset identity; fallback from reviewed A to downloaded B persists
+replaces_asset_id=A, rebinds the review to B, and carries only the canonical
+Vision envelope bound to candidate id, observed-source SHA-256 and the existing
+semantic cache key. A checksum mismatch invalidates the tags. The extension is
+additive and tolerant: no migration, schema-version bump, resume change, new
+repository or second evidence owner. Evidence: characterization RED (2 failures,
+4 errors), targeted 217 OK, full canonical offline suite 2177 OK. Owner permission
+in the M1-C prompt satisfies the earlier decision gate. Next: Review #1 for M1-A...
+M1-C; do not start M1-D. Checkpoint remains PLAN-9D.
+
 **WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
 plan step. Он измеряет качество отбора по persisted evidence, а
 `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` доказал, что часть
@@ -115,8 +114,8 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
 | M1-A | VA-NEW-01 continuity self-evidence | `continuity_checker` → `evidence.build_evidence` | **PLAN-9C-3** (correction) | evidence ownership границы 9C-3 | A | **закрыт** `15cb20d` | да |
 | — | VA-NEW-03 technical rerank | `_prepare_visual_review` | **PLAN-9C-2** (correction) | второй post-selection owner | A | **закрыт** `37ca498` | да |
 | M1-B | VA-NEW-02 preview cache не идентифицирует source snapshot | `src/assets/visual_preview.py` | **PLAN-9A** | persistence/provenance | A | **закрыт этим M1-B commit** | да |
-| M1-C | VA-NEW-04 review artifact смешивает candidate A с downloaded B | `src/assets/review_bundle.py` | **PLAN-9A** | provenance selected asset | A | да | да |
-| M1-C | VA-NEW-05 Vision tags теряются при download rebuild | `asset_manifest_builder` / `asset_provider_adapters` | **PLAN-9A** | evidence carry across representation | B (blocker Vision) | да, пакетом с 04 | нет для v1 без Vision, да для Vision |
+| M1-C | VA-NEW-04 review artifact mixed candidate A with downloaded B | src/assets/review_bundle.py | **PLAN-9A** | selected-asset lineage | A | **closed by this M1-C commit** | yes |
+| M1-C | VA-NEW-05 Vision tags were lost during download rebuild | asset_manifest_builder / asset_provider_adapters | **PLAN-9A** | snapshot-bound evidence carry | B (Vision blocker) | **closed by this M1-C commit** | yes for Vision |
 | M1-D | VA-NEW-08 resume без input/policy/provider fingerprints | `src/news/pipeline.py`, `project_store` | **PLAN-9A** | persisted resume contract | B (до опоры на resume в LIVE) | да | да |
 | M1-E | VA-NEW-09 strict render TOCTOU | `src/news/final_renderer.py` | **PLAN-9E** | render authorization gate | B (до LIVE render) | да | да |
 | M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | да | да |
