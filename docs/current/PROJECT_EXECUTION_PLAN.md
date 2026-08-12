@@ -5976,22 +5976,51 @@ current-quality benchmark. Production logic этой записью не мен�
 
 #### PLAN-9D-D — human ground truth
 
-- **status:** blocked (LIVE-5 + owner decision по входу) · **commit:** — ·
-  NOT STARTED.
-  **Обновлено сверкой 2026-08-11:** прежний блокер **PLAN-9B-PRODUCER-M-LIVE**
+- **status:** completed 2026-08-12 · **commit:** — (заполняется plan-only
+  уточнением, Execution protocol п.3).
+  **Owner decision 2026-08-12:** владелец снял оба входных вопроса, приняв
+  разметку на неполном shortlist, выполнил слепой проход сам и разрешил
+  привести файл к каноническому имени. Прежний блокер LIVE-5 снят этим же
+  решением: диагностический Short остаётся отдельным owner-issued действием и
+  ground truth больше не ждёт.
+  **История блокировки (не переписывается).** Прежний блокер
+  **PLAN-9B-PRODUCER-M-LIVE**
   закрыт 2026-08-09, поэтому запись устарела. Фактический блокер теперь —
   owner-issued **LIVE-5** acceptance diagnostic, а до него — bounded
   corrections VA-NEW-02, 04, 05, 06, 08, 09 и минимальные budget guards 10/12
   (`docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` §40, ответы 12 и
   14: ядро к PLAN-9D-D не готово, пока current offline evidence может быть
   загрязнено continuity/preview/override gaps). Диагностический Short по
-  этому слайсу **не запускался**, поэтому PLAN-9D-D остаётся NOT STARTED.
-  Подраздел говорил `next` с момента закрытия PLAN-9D-C, тогда как
-  authoritative `next_exact_action` уже вёл в PLAN-9B-PRODUCER-M и называл
-  PLAN-9D-D NOT STARTED/blocked. Выровнено по authoritative routing и по
-  конвенции статусов соседних под-слайсов (`blocked (<блокирующий шаг>)`).
-  История PLAN-9D-C не переписывалась.
+  этому слайсу так и **не запускался**; владелец принял это как остаточный
+  риск измерения, а не как основание держать ground truth незакрытым.
 - **цель:** blind owner annotation ровно один раз, затем freeze и hash.
+- **фактический результат.** Слепой проход выполнен владельцем
+  (`annotator: Test2`, `annotated_at_utc: 2026-08-12T08:05:31Z`) по всем 14
+  сценам: 14 `preferred_candidate`, 4 сцены с `unacceptable_candidates`
+  (7 отметок), 5 сцен с текстовой заметкой. Разметка привязана к
+  `corpus_sha256 = bfb4d024…ccf1b4` — тому же, что несёт замороженный корпус.
+  Per-candidate flags владелец не заполнял; контракт этого и не требует
+  (`validate_annotations` проверяет словарь значений, а не полноту), поэтому
+  измеряются оси preference/unacceptable/abstention, а не per-field coverage.
+- **дефект имени, из-за которого разметка чуть не пропала.** Пакет разметки
+  сохранял файл как `annotations_v1.json`, а harness читает
+  `CURRENT_ANNOTATIONS_PATH` — `current_annotations_v1.json`. Законченный
+  слепой проход лежал на диске, пока `annotation_status()` продолжал отвечать
+  `WAITING_FOR_OWNER_ANNOTATION`, и ни один шаг после PLAN-9D-D не мог
+  стартовать. Файл переведён под каноническое имя **побайтово**
+  (`os.replace`, sha256 `7f8afddb…24928e` до и после, 20497 байт, одна копия —
+  вторая постоянная копия owner ground truth не создавалась), содержимое не
+  трогалось. Имя в пакете больше не пишется вторым написанием: оно берётся из
+  `CURRENT_ANNOTATIONS_PATH.name`, и characterization test
+  `test_the_pack_saves_under_the_name_the_harness_reads` падал до фикса.
+- **фактическая поправка Phase 0.** Docstring `render_pack` утверждал
+  «previewed 54 images and 2 videos». Корпус говорит другое, и корпус верен:
+  56 карточек кандидатов = 43 image + 13 video, 64 кадра = 43 image + 21
+  video. Единицы разные, и прежняя фраза их смешивала. Ограничение, ради
+  которого фраза писалась, от поправки только усилилось: 11 из 13 video-карт
+  несут **один** сэмплированный кадр и лишь 2 несут пять, поэтому метка на
+  video-карточке — суждение об одном кадре, а не о движении. Числа залочены
+  тестом `test_preview_coverage_is_counted_in_the_units_it_is_quoted_in`.
 - **вход от PLAN-9D-C.** Просматриваемых кандидатов 56 на 14 сцен, но не по 5
   на сцену: в 9 сценах часть слотов превью съедена повторными наблюдениями
   (минимум 2 кандидата — scene_004 и scene_007). В 3 сценах выбранный
@@ -5999,11 +6028,21 @@ current-quality benchmark. Production logic этой записью не мен�
   **до** разметки, потому что они меняют не качество данных, а то, что именно
   измеряет PLAN-9D-E.
 - **граница:** аннотация выполняется владельцем; агент её не заполняет и не
-  восстанавливает. Пока `annotations_v1.json` в состоянии
+  восстанавливает. Пока `current_annotations_v1.json` в состоянии
   `WAITING_FOR_OWNER_ANNOTATION`, harness возвращает тот же статус и ничего не
   измеряет. Пересборка корпуса после разметки запрещена: изменится
-  `corpus_sha256`.
-- **required verification:** targeted annotation-contract tests.
+  `corpus_sha256`. Содержимое разметки после заморозки не редактируется — этим
+  слайсом изменено только имя файла.
+- **что эта ground truth НЕ доказывает** (граница не расширена закрытием
+  шага): она говорит о лучшем визуально проверяемом кандидате внутри
+  captured preview shortlist, а не о лучшем ассете пула; не измеряет retrieval
+  до shortlist; и, поскольку 11 из 13 video-карт — один кадр, не измеряет
+  video selection, video-first и composite assembly.
+- **required verification:** targeted annotation-contract tests. Фактически
+  выполнено: `tests.test_plan9d_ground_truth_baseline` — 49 OK (было 46: три
+  новых лока и один переписанный — `CurrentBenchmarkSlotTests` больше не
+  утверждает, что разметки нет, а утверждает, что она есть и привязана к
+  этому корпусу). Сеть, платные вызовы, Vision, render не использовались.
 
 #### PLAN-9D-E — offline metadata-only baseline
 

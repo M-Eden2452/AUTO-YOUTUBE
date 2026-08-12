@@ -76,6 +76,7 @@ from .plan9d_ground_truth import (
     ANNOTATIONS_SCHEMA_VERSION,
     CANDIDATE_FLAG_SPEC,
     CORPUS_SCHEMA_VERSION,
+    CURRENT_ANNOTATIONS_PATH,
     FIXTURE_KIND_HISTORICAL_CORPUS,
     FIXTURE_KIND_HISTORICAL_EVIDENCE,
     GENERATION_HISTORICAL,
@@ -906,9 +907,18 @@ function save(){
   if(missing.length){alert('Не заполнено BEST в сценах:\\n'+missing.join('\\n'));return;}
   const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download='annotations_v1.json';a.click();
+  a.href=URL.createObjectURL(blob);a.download='__ANNOTATIONS_FILENAME__';a.click();
 }
 """
+
+#: The pack is the only producer of the owner's ground truth and
+#: ``CURRENT_ANNOTATIONS_PATH`` is its only consumer, so the download name is
+#: taken from the harness instead of being spelled twice. The two spellings did
+#: drift, and the cost was the whole point of the step: a finished blind pass
+#: saved as ``annotations_v1.json`` sat unread beside a harness looking for
+#: ``current_annotations_v1.json``, which went on answering
+#: ``WAITING_FOR_OWNER_ANNOTATION`` as if the owner had never done the work.
+ANNOTATIONS_FILENAME = CURRENT_ANNOTATIONS_PATH.name
 
 
 def render_pack(corpus: dict[str, Any]) -> str:
@@ -929,8 +939,18 @@ def render_pack(corpus: dict[str, Any]) -> str:
     asset in the pool". Two consequences are load-bearing and must not be argued
     away by a later reader: the benchmark cannot show that retrieval missed a
     better candidate before the shortlist, and it cannot speak for a media type
-    the capture did not preview. The frozen corpus previewed 54 images and 2
-    videos, so its labels are a statement about still images.
+    the capture barely previewed.
+
+    The frozen corpus offers 56 candidate cards - 43 image candidates and 13
+    video candidates - drawn from 64 captured frames: 43 frames belonging to the
+    images and 21 to the videos. Cards and frames are different units and an
+    earlier version of this paragraph mixed them, reading "54 images and 2
+    videos"; the corpus says otherwise and the corpus wins. The limit the
+    sentence was reaching for survives the correction and is if anything
+    sharper: 11 of the 13 video candidates carry a single sampled frame and only
+    2 carry five, so a label on a video card is a judgement of one still, not of
+    motion. These labels do not measure video selection, video-first or
+    composite assembly.
     """
 
     assert_current_benchmark_input(corpus, context="annotation pack")
@@ -943,7 +963,7 @@ def render_pack(corpus: dict[str, Any]) -> str:
         "технические размеры и качество метаданных оценивать не нужно — это решает система. "
         "<span class='warn'>Кандидаты обезличены; порядок не отражает оценку системы.</span></p>",
         "<p>Annotator: <input id='annotator' placeholder='имя или псевдоним'> "
-        "<button onclick='save()'>Сохранить annotations_v1.json</button></p></div>",
+        f"<button onclick='save()'>Сохранить {ANNOTATIONS_FILENAME}</button></p></div>",
     ]
     for scene in corpus["scenes"]:
         semantic = scene.get("semantic_scene") or {}
@@ -1007,7 +1027,8 @@ def render_pack(corpus: dict[str, Any]) -> str:
         "corpus_version": corpus["corpus_version"],
         "corpus_sha256": corpus["corpus_sha256"],
     }
-    parts.append(f"<script>const PACK={canonical_json(pack_meta)};{_PACK_SCRIPT}</script>")
+    script = _PACK_SCRIPT.replace("__ANNOTATIONS_FILENAME__", ANNOTATIONS_FILENAME)
+    parts.append(f"<script>const PACK={canonical_json(pack_meta)};{script}</script>")
     return "".join(parts)
 
 

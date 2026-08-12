@@ -49,11 +49,13 @@ from tests.plan9d_ground_truth import (
     FIXTURE_KIND_CURRENT_BENCHMARK,
     GENERATION_CURRENT,
     LEGACY_BROAD_QUERY_LITERALS,
+    STATUS_COMPLETE,
     STATUS_WAITING,
     BenchmarkError,
     annotation_status,
     assert_current_benchmark_input,
     corpus_digest,
+    load_annotations,
     load_current_corpus,
     load_historical_evidence,
     secret_like_findings,
@@ -305,16 +307,31 @@ class SecretTests(unittest.TestCase):
 
 
 class AnnotationTests(unittest.TestCase):
-    """10: PLAN-9D-B prepares for the owner's pass and never performs it."""
+    """10: PLAN-9D-B prepares for the owner's pass and never performs it.
 
-    def test_no_annotation_file_exists(self) -> None:
-        self.assertFalse(
-            CURRENT_ANNOTATIONS_PATH.exists(),
-            "blind annotation is PLAN-9D-D and belongs to the owner; PLAN-9D-B may not write it",
+    The owner's pass has since happened (PLAN-9D-D, 2026-08-12), so the absence
+    of the file can no longer stand in for "the capture did not write it". The
+    claim itself is unchanged and still locked, only its evidence had to move:
+    the label is a separate artifact, signed by a named human and bound by hash
+    to the frozen corpus, and the capture payload carries no owner vocabulary at
+    all - which is what would actually be violated if PLAN-9D-B ever answered
+    the human question for itself.
+    """
+
+    def test_the_annotation_is_a_separate_owner_artifact(self) -> None:
+        annotations = load_annotations()
+        self.assertTrue(str(annotations.get("annotator") or "").strip())
+        self.assertIs(True, annotations.get("blind"))
+        self.assertEqual(_corpus()["corpus_sha256"], annotations["corpus_sha256"])
+
+    def test_annotation_status_follows_the_owner_file_not_the_capture(self) -> None:
+        """Only the owner's file moves this needle, and its absence is honest."""
+
+        self.assertEqual(STATUS_COMPLETE, annotation_status())
+        self.assertEqual(
+            STATUS_WAITING,
+            annotation_status(CURRENT_ANNOTATIONS_PATH.with_name("no_such_annotations.json")),
         )
-
-    def test_annotation_status_is_waiting(self) -> None:
-        self.assertEqual(annotation_status(), STATUS_WAITING)
 
     def test_the_capture_carries_no_owner_label(self) -> None:
         blob = json.dumps(_corpus(), ensure_ascii=False)

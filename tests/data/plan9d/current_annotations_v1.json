@@ -1,0 +1,806 @@
+{
+ "schema_version": "plan9d-annotations-1",
+ "corpus_version": "plan9d-b-2026-08-08",
+ "corpus_sha256": "bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4",
+ "blind": true,
+ "annotator": "Test2",
+ "annotated_at_utc": "2026-08-12T08:05:31Z",
+ "status": "COMPLETE",
+ "scenes": [
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_001",
+   "preferred_candidate": "C20",
+   "unacceptable_candidates": [],
+   "note": "не одно фото нет стекла. ",
+   "candidates": {
+    "C10": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C11": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C17": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C20": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C33": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_002",
+   "preferred_candidate": "C9",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C9": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C14": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C18": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C56": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_003",
+   "preferred_candidate": "C90",
+   "unacceptable_candidates": [],
+   "note": "Нет ниодного пингвина который ложиться на живод ",
+   "candidates": {
+    "C65": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C68": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C77": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C90": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_004",
+   "preferred_candidate": "C88",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C78": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C88": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_005",
+   "preferred_candidate": "C33",
+   "unacceptable_candidates": [],
+   "note": "нет гепарда при беги вдикой прирооде ",
+   "candidates": {
+    "C33": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C55": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C57": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C58": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_006",
+   "preferred_candidate": "C58",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C34": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C42": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C48": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C58": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C66": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_007",
+   "preferred_candidate": "C34",
+   "unacceptable_candidates": [
+    "C50"
+   ],
+   "note": "",
+   "candidates": {
+    "C34": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C50": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_008",
+   "preferred_candidate": "C16",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C16": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C36": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C42": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C48": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_009",
+   "preferred_candidate": "C31",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C8": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C31": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C39": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C56": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_010",
+   "preferred_candidate": "C8",
+   "unacceptable_candidates": [],
+   "note": "не уверент что это то что нужно ",
+   "candidates": {
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C8": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C11": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C71": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_011",
+   "preferred_candidate": "C53",
+   "unacceptable_candidates": [
+    "C2"
+   ],
+   "note": "",
+   "candidates": {
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C52": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C53": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C58": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C73": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_012",
+   "preferred_candidate": "C62",
+   "unacceptable_candidates": [
+    "C91"
+   ],
+   "note": "",
+   "candidates": {
+    "C60": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C62": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C71": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C72": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C91": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_013",
+   "preferred_candidate": "C65",
+   "unacceptable_candidates": [
+    "C4",
+    "C15",
+    "C34",
+    "C88"
+   ],
+   "note": "не уверен насчет того что это та самая ракета ",
+   "candidates": {
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C15": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C34": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C65": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C88": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "plan9d_current_capture_v1/scene_014",
+   "preferred_candidate": "C23",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C23": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C27": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  }
+ ]
+}

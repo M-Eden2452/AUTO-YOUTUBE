@@ -53,6 +53,7 @@ from tests.plan9d_ground_truth import (
     STATUS_COMPLETE,
     STATUS_WAITING,
     BenchmarkError,
+    annotation_status,
     annotations_are_complete,
     assert_admissible_evidence,
     assert_current_benchmark_input,
@@ -62,6 +63,7 @@ from tests.plan9d_ground_truth import (
     evaluate_arm,
     fixture_kind_of,
     generation_class_of,
+    load_annotations,
     load_current_corpus,
     run_metadata_baseline,
     validate_annotations,
@@ -200,6 +202,15 @@ def _scene_block(pack: str, scene_key: str) -> str:
     raise AssertionError(f"scene {scene_key} is not in the pack")
 
 
+def _pack_save_button(pack: str) -> str:
+    """The label the owner actually clicks, isolated from the rest of the page."""
+
+    for block in pack.split("<button"):
+        if "save()" in block:
+            return block.split("</button>")[0]
+    raise AssertionError("the pack has no save button")
+
+
 def _historical_corpus() -> dict[str, Any]:
     corpus = _current_corpus()
     corpus["fixture_kind"] = FIXTURE_KIND_HISTORICAL_CORPUS
@@ -242,13 +253,14 @@ def _complete(corpus: dict, *, preference: str | None = None) -> dict:
 
 
 class CurrentBenchmarkSlotTests(unittest.TestCase):
-    """The benchmark slot, before and after PLAN-9D-B filled it.
+    """The benchmark slot, as PLAN-9D-B and then PLAN-9D-D filled it.
 
-    This class used to assert that the slot was empty, which was the truth while
-    PLAN-9D-B was unstarted. PLAN-9D-B captured and froze a corpus, so the two
-    facts worth locking changed: the file is there and loads through the gate,
-    and the *absence* path still names the slice that owns it - which is what a
-    clean clone or a future re-capture will hit.
+    This class used to assert that both halves were empty, which was the truth
+    while those slices were unstarted. PLAN-9D-B froze a corpus and PLAN-9D-D
+    produced the owner's blind labels, so what is worth locking has moved on:
+    both files are there, both load through their gates, the labels are bound by
+    hash to *this* corpus, and the *absence* path still names the slice that
+    owns it - which is what a clean clone or a future re-capture will hit.
     """
 
     def test_the_current_corpus_is_frozen(self) -> None:
@@ -256,10 +268,68 @@ class CurrentBenchmarkSlotTests(unittest.TestCase):
         corpus = load_current_corpus()
         self.assertTrue(corpus["scenes"])
 
-    def test_owner_annotation_has_not_been_produced(self) -> None:
-        """PLAN-9D-D is the owner's, and PLAN-9D-B did not do it for them."""
+    def test_the_owner_annotation_is_frozen_and_bound_to_this_corpus(self) -> None:
+        """PLAN-9D-D happened, and it happened against the corpus on disk.
 
-        self.assertFalse(CURRENT_ANNOTATIONS_PATH.exists())
+        The labels are only ground truth for the pool the owner was shown, so
+        the binding is the load-bearing half: ``corpus_sha256`` matching is what
+        stops a later re-capture from silently inheriting an answer given about
+        different pictures. ``annotations_are_complete`` is asked for its list of
+        problems rather than its verdict, so a failure here names what is wrong.
+        """
+
+        self.assertTrue(CURRENT_ANNOTATIONS_PATH.exists())
+        annotations = load_annotations()
+        corpus = load_current_corpus()
+        complete, problems = annotations_are_complete(corpus, annotations)
+        self.assertEqual([], problems)
+        self.assertTrue(complete)
+        self.assertEqual(corpus["corpus_sha256"], annotations["corpus_sha256"])
+        self.assertEqual(STATUS_COMPLETE, annotation_status())
+        self.assertTrue(str(annotations.get("annotator") or "").strip())
+        self.assertIs(True, annotations.get("blind"))
+
+    def test_preview_coverage_is_counted_in_the_units_it_is_quoted_in(self) -> None:
+        """Cards and frames are different units, and the prose once mixed them.
+
+        ``render_pack`` documents what a label from it may claim, and that limit
+        rests on how little of the pool - and how little of each video - the
+        owner actually saw. The docstring said "54 images and 2 videos" against
+        a corpus holding 43 image cards and 13 video cards built from 64 frames.
+        Locking the counts here keeps the sentence answerable from data instead
+        of from memory.
+        """
+
+        corpus = load_current_corpus()
+        cards: dict[str, int] = {}
+        frames: dict[str, int] = {}
+        for scene in corpus["scenes"]:
+            for entry in scene["candidates"]:
+                if not entry["frames"]:
+                    continue
+                kind = str(entry["candidate"].get("media_type") or "")
+                cards[kind] = cards.get(kind, 0) + 1
+                frames[kind] = frames.get(kind, 0) + len(entry["frames"])
+        self.assertEqual({"image": 43, "video": 13}, cards)
+        self.assertEqual({"image": 43, "video": 21}, frames)
+        self.assertEqual(56, sum(cards.values()))
+        self.assertEqual(64, sum(frames.values()))
+
+        # The load-bearing half of the limit: a video card is one still, not motion.
+        video_frame_counts = sorted(
+            len(entry["frames"])
+            for scene in corpus["scenes"]
+            for entry in scene["candidates"]
+            if entry["frames"] and entry["candidate"].get("media_type") == "video"
+        )
+        self.assertEqual([1] * 11 + [5] * 2, video_frame_counts)
+
+    def test_a_missing_annotation_still_reads_as_waiting_not_as_complete(self) -> None:
+        """The honest answer to an absent file, kept locked after it stopped being absent."""
+
+        missing = CURRENT_ANNOTATIONS_PATH.with_name("no_such_annotations.json")
+        self.assertFalse(missing.exists())
+        self.assertEqual(STATUS_WAITING, annotation_status(missing))
 
     def test_absence_is_reported_with_the_slice_that_owns_it(self) -> None:
         with self.assertRaises(BenchmarkError) as raised:
@@ -420,6 +490,23 @@ class BlindingTests(unittest.TestCase):
         self.assertNotIn(f">{hidden['blind_id']}<", block)
         for entry in visible:
             self.assertIn(f"data-blind='{entry['blind_id']}'", block)
+
+    def test_the_pack_saves_under_the_name_the_harness_reads(self) -> None:
+        """A label the harness cannot find is a label that was never made.
+
+        The pack is the only producer of the owner's ground truth and
+        ``CURRENT_ANNOTATIONS_PATH`` is the only consumer, so the download name
+        is a contract between the two rather than a cosmetic string. It drifted
+        exactly once and cost a whole blind pass: the button offered
+        ``annotations_v1.json`` while the harness read
+        ``current_annotations_v1.json``, so a finished annotation sat on disk
+        while ``annotation_status`` still answered
+        ``WAITING_FOR_OWNER_ANNOTATION`` and nothing downstream would measure.
+        """
+
+        pack = render_pack(_current_corpus())
+        self.assertIn(f"download='{CURRENT_ANNOTATIONS_PATH.name}'", pack)
+        self.assertIn(CURRENT_ANNOTATIONS_PATH.name, _pack_save_button(pack))
 
     def test_no_pack_is_rendered_for_historical_evidence(self) -> None:
         with self.assertRaises(BenchmarkError):
