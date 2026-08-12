@@ -596,3 +596,138 @@ class M1CReviewIdentityIntegrationTests(unittest.TestCase):
         reviewed = review["scenes"][0]["selected_candidate"]
         self.assertEqual(reviewed["asset_id"], "candidate_b")
         self.assertEqual(reviewed["replaces_asset_id"], "candidate_a")
+
+
+class ReviewBundleSelectedAssetInvariantTests(unittest.TestCase):
+    """The board may not name a selection it does not show.
+
+    The review bundle is the only place a person sees what the system picked, so
+    "selected" there has to mean the same thing it means in the manifest. Two ways
+    it stopped meaning that: an asset the download ladder found after the review
+    window was frozen was named selected while the board rendered only the frozen
+    shortlist, and a scene where selection honestly abstained still had the first
+    candidate labelled as its choice.
+    """
+
+    def test_selected_asset_found_after_the_review_window_reaches_the_board(self) -> None:
+        from src.assets.review_bundle import (
+            attach_selected_asset,
+            create_scene_review_bundle,
+            write_review_bundle,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = create_scene_review_bundle(
+                project_id="project_001",
+                scene={"scene_id": "scene_001", "primary_query": "gecko on glass"},
+                semantic_scene={},
+                metadata_queries=[],
+                provider_routing={},
+                candidates=[_candidate("a1"), _candidate("a2")],
+                analyses=[_analysis("a1"), _analysis("a2")],
+                selected_candidate_id="a1",
+                target_aspect_ratio="9:16",
+            )
+
+            attach_selected_asset(
+                bundle,
+                {
+                    **_candidate("ladder_c"),
+                    "path": "assets/downloaded/ladder_c.mp4",
+                    "download_status": "downloaded",
+                },
+            )
+            html = Path(write_review_bundle(root, [bundle])["html_path"]).read_text(encoding="utf-8")
+
+            self.assertEqual(bundle.selected_candidate["asset_id"], "ladder_c")
+            self.assertIn("ladder_c", [str(item.get("asset_id") or "") for item in bundle.shortlist])
+            self.assertNotIn("ladder_c", [str(item.get("asset_id") or "") for item in bundle.alternatives])
+            self.assertEqual(len(bundle.shortlist), 3)
+            self.assertIn("ladder_c", html)
+            self.assertIn("candidate selected", html)
+
+    def test_reviewed_selection_is_not_duplicated_into_the_shortlist(self) -> None:
+        from src.assets.review_bundle import attach_selected_asset, create_scene_review_bundle
+
+        bundle = create_scene_review_bundle(
+            project_id="project_001",
+            scene={"scene_id": "scene_001", "primary_query": "gecko on glass"},
+            semantic_scene={},
+            metadata_queries=[],
+            provider_routing={},
+            candidates=[_candidate("a1"), _candidate("a2")],
+            analyses=[_analysis("a1"), _analysis("a2")],
+            selected_candidate_id="a1",
+            target_aspect_ratio="9:16",
+        )
+
+        attach_selected_asset(bundle, {**_candidate("a1"), "download_status": "downloaded"})
+
+        self.assertEqual([str(item.get("asset_id") or "") for item in bundle.shortlist], ["a1", "a2"])
+        self.assertEqual(bundle.selected_candidate["asset_id"], "a1")
+
+    def test_bundle_names_no_selection_when_the_scene_selected_nothing(self) -> None:
+        from src.assets.review_bundle import create_scene_review_bundle
+
+        def _bundle(selected_candidate_id: str):
+            return create_scene_review_bundle(
+                project_id="project_001",
+                scene={"scene_id": "scene_001", "primary_query": "penguin sliding on snow"},
+                semantic_scene={},
+                metadata_queries=[],
+                provider_routing={},
+                candidates=[_candidate("a1"), _candidate("a2")],
+                analyses=[_analysis("a1"), _analysis("a2")],
+                selected_candidate_id=selected_candidate_id,
+                target_aspect_ratio="9:16",
+            )
+
+        abstained = _bundle("")
+        unknown = _bundle("never_ranked_here")
+
+        self.assertEqual(abstained.selected_candidate, {})
+        self.assertEqual([str(item.get("asset_id") or "") for item in abstained.alternatives], ["a1", "a2"])
+        self.assertEqual(unknown.selected_candidate, {})
+        self.assertEqual(len(abstained.shortlist), 2)
+
+    def test_compatibility_rebuild_reports_an_unresolved_scene_as_unresolved(self) -> None:
+        """The second reachable caller of the same rule: a rebuild reports, it does not choose."""
+        import json
+
+        from src.assets.visual_preview import prepare_visual_preview_for_project
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project_001"
+            (project / "assets").mkdir(parents=True)
+            manifest = {
+                "schema_version": 1,
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "ranked_candidates": [_candidate("a1"), _candidate("a2")],
+                        "selected_asset": {},
+                    }
+                ],
+            }
+            (project / "assets" / "assets_manifest.json").write_text(
+                json.dumps(manifest),
+                encoding="utf-8",
+            )
+
+            prepare_visual_preview_for_project(
+                project_root=project,
+                project_id="project_001",
+                all_scenes=True,
+                offline=True,
+                no_html=True,
+            )
+            review = json.loads(
+                (project / "assets" / "review" / "visual_review_manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        scene = review["scenes"][0]
+        self.assertEqual(scene["selected_candidate"], {})
+        self.assertEqual([item["asset_id"] for item in scene["shortlist"]], ["a1", "a2"])

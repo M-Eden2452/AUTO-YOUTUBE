@@ -633,14 +633,11 @@ class AssetManifestBuilder:
             config=self.visual_preview_config,
         )
         self._apply_semantic_visual_evidence(state, analyses, top_k, request)
-        before_id = str(
-            (state.selected or {}).get("asset_id")
-            or (
-                state.candidates[0].get("asset_id")
-                if state.candidates
-                else ""
-            )
-        )
+        # The id of the asset this scene actually selected, and nothing else. It used
+        # to fall back to the top-ranked candidate, which turned an honest abstention
+        # into a selection on the review board. VA-NEW-03 left no post-selection owner,
+        # so "before" and "after" name the same decision.
+        before_id = str((state.selected or {}).get("asset_id") or "")
         technical_analysis_requested = bool(
             settings.get("technical_rerank_enabled", False)
         )
@@ -648,7 +645,7 @@ class AssetManifestBuilder:
         # but that evidence cannot replace the canonical semantic/media/manual
         # decision made above. Any future technical tie-break must enter through
         # that canonical decision path rather than becoming a post-selection owner.
-        after_id = str((state.selected or {}).get("asset_id") or before_id)
+        after_id = before_id
         bundle = create_scene_review_bundle(
             project_id=self.project_id,
             scene=state.scene,

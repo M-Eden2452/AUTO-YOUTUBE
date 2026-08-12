@@ -19,7 +19,9 @@ next_exact_action: >-
   THE NEXT EXACT ACTION is M1-D / VA-NEW-08 (resume fingerprints) inside
   PLAN-9A; it requires a separate owner decision on the persisted fingerprint
   field set before implementation. The owner-authorized targeted retrieval
-  diagnostic (read-only, no commit) changes no route and closes no step.
+  diagnostic (read-only, no commit) changes no route and closes no step; the
+  two bounded corrections VA-NEW-22 and VA-NEW-23 it led to are closed inside
+  PLAN-10B and PLAN-9A and move neither the checkpoint nor this action.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -133,6 +135,72 @@ MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR findings; CI run `31526039612`
 closure records above are not rewritten). Next exact action is **M1-D /
 VA-NEW-08**; checkpoint remains PLAN-9D.
 
+**RETRIEVAL DIAGNOSTIC PACKAGING — PROPOSAL, NOT AN OWNER DECISION
+(2026-08-12).** The owner-authorized read-only retrieval diagnostic proposed
+seven separate fixes, and the grouping recorded here is that diagnostic's own
+recommendation, kept so a new chat can find it. It is **not** an owner decision:
+it creates no PLAN-ID, does not change `current_checkpoint` or
+`next_exact_action`, and authorises no implementation. Proposed grouping:
+**RD-A** video observability, **RD-B** query recall quality (short primary query
+· subject/action-preserving fallback · orientation widening), **RD-C** source
+routing (`source_class` and the provider budget it spends), then a repeated
+image+video evaluation before any threshold / provider-trust / license-policy
+work. The proposal further suggests that RD-B improve the existing expansion
+owner rather than place a second synonym dictionary beside it, and that duration
+vs multi-slot stay a separate problem. **Every one of those points still needs a
+separate owner decision, and RD-B/RD-C are not implemented.** The owner bounded
+the 2026-08-12 session to exactly two items — the confirmed Pixabay preview
+defect and the review-bundle selected-asset invariant — and only those are
+closed below. Cheetah source scarcity remains unproven in either direction: it
+was judged from a single preview frame while half of the Pixabay videos carried
+no preview at all, which is the defect VA-NEW-22 closes.
+
+**RD-A CLOSURE.** Both authorised corrections are closed by the commit
+containing this record; neither starts its section's own contract. `RD-A` here is
+the proposal's label, used only to name the pair.
+
+- **VA-NEW-22** (`src/providers/pixabay_provider.py`, inside **PLAN-10B**). The
+  video preview URL was derived from the top-level `picture_id`, which current
+  Pixabay responses no longer carry. The preview came back empty, the candidate
+  fell through to downloading a video variant, and the 5 MB preview cap then
+  refused it — the video existed, was ranked, and could not be looked at. The
+  adapter now reads the thumbnail of the rendition it actually chose, then the
+  largest rendition carrying one, and keeps `picture_id` as the reader for older
+  payloads. This is the precondition for any video benchmark, and for retesting
+  cheetah retrieval.
+- **VA-NEW-23** (`src/assets/review_bundle.py`, its production seam
+  `_prepare_visual_review` and the compatibility rebuild
+  `prepare_visual_preview_for_project` — all three reachable callers, inside
+  **PLAN-9A**, the same selected-asset lineage family as VA-NEW-04). The bundle
+  could name a selection it did not show: an
+  asset found by download retry or the draft-completion ladder after the review
+  window was frozen became `selected_candidate` while the board rendered only
+  the frozen shortlist, and a scene where selection honestly abstained was
+  relabelled with the top-ranked candidate. The named asset is now placed on the
+  board, and an abstention stays an abstention in the bundle and in the
+  `selected_candidate_before/after_rerank` report. Additive and tolerant: one
+  extra entry in the existing `shortlist`, one existing `preview_status` value,
+  no new persisted field, no schema-version bump, no migration.
+  **Declared boundary, not an oversight:** `_apply_fallbacks` runs after the
+  bundle is attached, so a scene answered by `generated_fallback_asset` (a
+  synthetic text card, `selected_by: generated_fallback`, no provider material,
+  no preview, no rights review) still leaves the board showing no selection.
+  That is retrieved-material scope: the candidate board's whole vocabulary —
+  provider, license, framing, vision tags — describes nothing about a generated
+  card, and the manifest plus missing/fallback reporting already own that fact.
+  Closing it would move the attach call in the scene build order and belongs to
+  an owner decision, not to RD-A.
+
+Evidence: RED first on `a52103e` — Pixabay preview 1 failure, review-bundle
+invariant 2 failures, production abstention seam 1 failure, compatibility
+rebuild 1 failure. GREEN after: owning radius 146 OK, full canonical offline
+suite 2208 OK, gates OK. Ratchet not taken: `src.assets.review_bundle`
+and `src.news.asset_manifest_builder` keep their mypy baseline suppression,
+because the owner bounded this session to the two corrections above and the
+typing cleanup that would lift them is not part of either. Ranking, rights,
+media policy, the review window and the query path are unchanged. Checkpoint
+remains PLAN-9D.
+
 **WHY NOT LIVE-5 YET.** LIVE-5 — owner-issued live provider diagnostic, а не
 plan step. Он измеряет качество отбора по persisted evidence, а
 `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` доказал, что часть
@@ -160,6 +228,8 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
 | M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | да | да |
 | M2-A | VA-NEW-10 nested retries R² | `src/assets/http_client.py` | **PLAN-10B** | один retry owner | A′ | да, минимально | да |
 | M2-B | VA-NEW-12 uncapped request budget/stop | retrieval budget | **PLAN-10C** | budget/plateau policy | A′ | да, минимально | да |
+| RD-A | VA-NEW-22 Pixabay video preview reads a field current responses no longer carry | `src/providers/pixabay_provider.py` | **PLAN-10B** (correction) | provider contract behavior | A | **closed by this commit** | yes |
+| RD-A | VA-NEW-23 review bundle named a selection it did not show | `src/assets/review_bundle.py` | **PLAN-9A** (correction) | selected-asset lineage | A | **closed by this commit** | yes |
 
 Уточнения к mapping аудита, проверенные по репозиторию:
 
@@ -4099,6 +4169,14 @@ misleading/conflict · paid approval.
   decision на него выдан и закрыт (M1-C, commit `c9537fa`, Review #1 ACCEPT
   2026-08-11); resume fingerprint (M1-D) остаётся вне состава и требует
   отдельного owner decision перед implementation.
+- **bounded correction VA-NEW-23 (RD-A, 2026-08-12) — closed.** Тот же
+  selected-asset lineage family, что и VA-NEW-04: review bundle не имеет права
+  называть выбранным то, чего не показал. Ассет, найденный после заморозки
+  review window (download retry, draft-completion ladder), теперь попадает в тот
+  же `shortlist`, который рендерит доска, а честный abstention остаётся
+  abstention и в bundle, и в `selected_candidate_before/after_rerank`. Additive:
+  новых persisted полей, schema-version bump и миграции нет, полный contract
+  PLAN-9A этим не начат. Детали — блок «RD-A CLOSURE».
 - **prerequisite chain (единственная действующая, ревизия 2.1):**
   `PLAN-9B-2` + `PLAN-1C′` + **`PLAN-6E`**. Прежняя цепочка
   `…PLAN-5 → PLAN-6A → PLAN-6D → PLAN-6E → PLAN-1C′` отменена ревизией 2.1:
@@ -6225,6 +6303,13 @@ current-quality benchmark. Production logic этой записью не мен�
   попыток) как bounded corrections до LIVE-5, не начиная pagination contract и
   не переводя статус в completed. Класс и порядок — блок «Mini plan
   reconciliation 2026-08-11».
+- **bounded correction VA-NEW-22 (RD-A, 2026-08-12) — closed.** Этот owner
+  принял и закрыл adapter-дефект `src/providers/pixabay_provider.py`: video
+  preview строился из `picture_id`, которого в текущих ответах Pixabay нет,
+  поэтому кандидат уходил в скачивание video variant и упирался в preview cap.
+  Читается thumbnail выбранного rendition, затем крупнейшего с thumbnail;
+  `picture_id` сохранён как reader старых payload. Pagination contract этим не
+  начат, статус секции не меняется. Детали — блок «RD-A CLOSURE».
 - **цель:** поиск не ограничен первой страницей результатов и фиксированным
   лимитом на пару provider × query.
 - **граница:** сначала additive pagination/cursor contract и

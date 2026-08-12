@@ -154,6 +154,105 @@ class ProviderFoundationTests(unittest.TestCase):
         self.assertEqual(candidates[0].policy_decision["policy_context"], "internal_content_production")
         self.assertEqual(candidates[0].policy_decision["owner_approval_status"], "approved")
 
+    def test_pixabay_video_preview_reads_the_thumbnail_current_responses_carry(self) -> None:
+        """A current Pixabay video hit must still give a reviewer a frame to look at.
+
+        Current responses carry the still inside every rendition of ``videos`` and no
+        longer carry the top-level ``picture_id`` the adapter derived its Vimeo poster
+        from. Without a preview URL the candidate falls through to downloading a video
+        variant, which the preview size cap then refuses - so the video exists, is
+        ranked, and nobody ever sees it.
+        """
+        from src.assets.provider_contract import AssetSearchRequest
+        from src.providers.pixabay_provider import PixabayStockProvider
+
+        class StubHttp:
+            def get_json(self, url: str, *, headers=None, params=None, timeout=None) -> dict:
+                return {
+                    "hits": [
+                        {
+                            "id": 91,
+                            "pageURL": "https://pixabay.com/videos/91/",
+                            "tags": "cheetah, sprint, savanna",
+                            "user": "Pixabay Author",
+                            "user_id": 15,
+                            "duration": 9,
+                            "videos": {
+                                "large": {
+                                    "width": 1920,
+                                    "height": 1080,
+                                    "url": "https://cdn/large.mp4",
+                                    "thumbnail": "https://cdn.pixabay.com/video/91_large.jpg",
+                                },
+                                "medium": {
+                                    "width": 1080,
+                                    "height": 1920,
+                                    "url": "https://cdn/vertical.mp4",
+                                    "thumbnail": "https://cdn.pixabay.com/video/91_medium.jpg",
+                                },
+                            },
+                        }
+                    ]
+                }
+
+        provider = PixabayStockProvider("PIXABAY_KEY", http=StubHttp())
+        request = AssetSearchRequest(
+            query="cheetah sprint",
+            media_type="video",
+            target_aspect_ratio="9:16",
+            orientation_preference="vertical",
+            min_width=720,
+            min_height=1280,
+            max_results=5,
+            scene_id="scene_001",
+        )
+
+        candidates = provider.search(request)
+
+        self.assertEqual(candidates[0].download_url, "https://cdn/vertical.mp4")
+        self.assertEqual(candidates[0].preview_url, "https://cdn.pixabay.com/video/91_medium.jpg")
+        self.assertEqual(provider.get_preview(candidates[0]).url, "https://cdn.pixabay.com/video/91_medium.jpg")
+
+    def test_pixabay_video_preview_falls_back_to_legacy_picture_id_payloads(self) -> None:
+        """Older payloads without rendition thumbnails keep the reader they had."""
+        from src.assets.provider_contract import AssetSearchRequest
+        from src.providers.pixabay_provider import PixabayStockProvider
+
+        class StubHttp:
+            def get_json(self, url: str, *, headers=None, params=None, timeout=None) -> dict:
+                return {
+                    "hits": [
+                        {
+                            "id": 77,
+                            "pageURL": "https://pixabay.com/videos/77/",
+                            "tags": "whale, ocean",
+                            "user": "Pixabay Author",
+                            "user_id": 15,
+                            "duration": 6,
+                            "picture_id": "abc123",
+                            "videos": {
+                                "medium": {"width": 1080, "height": 1920, "url": "https://cdn/vertical.mp4"},
+                            },
+                        }
+                    ]
+                }
+
+        provider = PixabayStockProvider("PIXABAY_KEY", http=StubHttp())
+        request = AssetSearchRequest(
+            query="whale ocean",
+            media_type="video",
+            target_aspect_ratio="9:16",
+            orientation_preference="vertical",
+            min_width=720,
+            min_height=1280,
+            max_results=5,
+            scene_id="scene_001",
+        )
+
+        candidates = provider.search(request)
+
+        self.assertEqual(candidates[0].preview_url, "https://i.vimeocdn.com/video/abc123_640x360.jpg")
+
     def test_fake_provider_invalid_video_is_rejected_and_cleans_output(self) -> None:
         from src.assets.provider_contract import AssetSearchRequest, DownloadContext, ProviderValidationError
         from src.providers.fake_provider import FakeStockProvider

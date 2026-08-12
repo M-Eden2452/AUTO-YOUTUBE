@@ -103,7 +103,11 @@ def create_scene_review_bundle(
         entry.update(_semantic_fields(analysis))
         entry.update(_decision_fields(candidate))
         shortlist.append(entry)
-    selected = next((candidate for candidate in shortlist if candidate["asset_id"] == selected_candidate_id), shortlist[0] if shortlist else {})
+    # Only an asset that is really on this board may be named its selection. The
+    # first ranked candidate used to stand in whenever the id matched nothing, so a
+    # scene where selection honestly abstained still showed a person a "selected"
+    # asset - a claim the manifest never made.
+    selected = next((candidate for candidate in shortlist if candidate["asset_id"] == selected_candidate_id), {})
     alternatives = [candidate for candidate in shortlist if candidate.get("asset_id") != selected.get("asset_id")][:4]
     return SceneReviewBundle(
         project_id=project_id,
@@ -459,6 +463,11 @@ def attach_selected_asset(bundle: "SceneReviewBundle", selected: dict[str, Any] 
     Called after the download, which is the step that replaces the ranked candidate
     with a record of the file on disk. The decision travels with it, so the board shows
     the verdict for the asset a viewer can actually open.
+
+    The asset named here is also placed on the board. Download retries and the draft
+    completion ladder may answer a scene with material found after the review window
+    was frozen; the board renders the shortlist, so naming such an asset without
+    adding it meant the system reported a choice it never showed anyone.
     """
     if not isinstance(selected, dict) or not selected:
         return bundle
@@ -499,7 +508,18 @@ def attach_selected_asset(bundle: "SceneReviewBundle", selected: dict[str, Any] 
     entry.update(_decision_fields(selected))
     entry["local_path"] = str(selected.get("path") or selected.get("local_path") or "")
     entry["download_status"] = str(selected.get("download_status") or "")
+    entry.setdefault("preview_status", "not_analysed")
+    entry.setdefault("sampled_frames", [])
     bundle.selected_candidate = entry
+    if all(
+        str(candidate.get("asset_id") or "") != selected_id
+        for candidate in bundle.shortlist
+    ):
+        bundle.shortlist.append(dict(entry))
+        # The per-asset maps are views over the shortlist, so an entry the board
+        # now renders has to appear in them too.
+        bundle.preview_status[selected_id] = entry["preview_status"]
+        bundle.sampled_frames[selected_id] = list(entry["sampled_frames"])
     bundle.alternatives = [
         dict(candidate)
         for candidate in bundle.shortlist

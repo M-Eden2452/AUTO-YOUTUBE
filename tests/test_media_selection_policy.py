@@ -846,3 +846,38 @@ class CanonicalWiringTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AbstentionOnTheReviewBoardTests(unittest.TestCase):
+    """An honest abstention may not arrive on the review board as a choice.
+
+    CASE 4 above proves the hard whitelist abstains instead of substituting the
+    other kind. This proves the review seam then reports that abstention: the
+    board used to fall back to the first ranked candidate, so a scene the system
+    refused to answer still showed a person a "selected" asset.
+    """
+
+    def test_abstained_scene_is_not_given_a_selection_by_the_review_seam(self):
+        selected, ranked = select_with_media_policy(
+            _scene(),
+            [_full_image("only_image")],
+            prefer_video=False,
+            allowed_media_kinds=["video"],
+            required_duration_sec=5.0,
+        )
+        self.assertIsNone(selected)
+
+        state = _run_production_technical_review(
+            candidates=ranked,
+            selected=selected,
+            analyses=[_technical_analysis("only_image", 90.0)],
+            allowed_media_kinds=["video"],
+        )
+
+        self.assertEqual(state.scene_review_bundle.selected_candidate, {})
+        self.assertEqual(state.visual_review_entry["selected_candidate_after_rerank"], "")
+        self.assertEqual(state.visual_review_entry["selected_candidate_before_rerank"], "")
+        self.assertEqual(
+            [item["asset_id"] for item in state.scene_review_bundle.shortlist],
+            ["only_image"],
+        )

@@ -470,7 +470,10 @@ def prepare_visual_preview_for_project(
         candidates = _scene_candidates(scene_entry)
         request = dataclasses.replace(request_base, scene_id=current_scene_id)
         analyses = prepare_candidate_preview_analyses(candidates, providers_by_name={}, request=request)
-        selected = scene_entry.get("selected_asset") or (candidates[0] if candidates else {})
+        # A rebuild reports the selection the manifest recorded. Borrowing the
+        # top-ranked candidate for a scene that resolved to nothing would put a
+        # choice on the board that was never made.
+        selected = scene_entry.get("selected_asset") or {}
         bundle = create_scene_review_bundle(
             project_id=project_id,
             scene=scene,

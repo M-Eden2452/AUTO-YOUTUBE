@@ -98,7 +98,7 @@ class PixabayStockProvider:
             if width < request.min_width or height < request.min_height:
                 continue
             provider_asset_id = str(hit.get("id") or "")
-            preview = _video_preview_url(hit)
+            preview = _video_preview_url(hit, best)
             candidate = AssetCandidate(
                 asset_id=f"pixabay_video_{provider_asset_id}",
                 provider=self.name,
@@ -302,7 +302,30 @@ def _author_url(hit: dict[str, Any]) -> str:
     return ""
 
 
-def _video_preview_url(hit: dict[str, Any]) -> str:
+def _video_preview_url(hit: dict[str, Any], best: dict[str, Any] | None = None) -> str:
+    """The still frame a reviewer can actually open.
+
+    Pixabay carries the video thumbnail inside each rendition of ``videos``; the
+    top-level ``picture_id`` this used to derive a Vimeo poster from is absent from
+    current responses, so the preview came back empty and the candidate fell through
+    to downloading a video variant, which the preview size cap then refused. The
+    thumbnail of the rendition that would actually be downloaded is preferred, then
+    the largest rendition that carries one; ``picture_id`` stays as the reader for
+    older payloads.
+    """
+    if isinstance(best, dict):
+        thumbnail = str(best.get("thumbnail") or "").strip()
+        if thumbnail:
+            return thumbnail
+    videos = hit.get("videos") if isinstance(hit.get("videos"), dict) else {}
+    renditions = [
+        item
+        for item in videos.values()
+        if isinstance(item, dict) and str(item.get("thumbnail") or "").strip()
+    ]
+    renditions.sort(key=lambda item: int(item.get("width") or 0) * int(item.get("height") or 0), reverse=True)
+    if renditions:
+        return str(renditions[0].get("thumbnail") or "").strip()
     picture_id = str(hit.get("picture_id") or "").strip()
     if picture_id:
         return f"https://i.vimeocdn.com/video/{picture_id}_640x360.jpg"
