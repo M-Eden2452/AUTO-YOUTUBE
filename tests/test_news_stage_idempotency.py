@@ -500,6 +500,17 @@ def _write_valid_artifact(store, project_root: Path, job, stage: str) -> Path:
             },
         )
     elif stage == "asset_search":
+        # These tests are about stage idempotency, so the synthetic manifest carries
+        # the same input fingerprint production would have stamped on it. Without one
+        # it would be a legacy artifact, and resume would rightly refuse to reuse it -
+        # that contract is owned by tests/test_asset_search_resume_fingerprint.py.
+        from src.news.pipeline import (
+            ASSET_SEARCH_FINGERPRINT_KEY,
+            _channel_asset_selection,
+            asset_search_fingerprint,
+        )
+
+        plan_path = _artifact_path(project_root, job.language, "visual_plan")
         store.write_json(
             path,
             {
@@ -513,6 +524,12 @@ def _write_valid_artifact(store, project_root: Path, job, stage: str) -> Path:
                 "provider_attempts": [],
                 "provider_errors": [],
                 "warnings": [],
+                ASSET_SEARCH_FINGERPRINT_KEY: asset_search_fingerprint(
+                    job,
+                    store.read_json(plan_path),
+                    dry_run=False,
+                    asset_selection=_channel_asset_selection(job.channel_id),
+                ),
             },
         )
     elif stage == "voice":

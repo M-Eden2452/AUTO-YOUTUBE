@@ -55,12 +55,14 @@ See also: ``docs/current/SYSTEM_MAP.md``, ADR 0004, 0005, 0006, 0009,
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 from src.audio.scene_timeline import apply_timeline_to_script, build_scene_timeline
 from src.assets.completion import MODE_DRAFT_COMPLETE, normalize_mode
+from src.assets.completion.replacement import STALE_STAGES
 
 from .article_ingestor import ArticleIngestionError, ingest_article, load_text_file
 from .asset_manager import build_news_asset_manifest
@@ -98,6 +100,136 @@ class NewsPipelineResult:
     status: str
     project_root: Path
     completed_stages: list[str]
+
+
+# A stored asset_search stays readable forever; it may only be *reused* when the
+# manifest can prove which inputs produced it. Bump the version when the payload
+# below changes, so older fingerprints deterministically stop matching instead of
+# comparing two different questions.
+ASSET_SEARCH_FINGERPRINT_VERSION = 1
+ASSET_SEARCH_FINGERPRINT_KEY = "asset_search_fingerprint"
+
+
+def asset_search_fingerprint(
+    job: NewsJob,
+    visual_plan: dict[str, Any],
+    *,
+    dry_run: bool,
+    asset_selection: dict[str, Any],
+) -> str:
+    """Identify the inputs ``build_asset_search_manifest`` actually searches on.
+
+    Exactly the arguments that decide what is retrieved and selected, and nothing
+    else. ``project_root``/``project_id`` say *where* a project lives rather than
+    what it asks for, and the reuse ledger is scratch state of a single run, so
+    none of them belong here: a project that moved on disk must still match.
+    """
+    payload = {
+        "version": ASSET_SEARCH_FINGERPRINT_VERSION,
+        "asset_selection": asset_selection,
+        "channel": job.channel_id,
+        "completion_mode": normalize_mode(completion_settings(job).get("mode")),
+        "dry_run": bool(dry_run),
+        "user_assets": list(job.user_assets or []),
+        "visual_plan": visual_plan,
+    }
+    encoded = json.dumps(
+        payload, sort_keys=True, ensure_ascii=False, default=str
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _channel_asset_selection(channel_id: str) -> dict[str, Any]:
+    selection = _load_channel_config(channel_id).get("asset_selection", {})
+    return selection if isinstance(selection, dict) else {}
+
+
+def _asset_search_reuse_block(
+    store: NewsProjectStore,
+    job: NewsJob,
+    root: Path,
+    *,
+    dry_run: bool,
+) -> str:
+    """Why a completed asset_search may not be reused, or "" when it may.
+
+    Fail closed: a missing or unusable fingerprint means compatibility is unknown,
+    and unknown is not permission. Legacy manifests keep reading exactly as before
+    - they are recomputed once, then carry a fingerprint like any other.
+    """
+    state = job.stages.get("asset_search")
+    if state is None or state.status != "completed":
+        return ""
+    try:
+        manifest = store.read_json(root / "assets" / "assets_manifest.json")
+        plan = store.read_json(
+            root / "localizations" / job.language / "visual" / "visual_plan.json"
+        )
+    except (OSError, ValueError, TypeError):
+        return "asset_search_inputs_unreadable"
+    if not isinstance(manifest, dict) or not isinstance(plan, dict):
+        return "asset_search_inputs_unreadable"
+    stored = manifest.get(ASSET_SEARCH_FINGERPRINT_KEY)
+    if stored is None:
+        return "asset_search_fingerprint_missing"
+    if not isinstance(stored, str) or not stored.strip():
+        return "asset_search_fingerprint_invalid"
+    current = asset_search_fingerprint(
+        job,
+        plan,
+        dry_run=dry_run,
+        asset_selection=_channel_asset_selection(job.channel_id),
+    )
+    return "" if stored == current else "asset_search_inputs_changed"
+
+
+def _invalidate_stale_asset_search(job: NewsJob, *, reason: str) -> None:
+    """Mark the search and everything that consumes its visual assembly.
+
+    ``STALE_STAGES`` is the existing canonical answer to "what stops being valid
+    when the visual assets change", already used by visual-slot replacement.
+    Voice and subtitles are built from the script and are deliberately untouched.
+    Result files stay on disk as audit evidence; only the stage states go stale.
+    """
+    metadata = {"stale_reason": reason}
+    for stage_name in ("asset_search", *STALE_STAGES):
+        state = job.stages.get(stage_name)
+        if state is None:
+            continue
+        state.status = "stale"
+        state.started_at = None
+        state.finished_at = None
+        state.error = None
+        state.settings = {**dict(state.settings or {}), **metadata}
+    job.status = "in_progress"
+    job.current_stage = "asset_search"
+
+
+def _stamp_asset_search_fingerprint(
+    store: NewsProjectStore,
+    job: NewsJob,
+    root: Path,
+    *,
+    dry_run: bool,
+) -> None:
+    """Bind the manifest on disk to the inputs that produced it.
+
+    Stamped last, from the artifacts as they finally stand: the draft-complete
+    adaptation pass may replace both the visual plan and the manifest after the
+    first search, and it is that final pair the next resume will be compared to.
+    """
+    manifest_path = root / "assets" / "assets_manifest.json"
+    manifest = store.read_json(manifest_path)
+    plan = store.read_json(
+        root / "localizations" / job.language / "visual" / "visual_plan.json"
+    )
+    manifest[ASSET_SEARCH_FINGERPRINT_KEY] = asset_search_fingerprint(
+        job,
+        plan,
+        dry_run=dry_run,
+        asset_selection=_channel_asset_selection(job.channel_id),
+    )
+    store.write_json(manifest_path, manifest)
 
 
 def create_news_to_short_job(
@@ -185,6 +317,16 @@ def run_news_to_short_job(
         script_adaptation=script_adaptation,
     )
     root = store.project_root(job_id)
+    # Before anything reads the completed set, not while iterating it: a stored
+    # asset_search that cannot prove its inputs is demoted here, so the snapshot
+    # below already reflects it and no later stage can be skipped on its strength.
+    # `force_stage` is the caller taking explicit control, exactly as it does for
+    # every other skip decision in the loop.
+    if not force_stage:
+        reuse_block = _asset_search_reuse_block(store, job, root, dry_run=dry_run)
+        if reuse_block:
+            _invalidate_stale_asset_search(job, reason=reuse_block)
+            store.save_job(job)
     stop_stage = until_stage or ("asset_search" if dry_run else None)
     stages = [stage] if stage else NEWS_TO_SHORT_STAGES
     completed = store.completed_stage_names(job)
@@ -459,6 +601,7 @@ def _dispatch_stage(
             # Always report the final on-disk manifest, including the no-improvement
             # fallback case.
             write_completion_report(root=root, job=job)
+        _stamp_asset_search_fingerprint(store, job, root, dry_run=dry_run)
         return root / "assets" / "assets_manifest.json"
     if stage_name == "voice":
         script_path = root / "localizations" / job.language / "script" / "script.json"
@@ -653,13 +796,12 @@ def build_asset_search_manifest(
     project_root: str | Path | None = None,
     reuse_ledger: Any | None = None,
 ) -> dict[str, Any]:
-    channel_config = _load_channel_config(job.channel_id)
     manifest = build_news_asset_manifest(
         visual_plan=visual_plan,
         user_assets=job.user_assets,
         dry_run=dry_run,
         channel=job.channel_id,
-        asset_selection=channel_config.get("asset_selection", {}),
+        asset_selection=_channel_asset_selection(job.channel_id),
         project_root=project_root,
         project_id=job.job_id,
         completion_mode=str(completion_settings(job).get("mode") or ""),

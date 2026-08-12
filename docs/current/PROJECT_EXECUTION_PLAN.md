@@ -16,12 +16,16 @@ next_exact_action: >-
   picks, 3 wrong abstentions, 1/14 auto_safe). PLAN-9D-F/PLAN-9D-G stay
   optional quality track behind a separate paid-Vision approval, so PLAN-9D
   no longer blocks the route. The current checkpoint remains PLAN-9D.
-  THE NEXT EXACT ACTION is M1-D / VA-NEW-08 (resume fingerprints) inside
-  PLAN-9A; it requires a separate owner decision on the persisted fingerprint
-  field set before implementation. The owner-authorized targeted retrieval
-  diagnostic (read-only, no commit) changes no route and closes no step; the
-  two bounded corrections VA-NEW-22 and VA-NEW-23 it led to are closed inside
-  PLAN-10B and PLAN-9A and move neither the checkpoint nor this action.
+  M1-D / VA-NEW-08 (resume fingerprints) is implemented and closed inside
+  PLAN-9A: the owner decision on the persisted field set was issued in the
+  M1-D prompt and the resulting composition is recorded in the M1-D CLOSURE
+  block. THE NEXT EXACT ACTION is M1-E / VA-NEW-09 (strict render TOCTOU)
+  inside PLAN-9E, after which Review #2 covers M1-D and M1-E together; no
+  part of Review #2 has been performed. The owner-authorized targeted
+  retrieval diagnostic (read-only, no commit) changes no route and closes no
+  step; the two bounded corrections VA-NEW-22 and VA-NEW-23 it led to are
+  closed inside PLAN-10B and PLAN-9A and move neither the checkpoint nor this
+  action.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -135,6 +139,62 @@ MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR findings; CI run `31526039612`
 closure records above are not rewritten). Next exact action is **M1-D /
 VA-NEW-08**; checkpoint remains PLAN-9D.
 
+**M1-D CLOSURE (2026-08-12).** `VA-NEW-08` is closed by the bounded PLAN-9A
+correction in the commit containing this record. A completed `asset_search`
+may now only be reused when the stored manifest can prove which inputs
+produced it: `assets_manifest.json` carries an additive
+`asset_search_fingerprint`, and resume compares it against the current inputs
+before it reads the completed-stage set.
+
+**Owner decision on the persisted field set — issued in the M1-D prompt,
+composition recorded here.** The fingerprint is a SHA-256 over exactly the
+arguments that decide what `build_asset_search_manifest` retrieves and
+selects: the visual plan on disk, `user_assets`, `channel_id`, the channel's
+resolved `asset_selection` policy, the normalized completion `mode`,
+`dry_run`, and a `version` so a later change to this composition stops
+matching deterministically instead of comparing two different questions.
+`project_root`/`project_id` are excluded because they say where a project
+lives rather than what it asks for — a moved project must still match — and
+the reuse ledger is scratch state of a single run.
+
+**Two declared boundaries, recorded rather than left silent.** Live provider
+identity is *not* in the fingerprint: determining it is not a pure input read
+(it constructs providers and loads the process environment), and making resume
+depend on which API keys happen to be present would invalidate every project
+whenever one is absent. `dry_run` — the provider-set difference the pipeline
+itself controls, and the one that turns a no-provider preview into something
+that must never serve a real run — is covered. Provider composition stays with
+`VA-NEW-06` / M2-A inside PLAN-10B. The local media index is likewise excluded:
+it is a growing library, not a decision policy, and hashing it would invalidate
+every project on every addition.
+
+**Fail-safe and legacy.** Missing, unparseable and mismatching fingerprints all
+mean the same thing — compatibility unknown is not permission — so none of them
+is silently reused. A legacy manifest stays fully readable and
+`is_stage_completed` is unchanged; it is recomputed once and then carries a
+fingerprint like any other. Deliberate behavior change: existing projects
+re-run `asset_search` on their first resume. When the search is recomputed the
+existing `STALE_STAGES` set (`preview_render`, `quality_check`, `final_render`,
+`export`) goes stale with it; `voice` and `subtitles` are built from the script
+and are untouched. Result files stay on disk as audit evidence.
+
+**Causal loop — checked, latent, not live.** The `completed` snapshot in
+`run_news_to_short_job` is still taken once before the stage loop, but nothing
+in the loop invalidates a stage today (`_mark_job_stale` belongs to visual-slot
+replacement, reachable only from the CLI). The new check is therefore placed
+before the snapshot, so it cannot open that hole; no scheduler was built.
+
+Additive and tolerant: no schema-version bump, no migration, no new persistence
+subsystem, no second reuse owner, no breaking API. Evidence: characterization
+RED through the real production path (7 failures, 2 errors) — a project carried
+to a completed `asset_search` by `dry_run`, the owner attaching footage, the
+plan genuinely re-planned by production, and the search still skipped; GREEN 8
+owning checks, targeted radius 114, full canonical offline suite 2216, gates OK.
+Mypy ratchet not applicable: `src.news.pipeline` is not in the baseline
+suppression list and no suppressed module was touched. Next: **M1-E /
+VA-NEW-09**, then Review #2 over M1-D and M1-E; none of Review #2 is done.
+Checkpoint remains PLAN-9D.
+
 **RETRIEVAL DIAGNOSTIC PACKAGING — PROPOSAL, NOT AN OWNER DECISION
 (2026-08-12).** The owner-authorized read-only retrieval diagnostic proposed
 seven separate fixes, and the grouping recorded here is that diagnostic's own
@@ -223,7 +283,7 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
 | M1-B | VA-NEW-02 preview cache не идентифицирует source snapshot | `src/assets/visual_preview.py` | **PLAN-9A** | persistence/provenance | A | **закрыт этим M1-B commit** | да |
 | M1-C | VA-NEW-04 review artifact mixed candidate A with downloaded B | src/assets/review_bundle.py | **PLAN-9A** | selected-asset lineage | A | **closed by this M1-C commit** | yes |
 | M1-C | VA-NEW-05 Vision tags were lost during download rebuild | asset_manifest_builder / asset_provider_adapters | **PLAN-9A** | snapshot-bound evidence carry | B (Vision blocker) | **closed by this M1-C commit** | yes for Vision |
-| M1-D | VA-NEW-08 resume без input/policy/provider fingerprints | `src/news/pipeline.py`, `project_store` | **PLAN-9A** | persisted resume contract | B (до опоры на resume в LIVE) | да | да |
+| M1-D | VA-NEW-08 resume без input/policy fingerprints | `src/news/pipeline.py` | **PLAN-9A** | persisted resume contract | B (до опоры на resume в LIVE) | **закрыт этим M1-D commit**; provider identity вынесена к VA-NEW-06/M2-A — см. M1-D CLOSURE | да |
 | M1-E | VA-NEW-09 strict render TOCTOU | `src/news/final_renderer.py` | **PLAN-9E** | render authorization gate | B (до LIVE render) | да | да |
 | M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | да | да |
 | M2-A | VA-NEW-10 nested retries R² | `src/assets/http_client.py` | **PLAN-10B** | один retry owner | A′ | да, минимально | да |
@@ -243,8 +303,9 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
   перечисленный в его секции состав полей. `replaces_asset_id` из `VA-NEW-04`
   вышел за этот состав, и owner decision на него был выдан текстом M1-C
   prompt — **satisfied**, closed commit `c9537fa` (Review #1 ACCEPT
-  2026-08-11). `VA-NEW-08` fingerprint остаётся вне состава →
-  **OWNER DECISION REQUIRED** на persisted-расширение перед M1-D.
+  2026-08-11). `VA-NEW-08` fingerprint тоже вышел за этот состав, и owner
+  decision на него выдан текстом M1-D prompt — **satisfied**, closed этим
+  M1-D commit; фактический состав полей записан в блоке «M1-D CLOSURE».
 - **PLAN-9E** (M1-E) и **PLAN-10B/PLAN-10C** (M2-A/M2-B) формально blocked
   своими секциями. Bounded correction выполняется под их ID, статус секции при
   этом не переводится в completed — так же, как PLAN-9C-2/9C-3 приняли
@@ -4167,8 +4228,9 @@ misleading/conflict · paid approval.
   Уже выданный этому шагу persisted approval покрывает только перечисленный
   ниже состав полей: `replaces_asset_id` вышел за этот состав, и owner
   decision на него выдан и закрыт (M1-C, commit `c9537fa`, Review #1 ACCEPT
-  2026-08-11); resume fingerprint (M1-D) остаётся вне состава и требует
-  отдельного owner decision перед implementation.
+  2026-08-11); resume fingerprint (M1-D) также вышел за этот состав, его owner
+  decision выдан текстом M1-D prompt и закрыт — состав полей, два declared
+  boundary и fail-safe записаны в блоке «M1-D CLOSURE».
 - **bounded correction VA-NEW-23 (RD-A, 2026-08-12) — closed.** Тот же
   selected-asset lineage family, что и VA-NEW-04: review bundle не имеет права
   называть выбранным то, чего не показал. Ассет, найденный после заморозки

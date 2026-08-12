@@ -374,16 +374,32 @@ def _write_completed_resume_outputs(
             "scenes": [scene],
         },
     )
+    visual_plan = {"scenes": [scene]}
     store.write_json(
         root / "localizations" / job.language / "visual" / "visual_plan.json",
-        {"scenes": [scene]},
+        visual_plan,
     )
+    # A resumable fixture, so the manifest carries the input fingerprint production
+    # stamps on it. Without one it would be a legacy artifact and resume would refuse
+    # to reuse it, which is a different contract than the one these tests assert.
+    from src.news.pipeline import (
+        ASSET_SEARCH_FINGERPRINT_KEY,
+        _channel_asset_selection,
+        asset_search_fingerprint,
+    )
+
     store.write_json(
         root / "assets" / "assets_manifest.json",
         {
             "schema_version": 1,
             "scenes": [scene],
             "missing_scenes": [],
+            ASSET_SEARCH_FINGERPRINT_KEY: asset_search_fingerprint(
+                job,
+                visual_plan,
+                dry_run=False,
+                asset_selection=_channel_asset_selection(job.channel_id),
+            ),
         },
     )
 
