@@ -2,7 +2,7 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-11
+updated_at: 2026-08-12
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
@@ -10,10 +10,16 @@ current_checkpoint: PLAN-9D
 next_exact_action: >-
   Review #1 (M1-A...M1-C, identity/evidence lineage) is closed: verdict cluster
   ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run 31526039612
-  (headSha 2577307) conclusion success. The current checkpoint remains PLAN-9D.
+  (headSha 2577307) conclusion success. Owner decision 2026-08-12 closed
+  PLAN-9D-D (blind ground truth landed under the canonical name) and
+  PLAN-9D-E (metadata-only baseline measured: 4/14 agreement, 2 owner-rejected
+  picks, 3 wrong abstentions, 1/14 auto_safe). PLAN-9D-F/PLAN-9D-G stay
+  optional quality track behind a separate paid-Vision approval, so PLAN-9D
+  no longer blocks the route. The current checkpoint remains PLAN-9D.
   THE NEXT EXACT ACTION is M1-D / VA-NEW-08 (resume fingerprints) inside
   PLAN-9A; it requires a separate owner decision on the persisted fingerprint
-  field set before implementation.
+  field set before implementation. The owner-authorized targeted retrieval
+  diagnostic (read-only, no commit) changes no route and closes no step.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -6046,13 +6052,52 @@ current-quality benchmark. Production logic этой записью не мен�
 
 #### PLAN-9D-E — offline metadata-only baseline
 
-- **status:** blocked (PLAN-9D-D) · **commit:** —
+- **status:** completed 2026-08-12 · **commit:** — (заполняется plan-only
+  уточнением, Execution protocol п.3).
 - **цель:** измерить current metadata-only решение против замороженного
   human ground truth.
 - **граница:** через существующий decision owner
   (`select_best_with_video` → `select_best_candidate`, `vision_tags` пуст).
   Второй selector, собственный score и выдуманный confidence запрещены.
-- **required verification:** targeted evaluation tests.
+  Соблюдено: второго selector нет, своего score нет, confidence не выдуман,
+  новый формат отчёта не заводился — измерение выполняет существующий
+  `run_metadata_baseline` → `evaluate_arm`.
+- **измеренный результат** (14 сцен, все 14 scorable):
+
+  | ось | значение |
+  |---|---|
+  | совпадение с owner preference | **4 / 14** (`scene_003`, `scene_009`, `scene_012`, `scene_014`) |
+  | выбран кандидат, вычеркнутый владельцем | **2** (`scene_007`, `scene_013`) |
+  | abstention при наличии приемлемого у владельца | **3** (`scene_004`, `scene_005`, `scene_008`) |
+  | correct abstention | 0 |
+  | `auto_safe` (`full_support`) | **1 / 14** (`scene_011`) |
+  | safe escalation to review | 10 |
+  | `unscorable_winner_not_visible` | **0** |
+
+- **что именно измерено, а что нет.** Arm прогоняет **сегодняшний**
+  decision owner по пулу, снятому на `d01914d7`, поэтому число описывает
+  текущий HEAD, а не решение, записанное в корпусе. Расхождение намеренное и
+  измеримое: `388b9b1` (PLAN-9C-2, после capture) убрал безусловную video-first
+  подмену, и сравнение с записанным в корпусе выбором даёт
+  `matches 2 → 4`, `winner never previewed 3 → 0`, `abstained 2 → 3`,
+  `picked owner-rejected 2 → 2`. То есть дефект «выбранный кандидат вообще не
+  превьюирован», найденный PLAN-9D-C, закрыт, согласие с владельцем удвоилось,
+  а обе сцены, где система выбирает вычеркнутое владельцем, изменение пережили.
+- **нули на flag-осях — это незаполненность, а не проверка.**
+  `must_avoid_escaped` и `non_real_footage_selected` считаются по
+  per-candidate flags, а владелец заполнил только preference и unacceptable.
+  Обе величины структурно нулевые для этой ground truth, и PLAN-9D-G не имеет
+  права читать их как «baseline не нарушил ни одного гейта». Залочено
+  тестом вместе с проверкой, что ни один flag действительно не заполнен.
+- **чего этот baseline не доказывает.** Он не говорит о retrieval до
+  shortlist, не говорит о video selection (11 из 13 video-карточек — один
+  кадр) и не является product acceptance. Отдельного persisted-отчёта шаг не
+  требует и не создаёт: результат зафиксирован тестами, как и написано в
+  required verification.
+- **required verification:** targeted evaluation tests. Фактически выполнено:
+  `tests.test_plan9d_ground_truth_baseline.FrozenBaselineMeasurementTests` —
+  5 OK; модуль целиком 54 OK; PLAN-9D radius 178 OK. Сеть, платные вызовы,
+  Vision, TTS, render не использовались.
 
 #### PLAN-9D-F — real Vision evidence capture
 

@@ -741,6 +741,143 @@ class MeasurementTests(unittest.TestCase):
             evaluate_arm(historical, _complete(historical), self.selections)
 
 
+class FrozenBaselineMeasurementTests(unittest.TestCase):
+    """PLAN-9D-E: the metadata-only arm scored against the owner's frozen labels.
+
+    Every input is frozen - the pool by ``corpus_sha256``, the labels by the same
+    hash - so this is one fixed number and not a sample of one. Writing it down
+    as a test rather than as a paragraph is the point: the result becomes a
+    repository fact, and the next change to the decision owner shows up here as
+    a diff instead of as a claim someone has to re-derive.
+
+    What this number is *about*. The arm runs today's ``select_best_with_video``
+    over the pool captured at ``d01914d7``, so it measures the current decision
+    owner, not the decision the capture recorded. Those differ, and deliberately:
+    ``388b9b1`` landed after the capture and stopped a video winning by being a
+    video. The comparison is locked below because it is the most useful thing
+    this ground truth can say today.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.corpus = load_current_corpus()
+        cls.annotations = load_annotations()
+        cls.result = evaluate_arm(
+            cls.corpus, cls.annotations, run_metadata_baseline(cls.corpus)
+        )
+
+    def test_the_measurement_runs_instead_of_waiting(self) -> None:
+        self.assertEqual(STATUS_COMPLETE, self.result["status"])
+        self.assertEqual([], self.result["blocking"])
+        self.assertEqual(ARM_METADATA_ONLY, self.result["arm"])
+        self.assertEqual(self.corpus["corpus_sha256"], self.result["corpus_sha256"])
+
+    def test_the_baseline_aggregate_is_what_the_frozen_inputs_say(self) -> None:
+        self.assertEqual(
+            {
+                "scenes": 14,
+                "scorable_scenes": 14,
+                "unscorable_winner_not_visible": 0,
+                "preferred_matches": 4,
+                "unacceptable_selected": 2,
+                "abstentions": 3,
+                "correct_abstentions": 0,
+                "wrong_abstentions": 3,
+                "must_avoid_escaped": 0,
+                "non_real_footage_selected": 0,
+                "safe_escalations_to_review": 10,
+                "auto_safe": 1,
+                "undecidable_cases": 0,
+            },
+            self.result["aggregate"],
+        )
+
+    def test_the_failures_are_named_because_an_average_hides_them(self) -> None:
+        """Two failure classes, and which scenes they are - PLAN-9D-G needs the names.
+
+        Choosing a candidate the owner struck out is not the same defect as
+        choosing nothing where the owner found something acceptable, and the two
+        will not be fixed by the same change.
+        """
+
+        def scenes_where(field: str) -> list[str]:
+            return sorted(
+                row["scene_key"].rsplit("/", 1)[-1]
+                for row in self.result["scenes"]
+                if row[field]
+            )
+
+        self.assertEqual(["scene_007", "scene_013"], scenes_where("unacceptable_selected"))
+        self.assertEqual(
+            ["scene_004", "scene_005", "scene_008"], scenes_where("wrong_abstention")
+        )
+        self.assertEqual(
+            ["scene_003", "scene_009", "scene_012", "scene_014"],
+            scenes_where("selection_matches_preferred"),
+        )
+
+    def test_the_flag_axes_read_zero_because_they_were_never_filled(self) -> None:
+        """Absence of evidence, and it must not be read as evidence of absence.
+
+        ``must_avoid_escaped`` and ``non_real_footage_selected`` are computed
+        from the owner's per-candidate flags. The owner filled preference and
+        unacceptable marks and left every flag empty, which the contract allows,
+        so both counters are structurally zero for this ground truth. A later
+        reader - PLAN-9D-G above all - may not turn that into "the baseline
+        broke no gate".
+        """
+
+        filled = [
+            value
+            for scene in self.annotations["scenes"]
+            for flags in (scene.get("candidates") or {}).values()
+            for value in flags.values()
+            if str(value or "").strip()
+        ]
+        self.assertEqual([], filled)
+        self.assertEqual(0, self.result["aggregate"]["must_avoid_escaped"])
+        self.assertEqual(0, self.result["aggregate"]["non_real_footage_selected"])
+
+    def test_todays_decision_owner_is_measured_against_the_captured_one(self) -> None:
+        """The capture's own pick is in the corpus, so the delta is free to state.
+
+        It is the only before/after this ground truth can support without a
+        second capture, and it says something specific: the video-first
+        substitution PLAN-9D-C found is gone - no winner is unpreviewed any more
+        - and agreement doubled, while the two scenes where the system picks
+        something the owner struck out survived the change untouched.
+        """
+
+        selections = run_metadata_baseline(self.corpus)
+        preferred = {
+            str(scene["scene_key"]): scene for scene in self.annotations["scenes"]
+        }
+        captured = {"matches": 0, "unacceptable": 0, "unpreviewed": 0, "abstained": 0}
+        arm = {"matches": 0, "unacceptable": 0, "unpreviewed": 0, "abstained": 0}
+        for scene in self.corpus["scenes"]:
+            key = str(scene["scene_key"])
+            entry = preferred[key]
+            visible = {c["blind_id"] for c in scene["candidates"] if c["frames"]}
+            rejected = set(entry.get("unacceptable_candidates") or [])
+            for tally, chosen in (
+                (captured, str(scene.get("selected_blind_id") or "") or None),
+                (arm, selections[key].selected_blind_id),
+            ):
+                if chosen is None:
+                    tally["abstained"] += 1
+                    continue
+                tally["matches"] += chosen == entry.get("preferred_candidate")
+                tally["unacceptable"] += chosen in rejected
+                tally["unpreviewed"] += chosen not in visible
+
+        self.assertEqual(
+            {"matches": 2, "unacceptable": 2, "unpreviewed": 3, "abstained": 2}, captured
+        )
+        self.assertEqual(
+            {"matches": 4, "unacceptable": 2, "unpreviewed": 0, "abstained": 3}, arm
+        )
+
+
 class EvidenceAdmissibilityTests(unittest.TestCase):
     def test_fixture_backends_are_refused_as_quality_evidence(self) -> None:
         for source in ("mock", "scripted", "vision:mock", "VISION:Scripted", "fixture", "stub"):
