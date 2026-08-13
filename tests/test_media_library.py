@@ -168,6 +168,50 @@ class MediaLibraryTests(unittest.TestCase):
         self.assertIsNotNone(duplicate)
         self.assertEqual(duplicate["checksum_sha256"], "b" * 64)
 
+    def test_registered_record_keeps_what_the_frame_shows(self) -> None:
+        """``LocalLibraryStockProvider`` searches title/description, so the writer must keep them."""
+        from src.media_library import register_asset
+        from src.providers.local_library_provider import LocalLibraryStockProvider
+        from src.assets.provider_contract import AssetSearchRequest
+
+        with TemporaryDirectory() as tmp:
+            video_path = Path(tmp) / "clip.mp4"
+            video_path.write_bytes(b"dummy")
+            index = {"version": 1, "items": []}
+            register_asset(
+                index,
+                {
+                    "type": "video",
+                    "provider": "fake",
+                    "provider_asset_id": "1",
+                    "local_path": str(video_path),
+                    "source_url": "https://fake.local/video/1",
+                    "description": "airport terminal under a storm sky",
+                    "title": "airport terminal under a storm sky",
+                    "original_query": "storm clouds rainforest",
+                    "keywords": ["airport", "terminal"],
+                    "schema_version": 1,
+                    "rights_status": "licensed",
+                    "allowed_for_render": True,
+                    "review_required": False,
+                    "license": {
+                        "license_name": "fake_test_license",
+                        "license_url": "https://fake.local/license",
+                        "rights_status": "licensed",
+                        "allowed_for_render": True,
+                        "review_required": False,
+                    },
+                    "provenance": {"provider": "fake", "provider_asset_id": "1"},
+                },
+            )
+
+            self.assertEqual(index["items"][0]["description"], "airport terminal under a storm sky")
+
+            provider = LocalLibraryStockProvider(index=index)
+            found = provider.search(AssetSearchRequest(query="terminal", media_type="video"))
+
+        self.assertEqual([candidate.provider_asset_id for candidate in found], ["1"])
+
 
 if __name__ == "__main__":
     unittest.main()

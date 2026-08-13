@@ -2,7 +2,7 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-13
+updated_at: 2026-08-14
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
@@ -32,6 +32,25 @@ next_exact_action: >-
   the route. So the order is FIRST OWNER SHORT, then M1-E / VA-NEW-09, then
   Review #2 over M1-D and M1-E. The current checkpoint stays PLAN-9D and no
   PLAN-ID is created by either the diagnostic or this record.
+  FIRST OWNER SHORT ran on 2026-08-13 and is recorded in
+  docs/audits/FIRST_OWNER_SHORT_2026-08-13.md: neither the LOCAL nor the STOCK
+  path reached an MP4, both stopped at assembly_has_no_slots, and no paid call
+  was made. Owner decision 2026-08-14 orders the route that follows from it and
+  puts the product ahead of further cleanup: CURATED LOCAL LIBRARY, then the
+  LOCAL diagnostic repeat, then the STOCK repeat through semantic_brief, then
+  the first finished MP4, and only then M1-E / VA-NEW-09 with Review #2 over
+  M1-D and M1-E. CURATED LOCAL LIBRARY is executed and recorded in
+  docs/audits/CURATED_LIBRARY_2026-08-14.md - 63 curated records with frame
+  content, provenance, rights and checksums, versioned in
+  assets/library/metadata/curated_library.json and applied to the runtime index
+  by tools/library/curated_index.py. It closes half of BLOCKER-L2: the records
+  now carry rights and pass _is_current_safe_record, and the single remaining
+  blocker is that config/license_policy.json gives provider local_library no
+  rule for the pexels and pixabay licences, so all 63 return
+  license_not_in_policy while the same file served by the pexels provider is
+  allowed. THE NEXT EXACT ACTION is therefore the owner decision on that rule
+  (config only, no code), and immediately after it the LOCAL diagnostic repeat.
+  The checkpoint stays PLAN-9D and this slice creates no PLAN-ID.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records

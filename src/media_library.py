@@ -465,6 +465,12 @@ def _normalize_asset(asset: dict[str, Any]) -> dict[str, Any]:
         "local_path": asset.get("local_path") or asset.get("path", ""),
         "original_filename": asset.get("original_filename", ""),
         "thumbnail_path": asset.get("thumbnail_path", ""),
+        # What the frame actually shows. ``LocalLibraryStockProvider.search`` already
+        # matches queries against ``title``/``description``, but the index writer had
+        # no field for either, so the only text a record could carry was the query that
+        # found it - which is how "storm clouds rainforest" ended up naming an airport.
+        "title": asset.get("title", ""),
+        "description": asset.get("description", ""),
         "original_query": asset.get("original_query") or asset.get("query", ""),
         "keywords": _as_list(asset.get("keywords")),
         "tags": _as_list(asset.get("tags")),
