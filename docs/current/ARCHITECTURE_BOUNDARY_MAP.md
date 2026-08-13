@@ -247,16 +247,19 @@ contract. Поэтому новый boundary не создавался, capabili
 
 ## Runtime roots и пользовательские данные
 
-Read-only snapshot файлов на 2026-07-28:
+Read-only snapshot файлов на 2026-07-28; строки корней пересмотрены 2026-08-13
+после ретайров R02–R06 и переезда `channels/` → `config/channels/`. Счётчики
+`assets/` и `config/` измерены заново, остальные оставлены на дату снимка:
 
 | Root | Tracked / всего файлов | Политика |
 |---|---:|---|
 | `projects/` | 0 / 1618 | `do_not_touch`; manifests/media/runtime projects |
-| `outputs/` | 9 / 282 | сначала archive/verify; tracked legacy outputs всё ещё читаются legacy pipeline |
-| `assets/` | 4 / 287 | `do_not_touch`; library, metadata, voice samples |
-| `manual_assets/` | 7 / 18 | `do_not_touch`; пользовательские и rights-sensitive assets |
-| `music/` | 1 / 3 | `do_not_touch` до проверки прав и backup |
-| `content/` | 13 / 13 | versioned legacy source content; не считать мусором |
+| ~~`outputs/`~~ | — | **ретайрен 2026-08-13** (R02); канонический export пишет в `projects/<id>/localizations/*/output` |
+| `assets/` | 4 / 394 | library, metadata, voice samples, `music/`, evidence `cache/retrieval_lab`. Легаси-медиа (`broll`, `cache/videos`, `images/generated`) вынесено 2026-08-13 (R05) |
+| ~~`manual_assets/`~~ | — | **ретайрен 2026-08-13** (R06); отклонение от `Preserved runtime corpus` записано в реестре |
+| ~~`music/`~~ | — | **переехал 2026-08-13** в `assets/music/`; путь резолвит `music_dir` контракта путей |
+| ~~`content/`~~ | — | **ретайрен 2026-08-13** (R03/R04); fixture-пара живёт в `tests/data/legacy_content/` |
+| `config/` | 30 / 30 | versioned-конфигурация целиком; с 2026-08-13 включает `config/channels/` (6 профилей каналов) |
 | `project_solar_vs_nuclear/` | 0 / 102 | эксперимент/runtime evidence; не удалять автоматически |
 | `MOSS_TTS_Nano/` | 0 / 56463 | локальная toolchain; не читать/переносить/удалять автоматически |
 | `venv/` | 0 / 12736 | локальная воспроизводимая среда, cleanup только отдельным этапом |
