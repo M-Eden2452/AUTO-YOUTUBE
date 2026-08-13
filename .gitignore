@@ -75,9 +75,6 @@ __pycache__/
 *.mp3
 !.env.example
 !assets/
-!assets/images/
-assets/images/*
-!assets/images/.gitkeep
 !assets/voice_samples/
 assets/voice_samples/*
 !assets/voice_samples/README.md

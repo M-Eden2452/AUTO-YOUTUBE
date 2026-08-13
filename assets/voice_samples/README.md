@@ -21,10 +21,9 @@ The tester also reads samples from:
 G:/Projects/AI-YouTube/MOSS_TTS_Nano/assets/voice_samples/
 ```
 
-Generated test audio is written to:
-
-```text
-outputs/tts_tests/moss/
-```
+Generated test audio is written to `<workspace>/outputs/tts_tests/moss_tts_test.wav`
+(`src/tts_providers/moss_tts_provider.py`, via the path contract's `outputs_root` -
+not a literal path). `outputs/` itself was retired 2026-08-13; this tester
+recreates the directory on demand, and its output stays untracked.
 
 Do not commit voice sample audio or generated wav/mp3 files.

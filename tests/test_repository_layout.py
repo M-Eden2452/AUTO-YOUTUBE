@@ -170,5 +170,32 @@ class MediaIndexLocationTests(unittest.TestCase):
                 )
 
 
+class OrphanedImagesRootTests(unittest.TestCase):
+    """`assets/images/` (не `assets/library/images/`) — сиротский путь.
+
+    Единственный владелец — легаси `src/asset_finder.py::find_person_image`,
+    достижимый только через `pipeline.py` (не канонический CLI). Каталог не
+    удаляет владельца: `image_dir.mkdir(parents=True, exist_ok=True)` пересоздаст
+    его сам, если тот легаси-путь когда-нибудь снова запустят — как и `outputs/`
+    после R02. Тест держит границу: два места с одним назначением
+    (`assets/images/` и `assets/library/images/`) не должны сосуществовать
+    в дереве репозитория одновременно.
+    """
+
+    def test_orphaned_top_level_images_root_is_gone(self) -> None:
+        self.assertFalse(
+            (REPOSITORY_ROOT / "assets" / "images").exists(),
+            "assets/images/ — сиротский путь легаси find_person_image, убран из дерева.",
+        )
+
+    def test_the_canonical_library_images_slot_still_exists(self) -> None:
+        """Единственное настоящее место для изображений — внутри library/."""
+        paths = resolve_application_paths()
+        self.assertEqual(
+            paths.workspace.media_library / "images",
+            (REPOSITORY_ROOT / "assets" / "library" / "images").resolve(),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
