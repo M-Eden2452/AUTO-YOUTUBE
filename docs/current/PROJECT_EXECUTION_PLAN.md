@@ -40,7 +40,7 @@ next_exact_action: >-
   LOCAL diagnostic repeat, then the STOCK repeat through semantic_brief, then
   the first finished MP4, and only then M1-E / VA-NEW-09 with Review #2 over
   M1-D and M1-E. CURATED LOCAL LIBRARY is executed and recorded in
-  docs/audits/CURATED_LIBRARY_2026-08-14.md - 63 curated records with frame
+  docs/audits/CURATED_LIBRARY_2026-08-14.md - 72 curated records with frame
   content, provenance, rights and checksums, versioned in
   assets/library/metadata/curated_library.json and applied to the runtime index
   by tools/library/curated_index.py. BLOCKER-L2 is closed: the records carry
@@ -48,7 +48,10 @@ next_exact_action: >-
   config/license_policy.json the same two contexts the pexels and pixabay
   providers already have - internal_content_production allowed at
   requires_schema_version 1, public_multi_user_product blocked until the future
-  commercial audit - so all 63 evaluate as allowed. Making the library live
+  commercial audit - so all 72 evaluate as allowed. The nine clips whose source
+  page was recorded nowhere were confirmed against the providers under a separate
+  owner-approved read-only network check and added with verified canonical URLs
+  and credits. Making the library live
   immediately exposed the ranker debt already recorded in FIRST OWNER SHORT: the
   query "orca" now returns a solar-farm clip, because _score_asset admits a
   candidate on type, aspect and duration with zero keyword hits. THE NEXT EXACT
