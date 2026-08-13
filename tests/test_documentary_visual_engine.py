@@ -58,6 +58,15 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
 
         config, scene_plan = self._survival_scene_plan()
         with TemporaryDirectory() as tmp:
+            # asset_library.root не был задан здесь: build_documentary_asset_plan
+            # падает на дефолт "assets/library" (:58) и на чистом чекауте создаёт
+            # ПУСТОЙ media_index.json поверх реального (ensure_media_library
+            # пишет файл, только если его ещё нет - что маскировало баг локально,
+            # где файл уже существовал с настоящими данными). Обнаружено CI-прогоном
+            # tests/test_repository_layout.py после того, как он стал проверять
+            # честность индекса. Тот же класс бага, что f69b81c закрыл соседним
+            # тестом этого файла - здесь пропущен.
+            config["asset_library"] = {**config.get("asset_library", {}), "root": str(Path(tmp) / "library")}
             config["asset_cache_dir"] = str(Path(tmp) / "videos")
             config["image_cache_dir"] = str(Path(tmp) / "images")
             config["plans"]["visual_debug"] = str(Path(tmp) / "visual_debug.json")
