@@ -32,10 +32,22 @@ from src.quote_generator import build_quote_plan
 from src.scene_planner import build_scene_plan
 from src.youtube_metadata import generate_youtube_metadata
 
+# Legacy briefs live in tests/data since content/ was retired (registry R04);
+# channel_loader reads them through the injected application_paths override.
+LEGACY_CONTENT_ROOT = Path(__file__).resolve().parent / "data" / "legacy_content"
+
+
+def _legacy_application_paths():
+    from dataclasses import replace
+
+    from src.config_resolver import resolve_application_paths
+
+    return replace(resolve_application_paths(), content_root=LEGACY_CONTENT_ROOT)
+
 
 class DocumentaryVisualEngineTests(unittest.TestCase):
     def _survival_scene_plan(self) -> tuple[dict, dict]:
-        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001")
+        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001", application_paths=_legacy_application_paths())
         quote_plan = build_quote_plan(config)
         metadata = generate_youtube_metadata(config, quote_plan)
         scene_plan = build_scene_plan(config, quote_plan, metadata)
@@ -105,7 +117,7 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
         from src.channel_loader import load_channel_video_config
         from src.video_renderer import build_render_plan, validation_tolerance_for_duration
 
-        config = load_channel_video_config(load_config("config/video_style.json", cinematic_preview=True), "survival", "juliane_koepcke_001")
+        config = load_channel_video_config(load_config("config/video_style.json", cinematic_preview=True), "survival", "juliane_koepcke_001", application_paths=_legacy_application_paths())
         scene_plan = {"scenes": [{"scene_number": 1, "duration": 12, "scene_type": "story"}]}
         asset_plan = {"engine": "documentary_visual_engine_v2", "scene_assets": [{"scene_number": 1, "clips": []}], "music": {"path": "", "volume": 0.11}}
 

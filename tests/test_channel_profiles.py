@@ -9,8 +9,10 @@ Protects:
 Does not prove:
 - что описанное является продуктовым контрактом активного продукта: эти каналы
   не поддерживаются ни одним шаблоном ``content_creator`` (gate 8E, ADR 0013);
-- что содержимое каналов и ``content/`` — пользовательские данные: реестр
-  относит их к fixtures легаси-стека (N04);
+- что содержимое каналов — пользовательские данные: реестр относит их к
+  fixtures легаси-стека (N04); сами брифы после ретайра ``content/`` (R04)
+  живут в ``tests/data/legacy_content/`` и подставляются через
+  ``application_paths``;
 - что эти проверки должны пережить ретайр. Класс — LEGACY ANCHOR
   (``docs/current/CLEANUP_REGISTRY.md``, «Accidental invariants»): полезные
   проверки извлекает Knowledge Salvage Gate, после чего модуль ретайрится
@@ -27,6 +29,18 @@ from src.config_loader import load_config
 from src.quote_generator import build_quote_plan
 from src.scene_planner import build_scene_plan
 from src.youtube_metadata import generate_youtube_metadata
+
+# Legacy briefs live in tests/data since content/ was retired (registry R04);
+# channel_loader reads them through the injected application_paths override.
+LEGACY_CONTENT_ROOT = Path(__file__).resolve().parent / "data" / "legacy_content"
+
+
+def _legacy_application_paths():
+    from dataclasses import replace
+
+    from src.config_resolver import resolve_application_paths
+
+    return replace(resolve_application_paths(), content_root=LEGACY_CONTENT_ROOT)
 
 
 class ChannelProfileTests(unittest.TestCase):
@@ -46,6 +60,7 @@ class ChannelProfileTests(unittest.TestCase):
             base_config,
             "quotes",
             "thoughts_too_late_001",
+            application_paths=_legacy_application_paths(),
             obsidian_vault="D:/Notes",
         )
 
@@ -72,7 +87,7 @@ class ChannelProfileTests(unittest.TestCase):
     def test_video_task_drives_quote_scene_and_metadata_plans(self) -> None:
         from src.channel_loader import load_channel_video_config
 
-        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "quotes", "thoughts_too_late_001")
+        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "quotes", "thoughts_too_late_001", application_paths=_legacy_application_paths())
         quote_plan = build_quote_plan(config)
         metadata = generate_youtube_metadata(config, quote_plan)
         scene_plan = build_scene_plan(config, quote_plan, metadata)
@@ -90,7 +105,7 @@ class ChannelProfileTests(unittest.TestCase):
         from src.channel_loader import load_channel_video_config
         from src.config_resolver import resolve_application_paths
 
-        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001")
+        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001", application_paths=_legacy_application_paths())
         quote_plan = build_quote_plan(config)
         metadata = generate_youtube_metadata(config, quote_plan)
         scene_plan = build_scene_plan(config, quote_plan, metadata)
@@ -119,7 +134,7 @@ class ChannelProfileTests(unittest.TestCase):
         from src.channel_loader import load_channel_video_config
         from src.thumbnail_generator import create_thumbnail
 
-        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001")
+        config = load_channel_video_config(load_config("config/video_style.json", dev=True), "survival", "juliane_koepcke_001", application_paths=_legacy_application_paths())
         with TemporaryDirectory() as tmp:
             target = Path(tmp) / "thumbnail.png"
             created = create_thumbnail(config, {}, target)
