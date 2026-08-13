@@ -62,7 +62,6 @@ assets/library/metadata/media_index.json
 !assets/library/metadata/
 !assets/library/metadata/media_index.example.json
 assets/cache/
-music/*
 # Только корневая выходная папка. Без ведущего слэша шаблон совпадал с любой
 # директорией "subtitles" на любом уровне - в том числе с исходниками
 # src/subtitles/ (движок субтитров, этап Q3). Выходные субтитры проектов и так
@@ -85,9 +84,9 @@ assets/voice_samples/*
 !assets/broll/
 assets/broll/
 !assets/broll/.gitkeep
-!music/
-music/*.mp3
-!music/.gitkeep
+!assets/music/
+assets/music/*
+!assets/music/.gitkeep
 manual_assets/**/*.mp4
 manual_assets/**/*.mov
 manual_assets/**/*.wav

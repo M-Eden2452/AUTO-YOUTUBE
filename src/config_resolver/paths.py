@@ -109,7 +109,7 @@ class WorkspacePaths:
             manual_assets=_configured_child(
                 values, "manual_assets_dir", "manual_assets", root=resolved_root
             ),
-            music=_configured_child(values, "music_dir", "music", root=resolved_root),
+            music=_configured_child(values, "music_dir", "assets/music", root=resolved_root),
             provider_cache=_configured_child(
                 values, "provider_cache_dir", "assets/cache", root=resolved_root
             ),
