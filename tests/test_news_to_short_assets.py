@@ -474,6 +474,12 @@ class NewsToShortAssetTests(unittest.TestCase):
                 project_root=tmp,
                 project_id="video_first",
                 completion_mode="draft_complete",
+                # Without this the manifest is built against the machine's real
+                # assets/library index. The test passed only while every local record
+                # was rights-blocked; once the curated library became renderable, a
+                # solar-farm clip won the query "orca" - a real answer from real data,
+                # and nothing this test is about.
+                media_index_path=Path(tmp) / "empty_media_index.json",
             )
 
         self.assertEqual(manifest["visual_mode"], "video_first")

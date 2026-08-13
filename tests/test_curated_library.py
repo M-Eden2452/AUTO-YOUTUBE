@@ -60,15 +60,24 @@ class CuratedLibraryManifestTests(unittest.TestCase):
                 elif item["download_url"]:
                     self.assertIn(item["provider_asset_id"], item["download_url"])
 
-    def test_records_are_complete_enough_that_only_the_missing_rule_can_block_them(self) -> None:
-        """Записи полные: единственная допустимая причина отказа — отсутствующее правило
-        ``local_library`` для лицензий провайдеров. Любая другая причина означает, что
-        манифест потерял провенанс или права, и это регрессия."""
-        allowed_reasons = {"policy_rule_allowed", "license_not_in_policy"}
+    def test_records_are_allowed_for_internal_production(self) -> None:
+        """Owner decision 2026-08-14: локальная медиатека отдаёт сток на тех же правилах,
+        что и сам провайдер. Любая причина отказа здесь означает, что запись потеряла
+        провенанс или права, — это регрессия, а не ужесточение политики."""
         for item in self.items:
             with self.subTest(item["id"]):
-                decision = policy_decision(item)
-                self.assertIn(decision.reason, allowed_reasons)
+                decision = policy_decision(item, context="internal_content_production")
+                self.assertEqual(decision.status, "allowed", decision.reason)
+                self.assertEqual(decision.reason, "policy_rule_allowed")
+
+    def test_stock_records_stay_held_for_a_public_multi_user_product(self) -> None:
+        """Зеркало правил провайдеров распространяется и на запрет: публичный
+        мультипользовательский контекст остаётся закрытым до коммерческого аудита."""
+        for item in self.items:
+            with self.subTest(item["id"]):
+                decision = policy_decision(item, context="public_multi_user_product")
+                self.assertNotEqual(decision.status, "allowed")
+                self.assertFalse(decision.allowed_for_render)
 
 
 class CuratedRecordRoundTripTests(unittest.TestCase):

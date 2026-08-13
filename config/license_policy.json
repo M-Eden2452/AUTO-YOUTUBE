@@ -385,32 +385,116 @@
       "owner_review_required": true,
       "owner_approval_status": "schema_v1_required",
       "provider_terms_url": "",
-      "rules": [
-        {
-          "media_type": "*",
-          "license_name": "user_owned",
-          "license_url": "",
-          "allowed_for_render": true,
-          "review_required": false,
-          "commercial_use_allowed": true,
-          "modification_allowed": true,
-          "attribution_required": false,
-          "requires_schema_version": 1,
-          "notes": "Only schema_version 1 local-library records with explicit license/provenance may be used automatically."
+      "contexts": {
+        "internal_content_production": {
+          "owner_review_required": true,
+          "owner_approval_status": "schema_v1_required",
+          "rules": [
+            {
+              "media_type": "*",
+              "license_name": "pexels",
+              "license_url": "https://www.pexels.com/license/",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Stock licence stored in the local library. Same licence, same context and same terms as when the file is served by its own provider; only the delivery path differs. Requires schema_version 1 with explicit license/provenance, source page and provider asset id."
+            },
+            {
+              "media_type": "*",
+              "license_name": "pixabay",
+              "license_url": "https://pixabay.com/service/license-summary/",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Stock licence stored in the local library. Same licence, same context and same terms as when the file is served by its own provider; only the delivery path differs. Requires schema_version 1 with explicit license/provenance, source page and provider asset id."
+            },
+            {
+              "media_type": "*",
+              "license_name": "user_owned",
+              "license_url": "",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Only schema_version 1 local-library records with explicit license/provenance may be used automatically."
+            },
+            {
+              "media_type": "*",
+              "license_name": "fake_test_license",
+              "license_url": "https://fake.local/license",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Allows migrated no-network test fixtures stored in the local library."
+            }
+          ]
         },
-        {
-          "media_type": "*",
-          "license_name": "fake_test_license",
-          "license_url": "https://fake.local/license",
-          "allowed_for_render": true,
-          "review_required": false,
-          "commercial_use_allowed": true,
-          "modification_allowed": true,
-          "attribution_required": false,
-          "requires_schema_version": 1,
-          "notes": "Allows migrated no-network test fixtures stored in the local library."
+        "public_multi_user_product": {
+          "owner_review_required": true,
+          "owner_approval_status": "schema_v1_required",
+          "rules": [
+            {
+              "media_type": "*",
+              "license_name": "pexels",
+              "license_url": "https://www.pexels.com/license/",
+              "allowed_for_render": false,
+              "review_required": true,
+              "commercial_use_allowed": false,
+              "modification_allowed": false,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Blocked for a public multi-user product until the future commercial/product audit, mirroring the pexels and pixabay providers."
+            },
+            {
+              "media_type": "*",
+              "license_name": "pixabay",
+              "license_url": "https://pixabay.com/service/license-summary/",
+              "allowed_for_render": false,
+              "review_required": true,
+              "commercial_use_allowed": false,
+              "modification_allowed": false,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Blocked for a public multi-user product until the future commercial/product audit, mirroring the pexels and pixabay providers."
+            },
+            {
+              "media_type": "*",
+              "license_name": "user_owned",
+              "license_url": "",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Only schema_version 1 local-library records with explicit license/provenance may be used automatically."
+            },
+            {
+              "media_type": "*",
+              "license_name": "fake_test_license",
+              "license_url": "https://fake.local/license",
+              "allowed_for_render": true,
+              "review_required": false,
+              "commercial_use_allowed": true,
+              "modification_allowed": true,
+              "attribution_required": false,
+              "requires_schema_version": 1,
+              "notes": "Allows migrated no-network test fixtures stored in the local library."
+            }
+          ]
         }
-      ]
+      }
     }
   }
 }

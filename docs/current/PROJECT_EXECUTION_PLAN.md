@@ -43,14 +43,19 @@ next_exact_action: >-
   docs/audits/CURATED_LIBRARY_2026-08-14.md - 63 curated records with frame
   content, provenance, rights and checksums, versioned in
   assets/library/metadata/curated_library.json and applied to the runtime index
-  by tools/library/curated_index.py. It closes half of BLOCKER-L2: the records
-  now carry rights and pass _is_current_safe_record, and the single remaining
-  blocker is that config/license_policy.json gives provider local_library no
-  rule for the pexels and pixabay licences, so all 63 return
-  license_not_in_policy while the same file served by the pexels provider is
-  allowed. THE NEXT EXACT ACTION is therefore the owner decision on that rule
-  (config only, no code), and immediately after it the LOCAL diagnostic repeat.
-  The checkpoint stays PLAN-9D and this slice creates no PLAN-ID.
+  by tools/library/curated_index.py. BLOCKER-L2 is closed: the records carry
+  rights, and owner decision 2026-08-14 gave provider local_library in
+  config/license_policy.json the same two contexts the pexels and pixabay
+  providers already have - internal_content_production allowed at
+  requires_schema_version 1, public_multi_user_product blocked until the future
+  commercial audit - so all 63 evaluate as allowed. Making the library live
+  immediately exposed the ranker debt already recorded in FIRST OWNER SHORT: the
+  query "orca" now returns a solar-farm clip, because _score_asset admits a
+  candidate on type, aspect and duration with zero keyword hits. THE NEXT EXACT
+  ACTION is the LOCAL diagnostic repeat against this library; BLOCKER-L1 (no CLI
+  entry for user-supplied assets in fullscreen_voiceover_v1) is untouched and
+  remains the separate contract it was. The checkpoint stays PLAN-9D and this
+  slice creates no PLAN-ID.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records

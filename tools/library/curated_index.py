@@ -75,9 +75,9 @@ def check_structure(item: dict[str, Any]) -> list[str]:
     return problems
 
 
-def policy_decision(item: dict[str, Any], *, provider: str = "local_library") -> Any:
+def policy_decision(item: dict[str, Any], *, provider: str = "local_library", context: str | None = None) -> Any:
     """Решение прав для записи, какой её увидит provider, отдающий локальный файл."""
-    return evaluate_asset_policy(as_candidate_dict(item, provider=provider))
+    return evaluate_asset_policy(as_candidate_dict(item, provider=provider), context=context)
 
 
 def as_candidate_dict(item: dict[str, Any], *, provider: str = "local_library") -> dict[str, Any]:
