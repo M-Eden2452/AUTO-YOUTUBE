@@ -180,9 +180,11 @@ CLI → Wizard через lazy import.
 `src.providers.registry`. Активный news workflow использует implementations
 полного `StockProvider` contract; общий HTTP client, provider diagnostics,
 download validation и license policy остаются единственными владельцами своих
-политик. `stock_video_downloader` сохранён 35-строчным compatibility wrapper без
-raw HTTP. D01 provider names удалены после отдельного zero-caller retirement
-checkpoint этапа 9; D02 standalone module также удалён после подтверждения
+политик. `stock_video_downloader` был сокращён на этапе 7 до 35-строчного
+compatibility wrapper без raw HTTP, а на этапе 9 удалён целиком: это и есть D02.
+Файла в репозитории нет (retirement commit `dcd6a3c`), и документ, называющий
+его существующим модулем, устарел. D01 provider names удалены после отдельного
+zero-caller retirement checkpoint этапа 9; D02 удалён после подтверждения
 отсутствия imports, package export и CLI entrypoint. Legacy
 documentary/fixed-plan HTTP callers остаются за root compatibility boundary.
 

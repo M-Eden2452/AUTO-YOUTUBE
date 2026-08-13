@@ -2,7 +2,7 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-12
+updated_at: 2026-08-13
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
@@ -25,7 +25,13 @@ next_exact_action: >-
   retrieval diagnostic (read-only, no commit) changes no route and closes no
   step; the two bounded corrections VA-NEW-22 and VA-NEW-23 it led to are
   closed inside PLAN-10B and PLAN-9A and move neither the checkpoint nor this
-  action.
+  action. Owner decision 2026-08-13 (AUD-DELTA-CLOSE) inserts one step ahead of
+  M1-E without changing it: FIRST OWNER SHORT — the offline draft diagnostic
+  already described below — runs first, because in three months no video has
+  been looked at through the canonical path and the diagnostic is read-only to
+  the route. So the order is FIRST OWNER SHORT, then M1-E / VA-NEW-09, then
+  Review #2 over M1-D and M1-E. The current checkpoint stays PLAN-9D and no
+  PLAN-ID is created by either the diagnostic or this record.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -194,6 +200,33 @@ Mypy ratchet not applicable: `src.news.pipeline` is not in the baseline
 suppression list and no suppressed module was touched. Next: **M1-E /
 VA-NEW-09**, then Review #2 over M1-D and M1-E; none of Review #2 is done.
 Checkpoint remains PLAN-9D.
+
+**AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits
+landed the two finished audits and changed no route: `6224c6f` copied both
+reports into `docs/audits/` as evidence, gave the directory its first index and
+banner-labelled fifteen documents that were teaching a pre-canonical world;
+`a577c22` corrected `C01-SEM` after PLAN-9C and registered the retrieval
+findings as registry rows `C64`–`C74`, rejecting three of the report's own
+proposals that did not survive re-verification; `1f67e29` rewrote the root
+README from the code. None carried a `Plan-Step` trailer and none was recorded
+here — this block is that record. The commit containing it closes the last five
+accounting defects found by the 2026-08-13 reconciliation (stale `PLAN-9D-D`
+status in both routing mirrors, this file's `updated_at`, the
+`ARCHITECTURE_BOUNDARY_MAP` claim that a deleted file is preserved, and the
+missing accounting above), deletes `COMMANDS.md` under **OD-S-7** / **PLAN-7**,
+and moves the confirmed EXP-001 provider defects out of the experiment journal
+into registry rows `C75`–`C78` under the existing owner **PLAN-10B**. No
+PLAN-ID is created, no step changes status, `PLAN-7` stays `pending` — its
+README half is delivered, its three `SKILL.md` files still teach
+`src.content_creation.cli`. Production code, config, schemas and tests are
+unchanged.
+
+**Owner decision 2026-08-13 on C65 (legacy network bypass).** A temporary
+`require_network` gate over the legacy call sites is **not authorized**. The
+question is deferred to after Review #2 and re-framed: first establish whether
+the legacy retrieval stacks can simply be retired, because improving code that
+is about to disappear buys nothing. Registry row **C65** records this; the
+finding stays open and no bounded correction is started.
 
 **RETRIEVAL DIAGNOSTIC PACKAGING — PROPOSAL, NOT AN OWNER DECISION
 (2026-08-12).** The owner-authorized read-only retrieval diagnostic proposed
@@ -3580,7 +3613,9 @@ PLAN-9B-2 не являются.
     - broken link, missing source path и invalid commit — error;
     - возраст документа и превышение рекомендуемого размера — warning;
     - onboarding-лимит `START_HERE.md` может остаться жёстким;
-    - `README.md` и `COMMANDS.md` обязаны упоминать канонический CLI;
+    - `README.md` обязан упоминать канонический CLI (`COMMANDS.md` снят из
+      этого пункта 2026-08-13: файл удалён по OD-S-7, и проверка удалённого
+      файла означала бы вечный error либо молчаливый пропуск);
     - `CURRENT_DOCS` перестаёт быть вшитым кортежем из трёх путей: проверяются
       все файлы `docs/current/` со `status: current` плюс активный execution
       plan. Сейчас QA покрывает три файла из семи, и активный план не
@@ -4013,6 +4048,20 @@ PLAN-9B-2 не являются.
 ### PLAN-7 — канонический пользовательский CLI в документации
 
 - **status:** pending · **completed:** — · **commit:** —
+- **частичное исполнение вне слайса (учёт 2026-08-13, статус не меняется).**
+  Две из четырёх зон уже приведены в целевое состояние отдельными docs-only
+  commits, и это записано здесь, чтобы шаг не выглядел нетронутым: `README.md`
+  переписан по факту кода до 174 строк commit `1f67e29`, а `COMMANDS.md`
+  **удалён** commit AUD-DELTA-CLOSE по **OD-S-7** — без замены, canonical
+  command reference остаётся `python -m ai_youtube --help`. Проверено, что ни
+  один оставшийся документ не ссылается на него как на current source:
+  упоминания живут только в `docs/archive/**`, `docs/audits/**`, в контракте
+  этого шага и в исторических измерениях — historical evidence массово не
+  переписывается. Шаг **остаётся pending**: три `skills/*/SKILL.md`
+  (`create-short-video-first`, `resume-project`, `replace-visual-slot`) всё ещё
+  учат `python -m src.content_creation.cli`, упоминаний `ai_youtube` в skills
+  ноль, и `docs/contracts/STAGE1_PUBLIC_CONTRACTS.md` получил только баннер, а
+  не правку утверждений. Оставшийся объём и есть PLAN-7.
 - **цель:** документация перестаёт обучать устаревшему entrypoint.
 - **зависимости:** PLAN-6A. **Параллельный: product-работу не блокирует**
   (изменено ревизией 2).

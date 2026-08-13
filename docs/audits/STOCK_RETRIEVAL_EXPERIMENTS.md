@@ -13,6 +13,14 @@ Git и активный execution plan.
 
 ## EXP-001 — cheetah sprint, NO-AI vs Vision
 
+> **Перенос в canonical docs (2026-08-13).** Четыре подтверждённых дефекта из
+> раздела «Root cause» ниже записаны строками **C75–C78**
+> [CLEANUP_REGISTRY.md](../current/CLEANUP_REGISTRY.md) с существующим owner
+> **PLAN-10B**: mime-гейт Wikimedia, глубина поиска, форма запроса Internet
+> Archive и одна строка запроса на провайдеров с разной терпимостью. Структурная
+> часть каждого перепроверена по коду при переносе. Текст записи ниже сохранён
+> дословно и остаётся evidence; право на работу дают строки реестра, а не он.
+
 - **date:** 2026-08-12
 - **HEAD:** `79c604de063da0cbd765bebecbd42d599dda59a4` (governance-reset, worktree clean)
 - **target scene:** `cheetah_not_leopard` (PLAN-9D corpus scene_005) — «гепард
