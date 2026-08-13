@@ -118,6 +118,39 @@ class ChannelStyleResolutionTests(unittest.TestCase):
         self.assertEqual(checked, 2, "Проверяемые функции адаптера исчезли — обнови тест.")
 
 
+class RetiredMediaRootsTests(unittest.TestCase):
+    """Ретайренные медиа-каталоги не должны возвращаться сами собой.
+
+    Каталоги вынесены в карантин (реестр R05), а не удалены: медиа не versioned,
+    поэтому `git bundle` его не удержал бы. Проверка держит границу — если код
+    снова начнёт писать сюда, это увидит тест, а не владелец через полгода.
+    """
+
+    RETIRED = (
+        Path("assets") / "broll",
+        Path("assets") / "cache" / "videos",
+        Path("assets") / "images" / "generated",
+    )
+
+    def test_retired_media_roots_are_gone(self) -> None:
+        for relative in self.RETIRED:
+            with self.subTest(path=relative.as_posix()):
+                self.assertFalse(
+                    (REPOSITORY_ROOT / relative).exists(),
+                    f"{relative.as_posix()} ретайрен (R05) и не должен существовать.",
+                )
+
+    def test_the_live_asset_roots_survived(self) -> None:
+        """Карантин не должен был задеть библиотеку, evidence и voice samples."""
+        paths = resolve_application_paths()
+        self.assertEqual(paths.workspace.provider_cache, (REPOSITORY_ROOT / "assets" / "cache").resolve())
+        self.assertEqual(paths.workspace.media_library, (REPOSITORY_ROOT / "assets" / "library").resolve())
+        self.assertTrue(
+            (REPOSITORY_ROOT / "assets" / "voice_samples" / "README.md").is_file(),
+            "voice_samples — versioned, карантин его не трогает.",
+        )
+
+
 class MediaIndexLocationTests(unittest.TestCase):
     """Индекс библиотеки не должен указывать наружу из `assets/`."""
 

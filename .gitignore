@@ -81,9 +81,6 @@ assets/images/*
 !assets/voice_samples/
 assets/voice_samples/*
 !assets/voice_samples/README.md
-!assets/broll/
-assets/broll/
-!assets/broll/.gitkeep
 !assets/music/
 assets/music/*
 !assets/music/.gitkeep
