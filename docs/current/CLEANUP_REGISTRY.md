@@ -45,6 +45,10 @@ consistency review** этого файла: 2026-08-01 от clean HEAD `affa138`
 - **C53–C62** — findings motion rendering, 2026-08-01 от clean HEAD `35325b4`;
 - **C63** — plan↔code reconciliation finding, 2026-08-08 от clean HEAD
   `7a8142f`; read-only, дефект не исправлялся;
+- **C64–C74** — retrieval/material engine audit, 2026-08-13 от clean HEAD
+  `f3b607a`; read-only, дефекты не исправлялись; часть предложенных внешним
+  отчётом строк отклонена перепроверкой — см. errata в
+  [RETRIEVAL_ENGINE_AUDIT_2026-08-13.md](../audits/RETRIEVAL_ENGINE_AUDIT_2026-08-13.md);
 - **C01-SEM ownership inventory** — PLAN-1C′, 2026-08-07 от clean HEAD
   `b0e99a7`; read-only, без перемещения файлов и без изменения поведения;
 - **Knowledge salvage log** — заполнен PLAN-L0, 2026-08-02 от clean HEAD
@@ -343,6 +347,44 @@ providers, Vision, TTS, render и установка зависимостей н
 |---|---|---|---|---|---|
 | C63 | author `--visual-brief` не достигает сцен на topic/article paths | **FACT** | `ContentCreationRequest.visual_briefs` доходит до `NewsJob.visual_briefs` и до `ScriptRequest.visual_briefs` (`src/news/script_generator.py:89`), но единственный consumer `request.brief_for(...)` — `src/content/script_engine/providers/user_supplied.py:112`. Author overlay визуального плана (`_apply_scene_briefs`, `src/content/visual_planning/engine.py:77`) читает только `script.scenes[].visual_brief`. Для `topic` / статьи выбирается `deterministic_local` (`DEFAULT_PROVIDER_ID`, `src/content/script_engine/registry.py:15`) либо другой не-user provider, который брифы не переносит, поэтому явный авторский бриф на этих путях молча теряется. Заявление плана «explicit author brief всегда выигрывает» (PLAN-9B-PRODUCER) верно только для user-supplied script/narration | **MISSING OWNER CANDIDATE.** Живого PLAN-ID у этого residual нет: family PLAN-9B и PLAN-9B-PRODUCER закрыты, а естественный дом — существующее visual-planning / script-provider ownership. Второй brief owner, второй planner и новый storage создавать запрещено. Новый PLAN-ID этой записью **не** создаётся | owner decision о владельце; до него — только запись |
 
+## Retrieval engine audit findings (C64–C74)
+
+Зафиксировано 2026-08-13 docs-only слайсом от clean HEAD `f3b607a`. Источник —
+read-only аудит retrieval/material engine
+([RETRIEVAL_ENGINE_AUDIT_2026-08-13.md](../audits/RETRIEVAL_ENGINE_AUDIT_2026-08-13.md)),
+но **каждая строка перепроверена по фактическому коду** перед записью: внешний
+отчёт — гипотеза, репозиторий — истина. Production-код, tests, схемы, config и
+runtime **не изменялись**; сеть, providers, Vision, TTS и render не выполнялись.
+Классы доказанности прежние: **FACT** / **INFERENCE** / **DEFER**.
+
+**Ни одна строка не даёт права на действие**; каждая закрывается своим gate по
+общему `Closure rule` ниже. Нумерация здесь сквозная по реестру и с номерами
+внешнего отчёта не совпадает:
+
+| В отчёте | Здесь | Почему |
+|---|---|---|
+| `C64`–`C70` | C64–C70 | без изменений |
+| `C72` | C71 | номер сдвинут, потому что предыдущий кандидат отклонён |
+| `C75` | C72 | то же |
+| `C71` (tracked `outputs/*.json`) | — | **не новая находка**: уже записана строками **C19**, **C29** и **A02** |
+| `C73` (висячий corpus path) | — | **опровергнуто**: `tests/plan9d_corpus_builder.py:104-110` документирует намеренную замену корпуса в PLAN-9D-A, якорь — коммит `SUPERSEDED_CORPUS_COMMIT` |
+| `C74` (классификация тестов) | — | **не противоречие**: метка модуля и класс отдельных проверок — разные оси; примирение уже записано строкой `tests/test_size_comparison_engine.py` в Knowledge salvage log |
+| разделы future-useful | C73–C74 | записаны как inventory будущей ценности, без прав на действие |
+
+| ID | Предмет | Класс | Evidence | Action / disposition | Gate |
+|---|---|---|---|---|---|
+| C64 | третий retrieval-путь: fixed-plan `solar_vs_nuclear_render` | **FACT** | `src/production_plan/solar_vs_nuclear_render.py` держит собственный поиск и скачивание: `select_and_download_stock:152` (вызов `:63`), собственный `_download_file`, прямые вызовы module-level `search_videos` из `pexels_provider`/`pixabay_provider`. Достижим из legacy CLI: `pipeline.py:44` импортирует `build_solar_vs_nuclear_video`, вызов — `src/legacy_pipeline/maintenance.py:403`. Реестр знал этот файл как часть Solar production plan (**V04**, **N05**), но **не как отдельный retrieval-путь** | `obsolete-with-legacy`. Ретайр вместе с legacy-семейством (**C08**, **C30**); до ретайра действует **C65**. Второй retrieval owner не создаётся: canonical путь — `src/assets/**` + `src/providers/registry` | **PLAN-L0 → L3 → L4** |
+| C65 | обход default-deny сети в legacy-стеках | **FACT** | `src/runtime_network.py` объявляет default-deny по классам, но legacy-путь ходит в сеть голым `requests` мимо `require_network`: `src/asset_finder.py:109,134,151` · `src/video_asset_engine.py:408,445,595` · `src/music_engine.py:161,227` · `src/production_plan/solar_vs_nuclear_render.py:543` · module-level функции провайдеров `src/providers/pexels_provider.py:191,204`, `pixabay_provider.py:186,198,217`, `unsplash_provider.py:14`. Смежно и тем же способом: `src/voice_engine.py:200` (платный TTS). Формулировка внешнего отчёта «6 call-sites» **занижена** | `правка`, не удаление. **OWNER DECISION REQUIRED**: bounded correction «legacy network gate» (обернуть call-sites в `require_network`) **либо** одновременный ретайр стеков. Этой строкой PLAN-ID и номер VA-NEW не создаются; временный code fix docs-слайсом не делался | owner decision → bounded correction или **PLAN-L3** |
+| C66 | `src/providers/unsplash_provider.py` + legacy-экспорты `src/providers/__init__.py` | **FACT** | файл — не `StockProvider`, а голая функция с `requests.get:14`; production-callers и owning test отсутствуют, единственная ссылка — реэкспорт из `__init__`. Осиротевшее **имя** `unsplash` в таблицах данных и вестигиальный `DEFAULT_PROVIDER_ORDER` уже записаны **C41** (пункты (c) и (b)) и здесь не дублируются | `delete` через retirement package «retrieval-orphans»: KSG (сохранять нечего — провайдер никогда не подключался), затем annotated tag + `git bundle` + строка `Retired` | **PLAN-L0** → retirement |
+| C67 | заглушка `vision_validator` и ключ канала `vision_validation_enabled` | **FACT** | заглушка и её ноль callers уже описаны секцией **C01-SEM**; новое — судьба ключа: `channels/nature_science_news_ru/channel_config.json:102` его объявляет, а `src/news/asset_manifest_builder.py:290` и `src/production_plan/youtube_shorts.py:211` пишут его константой `False`; фактический гейт Vision — `semantic_visual.enabled` вместе с `semantic_rerank_enabled` | `delete` заглушки вместе с ключом одним слайсом. **OWNER DECISION REQUIRED**: удаление ключа меняет versioned config канала. Vision через `vision_validator` не воскрешать — canonical owner `semantic_visual_service` | **PLAN-9E** |
+| C68 | мёртвый пост-review селектор | **FACT** | `src/assets/review_bundle.py:199` `select_candidate_after_review` с захардкоженными весами `:274`; production его не вызывает — `src/news/asset_manifest_builder.py:648` жёстко ставит `after_id = before_id`. Единственные callers — `tests/test_visual_preview_integration.py:188,198,208`. После PLAN-9C выбранного кандидата меняет только Vision-переотбор | `delete` одним слайсом (код + его тесты + мёртвые config-веса из **C69**) **после** того, как **PLAN-9E** зафиксирует, нужен ли пост-review переотбор вообще. Второй селектор не восстанавливать | **PLAN-9E** → retirement |
+| C69 | ложные пульты управления в retrieval-конфигах | **FACT** | `config/visual_preview.json` читается (`src/assets/visual_preview.py:30`), но ключи `technical_score_weights` (строка 21), `rerank_weights` (30) и `refresh_policy` (18) не читает ни одна строка кода — фактические веса захардкожены. `config/semantic_visual.json` держит два независимых лимита кандидатов (`maximum_candidates` = 5, строка 6, против `openai.maximum_candidates_per_scene` = 3, строка 29) и два бюджета (строки 13 и 32). Retrieval-блоки `config/video_style.json` читаются только по `enabled` (носитель умирает в L3 — **C24**, **C30**) | `правка`: свести к одному источнику либо удалить ключ вместе с иллюзией настраиваемости. Ложная ручка опаснее её отсутствия: следующий агент будет крутить её вместо кода | **PLAN-9E / PLAN-10C** (semantic_visual, visual_preview) · **PLAN-L3** (video_style) |
+| C70 | `schemas/*.json` не являются enforcement и отстают от кода | **FACT** | единственный читатель схем — `tests/test_artifact_schemas.py:11` (`SCHEMA_ROOT`); production ими ничего не валидирует. `schemas/assets.schema.json` не знает реально пишущихся ключей — `asset_search_fingerprint` в файле отсутствует — и спасается `additionalProperties: true`. `schemas/evidence.schema.json` отстаёт от `EVIDENCE_RECORD_SCHEMA_VERSION = 2` (`src/project_foundation/models.py:65`) | **OWNER DECISION REQUIRED**: либо догнать поля и сделать схемы enforcement, либо честно пометить их характеризационными. Третий контракт формы манифеста не создавать | owner decision → **PLAN-13** |
+| C71 | production-правило прав для тестового провайдера `fake` | **FACT** | `config/license_policy.json:35-44` объявляет полноценное правило прав для провайдера `fake` (`fake_test_license`, `https://fake.local/...`) внутри боевой политики — единственного источника rights (`src/assets/license_policy.py`, fail-closed) | `правка`: вынести в тестовый конфиг **или** явно записать, почему тестовый двойник имеет права в production policy. Fail-closed и `review_required` не ослаблять | owner decision → rights owner |
+| C72 | припаркованный слой `semantic_decision_policy` | **FACT** + **DEFER** | `src/assets/semantic_decision_policy.py` калибрует пороги suitable/review/unsuitable поверх сырого Vision-результата; ноль production-callers (факт уже записан **C01-SEM**), owning test есть (`tests/test_semantic_decision_policy.py`). Действующие пороги живут в `config/semantic_visual.json` и `candidate_ranker` | **OWNER DECISION REQUIRED**, ровно две опции: (a) explicit item к **PLAN-9E** / **PLAN-10C** как калибровка порогов, (b) retire по KSG. Молчаливое удаление запрещено; второй слой порогов рядом с существующим не создавать | **PLAN-9E / PLAN-10C** |
+| C73 | `src/assets/temporal_video_analysis.py` — готовый детектор «живого» отрезка клипа | **FACT** | ноль production-callers, owning test есть (`tests/test_temporal_video_analysis.py`); модуль уже считает hash-дистанции между кадрами, per-position crop и contact-sheet. Для longform не хватает ровно одного звена — источникового временного диапазона: в модели кандидата нет `clip_start`/`clip_end`, а `src/news/final_renderer.py` рендерит сегмент всегда от t=0 источника | `keep` как future-useful. Longform переиспользует **этот** модуль как основу выбора отрезка; **второй segment engine не создаётся** — рабочий образец `-ss`/`-t` уже есть в `anime_factory` (**C07**, do-not-touch) | **M5** (owner packaging label; PLAN-ID этой строкой не создаётся) |
+| C74 | пиксельные метрики качества считаются и никуда не идут | **FACT** | `src/assets/visual_metrics.py:139,158` (`estimate_crop_suitability`) и покадровый `_score_frame` вычисляются на каждом preview, но их потребители — только тесты (`tests/test_visual_preview_foundation.py:301-330`); ни один вход отбора их не читает, а конфиг-веса к ним мертвы (**C69**) | `keep` как future-useful. Quality-aware retrieval начинать с **переиспользования существующих producers**; новый quality engine не писать без доказанного gap. Пороги и веса этой строкой не назначаются | **PLAN-10C** (в связке с предложением RD-C) |
+
 ## C01-SEM — ownership inventory asset/semantic (PLAN-1C′)
 
 Зафиксировано 2026-08-07 слайсом `PLAN-1C′` от clean HEAD `b0e99a7`, ветка
@@ -402,6 +444,13 @@ Ownership выведено из фактических responsibilities, callers
 `technical_rerank_enabled`, по умолчанию `false`, и работает на технических
 признаках, а не на смысле.
 
+**Обновлено 2026-08-13 (после PLAN-9C).** Абзац выше описывает состояние на
+`b0e99a7`; его второе утверждение больше не верно. `select_candidate_after_review`
+production-путём **не вызывается вовсе** — `asset_manifest_builder.py:648` жёстко
+ставит `after_id = before_id` (строка **C68**). Уже выбранного кандидата сегодня
+может изменить только Vision-переотбор внутри `_prepare_visual_review`, и только
+когда Vision включён обоими гейтами.
+
 Три владельца различаются и не сливаются:
 **evidence producers** — `scene_analyzer`, `evidence`, `visual_preview`,
 `semantic_visual_service`; **decision owner** — `candidate_ranker`
@@ -440,6 +489,14 @@ Ownership выведено из фактических responsibilities, callers
 `_semantic_visual_summary:1050` пишет `semantic_rerank_enabled: False` жёстко,
 хотя реальное значение приходит из `config/semantic_visual.json` через
 `_selection_config:300`; читателей этого поля манифеста в коде нет.
+
+**Обновлено 2026-08-13 (после PLAN-9C).** Утверждение «подключён, но на отбор не
+влияет» больше не верно: `_apply_semantic_visual_evidence`
+(`asset_manifest_builder.py:692`, вызов из `:635`) применяет Vision-evidence
+**внутри цикла сцены — до скачивания и до финального выбора**, а не только в
+review-манифест; `_write_reviews` переехал на `:1126`. Факт про заглушку
+`vision_validator` и мёртвый ключ `vision_validation_enabled` не изменился, их
+судьба записана строкой **C67**.
 
 ### Persisted contracts
 
@@ -489,6 +546,11 @@ Ownership выведено из фактических responsibilities, callers
 существующего producer'а на уже существующий seam, а не новый selector, новый
 semantic stack, новый manifest и не второй словарь «требуется проверка
 человеком».
+
+**Обновлено 2026-08-13.** Так и вышло, но seam 1 реализован **не** через
+`select_candidate_after_review` (он мёртв, **C68**), а через
+`_apply_semantic_visual_evidence` в той же точке цикла — до
+`_download_and_complete`.
 
 ### C31 — повторная проверка, без действия
 

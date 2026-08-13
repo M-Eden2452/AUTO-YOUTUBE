@@ -361,7 +361,12 @@ pacing, плотность сцен, главы, crop, раскладка суб
 motion policy). **Route-level requirement:** все shared-core исправления
 M1–M3 обязаны быть **format-neutral** — новые portrait/1080x1920 допущения в
 shared services без продуктовой необходимости запрещены. Второй video engine
-запрещён (ADR 0016, PD-9).
+запрещён (ADR 0016, PD-9). **Существующие входы (запись 2026-08-13, маршрут не
+меняется):** выбор отрезка внутри клипа начинается с переиспользования
+`src/assets/temporal_video_analysis.py` (**C73** реестра), а недостающее звено —
+источниковый временной диапазон: `clip_start`/`clip_end` в модели кандидата и
+`-ss` по источнику в render path. Второй segment engine не создаётся; рабочий
+образец сегментного извлечения уже есть в `anime_factory` (**C07**).
 
 **WHAT IS POST-V1.** `M5` longform/v1.1 · retirement legacy (**PLAN-L1…L4**,
 **PLAN-9B-5b** wrapper retirement) · Vision activation при желании владельца ·
@@ -384,7 +389,17 @@ LIVE-5; позже — переносит контекстный налог на
 то есть суммарный запас всех трёх routing mirrors — пять строк, и следующая
 сверка маршрута в них уже не поместится. Состав WP0-B (ROUTE.md, упрощение
 mirrors, архив журналов и completed-секций, docs diet, README/COMMANDS truth,
-size guards) этой сверкой **не выполняется**.
+size guards) этой сверкой **не выполняется**. **Порядковое ограничение
+(добавлено 2026-08-13, governance audit R9):** ADR-бэкфилл выполняется **до**
+переноса закрытых секций в архив, иначе обоснования долговечных решений уедут в
+архивный snapshot вместе с временным документом. Кандидаты названы аудитом
+(`docs/audits/AI_DEVELOPMENT_SYSTEM_AUDIT_2026-08-12.md`, раздел 12): все ADR
+созданы одной волной 2026-07-28/29, с начала программы новых нет, потому что
+триггер `skills/architecture-change` требует ADR только при смене публичного
+контракта или границы системы. Расширение триггера (новый module-owner · новое
+persisted-поле · новый config-gate · новый класс сетевых действий) — часть того
+же пакета. Номера будущих ADR здесь не резервируются: ссылка на несуществующий
+ADR роняет `tools/qa/check_agent_docs.py`.
 
 **FIRST OWNER SHORT (optional product diagnostic).** Владелец может получить
 первый настоящий draft Short раньше acceptance, не выдавая его за
@@ -6454,6 +6469,14 @@ current-quality benchmark. Production logic этой записью не мен�
   принадлежат этому contract (см. запись выше «владеет порядком эскалации»).
   Не исправлялся; отдельного PLAN-ID не создавалось; учитывается при
   проектировании adaptive shortlist/budget policy этого этапа.
+- **существующие quality-producers — вход, а не новый движок (добавлено
+  2026-08-13).** Пиксельные метрики уже вычисляются на каждом preview
+  (`src/assets/visual_metrics.py`: `estimate_crop_suitability`, покадровый
+  `_score_frame`) и сегодня не влияют ни на один выбор, а конфиг-веса к ним
+  мертвы (**C74**, **C69** реестра). Любая работа по quality-aware отбору
+  начинается с переиспользования этих producers; новый quality engine не
+  пишется без доказанного gap, пороги и веса этой записью не назначаются.
+  Класс, статус и scope PLAN-10C не меняются.
 - **required verification:** targeted policy tests после каждого slice;
   `full` один раз при закрытии adaptive-search family.
 - **rollback:** один commit.
