@@ -1,7 +1,0 @@
-diagram_01: Информационный шум.
-
-1995 -> 2010 -> 2026.
-От книги/ТВ/радио к уведомлениям, reels, doomscrolling, вкладкам и бесконечным лентам.
-
-Asset:
-manual_assets/psychology/overloaded_mind_001/diagrams/diagram_01_information_noise.svg

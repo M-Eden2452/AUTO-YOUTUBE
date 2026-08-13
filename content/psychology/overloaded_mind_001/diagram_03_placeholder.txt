@@ -1,6 +1,0 @@
-diagram_03: Фрагментация внимания.
-
-Мозг/силуэт человека, разбитый на уведомления, вкладки, сообщения, видео, рекламу и постоянное переключение.
-
-Asset:
-manual_assets/psychology/overloaded_mind_001/diagrams/diagram_03_attention_fragmentation.svg
