@@ -1,405 +1,174 @@
 # AI-YouTube
 
-AI-YouTube - локальная система для создания русскоязычных cinematic quote/thought videos для YouTube.
+Локальная система создания видео для YouTube. На входе — тема, свой текст,
+готовый сценарий или ссылка на статью; дальше система пишет сценарий, разбивает
+его на сцены, подбирает под каждую сцену визуальный материал и проверяет права на
+него, озвучивает, накладывает субтитры, рендерит вертикальный ролик и сохраняет
+evidence: чем именно доказано, что в кадре то, что заявлено.
 
-Текущая архитектура:
+По умолчанию всё офлайн и бесплатно. Сеть, платная озвучка и платный анализ
+кадров включаются явными флагами и конфигами — не «сами» и не по факту наличия
+ключа в `.env`.
 
-```text
-одно приложение
-+ много channel profiles
-+ много video tasks
-+ Obsidian как human knowledge base
-+ JSON как machine runtime state
-```
+## Статус на 2026-08-13
 
-Проект больше не должен быть привязан к одному каналу или одной теме. Один и тот же `pipeline.py` может собирать ролики для `quotes`, `psychology`, `survival`, `anime_quotes`, `movie_quotes`, `philosophy` и других ниш.
+- Работает одно приложение — **`content_creator`**. `video_repurposer`
+  (нарезка и переработка чужого видео) объявлен в каталоге как `planned` и
+  не работает.
+- Работает один формат — вертикальный short **1080×1920**. `longform` и
+  `horizontal_clip` объявлены `planned`.
+- Работают два шаблона: **`story_card_text_only_v1`** (карточка с текстом,
+  озвучка не обязательна) и **`fullscreen_voiceover_v1`** (полноэкранное видео
+  с обязательной озвучкой).
+- Канонический publish-ready ролик **ещё не выпущен**: режим `strict` по
+  умолчанию не пропускает результат, который не доказан. Черновик получить
+  можно — `--completion-mode draft_complete`, у него всегда
+  `publish_ready=false`.
+- `pipeline.py`, `src.content_creation.cli` и `apps/*` — **переходные**
+  compatibility-входы прежних поколений. Новую работу через них не начинают.
 
-## Быстрый запуск
-
-Старый dev-режим без channel profile остается рабочим:
-
-```bash
-python pipeline.py --dev
-```
-
-Новый запуск через channel profile и video task:
-
-```bash
-python pipeline.py --channel quotes --video thoughts_too_late_001 --dev
-```
-
-Production-рендер запускай только явно:
-
-```bash
-python pipeline.py --channel quotes --video thoughts_too_late_001 --prod
-```
+Что делается прямо сейчас и что следующее — [docs/current/START_HERE.md](docs/current/START_HERE.md).
 
 ## Установка
 
-```bash
+Windows, Python ≥ 3.11. Все команды запускаются интерпретатором venv; системный
+`python` может быть другой версии.
+
+```powershell
 python -m venv venv
-source venv/Scripts/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pip install --upgrade pip
+.\venv\Scripts\python.exe -m pip install -r requirements.lock
 ```
 
-PowerShell:
+`requirements.lock` — воспроизводимая установка, `requirements.txt` — верхний
+уровень зависимостей, `requirements-dev.lock` — инструменты разработки.
 
-```powershell
-.\venv\Scripts\Activate.ps1
-```
+FFmpeg отдельно ставить не нужно: бинарь приходит с пакетом `imageio-ffmpeg`.
+`ffprobe` вызывается из `PATH` (`src/assets/frame_sampling.py:90`); без него
+часть проверок медиа вернёт `failed`, рендер продолжит работать.
 
-## Experimental MOSS-TTS-Nano
+Ключи провайдеров и голосов живут в `.env`. Он не коммитится и не читается
+агентами. Без ключей поиск работает на бесплатных источниках (Wikimedia Commons,
+NASA, Internet Archive); Pexels и Pixabay подключаются только при наличии ключа.
 
-MOSS-TTS-Nano is wired as an experimental local TTS provider for short test narration. It is separate from the existing ElevenLabs integration: ElevenLabs remains the default cloud voice path in `src/voice_engine.py`, while MOSS is a local subprocess provider in `src/tts_providers/moss_tts_provider.py`.
-
-The local checkout lives at:
-
-```text
-G:/Projects/AI-YouTube/MOSS_TTS_Nano
-```
-
-It uses its own virtual environment:
-
-```text
-G:/Projects/AI-YouTube/MOSS_TTS_Nano/.venv
-```
-
-The separate venv keeps PyTorch, ONNX Runtime, Transformers, and MOSS-specific packages out of the main AI-YouTube `venv`. This matters because MOSS has ML dependencies that are larger and more fragile than the normal pipeline requirements.
-
-Setup used for the local provider:
-
-```powershell
-cd G:/Projects/AI-YouTube/MOSS_TTS_Nano
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pip install -e .
-```
-
-On Windows/Python 3.13, `WeTextProcessing` may fail because its `pynini` dependency tries to build from source and requires Microsoft C++ Build Tools. The current test path uses the ONNX backend without WeText normalization, so basic local generation can still work after installing the rest of the dependencies and `pip install -e .`.
-
-Run the smoke test from the main project:
-
-```powershell
-python pipeline.py --test-moss-tts
-```
-
-The test writes:
-
-```text
-outputs/tts_tests/moss_tts_test.wav
-```
-
-MOSS config is intentionally disabled by default:
-
-```json
-"tts": {
-  "provider": "moss_tts_nano",
-  "moss_tts_path": "G:/Projects/AI-YouTube/MOSS_TTS_Nano",
-  "enabled": false,
-  "voice_clone_enabled": false,
-  "prompt_audio_path": ""
-}
-```
-
-MOSS is local and experimental, useful for offline testing and avoiding per-request cloud voice costs. ElevenLabs is still the production-oriented remote integration with the existing voice cache and API behavior. Voice cloning is not enabled for MOSS yet; the smoke test uses a built-in ONNX voice and does not require prompt audio.
-
-### MOSS voice sample tester
-
-MOSS voices are not selected like ElevenLabs voices. ElevenLabs uses remote voice IDs. MOSS-TTS-Nano voice cloning needs a short local reference audio sample.
-
-Primary local workflow:
-
-```text
-assets/voice_samples/
-```
-
-The tester also checks:
-
-```text
-G:/Projects/AI-YouTube/MOSS_TTS_Nano/assets/voice_samples/
-```
-
-Reference samples should be short clean clips: 5-20 seconds, wav/mp3, one speaker, no music, no noise, no heavy reverb.
-
-Run the voice tester:
-
-```powershell
-python scripts/test_moss_voices.py
-```
-
-or through the main CLI:
-
-```powershell
-python pipeline.py --test-moss-voices
-```
-
-It generates three short tests per sample:
-
-- Russian short psychology line
-- Russian narration line
-- English short line
-
-Outputs are written to:
-
-```text
-outputs/tts_tests/moss/
-```
-
-The report is:
-
-```text
-outputs/tts_tests/moss/moss_voice_report.md
-```
-
-The report includes generation time, file size, backend, rough speed, errors, and manual quality fields:
-
-```text
-naturalness:
-similarity:
-russian_quality:
-noise:
-speed:
-usable_for_youtube: yes/no
-notes:
-```
-
-You can use Hugging Face to open a MOSS-TTS-Nano Space, try demos, download models, or inspect community examples. The project workflow still stays local: put reference voices into `assets/voice_samples/` or `MOSS_TTS_Nano/assets/voice_samples/`, then run the tester.
-
-Hardware notes:
-
-- Ryzen 5 2600 should handle MOSS CPU inference for tests.
-- RX 570 will probably not accelerate MOSS meaningfully in this setup.
-- ONNX backend is preferred for CPU inference.
-- Long texts should be split into scenes.
-- For the YouTube pipeline, use scene-based generation rather than one huge narration file.
-
-## Структура проекта
-
-```text
-pipeline.py
-src/
-config/
-channels/
-  quotes/
-    channel_config.json
-    style.json
-    prompts/
-    templates/
-  psychology/
-  survival/
-content/
-  quotes/
-    thoughts_too_late_001.json
-outputs/
-  quotes/
-    thoughts_too_late_001/
-assets/
-music/
-docs/
-legacy/
-```
-
-`src/` - общий движок.  
-`channels/` - настройки каналов.  
-`content/` - конкретные video tasks.  
-`outputs/` - машинные JSON-планы и локальные результаты запусков.  
-`legacy/` - старые MVP-скрипты, которые больше не являются частью текущего pipeline.
-
-## Channel Profiles
-
-Channel profile задает стиль и контекст канала.
-
-Пример:
-
-```text
-channels/quotes/channel_config.json
-channels/quotes/style.json
-```
-
-`channel_config.json` хранит:
-
-- `channel_id`;
-- название канала;
-- папку Obsidian;
-- формат видео;
-- язык по умолчанию;
-- описание канала.
-
-`style.json` хранит:
-
-- visual style;
-- image style;
-- intro style;
-- text style;
-- music mood;
-- transitions;
-- animations;
-- colors;
-- avoid list.
-
-## Video Tasks
-
-Video task задает конкретный ролик. Это главный вход для креатива.
-
-Пример:
-
-```text
-content/quotes/thoughts_too_late_001.json
-```
-
-В нем лежат:
-
-- `video_id`;
-- `chosen_title`;
-- `title_variants`;
-- `thumbnail_text`;
-- `thumbnail_idea`;
-- `description`;
-- `disclaimer`;
-- готовый список сцен;
-- тексты на экране;
-- авторы;
-- длительности;
-- mood;
-- visual keywords;
-- transitions;
-- animations.
-
-Codex/pipeline не должен придумывать новый креатив, если video task уже подготовлен. Он только превращает task JSON в runtime-планы, видео и Obsidian-заметку.
-
-## Outputs
-
-Для channel/video запуска файлы создаются здесь:
-
-```text
-outputs/quotes/thoughts_too_late_001/
-```
-
-Основные runtime-файлы:
-
-- `quote_plan.json`;
-- `scene_plan.json`;
-- `asset_plan.json`;
-- `render_plan.json`;
-- `music_plan.json`;
-- `youtube_metadata.json`;
-- `self_eval.json`;
-- `render_stage.json`;
-- `final_preview.mp4` в dev;
-- `final_video.mp4` в prod.
-
-Видео, музыка, временные render-файлы и большие ассеты не коммитятся.
-
-## Obsidian
-
-Если vault существует по пути:
-
-```text
-G:/ObsidianBase/ObsidianBase/YouTube
-```
-
-pipeline создает базовую структуру:
-
-```text
-YouTube/
-  00 Dashboard/
-  01 Каналы/
-    Цитаты и мысли/
-    Психология/
-    Выживание/
-  02 Видео/
-    Цитаты и мысли/
-      thoughts_too_late_001/
-  03 Шаблоны/
-  04 Источники/
-    Авторы/
-    Фильмы/
-    Аниме/
-    Книги/
-  05 Стили/
-  06 Готовые ролики/
-```
-
-Для первого quotes video заметка создается здесь:
-
-```text
-G:/ObsidianBase/ObsidianBase/YouTube/02 Видео/Цитаты и мысли/thoughts_too_late_001/Некоторые мысли приходят слишком поздно.md
-```
-
-После dev-рендера `final_preview.mp4` копируется рядом с заметкой, а в заметке используется Obsidian-вставка:
-
-```text
-![[final_preview.mp4]]
-```
-
-Для production используется `final_video.mp4`.
-
-## Как создать следующее видео в этом же канале
-
-1. Создай новый файл:
-
-```text
-content/quotes/new_video_id.json
-```
-
-2. Заполни его по структуре существующего task.
-3. Запусти:
+В свежем клоне включите репозиторные гейты:
 
 ```bash
-python pipeline.py --channel quotes --video new_video_id --dev
+git config core.hooksPath .githooks
 ```
 
-## Как создать другой канал
-
-1. Создай папку:
-
-```text
-channels/new_channel/
-```
-
-2. Добавь:
-
-```text
-channels/new_channel/channel_config.json
-channels/new_channel/style.json
-channels/new_channel/prompts/
-channels/new_channel/templates/
-```
-
-3. Создай content task:
-
-```text
-content/new_channel/video_id.json
-```
-
-4. Запусти:
+## Первая команда
 
 ```bash
-python pipeline.py --channel new_channel --video video_id --dev
+./venv/Scripts/python.exe -B -m ai_youtube capabilities
 ```
 
-## Безопасные проверки
+Печатает то, что доступно **сегодня**: приложения, шаблоны, голоса, стили
+субтитров, музыку и каналы — со статусом каждого. Это честный ответ системы о
+себе, а не список планов.
+
+## Канонический вход
+
+Единственная точка входа — `python -m ai_youtube`.
+
+| Команда | Что делает |
+|---|---|
+| `create` | создать ролик (флаги, без вопросов) |
+| `resume` | продолжить существующий проект |
+| `run-stage` | выполнить одну стадию существующего проекта |
+| `wizard` | тот же `create`, но с вопросами в терминале |
+| `project` | список проектов, статус, валидация, отчёт по правам |
+| `assets` | заменить визуальный слот сцены своим файлом |
+| `capabilities` | что реально доступно сегодня |
+| `applications` · `formats` · `templates` · `channels` | каталог производства |
+| `voices` · `subtitles` | голоса и субтитры, включая объяснение выбора |
+| `script` · `visual-plan` | сценарий и план сцен офлайн, без рендера |
+
+У любой команды есть `--json` для машинного чтения и `--help`.
+
+## Как сделать ролик
+
+Карточка с текстом на своём видео — без озвучки и без сети:
 
 ```bash
-python -m compileall pipeline.py src
-python pipeline.py --dev
-python pipeline.py --channel quotes --video thoughts_too_late_001 --dev
+./venv/Scripts/python.exe -B -m ai_youtube create --template story_card_text_only_v1 --text "Осьминоги видят кожей" --source-asset "G:/media/octopus.mp4" --comment "Природа умеет странное"
 ```
 
-Полный `--prod` не запускается как обычная проверка.
+Полноэкранное видео с озвучкой по теме — здесь нужны сеть на поиск материала и
+явное разрешение на платную озвучку:
 
-## Секреты и Git
+```bash
+./venv/Scripts/python.exe -B -m ai_youtube create --template fullscreen_voiceover_v1 --topic "Почему киты поют" --target-duration 50 --allow-network provider_search --allow-network asset_download --approve-paid-generation
+```
 
-Не коммитить:
+Продолжить прерванный проект:
 
-- `.env`;
-- `venv/`;
-- `MOSS_TTS_Nano/`;
-- mp4/mp3/mov/wav;
-- большие ассеты;
-- `assets/broll/`;
-- временные render-файлы.
+```bash
+./venv/Scripts/python.exe -B -m ai_youtube resume --project-id <id>
+```
 
-`.env.example` можно хранить в Git. `.env` нельзя читать, выводить или коммитить.
+Заменить неудачный визуал сцены своим файлом:
+
+```bash
+./venv/Scripts/python.exe -B -m ai_youtube assets replace --project-id <id> --scene-id <scene> --slot-id <slot> --file "G:/media/better.mp4" --confirm-user-owned
+```
+
+Результат каждого запуска — каталог `projects/<project_id>/` с манифестами,
+evidence, правами, промежуточными планами и итоговым MP4. Корень рабочего
+пространства переопределяется `--workspace` или `AI_YOUTUBE_WORKSPACE`.
+
+## Что защищено по умолчанию
+
+- **Сеть запрещена по классам.** Разрешение выдаётся отдельно на каждый класс:
+  `provider_search`, `asset_download`, `preview_download`, `article_fetch`,
+  `voice_preflight`, `semantic_brief` (`src/runtime_network.py`). Наличие ключа
+  в `.env` разрешением не является.
+- **Платное — отдельно от сети.** Озвучка не запускается без
+  `--approve-paid-generation`; платный анализ кадров имеет собственный бюджет и
+  выключен в конфиге.
+- **Права fail-closed.** Материал без доказанной лицензии не попадает в ролик;
+  политика прав одна — `config/license_policy.json`.
+- **`strict` — режим по умолчанию.** `draft_complete` включается явно, всегда
+  даёт `publish_ready=false` и не ослабляет проверки прав и запретов канала.
+
+## Структура
+
+```text
+src/                 движок: сценарий, сцены, поиск материала, права, озвучка, субтитры, рендер
+src/ai_youtube/cli/  канонический CLI
+apps/                переходные compatibility-входы прежних поколений
+config/              versioned-конфигурация (права, превью, семантика, стиль)
+channels/            профили каналов
+schemas/             объявленные формы артефактов проекта
+docs/                документация; начинать с docs/current/
+skills/              процедуры для AI-агентов
+tests/               офлайн-тесты, запускаются без сети и без ключей
+projects/            результаты запусков (не коммитятся)
+```
+
+## Проверки перед коммитом
+
+```bash
+./venv/Scripts/python.exe scripts/gates.py
+```
+
+Гейты запускают ruff, mypy, проверку документации агентов и `git diff --check`.
+Тесты текущего изменения запускаются точечно; полный офлайн-набор — на границе
+этапа или в CI:
+
+```bash
+./venv/Scripts/python.exe -B -m unittest discover -s tests -p "test_*.py"
+```
+
+## Документация
+
+- [AGENTS.md](AGENTS.md) — контракт работы с репозиторием (он же для людей);
+- [docs/current/START_HERE.md](docs/current/START_HERE.md) — текущее состояние и
+  следующий шаг;
+- [docs/current/SYSTEM_MAP.md](docs/current/SYSTEM_MAP.md) — кто чем владеет в коде;
+- [docs/current/CLEANUP_REGISTRY.md](docs/current/CLEANUP_REGISTRY.md) — что
+  устарело, что дублируется и на каких условиях удаляется;
+- [docs/adr/README.md](docs/adr/README.md) — принятые архитектурные решения;
+- [docs/audits/README.md](docs/audits/README.md) — аудиты и их статусы.
+
+При расхождении между документами и кодом верны код и Git.
