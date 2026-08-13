@@ -1,13 +1,32 @@
 from __future__ import annotations
 
+import atexit
 import io
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
 from tests.network_guard import network_guard_scope
+
+_CATALOG_WORKSPACE: tempfile.TemporaryDirectory | None = None
+
+
+def _catalog_workspace_root() -> str:
+    """Одна tmp-workspace на модуль для запусков ``pipeline.main()``.
+
+    main() материализует ``outputs/`` и ``assets/*`` под workspace root
+    (pipeline.py:96-99); без переопределения каталожные CLI-тесты воскрешают
+    ретайренный repo-root ``outputs/`` (registry R02).
+    """
+    global _CATALOG_WORKSPACE
+    if _CATALOG_WORKSPACE is None:
+        _CATALOG_WORKSPACE = tempfile.TemporaryDirectory(prefix="ai_youtube_catalog_ws_")
+        atexit.register(_CATALOG_WORKSPACE.cleanup)
+    return _CATALOG_WORKSPACE.name
 
 
 class ProductionCatalogModelTests(unittest.TestCase):
@@ -220,7 +239,9 @@ class ProductionCatalogCliTests(unittest.TestCase):
 
         buffer = io.StringIO()
         old_argv = sys.argv
+        old_workspace = os.environ.get("AI_YOUTUBE_WORKSPACE")
         sys.argv = ["pipeline.py", *argv]
+        os.environ["AI_YOUTUBE_WORKSPACE"] = _catalog_workspace_root()
         try:
             with redirect_stdout(buffer):
                 try:
@@ -230,6 +251,10 @@ class ProductionCatalogCliTests(unittest.TestCase):
                     exit_code = exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
         finally:
             sys.argv = old_argv
+            if old_workspace is None:
+                os.environ.pop("AI_YOUTUBE_WORKSPACE", None)
+            else:
+                os.environ["AI_YOUTUBE_WORKSPACE"] = old_workspace
         return exit_code, buffer.getvalue()
 
     def test_applications_list_cli(self) -> None:
@@ -296,6 +321,7 @@ class ProductionCatalogCliTests(unittest.TestCase):
             capture_output=True,
             text=True,
             encoding="utf-8",
+            env={**os.environ, "AI_YOUTUBE_WORKSPACE": _catalog_workspace_root()},
         )
         self.assertEqual(result.returncode, 0)
         self.assertIn("story_card_text_only_v1", result.stdout)

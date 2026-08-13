@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import json
 import subprocess
 import sys
@@ -67,6 +68,7 @@ class VisualPreviewCliWiringTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=os_environ_without_live_flags(),
             )
             inspect = subprocess.run(
                 [
@@ -85,6 +87,7 @@ class VisualPreviewCliWiringTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=os_environ_without_live_flags(),
             )
 
             self.assertEqual(prepare.returncode, 0, prepare.stderr)
@@ -275,6 +278,7 @@ class SemanticVisualCliWiringTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=os_environ_without_live_flags(),
             )
             inspect = subprocess.run(
                 [
@@ -293,6 +297,7 @@ class SemanticVisualCliWiringTests(unittest.TestCase):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=os_environ_without_live_flags(),
             )
 
             self.assertEqual(analyse.returncode, 0, analyse.stderr)
@@ -301,12 +306,30 @@ class SemanticVisualCliWiringTests(unittest.TestCase):
             self.assertIn("[semantic-visual] analysed_candidates=1", inspect.stdout)
 
 
+_WIRING_WORKSPACE: tempfile.TemporaryDirectory | None = None
+
+
+def _wiring_workspace_root() -> str:
+    """Одна tmp-workspace на модуль для всех subprocess-вызовов.
+
+    ``pipeline.py`` main() материализует ``outputs/`` и ``assets/*`` под
+    workspace root (pipeline.py:96-99); без переопределения каждый subprocess
+    воскрешает ретайренный repo-root ``outputs/`` (registry R02).
+    """
+    global _WIRING_WORKSPACE
+    if _WIRING_WORKSPACE is None:
+        _WIRING_WORKSPACE = tempfile.TemporaryDirectory(prefix="ai_youtube_wiring_ws_")
+        atexit.register(_WIRING_WORKSPACE.cleanup)
+    return _WIRING_WORKSPACE.name
+
+
 def os_environ_without_live_flags() -> dict[str, str]:
     import os
 
     env = dict(os.environ)
     env.pop("AI_YOUTUBE_ALLOW_LIVE_TESTS", None)
     env.pop("AI_YOUTUBE_RUN_LIVE_TESTS", None)
+    env["AI_YOUTUBE_WORKSPACE"] = _wiring_workspace_root()
     return env
 
 

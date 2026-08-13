@@ -78,8 +78,18 @@ class DocumentaryVisualEngineTests(unittest.TestCase):
 
         config, scene_plan = self._survival_scene_plan()
         with TemporaryDirectory() as tmp:
-            config["music_cache_dir"] = str(Path(tmp) / "music")
+            # v2 пишет план в plans["music_plan"], а индекс и кэш — под
+            # asset_library.root (:126-127); ключ music_cache_dir v2 не читает.
+            # Обе записи уводятся в tmp: иначе прогон воскрешает ретайренный
+            # outputs/ (R02) и мутирует реальный media_index.json (used_in).
+            # auto_download=False закрывает сетевую ветку Pixabay: с пустым
+            # tmp-индексом выбор детерминированно падает в local fallback
+            # music/background.mp3.
+            config["plans"] = {**config.get("plans", {}), "music_plan": str(Path(tmp) / "music_plan.json")}
+            config["asset_library"] = {**config.get("asset_library", {}), "root": str(Path(tmp) / "library")}
+            config["music_search"] = {**config.get("music_search", {}), "auto_download": False}
             music_plan = build_music_plan_v2(config, scene_plan)
+            self.assertTrue((Path(tmp) / "music_plan.json").exists())
 
         self.assertEqual(music_plan["engine"], "music_engine_v2")
         self.assertLessEqual(float(music_plan["volume"]), 0.16)
