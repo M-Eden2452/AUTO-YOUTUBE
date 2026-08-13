@@ -88,8 +88,10 @@ def format_layer(format_id: str) -> ConfigLayer:
     )
 
 
-def channel_profile_layer(channel_id: str, channels_dir: str | Path = "channels") -> ConfigLayer:
-    """``channels/<id>/channel.json`` - the project_foundation ChannelProfile."""
+def channel_profile_layer(
+    channel_id: str, channels_dir: str | Path = "config/channels"
+) -> ConfigLayer:
+    """``config/channels/<id>/channel.json`` - the project_foundation ChannelProfile."""
     if not channel_id:
         return ConfigLayer(source=SOURCE_CHANNEL_PROFILE, origin="", note="channel_id не задан.")
     path = Path(channels_dir) / channel_id / CHANNEL_PROFILE_FILENAME
@@ -118,8 +120,10 @@ def channel_profile_layer(channel_id: str, channels_dir: str | Path = "channels"
     )
 
 
-def channel_config_layer(channel_id: str, channels_dir: str | Path = "channels") -> ConfigLayer:
-    """``channels/<id>/channel_config.json``, flattened exactly as it is written today.
+def channel_config_layer(
+    channel_id: str, channels_dir: str | Path = "config/channels"
+) -> ConfigLayer:
+    """``config/channels/<id>/channel_config.json``, flattened exactly as it is written today.
 
     Only the ``voice``/``voice_workflow`` blocks are read by the pipeline at this
     commit (``src.news.pipeline._load_channel_voice_config`` /
@@ -303,11 +307,11 @@ def project_layer(
 
 
 def localization_layer(
-    channel_id: str, language: str, channels_dir: str | Path = "channels"
+    channel_id: str, language: str, channels_dir: str | Path = "config/channels"
 ) -> ConfigLayer:
     """``channel_config.json`` → ``languages.<language>``.
 
-    This block exists in ``channels/nature_science_news_ru/channel_config.json`` and is
+    This block exists in ``config/channels/nature_science_news_ru/channel_config.json`` and is
     read by nothing at this commit (confirmed by repo-wide search) - wiring it into the
     voice stage is stage D2. It is read here so that the layer is real and tested, and
     only for a language whose block is ``enabled``: a disabled language carries empty

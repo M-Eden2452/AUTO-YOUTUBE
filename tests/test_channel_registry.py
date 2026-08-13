@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from src.config_resolver.paths import resolve_application_paths
 from src.project_foundation.channels import CHANNEL_FILENAME, ChannelRegistry
 from src.project_foundation.models import ChannelProfile, ProjectFoundationError
 
@@ -87,7 +88,7 @@ class ChannelRegistryTests(unittest.TestCase):
             self.assertEqual([entry.name for entry in entries], [CHANNEL_FILENAME])
 
     def test_does_not_write_to_real_channels_directory(self) -> None:
-        real_channels_dir = Path("channels")
+        real_channels_dir = resolve_application_paths().channels_root
         before = set(real_channels_dir.iterdir()) if real_channels_dir.is_dir() else set()
 
         with TemporaryDirectory() as tmp:

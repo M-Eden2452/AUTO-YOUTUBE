@@ -1,4 +1,4 @@
-"""Стиль субтитров канала: ``channels/<id>/subtitle_style.json``.
+"""Стиль субтитров канала: ``config/channels/<id>/subtitle_style.json``.
 
 До Q3 этот файл читал только legacy ``src/channel_loader.py``; новый рендер
 субтитров его не открывал (зафиксировано в

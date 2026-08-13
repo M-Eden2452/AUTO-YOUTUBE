@@ -114,7 +114,7 @@ class MediaLibraryTests(unittest.TestCase):
         from src.media_library import mark_asset_used_in_video, register_asset
 
         index = {"version": 1, "items": []}
-        item = register_asset(index, {"type": "music", "provider": "local", "local_path": "music/background.mp3"})
+        item = register_asset(index, {"type": "music", "provider": "local", "local_path": "assets/music/background.mp3"})
 
         mark_asset_used_in_video(index, item["id"], "survival/juliane")
         mark_asset_used_in_video(index, item["id"], "survival/juliane")

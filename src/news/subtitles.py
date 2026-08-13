@@ -47,7 +47,7 @@ def _build_result(
     voice_manifest: dict[str, Any] | None = None,
     channel_id: str = "",
     resolution: dict[str, Any] | None = None,
-    channels_dir: str = "channels",
+    channels_dir: str | Path | None = None,
 ) -> SubtitleResult:
     style = resolve_subtitle_style(
         channel_id=channel_id,
@@ -92,7 +92,7 @@ def build_subtitles_for_localization(
     localization: "ResolvedLocalization | None" = None,
     visual_plan: dict[str, Any] | None = None,
     resume: bool = True,
-    channels_dir: str = "channels",
+    channels_dir: str | Path | None = None,
 ) -> SubtitleArtifact:
     """Субтитры одной локализации проекта, с resume и стилем канала.
 

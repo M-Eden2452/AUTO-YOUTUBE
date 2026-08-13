@@ -58,7 +58,7 @@ def _temp_channels():
         # resolve() to match _absolute() on the production side: on Windows the
         # temp dir may otherwise differ from its resolved form.
         repository = Path(tmp).resolve()
-        root = repository / "channels"
+        root = repository / "config" / "channels"
         (root / "with_voices").mkdir(parents=True)
         (root / "with_voices" / "voices.yaml").write_text(_VOICES_YAML, encoding="utf-8")
         (root / "without_voices").mkdir(parents=True)

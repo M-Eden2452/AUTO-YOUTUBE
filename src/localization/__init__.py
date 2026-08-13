@@ -1,7 +1,7 @@
 """Runtime-слой локализации: язык, locale и голос одной языковой версии проекта.
 
 Второй системой локализаций или голосов это не является и являться не может:
-профили голосов по-прежнему живут в ``channels/*/voices.yaml``
+профили голосов по-прежнему живут в ``config/channels/*/voices.yaml``
 (``src.audio.voice_profile_registry``), политика звука - в
 ``src.audio.voice_policy``, приоритет слоёв - в ``src.config_resolver``, а
 фактический результат озвучки - в ``localizations/<id>/voice/voice_manifest.json``

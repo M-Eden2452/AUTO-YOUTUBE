@@ -9,7 +9,7 @@
    строк, какая скорость чтения допустима. Влияет на то, *где* рвётся текст.
 3. **Стиль рендера** - ``SubtitleStyle``: шрифт, размер, отступы, обводка. Влияет
    только на то, *как* субтитр выглядит, и читается из
-   ``channels/<id>/subtitle_style.json`` (этап E2). В cue не попадает.
+   ``config/channels/<id>/subtitle_style.json`` (этап E2). В cue не попадает.
 4. **Сериализация** - ``src.subtitles.serialization``: SRT и ASS. Cue не знает ни
    про ASS-заголовок, ни про FFmpeg.
 
@@ -173,7 +173,7 @@ class SubtitleValidationResult:
 
 @dataclass(frozen=True)
 class SubtitleStyle:
-    """Оформление субтитра. Читается из ``channels/<id>/subtitle_style.json``.
+    """Оформление субтитра. Читается из ``config/channels/<id>/subtitle_style.json``.
 
     Значения по умолчанию - **ровно то**, что до Q3 было зашито в ASS-заголовок
     ``src/news/subtitles.py`` (``Arial,72,...,1,4,0,2,80,80,260,1``). Канал, у

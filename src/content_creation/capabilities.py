@@ -205,7 +205,7 @@ def list_subtitle_styles() -> list[dict[str, Any]]:
             "notes": (
                 "Тайминг берётся из реальной длительности озвучки через общий scene timeline "
                 "(src.audio.scene_timeline). Текст — полная реплика сцены, разбитая по "
-                "предложениям и пунктуации. Стиль читается из channels/<id>/subtitle_style.json. "
+                "предложениям и пунктуации. Стиль читается из config/channels/<id>/subtitle_style.json. "
                 "Потайминги отдельных слов не поддерживаются: их не пишет ни один провайдер."
             ),
         },
@@ -239,7 +239,7 @@ def list_music_options() -> list[dict[str, Any]]:
 
 
 # channel_profile_type values, in the order the create workflows understand them.
-CHANNEL_TYPE_PROJECT_FOUNDATION = "project_foundation"  # channels/<id>/channel.json
+CHANNEL_TYPE_PROJECT_FOUNDATION = "project_foundation"  # config/channels/<id>/channel.json
 CHANNEL_TYPE_NEWS_CONFIG = "news_channel_config"  # channel_config.json with mode=news_to_short
 CHANNEL_TYPE_LEGACY_PIPELINE = "legacy_video_pipeline"  # old pipeline.py --channel/--video profile
 
@@ -276,9 +276,9 @@ def list_channels() -> list[dict[str, Any]]:
     """Every channel on disk, each labelled with what it can actually be used for.
 
     Three channel storage shapes coexist and are not unified:
-    project_foundation ChannelProfile (channels/<id>/channel.json, used by the
+    project_foundation ChannelProfile (config/channels/<id>/channel.json, used by the
     story_card_text_only_v1 workflow), the news channel_config.json
-    (channels/<id>/channel_config.json with mode=news_to_short + voices.yaml, used by
+    (config/channels/<id>/channel_config.json with mode=news_to_short + voices.yaml, used by
     the fullscreen_voiceover_v1 / news_to_short workflow), and the legacy
     pipeline.py --channel/--video profile (src/channel_loader.py), which no create
     workflow can consume.

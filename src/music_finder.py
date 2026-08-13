@@ -16,7 +16,7 @@ def build_music_plan(config: dict[str, Any], scene_plan: dict[str, Any] | None =
 
     load_dotenv()
     search_config = config.get("music_search", {})
-    fallback_path = project_path(search_config.get("fallback_path", config.get("music_path", "music/background.mp3")))
+    fallback_path = project_path(search_config.get("fallback_path", config.get("music_path", "assets/music/background.mp3")))
     queries = search_config.get("queries", [])
     volume = float(search_config.get("volume", config.get("music_volume", 0.16)))
 

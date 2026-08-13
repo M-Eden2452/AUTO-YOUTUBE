@@ -149,8 +149,12 @@ class VoiceWorkflowTests(unittest.TestCase):
 
     def test_loads_saved_voice_profiles_without_secret_values(self) -> None:
         from src.audio.voice_cli import load_voice_profiles
+        from src.config_resolver.paths import resolve_application_paths
 
-        profiles = load_voice_profiles("channels/nature_science_news_ru/voices.yaml")
+        channels_root = resolve_application_paths().channels_root
+        profiles = load_voice_profiles(
+            str(channels_root / "nature_science_news_ru" / "voices.yaml")
+        )
 
         self.assertIn("ru_dom", profiles)
         self.assertEqual(profiles["ru_dom"].voice_id, "hDfThiytYnsDMuVgm6Qy")

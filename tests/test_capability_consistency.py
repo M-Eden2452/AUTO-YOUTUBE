@@ -33,6 +33,7 @@ import json
 import unittest
 from pathlib import Path
 
+from src.config_resolver.paths import resolve_application_paths
 from src.content_creation import capabilities
 from src.production_catalog.catalog import get_default_catalog
 
@@ -113,7 +114,9 @@ class ChannelConsistencyTests(unittest.TestCase):
         profiles: a different schema with no `mode`, no `voice`, no voices.yaml."""
         channels = {c["channel_id"]: c for c in capabilities.list_channels()}
         for channel_id, channel in channels.items():
-            config_path = Path("channels") / channel_id / "channel_config.json"
+            config_path = (
+                resolve_application_paths().channels_root / channel_id / "channel_config.json"
+            )
             if not config_path.is_file() or channel["channel_profile_type"] != capabilities.CHANNEL_TYPE_LEGACY_PIPELINE:
                 continue
             data = json.loads(config_path.read_text(encoding="utf-8"))

@@ -3,8 +3,8 @@
 
 Три вещи разделены намеренно, и объединять их нельзя:
 
-1. **Сохранённая конфигурация** - ``channels/<id>/channel_config.json``,
-   ``channels/<id>/voices.yaml``, ``projects/<id>/job.json``. Этот модуль их только
+1. **Сохранённая конфигурация** - ``config/channels/<id>/channel_config.json``,
+   ``config/channels/<id>/voices.yaml``, ``projects/<id>/job.json``. Этот модуль их только
    читает и никогда не пишет.
 2. **Разрешённая runtime-конфигурация** - ``ResolvedLocalization`` ниже. Живёт в
    памяти на время одного запуска, ни в один manifest целиком не сохраняется.
@@ -299,7 +299,7 @@ class ResolvedLocalization:
                 "key": "voice_id",
                 "value": self.resolved_voice_id,
                 "resolved_from": "voices.yaml",
-                "origin": f"channels/*/voices.yaml#{self.voice_profile_id}" if self.voice_profile_id else "",
+                "origin": f"config/channels/*/voices.yaml#{self.voice_profile_id}" if self.voice_profile_id else "",
             }
         )
         rows.append(

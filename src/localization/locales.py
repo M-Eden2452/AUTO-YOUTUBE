@@ -2,7 +2,7 @@
 соответствует и какие написания того же языка встречаются на диске.
 
 Таблица не выдумана. Коды ``ru``/``en``/``es`` и locale ``ru-RU``/``en-US``/``es-ES`` -
-это ровно то, что уже лежит в ``channels/*/channel_config.json``
+это ровно то, что уже лежит в ``config/channels/*/channel_config.json``
 (``languages.<code>.script_locale``) и что захардкожено в
 ``src.news.models.NewsJob.create``. Отображаемые имена - те же, что уже показывает
 ``src.content_creation.languages`` (этот модуль теперь берёт список отсюда, чтобы

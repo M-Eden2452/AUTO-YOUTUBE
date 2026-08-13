@@ -148,7 +148,7 @@ def voice_policy_from_channel_config(
     voice_workflow_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Adapt the existing channel_config.json ``"voice"``/``"voice_workflow"`` shape
-    (see channels/nature_science_news_ru/channel_config.json) into a normalized dict of
+    (see config/channels/nature_science_news_ru/channel_config.json) into a normalized dict of
     VoicePolicy field overrides, without requiring any change to that file's shape."""
     voice_cfg = channel_voice_config or {}
     workflow_cfg = voice_workflow_config or {}

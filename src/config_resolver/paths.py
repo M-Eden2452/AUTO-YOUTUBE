@@ -252,7 +252,7 @@ def resolve_application_paths(
     paths = ApplicationPaths(
         repository_root=repository,
         config_root=repository / "config",
-        channels_root=repository / "channels",
+        channels_root=repository / "config" / "channels",
         content_root=repository / "content",
         workspace=workspace,
         legacy_projects_root=repository / "projects",

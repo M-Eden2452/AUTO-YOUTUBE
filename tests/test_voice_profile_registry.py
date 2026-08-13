@@ -48,8 +48,12 @@ class VoiceProfileRegistryTests(unittest.TestCase):
 
     def test_loads_real_channel_yaml_and_resolves_dom(self) -> None:
         from src.audio.voice_profile_registry import VoiceProfileRegistry
+        from src.config_resolver.paths import resolve_application_paths
 
-        registry = VoiceProfileRegistry.from_yaml("channels/nature_science_news_ru/voices.yaml")
+        channels_root = resolve_application_paths().channels_root
+        registry = VoiceProfileRegistry.from_yaml(
+            channels_root / "nature_science_news_ru" / "voices.yaml"
+        )
         self.assertEqual(registry.resolve("Дом").profile_id, "ru_dom")
         self.assertNotIn("api_key", registry.get("ru_dom").settings)
 

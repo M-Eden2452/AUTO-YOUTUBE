@@ -49,6 +49,75 @@ class MusicLocationTests(unittest.TestCase):
                 )
 
 
+class ChannelsLocationTests(unittest.TestCase):
+    """Профиль канала — versioned-конфигурация, а не runtime-данные."""
+
+    def test_path_contract_resolves_channels_under_config(self) -> None:
+        root = resolve_application_paths().channels_root
+        self.assertEqual(root, (REPOSITORY_ROOT / "config" / "channels").resolve())
+
+    def test_repository_root_has_no_separate_channels_directory(self) -> None:
+        self.assertFalse(
+            (REPOSITORY_ROOT / "channels").exists(),
+            "Корневой channels/ переехал: единственный корень — config/channels.",
+        )
+
+    def test_active_channels_are_discoverable_at_the_new_root(self) -> None:
+        """Активные каналы versioned (`Preserved runtime corpus`) и обязаны пережить переезд."""
+        root = resolve_application_paths().channels_root
+        for channel_id in ("nature_science_news_ru", "nature_pulse"):
+            with self.subTest(channel=channel_id):
+                directory = root / channel_id
+                self.assertTrue(directory.is_dir(), f"Канал {channel_id} потерян при переезде.")
+                self.assertTrue(
+                    (directory / "channel_config.json").is_file()
+                    or (directory / "channel.json").is_file(),
+                    f"У канала {channel_id} нет ни одного профиля.",
+                )
+
+
+class ChannelStyleResolutionTests(unittest.TestCase):
+    """Стиль канала обязан находиться по контракту путей, а не по текущему каталогу.
+
+    До переезда `src/news/subtitles.py` объявлял `channels_dir="channels"` — строку
+    относительно cwd, которую канонический пайплайн (`src/news/pipeline.py:669`) не
+    переопределяет. Совпадение с реальным каталогом держалось на том, что процесс
+    запускали из корня репозитория.
+    """
+
+    def test_channel_subtitle_style_is_found_from_any_working_directory(self) -> None:
+        import os
+        import tempfile
+
+        from src.subtitles.style import resolve_subtitle_style
+
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as elsewhere:
+            os.chdir(elsewhere)
+            try:
+                style = resolve_subtitle_style(channel_id="nature_science_news_ru")
+            finally:
+                os.chdir(previous)
+        self.assertEqual(style.font_size, 64, "Стиль канала не найден вне корня репозитория.")
+
+    def test_news_adapter_delegates_the_channels_root_to_the_path_contract(self) -> None:
+        """Дефолт адаптера обязан быть `None`: канонический пайплайн его не передаёт."""
+        import inspect
+
+        from src.news import subtitles
+
+        checked = 0
+        for name in ("_build_result", "build_subtitles_for_localization"):
+            parameter = inspect.signature(getattr(subtitles, name)).parameters["channels_dir"]
+            with self.subTest(function=name):
+                self.assertIsNone(
+                    parameter.default,
+                    f"{name} снова прибил корень каналов строкой относительно cwd.",
+                )
+            checked += 1
+        self.assertEqual(checked, 2, "Проверяемые функции адаптера исчезли — обнови тест.")
+
+
 class MediaIndexLocationTests(unittest.TestCase):
     """Индекс библиотеки не должен указывать наружу из `assets/`."""
 

@@ -10,7 +10,7 @@
 - ``segmentation``  - где рвётся текст (слова не теряются и не переставляются);
 - ``timing``        - откуда берётся время (иерархия источников);
 - ``validation``    - что считается ошибкой, а что предупреждением;
-- ``style``         - ``channels/<id>/subtitle_style.json`` (остаток этапа E2);
+- ``style``         - ``config/channels/<id>/subtitle_style.json`` (остаток этапа E2);
 - ``serialization`` - SRT и ASS, и только они (VTT никто не читает);
 - ``manifest``      - артефакт на диске и решение resume;
 - ``engine``        - сборка всего перечисленного.

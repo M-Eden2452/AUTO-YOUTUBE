@@ -4,7 +4,7 @@ Every entry here is a setting that some file on disk really carries or some modu
 really reads. Nothing is invented: ``default`` repeats the value that is hardcoded in
 the consumer today, and ``consumers`` names the modules that actually read the setting
 at this commit. A key with an empty ``consumers`` tuple is a setting that exists in
-``channels/<id>/channel_config.json`` but that no code reads yet - the resolver reports
+``config/channels/<id>/channel_config.json`` but that no code reads yet - the resolver reports
 it with an ``no_consumer_yet`` warning instead of pretending it has an effect.
 """
 

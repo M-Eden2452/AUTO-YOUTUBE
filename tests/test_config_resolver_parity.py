@@ -10,9 +10,10 @@ from __future__ import annotations
 import dataclasses
 import json
 import unittest
-from pathlib import Path
 
-CHANNELS_DIR = Path("channels")
+from src.config_resolver.paths import resolve_application_paths
+
+CHANNELS_DIR = resolve_application_paths().channels_root
 
 
 def _real_channel_ids() -> list[str]:

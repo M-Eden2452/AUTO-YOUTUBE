@@ -38,7 +38,7 @@ def build_music_plan_v2(config: dict[str, Any], scene_plan: dict[str, Any] | Non
     max_volume = float(config.get("documentary_music_volume", 0.12))
     volume = min(float(search_config.get("volume", config.get("music_volume", 0.14))), max_volume)
     queries = _music_queries(config, scene_plan)
-    fallback_path = project_path(search_config.get("fallback_path", config.get("music_path", "music/background.mp3")))
+    fallback_path = project_path(search_config.get("fallback_path", config.get("music_path", "assets/music/background.mp3")))
 
     selected_track: dict[str, Any] | None = None
     warnings: list[str] = []

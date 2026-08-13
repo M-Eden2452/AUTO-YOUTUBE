@@ -402,7 +402,7 @@ class Wizard(WizardPresentation):
                         "warning",
                         f"Нет голосового профиля для языка "
                         f"{state.language!r}. Добавьте голос в "
-                        f"channels/{state.channel_id}/voices.yaml и укажите "
+                        f"config/channels/{state.channel_id}/voices.yaml и укажите "
                         "его в channel_config.json → "
                         f"languages.{state.language}.voice - иначе платная "
                         "генерация не будет выполнена.",
@@ -435,7 +435,7 @@ class Wizard(WizardPresentation):
                     self.icons,
                     "warning",
                     f"Голосовой профиль {query!r} не найден ни в "
-                    f"channels/{state.channel_id}/voices.yaml, ни в других "
+                    f"config/channels/{state.channel_id}/voices.yaml, ни в других "
                     "каналах - платная генерация не будет выполнена.",
                 )
             )

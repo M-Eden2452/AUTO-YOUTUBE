@@ -25,9 +25,10 @@ import unittest
 import wave
 from pathlib import Path
 
+from src.config_resolver.paths import resolve_application_paths
 from tests.network_guard import network_guard_scope
 
-CHANNELS_DIR = Path("channels")
+CHANNELS_DIR = resolve_application_paths().channels_root
 NEWS_TEMPLATE = "fullscreen_voiceover_v1"
 NEWS_FORMAT = "vertical_short"
 
@@ -114,6 +115,8 @@ def _resolve(**kwargs):
     kwargs.setdefault("format_id", NEWS_FORMAT)
     kwargs.setdefault("secret_probe", _NO_SECRET)
     if kwargs.get("channel_id") == "twolang":
+        # Относительно cwd намеренно: _TwoLanguageChannel делает chdir во временный
+        # корень, и канал существует только там. Это не путь репозитория.
         kwargs.setdefault("channels_dir", str(Path.cwd() / "channels"))
     return resolve_localization(**kwargs)
 
