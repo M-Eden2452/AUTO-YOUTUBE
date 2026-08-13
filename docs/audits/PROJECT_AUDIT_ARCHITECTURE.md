@@ -1,3 +1,17 @@
+---
+status: historical
+audit_date: 2026-07-22
+---
+
+> **HISTORICAL (2026-07-22) — не текущая инструкция и не карта текущей
+> архитектуры.** Эта серия описывает репозиторий **до** governance-reset:
+> `pipeline.py` как основной вход, `asset_finder` / `video_asset_engine` как
+> действующая asset-система, модули, часть которых уже удалена или ретайрена.
+> Канонический CLI сегодня — `python -m ai_youtube`. Current truth:
+> [SYSTEM_MAP.md](../current/SYSTEM_MAP.md) и
+> [CLEANUP_REGISTRY.md](../current/CLEANUP_REGISTRY.md); индекс каталога —
+> [README.md](README.md). Команды и пути отсюда не исполнять.
+
 # PROJECT AUDIT ARCHITECTURE
 
 ## 1. Folder map

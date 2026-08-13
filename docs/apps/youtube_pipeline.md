@@ -1,4 +1,16 @@
+---
+status: legacy
+---
+
 # Основной YouTube Pipeline
+
+> **LEGACY — не основной пайплайн и не рабочий режим.** Описанный здесь стек
+> (`pipeline.py`, `asset_finder`, `video_asset_engine`, `src/voice_engine.py`,
+> Obsidian-экспорт) — legacy-путь, назначенный к retirement по **PLAN-L**
+> (реестр: C08, C12, C30). Он не проходит canonical rights/network gates.
+> Активное приложение — `content_creator`, вход `python -m ai_youtube`.
+> Current truth: [SYSTEM_MAP.md](../current/SYSTEM_MAP.md) и
+> [CLEANUP_REGISTRY.md](../current/CLEANUP_REGISTRY.md).
 
 ## Назначение
 

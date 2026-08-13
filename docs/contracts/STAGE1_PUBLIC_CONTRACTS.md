@@ -1,4 +1,16 @@
+---
+status: historical
+document_date: 2026-07-28
+---
+
 # Stage 1 public contracts
+
+> **HISTORICAL (2026-07-28) — не текущий контракт.** Единственный файл в
+> `docs/contracts/`; называет `python pipeline.py` и `src.content_creation.cli`
+> «current», хотя канонический CLI — `python -m ai_youtube`, а оба названных
+> входа переведены в compatibility. Реестр держит это как **C22**; целевая
+> судьба файла (обновить или архивировать) принадлежит **PLAN-12E**.
+> Current truth: [SYSTEM_MAP.md](../current/SYSTEM_MAP.md) и исполняемые тесты.
 
 Status: characterized on 2026-07-28.
 

@@ -1,4 +1,18 @@
+---
+status: historical
+---
+
 # Visual retrieval after Q2.1
+
+> **HISTORICAL — самый полезный и поэтому самый опасный retrieval-документ.**
+> Карта верна в основном, но отстала в трёх местах: (1) не знает
+> `semantic_selection/media_policy.py` — единого owner решения «какой медиа-вид и
+> какой кандидат»; (2) утверждение «платный Vision не подключён» устарело с
+> **PLAN-9C** — `semantic_visual_service` влияет на отбор **до** скачивания;
+> (3) примеры команд неканонические, канонический вход — `python -m ai_youtube`.
+> Current truth: [SYSTEM_MAP.md](../../current/SYSTEM_MAP.md) и код
+> `src/news/asset_manifest_builder.py`; индекс каталога —
+> [README.md](../README.md).
 
 Карта того, как сцена превращается в материал, и какие правила теперь этим управляют.
 Этап Q2.1 — ремонтный: он не добавил ни второго asset pipeline, ни второго планировщика,

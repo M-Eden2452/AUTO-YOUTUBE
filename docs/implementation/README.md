@@ -74,7 +74,7 @@ Canonical current owner: `src/assets/provider_contract.py` и `src/providers/`
 
 | Документ | Статус | Назначение |
 |---|---|---|
-| [visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md](visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md) | `unknown` | Карта пути «сцена → стратегия → provider-запросы → поиск» после ремонтного этапа Q2.1. |
+| [visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md](visual_retrieval_repair/VISUAL_RETRIEVAL_MAP.md) | `historical` | Карта пути «сцена → стратегия → provider-запросы → поиск» после ремонтного этапа Q2.1. Проверена 2026-08-13 (retrieval audit): в основном верна, но не знает `media_policy` и отстала по Vision после PLAN-9C — расхождения перечислены в баннере самого файла. |
 
 Canonical current owner: `src/assets/scene_strategy.py` и
 `src/assets/query_adapter.py`. Семья **PLAN-9B** активно меняет именно эту

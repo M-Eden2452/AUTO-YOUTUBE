@@ -1,4 +1,17 @@
+---
+status: historical
+document_date: 2026-07-18
+---
+
 # AI-YouTube: карта проекта, приложения и план разделения
+
+> **HISTORICAL (2026-07-18) — не актуальная карта проекта.** Документ называет
+> себя «актуальной картой» и описывает `pipeline.py` как основной вход, а
+> `asset_finder` / `video_asset_engine` — как действующую asset-систему. Оба
+> утверждения устарели: канонический CLI — `python -m ai_youtube`, канонический
+> retrieval — `src/assets/**` + `src/providers/**`. Current truth:
+> [SYSTEM_MAP.md](current/SYSTEM_MAP.md) и [AGENTS.md](../AGENTS.md);
+> классификация и архивация этого файла принадлежат **PLAN-12**.
 
 Дата обзора: 2026-07-18.
 

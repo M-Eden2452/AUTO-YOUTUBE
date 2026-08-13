@@ -1,4 +1,16 @@
+---
+status: historical
+document_date: 2026-07-28
+---
+
 # AI-YouTube — Master Plan восстановления и передачи между AI-агентами
+
+> **HISTORICAL CONTEXT — маршрут не задаёт.** Этот план описывает rescue-этапы
+> 0–9 и объявляет checkpoint `9B-C01`, который отменён. Текущий checkpoint и
+> следующее действие живут **только** во frontmatter
+> [PROJECT_EXECUTION_PLAN.md](../current/PROJECT_EXECUTION_PLAN.md); то же правило
+> записано в [AGENTS.md](../../AGENTS.md). Файл не архивируется до **PLAN-12C**
+> и сохраняется как исторический контекст.
 
 Статус: **выполняется; этапы 0–8, включая подэтапы 6A–6G, завершены; этап 4.5
 сохранён как историческая диагностика и снят с critical path; этап 8 создал

@@ -1,4 +1,15 @@
+---
+status: historical
+---
+
 # News To Short
+
+> **HISTORICAL — команды ниже не канонические.** Описание workflow в целом
+> сохраняет смысл, но все примеры запуска используют compatibility-точки входа
+> (`apps.news_to_short`, `src.content_creation.cli`, `pipeline.py`), которые
+> ретайрятся по **PLAN-9B-5b** / **PLAN-L**. Канонический вход сегодня —
+> `python -m ai_youtube create | resume | run-stage`. Current truth:
+> [SYSTEM_MAP.md](../current/SYSTEM_MAP.md) и [AGENTS.md](../../AGENTS.md).
 
 ## Назначение
 
