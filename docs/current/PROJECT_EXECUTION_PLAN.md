@@ -92,8 +92,9 @@ next_exact_action: >-
   a still-missing key is visible as semantic_brief_unavailable, and secret-free
   cumulative counters are stored under planning_metadata.semantic_brief_usage in the localized plan while master keeps the planning-stage snapshot. Default
   fail-closed policy is unchanged. M1-E / VA-NEW-09 is closed by the bounded
-  PLAN-9E correction recorded below. THE NEXT EXACT ACTION is independent
-  Review #2 over M1-D and M1-E. BLOCKER-L1 remains separate and untouched.
+  PLAN-9E correction recorded below. Review #2 rejected its first implementation
+  on two M1-E blockers; both are repaired. THE NEXT EXACT ACTION is the focused
+  independent Review #2 re-review over M1-D and M1-E. BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
@@ -293,6 +294,23 @@ rights-revocation bypasses (2 failures); GREEN owning module 38 OK, expanded
 render/quality/resume radius 124 OK including two real FFmpeg end-tail renders,
 and gates OK. Next: **independent Review #2 over M1-D and M1-E**. Checkpoint
 remains PLAN-9D.
+
+**M1-E REVIEW #2 REPAIR (2026-08-14).** The first Review #2 verdict was
+**REJECT** on two M1-E blockers and found no M1-D blocker. First, ordinary local
+validation used an LRU key of path, media type, size and mtime, so replacing
+bytes while preserving size and mtime could reuse an old decode/checksum result.
+Final render now explicitly bypasses that metadata-keyed cache and recomputes
+decode plus SHA-256 immediately before segment creation. Second, treating every
+assembly as a new semantic authorization contract regressed the canonical
+manually approved user-asset path. The publish-ready requirement remains for
+authoritative semantic decisions; only the existing
+`selected_by=user_asset_priority_manual` compatibility path retains its prior
+strict behavior after upstream quality approval, while fresh bytes, checksum,
+technical, rights, policy and safety hard gates still apply. Characterization
+warms the cache before a same-size/same-mtime byte replacement; the real
+manual-user-asset render E2E is restored. Expanded targeted radius: 126 OK.
+Next: **focused independent Review #2 re-review over M1-D and M1-E**.
+
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits
 landed the two finished audits and changed no route: `6224c6f` copied both

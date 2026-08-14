@@ -229,7 +229,12 @@ def normalize_mode(value: str | None) -> str:
     return text if text in COMPLETION_MODES else DEFAULT_COMPLETION_MODE
 
 
-def blocking_reasons(candidate: dict[str, Any] | None, *, require_local_file: bool = False) -> list[str]:
+def blocking_reasons(
+    candidate: dict[str, Any] | None,
+    *,
+    require_local_file: bool = False,
+    fresh_local_file_validation: bool = False,
+) -> list[str]:
     """Why this material may never be used, in any mode. Empty means it may.
 
     Mode-independent on purpose: ``draft_complete`` lowers the bar for *how well* a
@@ -275,11 +280,12 @@ def blocking_reasons(candidate: dict[str, Any] | None, *, require_local_file: bo
             candidate,
             local_path,
             validation=validation if isinstance(validation, dict) else {},
+            fresh=fresh_local_file_validation,
         ):
             # A stored ``passed`` record is evidence about the bytes that were imported,
             # not a permanent permission for whatever currently occupies that path.
-            # The stat-keyed cache below keeps repeated gate checks cheap while still
-            # invalidating after an overwrite.
+            # Non-final gates may reuse a stat-keyed validation; the final renderer
+            # explicitly bypasses it because filesystem metadata is not byte identity.
             reasons.append(BLOCK_TECHNICAL)
 
     # --- stated contradictions ---------------------------------------------
@@ -325,6 +331,7 @@ def evaluate_usability(
     mode: str = DEFAULT_COMPLETION_MODE,
     quality_tier: str = TIER_NONE,
     require_local_file: bool = False,
+    fresh_local_file_validation: bool = False,
     reuse_count: int = 0,
 ) -> UsabilityVerdict:
     """The full readiness answer for one candidate in one scene.
@@ -334,7 +341,11 @@ def evaluate_usability(
     whether the fragment is a stand-in, never whether the material is legal or true.
     """
     mode = normalize_mode(mode)
-    blocks = blocking_reasons(candidate, require_local_file=require_local_file)
+    blocks = blocking_reasons(
+        candidate,
+        require_local_file=require_local_file,
+        fresh_local_file_validation=fresh_local_file_validation,
+    )
     decision = read_decision(candidate if isinstance(candidate, dict) else None)
     support = decision.support_status or ""
     verdict = UsabilityVerdict(support_status=support, quality_tier=quality_tier)
@@ -558,8 +569,9 @@ def _local_file_is_valid(
     local_path: str,
     *,
     validation: dict[str, Any],
+    fresh: bool = False,
 ) -> bool:
-    """Verify the current local bytes without networking or repeated FFprobe calls."""
+    """Verify local bytes, optionally bypassing metadata-keyed validation cache."""
 
     try:
         path = Path(local_path)
@@ -569,7 +581,12 @@ def _local_file_is_valid(
         media_type = _media_type_for_validation(candidate, validation, path)
         if not media_type:
             return False
-        actual_checksum, technically_valid = _validate_local_file_cached(
+        validator = (
+            _validate_local_file_uncached
+            if fresh
+            else _validate_local_file_cached
+        )
+        actual_checksum, technically_valid = validator(
             str(path.resolve()),
             media_type,
             int(stat.st_size),
@@ -593,13 +610,26 @@ def _validate_local_file_cached(
     file_size: int,
     modified_ns: int,
 ) -> tuple[str, bool]:
-    """Return checksum + decode verdict for one immutable filesystem snapshot.
+    """Reuse checksum + decode verdict when ordinary filesystem metadata differs.
 
     ``file_size`` and ``modified_ns`` intentionally participate in the cache key. They
-    are not used by the body, but make an overwritten file a different snapshot while
-    avoiding another checksum/Pillow/FFprobe pass when quality, draft and render gates
-    inspect the same unchanged asset.
+    avoid another checksum/Pillow/FFprobe pass for ordinary unchanged assets. The final
+    render boundary does not trust these metadata as byte identity and bypasses this
+    cache through ``_validate_local_file_uncached``.
     """
+
+    return _validate_local_file_uncached(
+        resolved_path, media_type, file_size, modified_ns
+    )
+
+
+def _validate_local_file_uncached(
+    resolved_path: str,
+    media_type: str,
+    file_size: int,
+    modified_ns: int,
+) -> tuple[str, bool]:
+    """Decode and hash the bytes currently stored at ``resolved_path``."""
 
     del file_size, modified_ns
     try:

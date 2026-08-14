@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -881,7 +882,7 @@ class MultiSlotRendererTests(unittest.TestCase):
                 root = Path(tmp)
                 segments_dir = root / "segments"
                 segments_dir.mkdir()
-                source = root / "safe.png"
+                source = root / "safe.bmp"
                 Image.new("RGB", (32, 32), "green").save(source)
                 asset = _candidate("safe", path=str(source))
                 asset["checksum_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -916,8 +917,24 @@ class MultiSlotRendererTests(unittest.TestCase):
                     ]
                 }
                 stored = manifest["scenes"][0][ASSEMBLY_KEY]["slots"][0]["selected_asset"]
+                first_readiness = evaluate_usability(
+                    stored,
+                    mode=MODE_STRICT,
+                    quality_tier=TIER_EXACT,
+                    require_local_file=True,
+                )
+                self.assertTrue(first_readiness.publish_ready)
+                source_stat = source.stat()
+
                 if mutation == "bytes_replaced":
-                    Image.new("RGB", (32, 32), "red").save(source)
+                    replacement = root / "replacement.bmp"
+                    Image.new("RGB", (32, 32), "red").save(replacement)
+                    self.assertEqual(replacement.stat().st_size, source_stat.st_size)
+                    source.write_bytes(replacement.read_bytes())
+                    os.utime(
+                        source,
+                        ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns),
+                    )
                 else:
                     stored["allowed_for_render"] = False
 

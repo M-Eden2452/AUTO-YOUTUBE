@@ -112,3 +112,16 @@ creation; modern manifests must remain publish-ready, while tolerant legacy
 readers still require current rights and bytes to pass. The checkpoint remains
 **PLAN-9D**. The next exact action is **independent Review #2 over M1-D and
 M1-E**.
+
+**M1-E Review #2 repair update (2026-08-14):** the first Review #2 verdict was
+**REJECT** on two M1-E blockers and found no M1-D blocker. Final-render local
+validation now bypasses the metadata-keyed cache and recomputes decode plus
+SHA-256, so same-size/same-mtime byte replacement cannot reuse old evidence.
+The publish-ready gate remains for authoritative semantic decisions; the
+existing `selected_by=user_asset_priority_manual` compatibility path retains
+its prior strict behavior after upstream quality approval, while fresh bytes,
+checksum, technical, rights, policy and safety hard gates still apply. The
+cache-warmed mutation regression and real manual-user-asset render E2E pass;
+expanded targeted radius is 126 OK. The current checkpoint remains **PLAN-9D**.
+The next exact action is **focused independent Review #2 re-review over M1-D
+and M1-E**.

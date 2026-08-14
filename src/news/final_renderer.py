@@ -288,7 +288,7 @@ def _create_scene_segments(
     scene's *real* duration here, because the assembly was built while only the planned
     duration was known and the voice stage may have replaced it since.
     """
-    from src.assets.completion import ASSEMBLY_KEY, read_assembly
+    from src.assets.completion import read_assembly
     from src.assets.completion.assembly import scaled_slot_windows
     from src.assets.semantic_selection.decision import has_decision
 
@@ -304,7 +304,6 @@ def _create_scene_segments(
         # wins over the planned target_duration_sec; see src.audio.scene_timeline.
         duration = scene_render_duration(scene)
         entry = entry_by_scene.get(scene_id, {})
-        explicit_assembly = isinstance(entry.get(ASSEMBLY_KEY), dict)
         assembly = read_assembly(entry, scene_duration_sec=duration)
         if not assembly.slots:
             raise RuntimeError(f"Scene {scene_id} has no renderable visual asset.")
@@ -328,10 +327,13 @@ def _create_scene_segments(
                 mode=completion_mode,
                 quality_tier=slot.quality_tier,
                 require_local_file=True,
+                fresh_local_file_validation=True,
                 reuse_count=1 if slot.reuse_of_asset else 0,
             )
-            semantic_contract_present = explicit_assembly or has_decision(
-                slot.selected_asset
+            semantic_contract_present = (
+                has_decision(slot.selected_asset)
+                and slot.selected_asset.get("selected_by")
+                != "user_asset_priority_manual"
             )
             if is_draft:
                 authorized = (

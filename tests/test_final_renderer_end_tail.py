@@ -12,12 +12,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
-from src.assets.completion.assembly import ASSEMBLY_KEY
-from src.assets.semantic_selection.decision import (
-    DECISION_KEY,
-    SUPPORT_FULL,
-    VERDICT_COMPLETE,
-)
 
 
 def _write_tone_wav(path: Path, seconds: float, frequency: int = 220, amplitude: float = 0.8) -> Path:
@@ -58,27 +52,6 @@ def _mean_volume_db(path: Path, start: float, length: float) -> float:
     if not match:
         return -120.0
     return -120.0 if match.group(1) == "-inf" else float(match.group(1))
-
-
-def _authorize_strict_render_fixture(store, project: Path) -> None:
-    """Give renderer-mechanics fixtures a current publish-ready decision."""
-
-    manifest_path = project / "assets" / "assets_manifest.json"
-    manifest = store.read_json(manifest_path)
-    for scene in manifest.get("scenes", []):
-        assembly = scene.get(ASSEMBLY_KEY, {})
-        for slot in assembly.get("slots", []):
-            selected = slot.get("selected_asset", {})
-            decision = selected.get(DECISION_KEY, {})
-            decision.update(
-                {
-                    "support_status": SUPPORT_FULL,
-                    "support_requirements": [],
-                    "slot_verdict": VERDICT_COMPLETE,
-                }
-            )
-            selected[DECISION_KEY] = decision
-    store.write_json(manifest_path, manifest)
 
 
 class FinalRendererEndTailTests(unittest.TestCase):
@@ -178,11 +151,10 @@ class FinalRendererEndTailTests(unittest.TestCase):
                 project / "quality" / "quality_report.json",
                 {"status": "passed", "errors": [], "warnings": [], "checks": []},
             )
-            _authorize_strict_render_fixture(store, project)
             run_news_to_short_job(projects_root=root, job_id=job.job_id, stage="final_render")
             final_manifest = json.loads((project / "render" / "final_render_manifest.json").read_text(encoding="utf-8"))
 
-            self.assertEqual(final_manifest["status"], "completed", final_manifest)
+            self.assertEqual(final_manifest["status"], "completed")
             self.assertEqual(final_manifest["end_policy_id"], "narration_plus_tail")
             self.assertEqual(final_manifest["audio_timing_policy"], "preserve_source_duration")
             self.assertFalse(final_manifest["audio_time_stretched"])
@@ -265,11 +237,10 @@ class MusicCoversEndTailTests(unittest.TestCase):
                 project / "quality" / "quality_report.json",
                 {"status": "passed", "errors": [], "warnings": [], "checks": []},
             )
-            _authorize_strict_render_fixture(store, project)
             run_news_to_short_job(projects_root=root, job_id=job.job_id, stage="final_render")
             manifest = json.loads((project / "render" / "final_render_manifest.json").read_text(encoding="utf-8"))
 
-            self.assertEqual(manifest["status"], "completed", manifest)
+            self.assertEqual(manifest["status"], "completed")
             self.assertTrue(manifest["music_path"], "music manifest was not picked up by the renderer")
             expected_target = narration_sec + DEFAULT_TAIL_SEC
             self.assertAlmostEqual(manifest["target_duration_sec"], expected_target, places=2)
