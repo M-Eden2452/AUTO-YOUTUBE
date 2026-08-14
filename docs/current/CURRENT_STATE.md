@@ -285,3 +285,12 @@ canonical `.env` reachability and missing persisted usage findings are repaired:
 only `OPENAI_API_KEY` is read from repository `.env` after paid+network gates, a process value wins, neighbouring secrets stay unloaded, a missing key is visible, and the localized `planning_metadata.semantic_brief_usage` records cumulative secret-free counters across adaptation replans. The master plan remains the planning-stage snapshot. Default fail-closed behavior is unchanged. The current
 checkpoint remains **PLAN-9D**; the next exact action is **M1-E / VA-NEW-09**
 inside **PLAN-9E**, then Review #2 over M1-D and M1-E.
+
+**Routing update after M1-E / VA-NEW-09:** the bounded PLAN-9E correction is
+closed. `src/news/final_renderer.py` now obtains a fresh canonical
+`evaluate_usability` snapshot for every slot immediately before segment
+creation in both modes. Modern assembly/decision manifests must remain
+publish-ready; legacy manifests without semantic decisions remain readable but
+must pass current bytes/checksum/technical/rights checks. No schema or
+activation status changed. The checkpoint remains **PLAN-9D**; the next exact
+action is **independent Review #2 over M1-D and M1-E**.

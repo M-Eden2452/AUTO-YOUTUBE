@@ -870,6 +870,75 @@ class GeneratedInfographicTests(unittest.TestCase):
 
 
 class MultiSlotRendererTests(unittest.TestCase):
+    def test_strict_renderer_reauthorizes_current_asset_snapshot(self) -> None:
+        from src.news.final_renderer import _create_scene_segments
+
+        for mutation, expected_block in (
+            ("bytes_replaced", BLOCK_TECHNICAL),
+            ("rights_revoked", BLOCK_RIGHTS),
+        ):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                segments_dir = root / "segments"
+                segments_dir.mkdir()
+                source = root / "safe.png"
+                Image.new("RGB", (32, 32), "green").save(source)
+                asset = _candidate("safe", path=str(source))
+                asset["checksum_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+                slot = VisualSlot(
+                    slot_id="slot_001",
+                    purpose=SLOT_PRIMARY,
+                    start_offset_sec=0.0,
+                    end_offset_sec=2.0,
+                    selected_asset=asset,
+                    support_status=SUPPORT_FULL,
+                    quality_tier=TIER_EXACT,
+                    usability=UsabilityVerdict(
+                        usable_in_draft=True,
+                        automatic_render_allowed=True,
+                        publish_ready=True,
+                        quality_tier=TIER_EXACT,
+                        support_status=SUPPORT_FULL,
+                    ),
+                )
+                assembly = SceneVisualAssembly(
+                    scene_id="scene_001",
+                    scene_duration_sec=2.0,
+                    slots=[slot],
+                )
+                manifest = {
+                    "scenes": [
+                        {
+                            "scene_id": "scene_001",
+                            "selected_asset": asset,
+                            ASSEMBLY_KEY: assembly.to_dict(),
+                        }
+                    ]
+                }
+                stored = manifest["scenes"][0][ASSEMBLY_KEY]["slots"][0]["selected_asset"]
+                if mutation == "bytes_replaced":
+                    Image.new("RGB", (32, 32), "red").save(source)
+                else:
+                    stored["allowed_for_render"] = False
+
+                with (
+                    patch("src.news.final_renderer._render_image_segment") as render,
+                    self.assertRaisesRegex(RuntimeError, expected_block),
+                ):
+                    _create_scene_segments(
+                        segments_dir=segments_dir,
+                        width=1080,
+                        height=1920,
+                        script={
+                            "scenes": [
+                                {"scene_id": "scene_001", "target_duration_sec": 2.0}
+                            ]
+                        },
+                        assets_manifest=manifest,
+                        completion_mode=MODE_STRICT,
+                    )
+                render.assert_not_called()
+
     def test_draft_renderer_recomputes_readiness_instead_of_trusting_stored_verdict(self) -> None:
         from src.news.final_renderer import _create_scene_segments
 

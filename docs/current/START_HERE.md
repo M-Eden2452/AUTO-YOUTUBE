@@ -104,3 +104,11 @@ reachability and persisted semantic-usage defects it exposed are closed in the
 existing PLAN-9B-PRODUCER-M-LIVE owners: only OPENAI_API_KEY is read after both gates, neighbouring secrets remain unloaded, and the localized plan accumulates usage across adaptation replans while master keeps its planning-stage snapshot. The current checkpoint remains
 **PLAN-9D**. The next exact action is **M1-E / VA-NEW-09** inside **PLAN-9E**,
 followed by Review #2 over M1-D and M1-E.
+
+**Routing update after M1-E / VA-NEW-09:** the bounded PLAN-9E correction is
+closed. Strict and draft render now re-authorize every current visual-slot
+snapshot through the canonical usability owner immediately before segment
+creation; modern manifests must remain publish-ready, while tolerant legacy
+readers still require current rights and bytes to pass. The checkpoint remains
+**PLAN-9D**. The next exact action is **independent Review #2 over M1-D and
+M1-E**.

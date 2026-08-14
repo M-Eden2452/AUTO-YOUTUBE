@@ -91,9 +91,10 @@ next_exact_action: >-
   only OPENAI_API_KEY is copied from repository .env after paid+network gates;
   a still-missing key is visible as semantic_brief_unavailable, and secret-free
   cumulative counters are stored under planning_metadata.semantic_brief_usage in the localized plan while master keeps the planning-stage snapshot. Default
-  fail-closed policy is unchanged. THE NEXT EXACT ACTION is M1-E / VA-NEW-09
-  inside PLAN-9E, then Review #2 over M1-D and M1-E. BLOCKER-L1 remains separate
-  and untouched. The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
+  fail-closed policy is unchanged. M1-E / VA-NEW-09 is closed by the bounded
+  PLAN-9E correction recorded below. THE NEXT EXACT ACTION is independent
+  Review #2 over M1-D and M1-E. BLOCKER-L1 remains separate and untouched.
+  The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -271,6 +272,28 @@ Checkpoint remains PLAN-9D.
 > after which M1-E / VA-NEW-09 and Review #2 follow unchanged. The historical
 > record above is left intact; the checkpoint is still PLAN-9D.
 
+
+**M1-E CLOSURE (2026-08-14).** `VA-NEW-09` is closed by the bounded PLAN-9E
+correction in the commit containing this record. The canonical final renderer
+now calls the existing `evaluate_usability` owner for every visual slot
+immediately before segment creation in both completion modes. Strict render can
+no longer rely on a saved quality verdict after current bytes, checksum,
+technical validation, rights, policy or semantic decision changed.
+
+Modern manifests carrying an assembly or semantic decision must still be
+`publish_ready` at that fresh boundary. Tolerant legacy readers are preserved:
+a pre-assembly manifest without a semantic decision is not required to invent
+one, but its current file, checksum, technical validation and rights must pass.
+No new readiness owner, persisted field, schema version, migration, provider,
+network call or render primitive was added; PLAN-9E remains blocked as a full
+activation contract and Vision activation is unchanged.
+
+Evidence: characterization RED reproduced both valid-byte replacement and
+rights-revocation bypasses (2 failures); GREEN owning module 38 OK, expanded
+render/quality/resume radius 124 OK including two real FFmpeg end-tail renders,
+and gates OK. Next: **independent Review #2 over M1-D and M1-E**. Checkpoint
+remains PLAN-9D.
+
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits
 landed the two finished audits and changed no route: `6224c6f` copied both
 reports into `docs/audits/` as evidence, gave the directory its first index and
@@ -388,6 +411,9 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
 | M1-C | VA-NEW-05 Vision tags were lost during download rebuild | asset_manifest_builder / asset_provider_adapters | **PLAN-9A** | snapshot-bound evidence carry | B (Vision blocker) | **closed by this M1-C commit** | yes for Vision |
 | M1-D | VA-NEW-08 resume без input/policy fingerprints | `src/news/pipeline.py` | **PLAN-9A** | persisted resume contract | B (до опоры на resume в LIVE) | **закрыт этим M1-D commit**; provider identity вынесена к VA-NEW-06/M2-A — см. M1-D CLOSURE | да |
 | M1-E | VA-NEW-09 strict render TOCTOU | `src/news/final_renderer.py` | **PLAN-9E** | render authorization gate | B (до LIVE render) | да | да |
+> **M1-E status correction (2026-08-14):** the row above is closed by the M1-E
+> commit containing this record; the historical pending marker is superseded.
+
 | M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | да | да |
 | M2-A | VA-NEW-10 nested retries R² | `src/assets/http_client.py` | **PLAN-10B** | один retry owner | A′ | да, минимально | да |
 | M2-B | VA-NEW-12 uncapped request budget/stop | retrieval budget | **PLAN-10C** | budget/plateau policy | A′ | да, минимально | да |
@@ -6483,6 +6509,14 @@ current-quality benchmark. Production logic этой записью не мен�
   к Vision после PLAN-10C требует ещё **VA-NEW-02/04/05/08** и единого
   post-review decision invariant. Классы и порядок — блок «Mini plan
   reconciliation 2026-08-11».
+
+- **closure update (2026-08-14).** **VA-NEW-09 / M1-E is closed**: strict render
+  now obtains the same fresh canonical `evaluate_usability` snapshot as draft
+  immediately before segment creation. This bounded correction does not start
+  the activation contract, does not move PLAN-9E to completed and does not
+  enable Vision. Full scope and evidence are recorded in M1-E CLOSURE; Review #2
+  over M1-D and M1-E is the next exact action.
+
 - **v1 boundary (owner decision D0.4/D0.5, 2026-08-11).** Платный Vision не
   является blocker v1; PLAN-9D-F / PLAN-9D-G остаются optional quality track.
   Semantic assistance для v1 остаётся opt-in за двумя раздельными gates

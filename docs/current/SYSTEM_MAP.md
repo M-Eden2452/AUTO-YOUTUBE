@@ -237,3 +237,12 @@ PLAN-9C-3 closed 2026-08-10 без новой boundary: canonical positive metad
 `src/assets/semantic_selection/evidence.py`, decision owner остаётся `candidate_ranker.py`, а slot consumer — `decision.py`.
 Field-aware locality не создаёт второй matcher: hard requirements/conflicts используют тот же owner с прежней strict semantics.
 Review #1 (M1-A...M1-C) closed 2026-08-11: verdict ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run `31526039612` green. The current checkpoint remains **PLAN-9D**; next exact action is **M1-D / VA-NEW-08** (owner decision on persisted fingerprints required before implementation).
+
+M1-E / VA-NEW-09 closed 2026-08-14 inside the existing PLAN-9E owner without a
+new boundary: `src.news.final_renderer` reuses canonical
+`src.assets.completion.modes.evaluate_usability` immediately before each
+strict/draft segment reads its slot. Modern manifests remain subject to
+publish-ready authorization; tolerant legacy readers retain compatibility but
+must pass current file/checksum/technical/rights checks. PLAN-9E remains blocked
+as a full activation contract, the checkpoint remains **PLAN-9D**, and the next
+exact action is **independent Review #2 over M1-D and M1-E**.

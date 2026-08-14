@@ -288,8 +288,9 @@ def _create_scene_segments(
     scene's *real* duration here, because the assembly was built while only the planned
     duration was known and the voice stage may have replaced it since.
     """
-    from src.assets.completion import read_assembly
+    from src.assets.completion import ASSEMBLY_KEY, read_assembly
     from src.assets.completion.assembly import scaled_slot_windows
+    from src.assets.semantic_selection.decision import has_decision
 
     completion_mode = normalize_mode(completion_mode)
     is_draft = completion_mode == MODE_DRAFT_COMPLETE
@@ -302,7 +303,9 @@ def _create_scene_segments(
         # actual_duration_sec (written by the voice stage from the real narration)
         # wins over the planned target_duration_sec; see src.audio.scene_timeline.
         duration = scene_render_duration(scene)
-        assembly = read_assembly(entry_by_scene.get(scene_id, {}), scene_duration_sec=duration)
+        entry = entry_by_scene.get(scene_id, {})
+        explicit_assembly = isinstance(entry.get(ASSEMBLY_KEY), dict)
+        assembly = read_assembly(entry, scene_duration_sec=duration)
         if not assembly.slots:
             raise RuntimeError(f"Scene {scene_id} has no renderable visual asset.")
         problems = assembly.validate()
@@ -316,20 +319,39 @@ def _create_scene_segments(
             source_path = slot.media_path
             if not source_path or not Path(source_path).is_file():
                 raise RuntimeError(f"Scene {scene_id} slot {slot.slot_id} has no renderable file: {source_path}")
+            # Never trust the serialized slot or quality-stage verdict as a render
+            # authorization. Files, rights metadata, and nested policy records can
+            # change after quality passed, so both modes re-evaluate the current
+            # snapshot immediately before the segment reads it.
+            readiness = evaluate_usability(
+                slot.selected_asset,
+                mode=completion_mode,
+                quality_tier=slot.quality_tier,
+                require_local_file=True,
+                reuse_count=1 if slot.reuse_of_asset else 0,
+            )
+            semantic_contract_present = explicit_assembly or has_decision(
+                slot.selected_asset
+            )
             if is_draft:
-                # Never trust the serialized slot verdict as a render authorization.
-                # Files, rights metadata, and nested policy records can change after an
-                # assembly was written, so the final boundary re-evaluates the asset.
-                readiness = evaluate_usability(
-                    slot.selected_asset,
-                    mode=MODE_DRAFT_COMPLETE,
-                    quality_tier=slot.quality_tier,
-                    require_local_file=True,
-                    reuse_count=1 if slot.reuse_of_asset else 0,
+                authorized = (
+                    readiness.usable_in_draft
+                    and readiness.automatic_render_allowed
                 )
-                if not readiness.usable_in_draft or not readiness.automatic_render_allowed:
-                    detail = ",".join(readiness.block_reasons) or "slot_not_usable_in_draft"
-                    raise RuntimeError(f"Scene {scene_id} slot {slot.slot_id} is blocked: {detail}")
+                fallback_detail = "slot_not_usable_in_draft"
+            else:
+                # Preserve tolerant legacy readers: pre-assembly manifests had no
+                # semantic publish-ready verdict, but current rights and bytes must
+                # still pass. Modern manifests must remain publish-ready.
+                authorized = not readiness.blocked and (
+                    not semantic_contract_present or readiness.publish_ready
+                )
+                fallback_detail = "slot_not_publish_ready"
+            if not authorized:
+                detail = ",".join(readiness.block_reasons) or fallback_detail
+                raise RuntimeError(
+                    f"Scene {scene_id} slot {slot.slot_id} is blocked: {detail}"
+                )
             slot_duration = round(end_offset - start_offset, 3)
             if not math.isfinite(slot_duration) or slot_duration <= 0:
                 raise RuntimeError(
