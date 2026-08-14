@@ -7,6 +7,14 @@ working_branch: governance-reset
 
 # FIRST OWNER SHORT — LOCAL REPEAT, 2026-08-14
 
+> **Errata / current interpretation (2026-08-14).** Эмпирика этого прогона
+> сохраняется. `fbf223a` позднее закрыл описанный в §4 ranking defect, но не
+> закрывал PLAN-10C и не получил PLAN-ID. Морфологическое расхождение из
+> связанного solar-прогона принадлежит `C79`, а не PLAN-10C/C40; его subject
+> выбирается по salience, не по длине surface-формы. Current routing —
+> `CLEANUP_REGISTRY.md` и
+> [FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md](FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md).
+
 Диагностический owner-прогон на HEAD `bf68693` (пуш выполнен этим же слайсом).
 Код не менялся, PLAN не двигался, M1-E не начинался.
 

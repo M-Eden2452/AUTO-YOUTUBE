@@ -7,6 +7,15 @@ working_branch: governance-reset
 
 # FIRST OWNER SHORT — LOCAL, тема под покрытие библиотеки, 2026-08-14
 
+> **Errata / current interpretation (2026-08-14).** Эмпирика этого прогона
+> сохраняется. Его прежняя атрибуция морфологического расхождения к `C40` /
+> PLAN-10C заменена строкой `C79`: `C40` принадлежит PLAN-10D, а PLAN-10C
+> управляет budget/plateau, не морфологией. `fbf223a` закрыл конкретный
+> ranking defect без закрытия PLAN-ID. Subject выбирается по salience; краткая
+> surface-форма выбирается только внутри stem-группы. Current routing —
+> `CLEANUP_REGISTRY.md` и
+> [FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md](FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md).
+
 Диагностический owner-прогон на HEAD `fbf223a` (CI run `31788389136`, `success`).
 Код не менялся, PLAN не двигался, M1-E не начинался, библиотека не редактировалась.
 

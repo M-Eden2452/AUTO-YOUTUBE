@@ -54,6 +54,10 @@ consistency review** этого файла: 2026-08-01 от clean HEAD `affa138`
   `f3b607a`; read-only, дефекты не исправлялись; часть предложенных внешним
   отчётом строк отклонена перепроверкой — см. errata в
   [RETRIEVAL_ENGINE_AUDIT_2026-08-13.md](../audits/RETRIEVAL_ENGINE_AUDIT_2026-08-13.md);
+- **C79–C81** — findings серии FIRST OWNER SHORT, перенесены 2026-08-14 от HEAD
+  `a8549ff` docs-слайсом; структура каждой строки перепроверена по коду в момент
+  переноса, эмпирика остаётся за отчётами в `docs/audits/`; дефекты не
+  исправлялись, владельца `C79` и `C81` этот перенос не назначает;
 - **C01-SEM ownership inventory** — PLAN-1C′, 2026-08-07 от clean HEAD
   `b0e99a7`; read-only, без перемещения файлов и без изменения поведения;
 - **Knowledge salvage log** — заполнен PLAN-L0, 2026-08-02 от clean HEAD
@@ -419,6 +423,38 @@ provider exhaustion / provider contract behavior). Новый PLAN-ID не со�
 | C76 | глубина поиска Wikimedia: media-type фильтр применяется после выдачи | **FACT** | `:60` отправляет `srsearch` сырым запросом, без `filetype:video`; `:52` считает `limit = min(max(1, request.max_results), self.max_results)`, а production передаёт `max_results=5` (`src/news/asset_manifest_builder.py:470`), поэтому `srlimit=5`. Фильтр по типу стоит **после** — `:86` (`candidate.media_type != request.media_type`), и `:94` режет ещё раз. На Commons, где подавляющее большинство файлов — изображения, из пяти дофильтровых попаданий видео может не остаться ни одного. `self.max_results` по умолчанию 8 (`:35`) и в production не достигается | `правка`: либо запрос сужается до медиатипа на стороне API, либо глубина берётся до фильтра, а не после. Принадлежит контракту exhaustion/pagination, которым владеет PLAN-10B; отдельный «wikimedia-only» путь поиска не создаётся | **PLAN-10B** |
 | C77 | форма запроса Internet Archive теряет фразу | **FACT** | `src/providers/internet_archive_provider.py:61` строит `q = f"({request.query}) AND mediatype:{mediatype}"`. Скобки группируют, но не связывают слова: многословный запрос распадается на отдельные термины, и выдача уходит от предмета. Эмпирика — EXP-001: `(cheetah running) AND mediatype:movies` вернул Lamborghini и GTA III; тот же материал находился по точному названию. Сам адаптер исправен — дефект в форме запроса | `правка` формы запроса внутри существующего адаптера. Второй query owner не создаётся: строки по-прежнему приходят из `src/assets/query_adapter.py` (**C39**), провайдер отвечает только за синтаксис своего API | **PLAN-10B** |
 | C78 | одна строка запроса уходит провайдерам с разной терпимостью к длине | **FACT** (структура) + **INFERENCE** (масштаб) | `build_scene_queries` (`src/assets/query_adapter.py:270`) — единственная граница запросов, и `search_provider` (`src/news/asset_provider_adapters.py:79`) отдаёт одну и ту же строку каждому провайдеру. Это факт. Вывод EXP-001 — что MediaWiki full-text не терпит лишних слов (длинный шаблон дал 0, короткий `cheetah running` дал релевантное видео), тогда как Pixabay/Pexels терпят — эмпирический и офлайн не проверяется | `правка` в существующих владельцах, не новый слой: провайдер-специфичная **форма** запроса принадлежит provider contract (**PLAN-10B**), а генерация терминов остаётся за expansion ladder. Запрещено: второй словарь синонимов, второй query owner, per-provider копия query-пути. `RD-B` этой строкой не начинается и owner decision не получает | **PLAN-10B** (в координации с границей запросов **C39**) |
+
+## FIRST OWNER SHORT findings (C79–C81)
+
+Перенесено 2026-08-14 docs-слайсом из
+[FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md](../audits/FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md)
+и предшествующих ему отчётов той же серии. Причина переноса та же, что у
+`C75`–`C78`: отчёт — evidence и права на действие не даёт. Дефекты **не
+исправлялись**; production-код, сеть, providers, Vision, semantic model, TTS и
+render этим слайсом не выполнялись.
+
+Все три строки до этого слайса **не имели владельца**. `C79` в прежней редакции
+отчёта был ошибочно приписан к `C40`/PLAN-10C — обе ссылки неверны: `C40`
+принадлежит **PLAN-10D**, а `PLAN-10C` — это adaptive budget и plateau policy.
+Новый PLAN-ID ни одной строкой не создаётся, номер VA-NEW не выдаётся, статусы
+PLAN-10C / PLAN-10D / PLAN-9E не меняются. Owner decision 2026-08-14 назначает
+`C79` pre-v1 bounded correction внутри существующих evidence/entity owners, а
+`C81` оставляет post-v1 product discovery без implementation owner.
+
+| ID | Предмет | Класс | Evidence | Action / disposition | Gate |
+|---|---|---|---|---|---|
+| C79 | русская морфология: extraction стеммит, matching — нет | **FACT** | Два слоя одной системы расходятся. Extraction имеет реальный стеммер со списком окончаний — `src/content/visual_planning/entities.py:94` (`stem`), группировка по стему и выбор субъекта по salience (`:207-236`: topic `+3.0`, title `+1.5`, claim `+1.0`, сортировка `(-salience, stem)`). Evidence-матчинг имеет только префиксное отношение от пяти символов — `src/assets/semantic_selection/evidence.py:181` (`stem_match`), явно документированное как «spelling allowance rather than a guess». Живое следствие измерено: сцены 002 и 003 солнечного прогона получили один и тот же subject `панель` и разошлись с содержанием сценария | **Owner decision 2026-08-14:** pre-v1 bounded correction после STOCK diagnostic и до M4/PLAN-11, characterization-first. Existing implementation owner — `src/assets/semantic_selection/evidence.py`; он переиспользует существующий `entities.stem`. Запрещено: второй стеммер, второй словарь морфологии, отдельный «RU-путь» отбора. Пороги и веса этой строкой не назначаются | pre-v1 bounded correction; не `PLAN-10C` (бюджет поиска) и не `C40`/`PLAN-10D` (глобальная локальная библиотека) |
+| C80 | платный Vision идёт мимо default-deny сети | **FACT** | `src/runtime_network.py` объявляет default-deny по шести классам (`provider_search`, `asset_download`, `preview_download`, `article_fetch`, `voice_preflight`, `semantic_brief`), и все шесть проходят через `require_network`. Vision — нет: `src/assets/semantic_visual_openai.py:440` создаёт `OpenAI(...)` напрямую, `require_network` в файле не вызывается, класса под Vision в `NETWORK_ACTIONS` не существует. Единственный сторож — paid-гейт `VisionBudgetGuard` (`:170`, фраза `LIVE_VISION_APPROVED`). Практически сейчас не стреляет: Vision выключен четырьмя независимыми гейтами `config/semantic_visual.json` (`enabled:false`, `backend:"mock"`, `semantic_rerank_enabled:false`, `allow_paid_vision:false`) | `правка` в существующем владельце `runtime_network`: Vision получает свой network-класс, paid-гейт остаётся отдельным и вторым. Второй network-контур не создаётся. Смежно `C65` (legacy-стеки мимо `require_network`), но случай **другой**: там legacy-путь, здесь — канонический и ещё не включённый | **PLAN-9E** (латентное расхождение: маршрут обещает раздельные network и paid gates до включения Vision) |
+| C81 | хук есть для текста, для кадра — нет | **FACT** (отсутствие) | `hook_score` в `src/content/script_engine/text_analysis.py:132` оценивает первое предложение сценария (вопрос, маркеры, цифры, длина). Визуального эквивалента — удержания первых секунд кадром — нет ни в одном owner: на пути отбора не осматривается ни один пиксель (`candidate_ranker.py:231` — корзина по числу пикселей плюс расстояние aspect ratio, обе из метаданных), а посчитанные метрики кадра до выбора не доходят (`C74`, `asset_manifest_builder.py:641-648`). Ближайшая формулировка в `PRODUCT_PLAN.md` §8 — «пригодность и качество кадра» внутри будущего scope Vision, отдельного acceptance criterion нет | **Owner decision 2026-08-14:** не требование v1; оставить post-v1 product discovery. Implementation owner не назначается, работа не открывается и включение Vision не разрешается | post-v1 product discovery |
+
+
+**Semantic-brief live limitation (owner decision 2026-08-14).** STOCK repeat
+остаётся следующим действием, но этот docs-слайс его не разрешает и не запускает:
+отдельный execution prompt обязан явно назвать network/paid scopes.
+`maximum_budget_usd` в текущем `semantic_brief` backend проверяется только на
+положительность и не ограничивает фактический расход; hard runtime bound —
+`maximum_calls_per_project`, а SDK вызывается с `max_retries=0`. Это латентное
+ограничение существующего semantic-brief live owner, не новый PLAN-ID.
 
 ## C01-SEM — ownership inventory asset/semantic (PLAN-1C′)
 

@@ -37,9 +37,10 @@ next_exact_action: >-
   path reached an MP4, both stopped at assembly_has_no_slots, and no paid call
   was made. Owner decision 2026-08-14 orders the route that follows from it and
   puts the product ahead of further cleanup: CURATED LOCAL LIBRARY, then the
-  LOCAL diagnostic repeat, then the STOCK repeat through semantic_brief, then
-  the first finished MP4, and only then M1-E / VA-NEW-09 with Review #2 over
-  M1-D and M1-E. CURATED LOCAL LIBRARY is executed and recorded in
+  LOCAL diagnostic repeat and the STOCK repeat through semantic_brief. The LOCAL
+  repeat has already reached the first finished draft MP4 milestone; M1-E /
+  VA-NEW-09 and Review #2 over M1-D and M1-E remain after the STOCK repeat.
+  CURATED LOCAL LIBRARY is executed and recorded in
   docs/audits/CURATED_LIBRARY_2026-08-14.md - 72 curated records with frame
   content, provenance, rights and checksums, versioned in
   assets/library/metadata/curated_library.json and applied to the runtime index
@@ -53,12 +54,43 @@ next_exact_action: >-
   owner-approved read-only network check and added with verified canonical URLs
   and credits. Making the library live
   immediately exposed the ranker debt already recorded in FIRST OWNER SHORT: the
-  query "orca" now returns a solar-farm clip, because _score_asset admits a
-  candidate on type, aspect and duration with zero keyword hits. THE NEXT EXACT
-  ACTION is the LOCAL diagnostic repeat against this library; BLOCKER-L1 (no CLI
-  entry for user-supplied assets in fullscreen_voiceover_v1) is untouched and
-  remains the separate contract it was. The checkpoint stays PLAN-9D and this
-  slice creates no PLAN-ID.
+  query "orca" returned a solar-farm clip, because _score_asset admitted a
+  candidate on type, aspect and duration with zero keyword hits. Two bounded
+  corrections closed that and the blocker under it - fbf223a stopped scoring
+  "nothing could be checked" as a perfect match, and a8549ff gave both local
+  matchers one Unicode-aware tokenizer, so a Russian query participates in
+  selection at all. Neither commit closes a PLAN-ID: C40 and PLAN-10D keep their
+  open scope (one canonical matcher/provider, and the C47 diversity reserve).
+  THE LOCAL DIAGNOSTIC REPEAT IS DONE - three runs, the last recorded in
+  docs/audits/FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md
+  from HEAD a8549ff: 5 of 5 scenes got a usable visual slot where the same
+  script had got 0 of 5, all five shortlists differ, one ElevenLabs call, and
+  the first draft_1080x1920.mp4 of this program exists (23.93s, 1080x1920,
+  audio present). That is a draft, not a product: quality_check is
+  needs_review, all five slots are marked draft-only requiring replacement,
+  publish_ready is false, and owner frame review scored 2 GOOD, 1 ACCEPTABLE,
+  2 BAD. No publish-ready evidence is claimed by this record. The three defects
+  behind the BAD frames now have registry rows instead of a wrong owner - C79
+  (extraction stems Russian, evidence matching does not; both bad scenes share
+  the extracted subject "панель"), C80 (the canonical paid Vision backend
+  bypasses runtime_network default-deny; legacy bypasses remain C65) and C81 (a
+  hook score exists for text and has no visual equivalent). Owner decision
+  2026-08-14 makes C79 a pre-v1 bounded correction after the STOCK diagnostic
+  and before M4/PLAN-11; C81 is post-v1 product discovery without an
+  implementation owner; C80 belongs to PLAN-9E. The duplicate frame in scene 3
+  is C47 under PLAN-10D, which stays post-v1: it blocks publish-ready approval
+  for that artifact without manual replacement/approval, not platform v1. THE
+  NEXT EXACT ACTION is the STOCK repeat through semantic_brief, unchanged from
+  the 2026-08-14 owner decision, and it is NOT started or authorized by any
+  docs slice: a separate execution prompt must explicitly name network/paid
+  scopes. config/semantic_brief.json is fail-closed today; its maximum_budget_usd
+  is not a hard dollar cap in the current backend, whose hard runtime bound is
+  maximum_calls_per_project with max_retries=0. After it the route is unchanged:
+  M1-E / VA-NEW-09 inside PLAN-9E, then
+  Review #2 over M1-D and M1-E. BLOCKER-L1 (no CLI entry for user-supplied
+  assets in fullscreen_voiceover_v1) is untouched and remains the separate
+  contract it was. The checkpoint stays PLAN-9D and neither the repeat nor this
+  reconciliation creates a PLAN-ID.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -227,6 +259,14 @@ Mypy ratchet not applicable: `src.news.pipeline` is not in the baseline
 suppression list and no suppressed module was touched. Next: **M1-E /
 VA-NEW-09**, then Review #2 over M1-D and M1-E; none of Review #2 is done.
 Checkpoint remains PLAN-9D.
+
+> **Routing correction (2026-08-14).** The "Next" sentence above records the
+> route as it stood when M1-D closed and is **no longer the current next
+> action**: the owner decision of 2026-08-14 put the product sequence ahead of
+> it, and the authoritative next action is the `next_exact_action` field of this
+> document's frontmatter — today the STOCK repeat through `semantic_brief`,
+> after which M1-E / VA-NEW-09 and Review #2 follow unchanged. The historical
+> record above is left intact; the checkpoint is still PLAN-9D.
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits
 landed the two finished audits and changed no route: `6224c6f` copied both
@@ -400,6 +440,39 @@ semantic assistance остаётся opt-in: `semantic_brief` в
 `src.runtime_network.NETWORK_ACTIONS` (default deny) плюс
 `config/semantic_brief.json` (в репозитории выключено). v1 обязан проходить
 acceptance через manual / provider-metadata / human-review путь.
+
+**WHAT FIRST OWNER SHORT LEFT WITHOUT AN OWNER (запись 2026-08-14; маршрут,
+статусы и checkpoint не меняются).** Первый черновой MP4 этой программы
+существует, и три дефекта за его слабыми кадрами получили строки реестра
+вместо владельца по ошибке:
+
+- **`C79`** — русская морфология: extraction стеммит (`entities.py:94`),
+  evidence-матчинг умеет только префикс (`evidence.py:181`). Это **не**
+  `PLAN-10C` (adaptive budget / plateau policy) и **не** `C40`/`PLAN-10D`
+  (глобальная локальная библиотека); прежняя атрибуция в отчёте была ошибочной
+  и исправлена. `MISSING OWNER CANDIDATE` → **OWNER DECISION REQUIRED**.
+- **`C81`** — визуальный hook: `hook_score` существует для первого предложения
+  сценария и не имеет эквивалента для первых секунд кадра. Владелец
+  автоматически не назначается: сначала нужно решение, продуктовое ли это
+  требование v1. `MISSING OWNER CANDIDATE` → **OWNER DECISION REQUIRED**.
+- **`C80`** — Vision мимо `runtime_network` default-deny: записан внутри
+  существующего **PLAN-9E**, нового PLAN-ID не требует.
+- **повтор кадра** (сцена 1 = сцена 3) — это `C47` под **PLAN-10D**, а
+  PLAN-10D стоит в списке **WHAT IS POST-V1** ниже. Если владелец считает
+  повторяющийся кадр блокером v1, это **отдельное owner decision**: данная
+  запись порядок работ не меняет и PLAN-10D вперёд не выносит.
+> **Owner-decision correction (2026-08-14).** This supersedes the unresolved
+> classifications in the bullets above: `C79` is a pre-v1 bounded correction
+> after STOCK diagnostic and before M4/PLAN-11 in existing `entities.stem` /
+> `semantic_selection.evidence` owners, characterization-first and without a
+> second stemmer or RU path. `C81` is not a v1 requirement and remains post-v1
+> product discovery without an implementation owner. The repeated frame blocks
+> publish-ready for its artifact without manual replacement/approval, not
+> platform v1; PLAN-10D stays post-v1. This docs slice does not authorize STOCK
+> repeat: a separate execution prompt must name network/paid scopes. In current
+> live `semantic_brief`, `maximum_budget_usd` is only a positive gate, while
+> `maximum_calls_per_project` and `max_retries=0` are the hard runtime bounds.
+
 
 **WHEN M3 / M4 / M5.** `M3` (user product slice) начинается после LIVE-5:
 user assets в canonical create (**PLAN-9B-5b**), pre-search/pre-paid control
@@ -6377,6 +6450,18 @@ current-quality benchmark. Production logic этой записью не мен�
   Это совместимо с уже записанным здесь контрактом «Vision не является
   обязательной runtime-зависимостью» и с `PRODUCT_PLAN.md` разделом 8; статус,
   зависимости и запреты этого шага не меняются.
+- **латентное расхождение с этим контрактом, зафиксировано 2026-08-14 (`C80`).**
+  Маршрут обещает для semantic assistance два **раздельных** gate — network и
+  paid. Для `semantic_brief` так и есть: класс в `NETWORK_ACTIONS`, default deny,
+  плюс собственный конфиг. Для **Vision это не выполнено**:
+  `src/assets/semantic_visual_openai.py:440` создаёт клиент напрямую, класса под
+  Vision в `NETWORK_ACTIONS` нет, `require_network` не вызывается, и единственный
+  сторож — paid-гейт `VisionBudgetGuard` (`:170`). Сейчас не эксплуатируется:
+  Vision выключен четырьмя независимыми гейтами `config/semantic_visual.json`.
+  Практическое следствие — включение Vision на этом шаге **не потребует**
+  `--allow-network`, в отличие от всего остального. Это **не** новый PLAN-ID и
+  **не** разрешение править код: строка `C80` реестра ждёт своего шага внутри
+  этого owner. Статус PLAN-9E не меняется.
 - **цель:** включить доказанный semantic decision path только для явно
   выбранного template/project policy.
 - **implementation-time verification моделей (2026-08-01).** До первого
