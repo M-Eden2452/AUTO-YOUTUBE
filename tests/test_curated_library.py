@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,6 +10,37 @@ from src.config_resolver.paths import repository_path
 from tools.library.curated_index import check_structure, load_manifest, policy_decision
 
 PROVIDER_DOMAINS = {"pexels": "pexels.com", "pixabay": "pixabay.com"}
+
+
+def _git(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "--no-optional-locks", *args],
+        cwd=repository_path(),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+def _lines(completed: subprocess.CompletedProcess[str]) -> set[str]:
+    return {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+
+
+def tracked_paths(paths: list[str]) -> set[str]:
+    """Which of ``paths`` Git actually versions. Empty for a path Git never heard of."""
+    completed = _git("ls-files", "--", *paths)
+    if completed.returncode != 0:
+        raise RuntimeError(f"git ls-files failed: {completed.stderr.strip()}")
+    return _lines(completed)
+
+
+def ignored_paths(paths: list[str]) -> set[str]:
+    """Which of ``paths`` the repository deliberately excludes. rc=1 means «none»."""
+    completed = _git("check-ignore", "--", *paths)
+    if completed.returncode not in (0, 1):
+        raise RuntimeError(f"git check-ignore failed: {completed.stderr.strip()}")
+    return _lines(completed)
 
 
 class CuratedLibraryManifestTests(unittest.TestCase):
@@ -39,11 +71,38 @@ class CuratedLibraryManifestTests(unittest.TestCase):
                 self.assertIn(item["provider_asset_id"], item["source_page_url"])
                 self.assertEqual(item["license_name"], item["provider"])
 
-    def test_provenance_evidence_points_at_a_file_that_exists(self) -> None:
+    def test_provenance_evidence_is_versioned_or_deliberately_untracked(self) -> None:
+        """Предыдущая версия требовала, чтобы каждый evidence-файл лежал на диске, и
+        нарушала принцип из docstring класса ровно для тех файлов, ради которых он
+        и написан: 63 из 72 записей ссылаются на ``media_index.json`` и на
+        ``projects/``, которые ``.gitignore`` намеренно не versioned. На машине
+        владельца они есть, в чистом clone их нет — тест был зелёным локально и падал
+        63 раза в CI.
+
+        Проверяемый в любом clone инвариант — не «файл лежит здесь», а «указатель не
+        висячий»: versioned evidence обязан существовать, а неversioned обязан быть
+        именно тем, что репозиторий исключает намеренно. Опечатка не проходит ни
+        одну из двух веток. Остаточная слабость записана честно: опечатка *внутри*
+        уже игнорируемого каталога (``projects/…``) веткой ignored всё ещё
+        принимается — путь туда не versioned по определению, и сильнее этого офлайн
+        проверить нечем."""
+        declared = sorted({item["provenance_evidence"] for item in self.items})
+        tracked = tracked_paths(declared)
+        ignored = ignored_paths(declared)
         for item in self.items:
             with self.subTest(item["id"]):
-                evidence = repository_path(*item["provenance_evidence"].split("/"))
-                self.assertTrue(evidence.exists(), f"missing evidence: {item['provenance_evidence']}")
+                evidence = item["provenance_evidence"]
+                if evidence in tracked:
+                    self.assertTrue(
+                        repository_path(*evidence.split("/")).exists(),
+                        f"versioned evidence is missing from the working tree: {evidence}",
+                    )
+                else:
+                    self.assertIn(
+                        evidence,
+                        ignored,
+                        f"evidence is neither versioned nor deliberately untracked: {evidence}",
+                    )
 
     def test_content_description_is_not_the_search_query(self) -> None:
         """Дефект, ради которого писался манифест: метаданные описывали запрос, а не кадр."""
