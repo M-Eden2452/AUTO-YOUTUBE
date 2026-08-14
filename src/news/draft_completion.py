@@ -245,19 +245,44 @@ def run_adaptation_pass(
             )
 
     accepted = apply_adaptation_to_script(script, report)
-    accepted_plan = _replan(accepted, job=job, research=research, visual_plan=visual_plan)
+    accepted_plan = _replan(
+        accepted,
+        job=job,
+        research=research,
+        visual_plan=visual_plan,
+        usage_plan=proposed_plan,
+    )
     _write_json(paths["adapted"], accepted)
+    visual_plan_path = (
+        root / "localizations" / job.language / "visual" / "visual_plan.json"
+    )
     if improved:
         _write_json(paths["script"], accepted)
-        _write_json(
-            root / "localizations" / job.language / "visual" / "visual_plan.json",
-            accepted_plan,
-        )
+        _write_json(visual_plan_path, accepted_plan)
         _write_json(root / "assets" / "assets_manifest.json", merged)
         _write_json(
             root / "assets" / "missing_assets.json",
             {"missing_scenes": merged.get("missing_scenes", [])},
         )
+    else:
+        previous_usage = (
+            (visual_plan.get("planning_metadata") or {}).get(
+                "semantic_brief_usage"
+            )
+            or {}
+        )
+        cumulative_usage = (
+            (accepted_plan.get("planning_metadata") or {}).get(
+                "semantic_brief_usage"
+            )
+            or {}
+        )
+        if cumulative_usage and cumulative_usage != previous_usage:
+            retained_plan = dict(visual_plan)
+            retained_metadata = dict(retained_plan.get("planning_metadata") or {})
+            retained_metadata["semantic_brief_usage"] = dict(cumulative_usage)
+            retained_plan["planning_metadata"] = retained_metadata
+            _write_json(visual_plan_path, retained_plan)
 
     _write_json(paths["adaptation_report"], report.to_dict())
     # The pass is spent after a complete attempt, whether it helped or fell back.
@@ -281,14 +306,64 @@ def run_adaptation_pass(
     }
 
 
-def _replan(
-    adapted_script: dict[str, Any], *, job: NewsJob, research: dict[str, Any], visual_plan: dict[str, Any]
+def _usage_calls(usage: dict[str, Any]) -> int:
+    try:
+        return int(usage.get("calls") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _usage_cost(usage: dict[str, Any]) -> float:
+    try:
+        return float(usage.get("estimated_cost_usd") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _accumulate_semantic_brief_usage(
+    plan: dict[str, Any], previous_plan: dict[str, Any]
 ) -> dict[str, Any]:
-    """Rebuild the visual plan from the adapted script, through the existing planner."""
+    """Carry prior spend forward while keeping each adapter's call cap unchanged."""
+    metadata = dict(plan.get("planning_metadata") or {})
+    current = dict(metadata.get("semantic_brief_usage") or {})
+    previous = dict(
+        (previous_plan.get("planning_metadata") or {}).get(
+            "semantic_brief_usage"
+        )
+        or {}
+    )
+    if not current and not previous:
+        return plan
+    usage = dict(current or previous)
+    if current and previous:
+        usage["calls"] = _usage_calls(previous) + _usage_calls(current)
+        usage["estimated_cost_usd"] = round(
+            _usage_cost(previous) + _usage_cost(current), 6
+        )
+    metadata["semantic_brief_usage"] = usage
+    return {**plan, "planning_metadata": metadata}
+
+
+def _replan(
+    adapted_script: dict[str, Any],
+    *,
+    job: NewsJob,
+    research: dict[str, Any],
+    visual_plan: dict[str, Any],
+    usage_plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Rebuild a plan while preserving scenes and cumulative semantic spend.
+
+    The localized visual plan is the cumulative project record; the master plan keeps
+    the planning-stage snapshot. The call cap remains per adapter instance.
+    """
     from .visual_plan import build_visual_plan
 
     plan = build_visual_plan(
         adapted_script, language=job.language, user_assets=job.user_assets, research=research
+    )
+    plan = _accumulate_semantic_brief_usage(
+        plan, usage_plan if usage_plan is not None else visual_plan
     )
     # Anything the stored plan carried that the planner does not produce (an author's
     # hand-written brief on an untouched scene) is preserved rather than regenerated.

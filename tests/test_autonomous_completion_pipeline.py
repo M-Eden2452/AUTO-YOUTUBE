@@ -56,6 +56,7 @@ from src.content.script_engine.adaptation import (
 )
 from src.content_creation.cli import _request_from_args, build_parser
 from src.news.draft_completion import (
+    _replan,
     evaluate_draft_render_gate,
     run_adaptation_pass,
     script_paths,
@@ -812,6 +813,184 @@ class PipelineTerminalStateTests(unittest.TestCase):
 
 
 class AdaptationRollbackTests(unittest.TestCase):
+    def test_two_adaptation_replans_accumulate_usage_without_reusing_proposed_scenes(
+        self,
+    ) -> None:
+        job = _job(title="Cumulative semantic usage", completion_mode=MODE_DRAFT_COMPLETE)
+        script = {
+            "title": "Cumulative semantic usage",
+            "language": "ru",
+            "scenes": [
+                {
+                    "scene_id": "scene_001",
+                    "index": 1,
+                    "narration": "Original narration.",
+                    "target_duration_sec": 5.0,
+                }
+            ],
+        }
+        original_plan = {
+            "planning_metadata": {
+                "semantic_brief_usage": {
+                    "backend": "openai",
+                    "model": "fixture-model",
+                    "calls": 1,
+                    "maximum_calls_per_project": 8,
+                    "estimated_cost_usd": 0.01,
+                }
+            },
+            "scenes": [{"scene_id": "scene_001", "marker": "original"}],
+        }
+        fresh_plans = [
+            {
+                "planning_metadata": {
+                    "semantic_brief_usage": {
+                        "backend": "openai",
+                        "model": "fixture-model",
+                        "calls": 2,
+                        "maximum_calls_per_project": 8,
+                        "estimated_cost_usd": 0.02,
+                    }
+                },
+                "scenes": [{"scene_id": "scene_001", "marker": "proposed"}],
+            },
+            {
+                "planning_metadata": {
+                    "semantic_brief_usage": {
+                        "backend": "openai",
+                        "model": "fixture-model",
+                        "calls": 3,
+                        "maximum_calls_per_project": 8,
+                        "estimated_cost_usd": 0.03,
+                    }
+                },
+                "scenes": [{"scene_id": "scene_001", "marker": "accepted"}],
+            },
+        ]
+        with patch("src.news.visual_plan.build_visual_plan", side_effect=fresh_plans):
+            proposed = _replan(
+                script, job=job, research={}, visual_plan=original_plan
+            )
+            accepted = _replan(
+                script,
+                job=job,
+                research={},
+                visual_plan=original_plan,
+                usage_plan=proposed,
+            )
+
+        usage = accepted["planning_metadata"]["semantic_brief_usage"]
+        self.assertEqual(usage["calls"], 6)
+        self.assertEqual(usage["estimated_cost_usd"], 0.06)
+        self.assertEqual(accepted["scenes"][0]["marker"], "original")
+
+    def test_no_change_adaptation_persists_cumulative_semantic_usage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            projects = Path(tmp) / "projects"
+            store = NewsProjectStore(projects)
+            job = _job(
+                title="Cumulative usage persisted",
+                completion_mode=MODE_DRAFT_COMPLETE,
+            )
+            root = store.create_project(job).root
+            narration = "Nanoplastic was measured in Antarctic snow."
+            script = {
+                "title": job.title,
+                "language": job.language,
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "index": 1,
+                        "narration": narration,
+                        "target_duration_sec": 5.0,
+                    }
+                ],
+            }
+            entry = _scene_entry(
+                root=root,
+                scene_id="scene_001",
+                index=1,
+                narration=narration,
+                tier=TIER_PARTIAL,
+                support=SUPPORT_PARTIAL,
+            )
+            manifest = {
+                "schema_version": 1,
+                "scenes": [entry],
+                "missing_scenes": [],
+                "completion": {"mode": MODE_DRAFT_COMPLETE, "reuse": {}},
+            }
+            original_plan = {
+                "planning_metadata": {
+                    "semantic_brief_usage": {
+                        "backend": "openai",
+                        "model": "fixture-model",
+                        "calls": 1,
+                        "maximum_calls_per_project": 8,
+                        "estimated_cost_usd": 0.01,
+                    }
+                },
+                "scenes": [
+                    {
+                        "scene_id": "scene_001",
+                        "marker": "original",
+                        "visual_brief": dict(entry["visual_brief"]),
+                    }
+                ],
+            }
+            fresh_plans = [
+                {
+                    "planning_metadata": {
+                        "semantic_brief_usage": {
+                            "backend": "openai",
+                            "model": "fixture-model",
+                            "calls": 2,
+                            "maximum_calls_per_project": 8,
+                            "estimated_cost_usd": 0.02,
+                        }
+                    },
+                    "scenes": [{"scene_id": "scene_001", "marker": "proposed"}],
+                },
+                {
+                    "planning_metadata": {
+                        "semantic_brief_usage": {
+                            "backend": "openai",
+                            "model": "fixture-model",
+                            "calls": 3,
+                            "maximum_calls_per_project": 8,
+                            "estimated_cost_usd": 0.03,
+                        }
+                    },
+                    "scenes": [{"scene_id": "scene_001", "marker": "accepted"}],
+                },
+            ]
+            paths = script_paths(root, job.language)
+            visual_plan_path = (
+                root / "localizations" / job.language / "visual" / "visual_plan.json"
+            )
+            store.write_json(paths["script"], script)
+            store.write_json(visual_plan_path, original_plan)
+            store.write_json(root / "assets" / "assets_manifest.json", manifest)
+            store.write_json(root / "research" / "claims.json", {"claims": []})
+
+            with patch(
+                "src.news.visual_plan.build_visual_plan", side_effect=fresh_plans
+            ):
+                result = run_adaptation_pass(
+                    store=store,
+                    job=job,
+                    root=root,
+                    adapter=_VisualOnlyAdapter(),
+                    research_scenes=None,
+                )
+            persisted = store.read_json(visual_plan_path)
+
+        self.assertEqual(result["status"], "no_change")
+        usage = persisted["planning_metadata"]["semantic_brief_usage"]
+        self.assertEqual(usage["calls"], 6)
+        self.assertEqual(usage["estimated_cost_usd"], 0.06)
+        self.assertEqual(persisted["scenes"][0]["marker"], "original")
+
     def test_one_pass_is_spent_but_unhelpful_adaptation_rolls_back(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             projects = Path(tmp) / "projects"

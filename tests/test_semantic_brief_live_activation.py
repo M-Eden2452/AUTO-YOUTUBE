@@ -25,11 +25,16 @@ counter that stays at zero.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from openai import OpenAIError
 
+from src.content.script_engine import to_legacy_script
 from src.content.script_engine.models import ScriptResult, ScriptScene
 from src.content.semantic_brief_openai import (
     LIVE_CONFIRMATION_PHRASE,
@@ -39,6 +44,7 @@ from src.content.semantic_brief_openai import (
     load_semantic_brief_config,
     paid_call_blockers,
     response_schema,
+    semantic_brief_usage_summary,
 )
 from src.content.visual_planning.models import SHOT_TYPES
 from src.content.visual_planning import VisualPlanRequest, build_plan
@@ -330,6 +336,247 @@ class BackendIsReachedTest(unittest.TestCase):
         self.assertEqual(client.call_count, 1)
         warnings = planning.result.scenes[1].warnings
         self.assertTrue(any(UNAVAILABLE_CODE in item for item in warnings), warnings)
+
+
+class ProductionWiringTest(unittest.TestCase):
+    """The canonical create path can reach the backend and records what it spent."""
+
+    def test_repository_dotenv_is_loaded_after_both_gates_without_overriding_process_env(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "OPENAI_API_KEY=sk-test-from-repository-dotenv\n", encoding="utf-8"
+            )
+            approval = approval_for_actions(
+                [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+            )
+            with (
+                patch.dict(
+                    os.environ, {"OPENAI_API_KEY": "sk-test-process-wins"}, clear=True
+                ),
+                patch("src.content.semantic_brief_openai.DEFAULT_ENV_PATH", env_path),
+                network_approval_scope(approval),
+            ):
+                adapter = build_semantic_brief_adapter(config=_approved_config())
+                self.assertIsNotNone(adapter)
+                self.assertEqual(os.environ["OPENAI_API_KEY"], "sk-test-process-wins")
+
+    def test_repository_dotenv_supplies_the_key_for_the_documented_create_path(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "OPENAI_API_KEY=sk-test-from-repository-dotenv\n", encoding="utf-8"
+            )
+            approval = approval_for_actions(
+                [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+            )
+            with (
+                patch.dict(os.environ, {}, clear=True),
+                patch("src.content.semantic_brief_openai.DEFAULT_ENV_PATH", env_path),
+                network_approval_scope(approval),
+            ):
+                adapter = build_semantic_brief_adapter(config=_approved_config())
+                self.assertIsNotNone(adapter)
+                self.assertEqual(
+                    os.environ.get("OPENAI_API_KEY"), "sk-test-from-repository-dotenv"
+                )
+
+    def test_repository_dotenv_supplies_only_the_key_owned_by_this_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "OPENAI_API_KEY=sk-test-owned-key\n"
+                "ELEVENLABS_API_KEY=neighbour-secret-must-stay-unloaded\n",
+                encoding="utf-8",
+            )
+            approval = approval_for_actions(
+                [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+            )
+            with (
+                patch.dict(os.environ, {}, clear=True),
+                patch("src.content.semantic_brief_openai.DEFAULT_ENV_PATH", env_path),
+                network_approval_scope(approval),
+            ):
+                adapter = build_semantic_brief_adapter(config=_approved_config())
+                self.assertIsNotNone(adapter)
+                self.assertEqual(os.environ.get("OPENAI_API_KEY"), "sk-test-owned-key")
+                self.assertNotIn("ELEVENLABS_API_KEY", os.environ)
+
+    def test_network_denial_does_not_read_repository_dotenv(self) -> None:
+        with (
+            patch("src.content.semantic_brief_openai.dotenv_values", create=True) as read_env,
+            network_approval_scope(approval_for_actions([], granted_by="test")),
+        ):
+            adapter = build_semantic_brief_adapter(config=_approved_config())
+        self.assertIsNone(adapter)
+        read_env.assert_not_called()
+
+    def test_paid_denial_does_not_read_repository_dotenv(self) -> None:
+        approval = approval_for_actions(
+            [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+        )
+        with (
+            patch("src.content.semantic_brief_openai.dotenv_values", create=True) as read_env,
+            network_approval_scope(approval),
+        ):
+            adapter = build_semantic_brief_adapter(
+                config=_approved_config(allow_paid_calls=False)
+            )
+        self.assertIsNone(adapter)
+        read_env.assert_not_called()
+
+    def test_missing_key_after_explicit_approvals_is_visible_in_the_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_env_path = Path(tmp) / ".env"
+            approval = approval_for_actions(
+                [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+            )
+            with (
+                patch.dict(os.environ, {}, clear=True),
+                patch(
+                    "src.content.semantic_brief_openai.DEFAULT_ENV_PATH",
+                    missing_env_path,
+                ),
+                network_approval_scope(approval),
+            ):
+                adapter = build_semantic_brief_adapter(config=_approved_config())
+                self.assertIsNotNone(adapter)
+                planning = build_plan(_request(), brief_adapter=adapter)
+                with patch(
+                    "src.news.visual_plan.build_semantic_brief_adapter",
+                    return_value=adapter,
+                ):
+                    from src.news.visual_plan import build_visual_plan
+
+                    persisted_plan = build_visual_plan(
+                        to_legacy_script(_request().script), language="ru"
+                    )
+            warnings = planning.result.scenes[0].warnings
+            self.assertTrue(
+                any(UNAVAILABLE_CODE in item for item in warnings), warnings
+            )
+            self.assertTrue(
+                any("OPENAI_API_KEY" in item for item in warnings), warnings
+            )
+            self.assertEqual(semantic_brief_usage_summary(adapter)["calls"], 0)
+            self.assertEqual(
+                persisted_plan["planning_metadata"]["semantic_brief_usage"]["calls"],
+                0,
+            )
+
+    def test_production_visual_plan_persists_semantic_brief_usage(self) -> None:
+        from src.news.visual_plan import build_visual_plan
+
+        client = _FakeOpenAIClient(scene_ids=("scene_001",))
+        approval = approval_for_actions(
+            [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+        )
+        script = {
+            "scenes": [
+                {
+                    "scene_id": "scene_001",
+                    "index": 1,
+                    "role": "hook",
+                    "narration": ORCA_NARRATION,
+                    "duration_sec": 6.0,
+                }
+            ],
+            "title": "Animal abilities",
+            "language": "ru",
+        }
+        with network_approval_scope(approval):
+            adapter = build_semantic_brief_adapter(
+                config=_approved_config(estimated_cost_per_call_usd=0.01),
+                client=client,
+            )
+            with patch(
+                "src.news.visual_plan.build_semantic_brief_adapter",
+                return_value=adapter,
+            ):
+                plan = build_visual_plan(script, language="ru")
+
+        usage = plan["planning_metadata"]["semantic_brief_usage"]
+        self.assertEqual(usage["calls"], 1)
+        self.assertEqual(usage["maximum_calls_per_project"], 8)
+        self.assertEqual(usage["estimated_cost_usd"], 0.01)
+        self.assertEqual(usage["model"], "gpt-5.6-terra")
+        secret_value = "sk-test-value-that-must-not-be-persisted"
+        with patch.dict(os.environ, {"OPENAI_API_KEY": secret_value}):
+            rendered = json.dumps(usage, ensure_ascii=False)
+        self.assertNotIn(secret_value, rendered)
+
+    def test_failed_sdk_request_is_persisted_as_one_call(self) -> None:
+        from src.news.visual_plan import build_visual_plan
+
+        client = _FakeOpenAIClient(
+            raises=_FakeSDKError("upstream down", status_code=503),
+            scene_ids=("scene_001",),
+        )
+        approval = approval_for_actions(
+            [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+        )
+        with network_approval_scope(approval):
+            adapter = build_semantic_brief_adapter(config=_approved_config(), client=client)
+            with patch(
+                "src.news.visual_plan.build_semantic_brief_adapter", return_value=adapter
+            ):
+                plan = build_visual_plan(
+                    to_legacy_script(_request().script), language="ru"
+                )
+        self.assertEqual(plan["planning_metadata"]["semantic_brief_usage"]["calls"], 1)
+
+    def test_author_semantic_brief_is_persisted_as_zero_calls(self) -> None:
+        from src.news.visual_plan import build_visual_plan
+
+        client = _FakeOpenAIClient(scene_ids=("scene_001",))
+        script = _script(briefs={"scene_001": {"subject": "emperor penguin"}})
+        approval = approval_for_actions(
+            [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+        )
+        with network_approval_scope(approval):
+            adapter = build_semantic_brief_adapter(config=_approved_config(), client=client)
+            with patch(
+                "src.news.visual_plan.build_semantic_brief_adapter", return_value=adapter
+            ):
+                plan = build_visual_plan(to_legacy_script(script), language="ru")
+        self.assertEqual(plan["planning_metadata"]["semantic_brief_usage"]["calls"], 0)
+
+    def test_persisted_usage_never_exceeds_the_adapter_call_cap(self) -> None:
+        from src.news.visual_plan import build_visual_plan
+
+        client = _FakeOpenAIClient()
+        approval = approval_for_actions(
+            [NETWORK_ACTION_SEMANTIC_BRIEF], granted_by="test"
+        )
+        with network_approval_scope(approval):
+            adapter = build_semantic_brief_adapter(
+                config=_approved_config(maximum_calls_per_project=1), client=client
+            )
+            with patch(
+                "src.news.visual_plan.build_semantic_brief_adapter", return_value=adapter
+            ):
+                plan = build_visual_plan(
+                    to_legacy_script(_script(("scene_001", "scene_002"))),
+                    language="ru",
+                )
+        usage = plan["planning_metadata"]["semantic_brief_usage"]
+        self.assertLessEqual(usage["calls"], usage["maximum_calls_per_project"])
+
+    def test_default_config_reads_no_dotenv_and_persists_no_usage(self) -> None:
+        from src.news.visual_plan import build_visual_plan
+
+        with patch(
+            "src.content.semantic_brief_openai.dotenv_values", create=True
+        ) as read_env:
+            plan = build_visual_plan(to_legacy_script(_request().script), language="ru")
+        read_env.assert_not_called()
+        self.assertNotIn(
+            "semantic_brief_usage", plan.get("planning_metadata", {})
+        )
 
 
 class RequestSchemaCarriesTheContractTest(unittest.TestCase):

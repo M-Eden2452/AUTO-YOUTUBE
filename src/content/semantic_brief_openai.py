@@ -31,8 +31,10 @@ Does not own:
   подтверждающая фраза, положительный потолок вызовов и денег. В репозитории всё это
   выключено, и наличие ``OPENAI_API_KEY`` разрешением не является.
 
-Секрет читается только из окружения, только по факту наличия, и никогда не попадает ни
-в конфиг, ни в отчёт, ни в текст ошибки.
+После обеих проверок из repository .env читается только OPENAI_API_KEY; соседние
+секреты и настройки не переносятся в окружение. Уже заданное процессом значение
+всегда сильнее. Backend читает секрет только из окружения, а значение никогда не
+попадает ни в конфиг, ни в отчёт, ни в текст ошибки.
 
 Ретраев нет: клиент создаётся с ``max_retries=0``, бюджет расходуется *до* вызова,
 поэтому упавший платный запрос не может быть повторён молча.
@@ -48,6 +50,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from dotenv import dotenv_values
 
 from src.config_resolver.paths import repository_path
 from src.content.visual_planning.semantic_brief import (
@@ -68,6 +72,7 @@ from src.runtime_network import (
 BACKEND_ID = "openai"
 BACKEND_VERSION = "openai.responses.semantic_brief.v1"
 DEFAULT_CONFIG_PATH = repository_path("config", "semantic_brief.json")
+DEFAULT_ENV_PATH = repository_path(".env")
 
 # Тот же приём, что у платного Vision: одного булева флага мало, потому что булев флаг
 # ставят случайно. Фраза набирается осознанно.
@@ -317,12 +322,23 @@ def build_semantic_brief_adapter(
     if not network_action_allowed(NETWORK_ACTION_SEMANTIC_BRIEF):
         return None
     if client is None and not os.getenv(API_KEY_ENV_VAR):
-        return None
+        value = str(dotenv_values(DEFAULT_ENV_PATH).get(API_KEY_ENV_VAR) or "")
+        if value:
+            os.environ[API_KEY_ENV_VAR] = value
     return ModelSemanticBriefAdapter(
         OpenAISemanticBriefBackend(settings, client=client),
         approved=True,
         model_id=settings.model,
     )
+
+
+def semantic_brief_usage_summary(
+    adapter: ModelSemanticBriefAdapter | None,
+) -> dict[str, Any]:
+    """Return the active backend's secret-free usage counters, when available."""
+    backend = getattr(adapter, "completion_fn", None)
+    summary = getattr(backend, "usage_summary", None)
+    return dict(summary()) if callable(summary) else {}
 
 
 def activation_diagnostics(config: SemanticBriefModelConfig | None = None) -> dict[str, Any]:
@@ -422,6 +438,7 @@ __all__ = [
     "BACKEND_ID",
     "BACKEND_VERSION",
     "DEFAULT_CONFIG_PATH",
+    "DEFAULT_ENV_PATH",
     "LIVE_CONFIRMATION_PHRASE",
     "OpenAISemanticBriefBackend",
     "SemanticBriefModelConfig",
@@ -430,4 +447,5 @@ __all__ = [
     "load_semantic_brief_config",
     "paid_call_blockers",
     "response_schema",
+    "semantic_brief_usage_summary",
 ]

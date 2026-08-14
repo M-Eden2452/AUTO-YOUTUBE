@@ -312,6 +312,16 @@ class ExistingProjectsTest(unittest.TestCase):
         versions = {from_legacy_visual_plan(json.loads(Path(p).read_text(encoding="utf-8"))).schema_version for p in paths}
         self.assertIn(1, versions)
 
+    def test_old_plan_without_semantic_usage_remains_readable(self) -> None:
+        plan = from_legacy_visual_plan(
+            {
+                "intent_language": "ru",
+                "planning_metadata": {"entity_count": 1},
+                "scenes": [],
+            }
+        )
+        self.assertEqual(plan.metadata, {"entity_count": 1})
+
 
 class VisualPlanCliTest(unittest.TestCase):
     """`content_creation.cli visual-plan` - offline by construction."""

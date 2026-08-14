@@ -24,7 +24,10 @@ from __future__ import annotations
 from typing import Any
 
 from src.content.script_engine import from_legacy_script
-from src.content.semantic_brief_openai import build_semantic_brief_adapter
+from src.content.semantic_brief_openai import (
+    build_semantic_brief_adapter,
+    semantic_brief_usage_summary,
+)
 from src.content.visual_planning import VisualPlanRequest, build_plan
 
 __all__ = ["build_visual_plan", "build_visual_plan_result"]
@@ -69,8 +72,13 @@ def build_visual_plan_result(
         format_id="vertical_short",
         template_id="fullscreen_voiceover_v1",
     )
-    return build_plan(
+    brief_adapter = build_semantic_brief_adapter()
+    planning = build_plan(
         request,
         source_text=str(research.get("summary") or ""),
-        brief_adapter=build_semantic_brief_adapter(),
+        brief_adapter=brief_adapter,
     )
+    usage = semantic_brief_usage_summary(brief_adapter)
+    if usage:
+        planning.result.metadata["semantic_brief_usage"] = usage
+    return planning

@@ -80,17 +80,20 @@ next_exact_action: >-
   implementation owner; C80 belongs to PLAN-9E. The duplicate frame in scene 3
   is C47 under PLAN-10D, which stays post-v1: it blocks publish-ready approval
   for that artifact without manual replacement/approval, not platform v1. THE
-  NEXT EXACT ACTION is the STOCK repeat through semantic_brief, unchanged from
-  the 2026-08-14 owner decision, and it is NOT started or authorized by any
-  docs slice: a separate execution prompt must explicitly name network/paid
-  scopes. config/semantic_brief.json is fail-closed today; its maximum_budget_usd
-  is not a hard dollar cap in the current backend, whose hard runtime bound is
-  maximum_calls_per_project with max_retries=0. After it the route is unchanged:
-  M1-E / VA-NEW-09 inside PLAN-9E, then
-  Review #2 over M1-D and M1-E. BLOCKER-L1 (no CLI entry for user-supplied
-  assets in fullscreen_voiceover_v1) is untouched and remains the separate
-  contract it was. The checkpoint stays PLAN-9D and neither the repeat nor this
-  reconciliation creates a PLAN-ID.
+  STOCK REPEAT THROUGH semantic_brief IS DONE and recorded in
+  docs/audits/STOCK_SEMANTIC_REPEAT_2026-08-14.md. All 5 scenes received accepted
+  provider-language briefs and real provider retrieval ran, but only 3/5 scenes
+  received licensed image slots; two scenes stayed unresolved, no video slot won,
+  and no MP4 or quality evidence was produced. The run stopped at the paid voice
+  gate. It also exposed two live-wiring defects: repository .env was not visible
+  before visual_plan, and semantic usage was not persisted. Both are closed by a
+  bounded correction inside the existing PLAN-9B-PRODUCER-M-LIVE owners:
+  only OPENAI_API_KEY is copied from repository .env after paid+network gates;
+  a still-missing key is visible as semantic_brief_unavailable, and secret-free
+  cumulative counters are stored under planning_metadata.semantic_brief_usage in the localized plan while master keeps the planning-stage snapshot. Default
+  fail-closed policy is unchanged. THE NEXT EXACT ACTION is M1-E / VA-NEW-09
+  inside PLAN-9E, then Review #2 over M1-D and M1-E. BLOCKER-L1 remains separate
+  and untouched. The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -366,7 +369,7 @@ plan step. Он измеряет качество отбора по persisted ev
 `docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` доказал, что часть
 этого evidence сегодня недостоверна (candidate A против downloaded B, preview
 о старых bytes, потерянные partial mixed-media результаты) и что бюджет
-запросов не ограничен. Аудит (§40, ответ 12; «Краткий отчёт владельцу») прямо
+запросов не ограничен. Аудит (`40, ответ 12; «Краткий отчёт владельцу») прямо
 называет обязательный до LIVE-5 набор: **VA-NEW-01, 02, 03, 04, 05, 06, 08,
 09 плюс минимальные budget guards 10/12**. Из него закрыты 01, 02, 03, 04 и 05.
 
@@ -433,7 +436,7 @@ mandatory runtime dependency», статус `COMMITTED_LATER`), раздел 7.
 **PLAN-9D-F** / **PLAN-9D-G**, оба остаются optional quality track и v1 не
 блокируют. Активация — **PLAN-9E**, default OFF, отдельные network и paid
 gates. Обязательные до активации: `VA-NEW-02`, `04`, `05`, `08` и единый
-post-review decision invariant (аудит §40, ответ 15).
+post-review decision invariant (аудит `40, ответ 15).
 
 **WHERE SEMANTIC DEFAULT ACTIVATION LIVES.** Там же — **PLAN-9E**. Для v1
 semantic assistance остаётся opt-in: `semantic_brief` в
@@ -5368,6 +5371,43 @@ misleading/conflict · paid approval.
   платные gate, авторитет selection, persisted schema и права. **PLAN-9D-D**
   остаётся NOT STARTED / blocked.
 
+- **bounded correction after STOCK repeat (2026-08-14).** Diagnostic evidence:
+  `docs/audits/STOCK_SEMANTIC_REPEAT_2026-08-14.md`, project
+  `projects/2026-08-14_solnechnaya-panel-lovit-svet-tolko-dnem-nochyu-3`.
+  The run proved 5/5 accepted semantic briefs and live provider-language
+  retrieval, then stopped at the paid voice gate with 3/5 licensed image slots,
+  two unresolved scenes, no MP4 and no quality evidence. It also proved two
+  defects in this existing live capability: the canonical create path did not
+  load repository `.env` before `visual_plan`, so an approved adapter silently
+  disappeared unless the caller used `python -m dotenv run`; and the backend's
+  `usage_summary()` had no production caller, so the five attempts could only be
+  inferred from scene artifacts.
+  The correction stays inside the same owners and creates no PLAN-ID:
+  `src/content/semantic_brief_openai.py` reads only `OPENAI_API_KEY` from
+  repository `.env`, and only after both paid and network gates pass. A process
+  environment value wins; neighbouring provider and TTS secrets are not copied
+  into `os.environ`. If the key remains absent, the adapter stays visible and
+  the existing `semantic_brief_unavailable` warning records the controlled
+  refusal without a paid attempt. `src/news/visual_plan.py` persists the
+  secret-free summary under `planning_metadata.semantic_brief_usage`;
+  `src/news/draft_completion.py` accumulates calls and estimated cost across
+  both adaptation replans. The localized visual plan is the cumulative project
+  record, while `master_visual_plan.json` remains the planning-stage snapshot.
+  Tolerant readers and schema version are unchanged. Default config remains
+  fail-closed. Characterization was red
+  first (4 errors); targeted semantic + visual-plan radius is 75 OK, with no
+  network, provider, Vision, TTS or render call. Routing returns to M1-E /
+  VA-NEW-09 inside PLAN-9E; checkpoint remains PLAN-9D.
+  Known fail-safe limitation: `asset_search_fingerprint` still hashes the whole
+  visual plan, so a cost-only telemetry change can invalidate `asset_search` even
+  when provider queries are unchanged. Fingerprint composition is not changed by
+  this repair and remains a later owner decision.
+  Repair characterization, after correcting the test fixture itself, was red
+  with one failure and one error against pre-repair behavior. The requested
+  offline regression radius is 236 OK; mypy on both changed production modules,
+  targeted Ruff, docs QA and gates are green. No network, provider, OpenAI,
+  Vision, TTS, download or render call ran during the repair.
+
 #### PLAN-9B-2 — expansion + hardcode migration
 
 - **status:** **closed 2026-08-07.** Owner-issued implementation slice —
@@ -6298,7 +6338,7 @@ current-quality benchmark. Production logic этой записью не мен�
   закрыт 2026-08-09, поэтому запись устарела. Фактический блокер теперь —
   owner-issued **LIVE-5** acceptance diagnostic, а до него — bounded
   corrections VA-NEW-02, 04, 05, 06, 08, 09 и минимальные budget guards 10/12
-  (`docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` §40, ответы 12 и
+  (`docs/audits/VISUAL_ASSET_INTEGRITY_AUDIT_2026-08-10.md` `40, ответы 12 и
   14: ядро к PLAN-9D-D не готово, пока current offline evidence может быть
   загрязнено continuity/preview/override gaps). Диагностический Short по
   этому слайсу так и **не запускался**; владелец принял это как остаточный
@@ -6439,7 +6479,7 @@ current-quality benchmark. Production logic этой записью не мен�
   authorization snapshot, что и draft — сегодня draft-ветка сильнее strict) как
   bounded correction до LIVE render, не начиная activation contract и не
   переводя статус в completed. Активация Vision этим не приближается.
-  Дополнительно зафиксировано аудитом (§40, ответ 15): архитектурная готовность
+  Дополнительно зафиксировано аудитом (`40, ответ 15): архитектурная готовность
   к Vision после PLAN-10C требует ещё **VA-NEW-02/04/05/08** и единого
   post-review decision invariant. Классы и порядок — блок «Mini plan
   reconciliation 2026-08-11».
@@ -6852,7 +6892,7 @@ current-quality benchmark. Production logic этой записью не мен�
   Создаётся только при выполнении всех пяти условий: пофайловая классификация
   `docs/*` завершена (PLAN-12B, ревизия 2 — прежде PLAN-1C);
   фактические runtime-flow sources прочитаны полностью (`docs/apps/*`,
-  `COMMANDS.md` §10, `skills/resume-project`, `skills/create-short-video-first`,
+  `COMMANDS.md` `10, `skills/resume-project`, `skills/create-short-video-first`,
   ADR 0006); PLAN-12A выполнил merge; итоговый `SYSTEM_MAP` измерен как
   measurement; **качественно** доказано, что runtime execution / stage /
   resume / failure information не помещается туда без смешения
