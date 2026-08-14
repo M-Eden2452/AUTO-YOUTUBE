@@ -36,6 +36,7 @@
 
 | Документ | Дата | Статус | Где current truth | О чём |
 |---|---|---|---|---|
+| [FIRST_OWNER_SHORT_LOCAL_REPEAT_2026-08-14.md](FIRST_OWNER_SHORT_LOCAL_REPEAT_2026-08-14.md) | 2026-08-14 | `current` | [PROJECT_EXECUTION_PLAN.md](../current/PROJECT_EXECUTION_PLAN.md) (PLAN-10C) | Повтор LOCAL diagnostic после курации библиотеки: rights-blocker снят, 1/5 сцен получила слот, ElevenLabs дошёл, MP4 нет. Воспроизведён ranking defect — нерелевантный кандидат берёт 92.5 при undecidable subject. |
 | [RETRIEVAL_ENGINE_AUDIT_2026-08-13.md](RETRIEVAL_ENGINE_AUDIT_2026-08-13.md) | 2026-08-13 | `current` | [SYSTEM_MAP.md](../current/SYSTEM_MAP.md), [CLEANUP_REGISTRY.md](../current/CLEANUP_REGISTRY.md) (C64–C72) | Полный аудит retrieval/material engine: три стека, владельцы, конфиги, тесты, docs. Часть находок опровергнута при переносе — см. errata в шапке файла. |
 | [AI_DEVELOPMENT_SYSTEM_AUDIT_2026-08-12.md](AI_DEVELOPMENT_SYSTEM_AUDIT_2026-08-12.md) | 2026-08-12 | `current` | [PROJECT_EXECUTION_PLAN.md](../current/PROJECT_EXECUTION_PLAN.md) (WP0-B) | Аудит самой системы управления разработкой: цена правил, дубли, дыры enforcement, R1–R9 (включая ADR-паузу). |
 | [STOCK_RETRIEVAL_EXPERIMENTS.md](STOCK_RETRIEVAL_EXPERIMENTS.md) | с 2026-08-12 | `current` | [CLEANUP_REGISTRY.md](../current/CLEANUP_REGISTRY.md) (C75–C78 из EXP-001) | Накопительный журнал retrieval-экспериментов: одна запись на эксперимент. |
