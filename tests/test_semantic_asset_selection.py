@@ -147,6 +147,77 @@ class SemanticAssetSelectionTests(unittest.TestCase):
         self.assertTrue(rank_candidates(exact, [_candidate("coast", "ocean coast", "ocean")])[0]["rejected"])
         self.assertFalse(rank_candidates(transition, [_candidate("coast", "ocean coast", "ocean")])[0]["rejected"])
 
+    def test_unverifiable_candidate_does_not_outscore_a_checked_mismatch(self) -> None:
+        """Воспроизведено на LOCAL repeat 2026-08-14, сцена «дождевой лес».
+
+        Сцена ограничивает ``subject`` и ``action`` русскими словами; ``environment``
+        и ``camera`` она не ограничивает вовсе. Против англоязычных метаданных оба
+        заданных поля *undecidable* и выбрасываются из среднего вместе со своим весом
+        (0.45 + 0.20), а в среднем остаются ровно те два поля, о которых сцена не
+        спрашивала, — и каждое из них стоит 100 как «не применимо». Итог: ролик про
+        закрывание вкладок браузера получал semantic 100 против сцены о пологе леса.
+
+        Кандидат с двуязычными метаданными при этом проверяем: ``дождевой`` честно не
+        совпадает, вес сохраняется, и он получает низкий балл. Инвертированный стимул
+        и есть дефект: чем беднее метаданные, тем выше балл, потому что бедные
+        метаданные нечем опровергнуть."""
+        from src.assets.semantic_selection import analyze_scene, rank_candidates
+
+        scene = analyze_scene(
+            {
+                "scene_id": "scene_001",
+                "visual_type": "video",
+                "semantic": {
+                    "subject": ["дождевой"],
+                    "action": ["выглядит"],
+                    "environment": [],
+                    "location": [],
+                    "camera": [],
+                    "must_include": [],
+                    "visual_priority": "exact_subject",
+                },
+            }
+        )
+        unverifiable = _candidate(
+            "browser_tabs",
+            "Closing browser tabs at night",
+            "closing browser tabs slow handwriting journal rain window minimal desk night",
+        )
+        checked_mismatch = _candidate(
+            "tropical_river",
+            "Широкая быстрая река с порогами, пальмы",
+            "river rapids palms tropical река пороги пальмы тропики течение",
+        )
+
+        ranked = rank_candidates(scene, [unverifiable, checked_mismatch])
+        by_id = {item["asset_id"]: item for item in ranked}
+
+        # Ни одно заданное сценой поле не проверено, поэтому доказательства нет.
+        self.assertEqual(by_id["browser_tabs"]["undecidable_fields"], ["subject", "action"])
+        self.assertEqual(by_id["browser_tabs"]["semantic_match_status"], "unverified")
+        self.assertEqual(
+            by_id["browser_tabs"]["semantic_score"],
+            0.0,
+            "нечем проверить заданные поля - это отсутствие доказательства, а не совпадение",
+        )
+        # Непроверяемое не выбирается автоматически...
+        self.assertTrue(by_id["browser_tabs"]["rejected"])
+        # ...и не может обойти кандидата, которого реально сравнили со сценой.
+        self.assertLessEqual(
+            by_id["browser_tabs"]["final_score"], by_id["tropical_river"]["final_score"]
+        )
+
+    def test_scene_that_constrains_nothing_still_scores_its_candidates(self) -> None:
+        """Обратная сторона той же правки: «сцена ничего не требует» и «сцену нечем
+        проверить» — разные вещи, и вторая не должна поглотить первую."""
+        from src.assets.semantic_selection import SemanticScene, rank_candidates
+
+        unconstrained = SemanticScene(scene_id="free", visual_priority="transition")
+        ranked = rank_candidates(unconstrained, [_candidate("coast", "ocean coast", "ocean")])
+
+        self.assertEqual(ranked[0]["semantic_score"], 100.0)
+        self.assertFalse(ranked[0]["rejected"])
+
 
 def _candidate(asset_id: str, title: str, keywords: str, width: int = 1920, height: int = 1080) -> dict:
     return {

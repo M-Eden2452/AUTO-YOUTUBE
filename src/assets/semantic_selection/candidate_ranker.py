@@ -50,9 +50,6 @@ from .decision import (
     support_status,
 )
 from .evidence import (
-    METADATA_AVAILABLE,
-    METADATA_QUERY_DERIVED,
-    METADATA_UNAVAILABLE,
     CandidateEvidence,
     build_evidence,
     contains_concept,
@@ -294,7 +291,34 @@ def _score_candidate(
         (0.05, camera_match, camera_decidable),
     ]
     decidable_weight = sum(weight for weight, _score, decidable in weighted if decidable)
-    if decidable_weight > 0:
+    # A field the scene never constrained scores 100 as "not applicable" (``_field_match``
+    # returns it for an empty list). That is a statement about the scene, not evidence
+    # about the asset, and it must not be able to *become* the score. Dropping every
+    # undecidable field can leave nothing else in the average: when the scene did state
+    # requirements and not one of them could be judged, the weighted mean is taken over
+    # the fields nobody asked about and reports a perfect match.
+    #
+    # Reproduced on the 2026-08-14 local repeat: a Russian scene about the rainforest
+    # canopy stated ``subject`` and ``action`` and left ``environment``/``camera`` empty.
+    # Against English-only metadata both stated fields were undecidable, so a clip of
+    # browser tabs on a desk scored 100 while a checkable candidate honestly scored 23.5.
+    # The incentive was inverted - metadata too poor to contradict the scene won - which
+    # penalised exactly the bilingual records the library curation had just produced.
+    stated_decidability = [
+        decidable
+        for terms, decidable in (
+            (scene.subject, subject_decidable),
+            (scene.action, action_decidable),
+            (scene.environment, environment_decidable),
+            (scene.camera, camera_decidable),
+        )
+        if terms
+    ]
+    if stated_decidability and not any(stated_decidability):
+        # Nothing the scene asked about could be compared: absence of evidence, which the
+        # rest of this function already represents as 0.0.
+        meaning_score = 0.0
+    elif decidable_weight > 0:
         meaning_score = sum(weight * score for weight, score, decidable in weighted if decidable) / decidable_weight
     else:
         meaning_score = 0.0
