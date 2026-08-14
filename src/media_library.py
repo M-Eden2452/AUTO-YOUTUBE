@@ -14,6 +14,8 @@ import imageio_ffmpeg
 from .utils import project_path
 
 
+WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
 LIBRARY_ROOT = Path("assets/library")
 INDEX_PATH = LIBRARY_ROOT / "metadata/media_index.json"
 MEDIA_EXTENSIONS = {
@@ -191,7 +193,7 @@ def index_existing_assets(library_root: str | Path = LIBRARY_ROOT, index_path: s
                     "type": media_type,
                     "provider": "local",
                     "local_path": str(path),
-                    "keywords": _tokens(path.stem),
+                    "keywords": tokenize(path.stem),
                     "license_note": "Local asset; verify license before publishing.",
                 },
             )
@@ -534,18 +536,18 @@ def _asset_id(asset: dict[str, Any]) -> str:
 def _score_asset(item: dict[str, Any], scene: dict[str, Any], media_type: str, channel: str) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
-    item_keywords = set(_tokens(item.get("keywords", [])))
-    scene_keywords = set(_tokens(scene.get("visual_keywords", []) or scene.get("image_query", "")))
+    item_keywords = set(tokenize(item.get("keywords", [])))
+    scene_keywords = set(tokenize(scene.get("visual_keywords", []) or scene.get("image_query", "")))
     keyword_hits = item_keywords & scene_keywords
     if keyword_hits:
         score += 3 * len(keyword_hits)
         reasons.append(f"keyword:{','.join(sorted(keyword_hits))}")
-    item_mood = set(_tokens(item.get("mood", [])))
-    scene_mood = set(_tokens(scene.get("mood", "")))
+    item_mood = set(tokenize(item.get("mood", [])))
+    scene_mood = set(tokenize(scene.get("mood", "")))
     if item_mood & scene_mood:
         score += 2
         reasons.append("mood")
-    if channel and _slug(channel) in set(_tokens(item.get("channel_tags", []))):
+    if channel and _slug(channel) in set(tokenize(item.get("channel_tags", []))):
         score += 2
         reasons.append("channel")
     if item.get("type") == media_type:
@@ -560,7 +562,7 @@ def _score_asset(item: dict[str, Any], scene: dict[str, Any], media_type: str, c
         score += 1
         reasons.append("duration")
     scene_type = _slug(str(scene.get("scene_type") or scene.get("type") or ""))
-    if scene_type and scene_type in set(_tokens(item.get("scene_tags", []))):
+    if scene_type and scene_type in set(tokenize(item.get("scene_tags", []))):
         score += 1
         reasons.append("scene_type")
     return score, reasons
@@ -577,12 +579,21 @@ def _slug(value: Any) -> str:
     return text.strip("_-")
 
 
-def _tokens(value: Any) -> list[str]:
-    raw = _as_list(value)
-    tokens: list[str] = []
-    for item in raw:
-        tokens.extend(part for part in re.split(r"[^a-zA-Z0-9]+", str(item).lower()) if part)
-    return tokens
+def tokenize(value: Any) -> list[str]:
+    """Words in any script — the one answer the local library gives to "what words is
+    this made of".
+
+    An ``[a-zA-Z0-9]+`` split treats every Cyrillic letter as a separator, so a Russian
+    query produced no tokens at all: nothing could hit, every horizontal video tied on
+    type+aspect+duration, and the shortlist collapsed into "the longest clips in the
+    index" — the same ten for every scene of the project, whatever it was about.
+
+    ``LocalLibraryStockProvider`` reads the same records and defers to this function, so
+    the two local-library matchers cannot disagree about where a word begins.
+    ``src.assets.semantic_selection.evidence`` applies the same rule one tier up when it
+    judges the candidates this returns.
+    """
+    return [part for item in _as_list(value) for part in WORD_RE.findall(str(item).lower())]
 
 
 def _as_list(value: Any) -> list[str]:

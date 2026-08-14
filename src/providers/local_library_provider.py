@@ -15,7 +15,7 @@ from src.assets.provider_contract import (
     ProviderValidationError,
     ensure_license_allows_render,
 )
-from src.media_library import load_media_index
+from src.media_library import load_media_index, tokenize
 
 
 class LocalLibraryStockProvider:
@@ -137,4 +137,10 @@ def _is_current_safe_record(item: dict[str, Any]) -> bool:
 
 
 def _tokens(value: str) -> set[str]:
-    return {part.lower() for part in str(value or "").replace(",", " ").split() if part.strip()}
+    """Defers to the local library's own tokenizer.
+
+    This used to split on whitespace, so it kept trailing punctuation inside the word
+    and disagreed with the coarse matcher over the very same records. Both read one
+    index; they now read it the same way.
+    """
+    return set(tokenize(value))
