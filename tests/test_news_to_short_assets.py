@@ -1263,5 +1263,328 @@ class PartialMixedMediaRetrievalTests(unittest.TestCase):
         self.assertEqual(manifest["provider_errors"][0]["media_type"], "video")
 
 
+class _CountingStockProvider(FakeStockProvider):
+    """Records every request it is actually sent and answers with nothing.
+
+    A provider that finds nothing is the honest shape for a fan-out measurement:
+    the search runs to the end of the plan, so what the counter holds afterwards
+    is the whole cost of the scene rather than the cost up to a lucky hit.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(mode="success")
+        self.name = name
+        self.requests: list[tuple[str, str]] = []
+
+    def search(self, request):  # type: ignore[override]
+        self.requests.append((request.query, request.media_type))
+        return []
+
+
+def _rich_mixed_scene(scene_id: str = "scene_001") -> dict[str, object]:
+    """One scene whose plan legitimately expands into many provider queries."""
+
+    return {
+        "scene_id": scene_id,
+        "visual_type": "video",
+        "allowed_media_kinds": ["image", "video"],
+        "primary_query": "orca ocean hunting",
+        "visual_brief": {
+            "subject": "orca",
+            "action": "hunting",
+            "place": "open ocean",
+            "must_include": ["orca"],
+        },
+        "provider_queries": {
+            "pexels": ["orca ocean", "killer whale pod", "orca hunting seal"],
+            "pixabay": ["orca ocean", "killer whale pod", "orca hunting seal"],
+        },
+        "search_queries": ["orca ocean surface", "whale pod aerial"],
+    }
+
+
+class SceneRequestBudgetTests(unittest.TestCase):
+    """VA-NEW-12 / M2-B: one scene has a hard ceiling on provider requests.
+
+    Per-source caps existed, but nothing capped the composition: every routed
+    provider ran every allowed query to the end regardless of what had already
+    come back. Measured on the real production path at ``36f23cc``, the scene
+    below sent **36** provider search requests through three providers, and the
+    largest real per-scene fan-out on disk is 30 query attempts through five
+    providers - which at current retrieval symmetry costs up to 60 requests.
+
+    The unit is one ``provider.search`` call - one query against one media kind -
+    because that is what a provider rate-limits and bills. A query attempt is
+    deliberately not the unit: since ``ae6d46c`` a mixed scene sends one request
+    per allowed media kind, so counting attempts undercounts the real cost by
+    exactly that multiplier.
+    """
+
+    @staticmethod
+    def _build(
+        providers: list[_CountingStockProvider],
+        *,
+        budget: object = None,
+        scenes: list[dict[str, object]] | None = None,
+        completion_mode: str = "",
+    ) -> dict[str, object]:
+        from src.news.asset_manager import build_assets_manifest
+
+        selection = {} if budget is None else {"max_provider_requests_per_scene": budget}
+        return build_assets_manifest(
+            visual_plan={
+                "language": "en",
+                "intent_language": "en",
+                "scenes": scenes if scenes is not None else [_rich_mixed_scene()],
+            },
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=list(providers),
+            dry_run=False,
+            asset_selection=selection or None,
+            project_id="va_new_12",
+            completion_mode=completion_mode,
+            allow_infographic_fallback=False,
+            allow_emergency_backdrop=False,
+        )
+
+    @staticmethod
+    def _sent(providers: list[_CountingStockProvider]) -> int:
+        return sum(len(provider.requests) for provider in providers)
+
+    def _providers(self) -> list[_CountingStockProvider]:
+        return [
+            _CountingStockProvider(name)
+            for name in ("pexels", "pixabay", "wikimedia_commons")
+        ]
+
+    def test_a_scene_never_sends_more_provider_requests_than_its_budget(self) -> None:
+        providers = self._providers()
+
+        self._build(providers, budget=10)
+
+        self.assertLessEqual(self._sent(providers), 10)
+
+    def test_the_budget_is_an_exact_ceiling_and_not_an_approximation(self) -> None:
+        """Off-by-one: a budget of N allows N requests, never N+1."""
+
+        for limit in (1, 2, 3, 7, 12):
+            with self.subTest(limit=limit):
+                providers = self._providers()
+
+                self._build(providers, budget=limit)
+
+                self.assertEqual(self._sent(providers), limit)
+
+    def test_an_odd_budget_cuts_inside_a_query_because_requests_are_the_unit(
+        self,
+    ) -> None:
+        """A mixed query costs two requests, so an odd budget stops mid-query."""
+
+        providers = self._providers()
+
+        self._build(providers, budget=5)
+
+        sent = [request for provider in providers for request in provider.requests]
+        self.assertEqual(len(sent), 5)
+        # Two whole mixed queries (video+image) plus the first half of a third.
+        self.assertEqual(
+            [media_type for _query, media_type in sent],
+            ["video", "image", "video", "image", "video"],
+        )
+
+    def test_an_exhausted_budget_never_reaches_the_provider_at_all(self) -> None:
+        """Not "call and discard": the request is never sent."""
+
+        providers = self._providers()
+
+        manifest = self._build(providers, budget=0)
+
+        self.assertEqual(self._sent(providers), 0)
+        self.assertEqual(len(manifest["scenes"]), 1)
+
+    def test_a_failing_request_spends_its_unit_and_never_refills_the_budget(
+        self,
+    ) -> None:
+        from src.assets.provider_contract import ProviderNetworkError
+
+        class _AlwaysFailing(_CountingStockProvider):
+            def search(self, request):  # type: ignore[override]
+                self.requests.append((request.query, request.media_type))
+                raise ProviderNetworkError(
+                    "down",
+                    provider=self.name,
+                    query=request.query,
+                    retryable=True,
+                )
+
+        providers = [_AlwaysFailing(name) for name in ("pexels", "pixabay")]
+
+        self._build(providers, budget=6)  # type: ignore[arg-type]
+
+        self.assertEqual(self._sent(providers), 6)
+
+    @staticmethod
+    def _half_outage(name: str) -> _HalfOutageStockProvider:
+        """A provider whose video endpoint is down and image endpoint answers."""
+
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+        provider.name = name
+        return provider
+
+    def test_a_failing_media_kind_costs_the_requests_it_actually_sent(self) -> None:
+        """M2-A made the second kind reachable; the budget counts both halves."""
+
+        provider = self._half_outage("pexels")
+
+        self._build([provider], budget=4)  # type: ignore[list-item]
+
+        # Four requests, i.e. two query attempts of two kinds each - not four
+        # query attempts. The kind that fails is charged exactly like the kind
+        # that answers.
+        self.assertEqual(
+            provider.requested_media_types,
+            ["video", "image", "video", "image"],
+        )
+
+    def test_partial_media_success_survives_the_budget_running_out(self) -> None:
+        """M2-A is not undone: what already answered is kept and stays visible."""
+
+        provider = self._half_outage("pexels")
+
+        manifest = self._build([provider], budget=3)  # type: ignore[list-item]
+
+        self.assertEqual(provider.requested_media_types, ["video", "image", "video"])
+        scene_entry = manifest["scenes"][0]
+        # The image half that answered before the stop is still in the pool.
+        self.assertEqual(
+            {str(item["media_type"]) for item in scene_entry["candidates"]},
+            {"image"},
+        )
+        # The video half that was cut is unresolved, not silently successful.
+        last = scene_entry["provider_attempts"][-2]
+        self.assertEqual(
+            [
+                (item["media_type"], item["status"])
+                for item in last.get("media_attempts", [])
+            ],
+            [("video", "failed"), ("image", "skipped")],
+        )
+
+    def test_the_budget_stop_is_its_own_reason_and_not_a_provider_error(self) -> None:
+        providers = self._providers()
+
+        manifest = self._build(providers, budget=4)
+
+        stops = [
+            attempt
+            for attempt in manifest["scenes"][0]["provider_attempts"]
+            if attempt.get("reason") == "request_budget_exhausted"
+        ]
+        self.assertEqual(len(stops), 1)
+        self.assertEqual(stops[0]["status"], "skipped")
+        self.assertEqual(stops[0]["request_budget"], {"limit": 4, "spent": 4})
+        self.assertGreater(stops[0]["queries_not_sent"], 0)
+        # Stopping on budget is not a provider failing.
+        self.assertEqual(manifest["provider_errors"], [])
+
+    def test_an_untranslatable_provider_survives_a_budget_stop(self) -> None:
+        """A plan-level fact is not a request and is never spent away."""
+
+        from src.assets.models import ProviderCapabilities
+
+        class _UnsearchableLanguageProvider(_CountingStockProvider):
+            """Nothing in the plan is in a language it can be searched in."""
+
+            def capabilities(self):  # type: ignore[override]
+                return ProviderCapabilities(
+                    provider=self.name,
+                    media_types=["video", "image"],
+                    query_languages=["ja"],
+                )
+
+        providers = [
+            _CountingStockProvider("pexels"),
+            _UnsearchableLanguageProvider("wikimedia_commons"),
+        ]
+
+        manifest = self._build(providers, budget=2)  # type: ignore[arg-type]
+
+        reasons = [
+            attempt.get("reason")
+            for attempt in manifest["scenes"][0]["provider_attempts"]
+        ]
+        self.assertIn("query_translation_required", reasons)
+        self.assertIn("request_budget_exhausted", reasons)
+
+    def test_each_scene_gets_its_own_budget(self) -> None:
+        providers = self._providers()
+
+        self._build(
+            providers,
+            budget=4,
+            scenes=[_rich_mixed_scene("scene_001"), _rich_mixed_scene("scene_002")],
+        )
+
+        self.assertEqual(self._sent(providers), 8)
+
+    def test_a_stopped_scene_does_not_starve_the_next_one(self) -> None:
+        providers = self._providers()
+
+        manifest = self._build(
+            providers,
+            budget=4,
+            scenes=[_rich_mixed_scene("scene_001"), _rich_mixed_scene("scene_002")],
+        )
+
+        second = manifest["scenes"][1]
+        sent = [
+            attempt
+            for attempt in second["provider_attempts"]
+            if attempt.get("status") in {"completed", "failed"}
+        ]
+        self.assertEqual(len(sent), 2)
+
+    def test_an_invalid_budget_falls_back_to_the_bounded_default(self) -> None:
+        """Never unlimited: a broken value is replaced, not interpreted."""
+
+        from src.news.asset_provider_adapters import (
+            DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE as DEFAULT,
+        )
+
+        for raw in (-1, "many", None, [], 1.5):
+            with self.subTest(raw=raw):
+                providers = self._providers()
+
+                self._build(providers, budget=raw)
+
+                self.assertLessEqual(self._sent(providers), DEFAULT)
+                self.assertGreater(self._sent(providers), 0)
+
+    def test_a_scene_that_configures_nothing_is_still_bounded(self) -> None:
+        """The guard is the default, not something a channel has to opt into."""
+
+        from src.news.asset_provider_adapters import (
+            DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE as DEFAULT,
+        )
+
+        names = (
+            "pexels",
+            "pixabay",
+            "wikimedia_commons",
+            "internet_archive",
+            "nasa_images",
+        )
+        providers = [_CountingStockProvider(name) for name in names]
+        scene = _rich_mixed_scene()
+        scene["provider_queries"] = {
+            name: [f"orca variant {index:02d}" for index in range(12)] for name in names
+        }
+
+        self._build(providers, budget=None, scenes=[scene])
+
+        self.assertEqual(self._sent(providers), DEFAULT)
+
+
 if __name__ == "__main__":
     unittest.main()

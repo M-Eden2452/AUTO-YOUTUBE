@@ -383,6 +383,19 @@ concern and was not collapsed into it. `ASSET_SEARCH_FINGERPRINT_VERSION`
 deliberately stays 1: the payload it versions is the search *inputs*, none of
 which changed, and a failing provider is the same kind of runtime variation the
 M1-D closure already placed outside the fingerprint. Evidence RED→GREEN is in the
-M2-A CLOSURE block. The next exact action is **M2-B** (`VA-NEW-12`, minimal
-per-scene request budget) inside **PLAN-10C**, then **Review #3** over M2-A and
-M2-B; `C75`–`C78`, PLAN-10D and the pagination contract stay out.
+M2-A CLOSURE block.
+
+**M2-B closed (2026-08-15).** A bounded **PLAN-10C** correction closed
+`VA-NEW-12` and started no adaptive-budget, plateau or escalation policy; the
+section stays `blocked`. Nothing capped provider × query after composition — one
+scene measured **36** provider search requests on the real production path.
+`SceneRequestBudget` (`src/news/asset_provider_adapters.py`) is now one counter
+per scene, shared by the general search and the draft `targeted_slot_search`, so
+no nested layer gets a second allowance; the unit is one `provider.search` call,
+not a query attempt. An exhausted budget never reaches the provider, a failed
+request is spent rather than refunded, the stop is `status: skipped` /
+`reason: request_budget_exhausted` on the existing ledger, and candidates already
+found survive. Default 64 via `asset_selection`, so
+`ASSET_SEARCH_FINGERPRINT_VERSION` stays 1. Details and RED→GREEN evidence are in
+the M2-B CLOSURE block. The next exact action is **independent Review #3 over
+M2-A and M2-B**; `C75`–`C78`, PLAN-10D and the pagination contract stay out.

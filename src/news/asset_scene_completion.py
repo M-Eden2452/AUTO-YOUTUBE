@@ -26,6 +26,11 @@ from src.assets.semantic_selection.media_policy import (
     media_kind_restriction,
 )
 
+from .asset_provider_adapters import (
+    STOP_REASON_BUDGET_EXHAUSTED,
+    SceneRequestBudget,
+)
+
 
 DownloadSelected = Callable[..., tuple[dict[str, Any] | None, list[dict[str, Any]]]]
 EnsureDecision = Callable[..., dict[str, Any] | None]
@@ -99,6 +104,7 @@ def complete_scene_assembly(
     scene_provider_attempts: list[dict[str, Any]] | None = None,
     original_selected_asset_id: str = "",
     allow_emergency_backdrop: bool = True,
+    request_budget: SceneRequestBudget | None = None,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     """Assemble ``draft_complete`` around the canonical primary selection."""
 
@@ -276,6 +282,7 @@ def complete_scene_assembly(
                         sent_queries=sent_queries,
                         rank_provider_results=rank_provider_results,
                         search_provider=search_provider,
+                        request_budget=request_budget,
                     )
                     attempts.extend(targeted_attempts)
                     if found:
@@ -313,8 +320,17 @@ def targeted_slot_search(
     sent_queries: set[tuple[str, str]],
     rank_provider_results: RankProviderResults,
     search_provider: SearchProvider,
+    request_budget: SceneRequestBudget | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Run one bounded targeted search for still-unfilled semantic slots."""
+    """Run one bounded targeted search for still-unfilled semantic slots.
+
+    Bounded twice over, and the two bounds answer different questions. Rule 7
+    caps this to one pass per scene, which stops it becoming a retry loop.
+    ``request_budget`` is the scene's shared ceiling on provider requests
+    (VA-NEW-12): the general search has already spent from it, and this pass
+    keeps drawing down the same count instead of opening a second allowance, so
+    the ladder cannot walk past a ceiling the general search stopped at.
+    """
 
     new_candidates: list[dict[str, Any]] = []
     attempts: list[dict[str, Any]] = []
@@ -332,6 +348,23 @@ def targeted_slot_search(
             key = (item.provider, item.query.strip().lower())
             if key in sent_queries:
                 continue
+            if request_budget is not None and request_budget.exhausted:
+                attempts.append(
+                    {
+                        "scene_id": str(scene.get("scene_id") or ""),
+                        "provider": item.provider,
+                        "query": "",
+                        "status": "skipped",
+                        "reason": STOP_REASON_BUDGET_EXHAUSTED,
+                        "message": (
+                            "Целевой поиск по слотам не отправлен: достигнут "
+                            "предел запросов к провайдерам для этой сцены "
+                            f"({request_budget.limit})."
+                        ),
+                        "request_budget": request_budget.to_dict(),
+                    }
+                )
+                return new_candidates, attempts
             sent_queries.add(key)
             provider = next(
                 (
@@ -362,6 +395,7 @@ def targeted_slot_search(
                     project_id=project_id,
                     limit=5,
                     media_attempts=media_attempts,
+                    budget=request_budget,
                 )
                 new_candidates.extend(
                     rank_provider_results(

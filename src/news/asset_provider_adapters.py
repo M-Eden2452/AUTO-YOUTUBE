@@ -27,6 +27,96 @@ from src.providers import (
 )
 
 
+# VA-NEW-12: the ceiling one scene may spend on provider search requests when a
+# channel configures nothing. It is a guard on the tail, not a retrieval policy -
+# choosing *which* requests are worth sending is PLAN-10C's adaptive contract and
+# is deliberately not started here. The number comes from measurement: the widest
+# per-scene fan-out in any project on disk is 30 query attempts across five
+# providers, which at current retrieval symmetry costs up to 60 requests, so 64
+# leaves every run the product has actually performed untouched while truncating
+# the analytical worst case (5 providers x 19 queries x 2 kinds = 190).
+DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE = 64
+
+# Why this scene stopped asking. It rides the existing attempt ledger's ``reason``
+# field beside ``query_translation_required``; no new status vocabulary and no new
+# persisted artifact - the full stop-reason dictionary belongs to PLAN-10A.
+STOP_REASON_BUDGET_EXHAUSTED = "request_budget_exhausted"
+
+
+class SceneRequestBudget:
+    """The hard ceiling on provider search requests one scene may send.
+
+    **One unit is one ``provider.search`` call** - one query against one media
+    kind - because that is what a provider rate-limits and bills for. A query
+    attempt is deliberately not the unit: since retrieval symmetry (``ae6d46c``)
+    a mixed scene sends one request per allowed media kind, so counting attempts
+    would undercount the real cost by exactly that multiplier. An HTTP request is
+    not the unit either - a single search may retry inside
+    ``ProviderHttpClient``, which owns that decision (M2-A) and is a different
+    question about the same request.
+
+    There is exactly one instance per scene and every layer that can reach a
+    provider shares it, so a nested caller draws down the same count instead of
+    opening a second full allowance. A request that failed is spent: failure does
+    not refill the budget, or a provider that is down would cost more than one
+    that answers.
+
+    The budget carries no wall-clock, no plateau detection and no notion of
+    "enough candidates" - those are PLAN-10C's adaptive contract, not this guard.
+    """
+
+    __slots__ = ("_limit", "_spent")
+
+    def __init__(self, limit: int) -> None:
+        self._limit = max(0, int(limit))
+        self._spent = 0
+
+    @property
+    def limit(self) -> int:
+        return self._limit
+
+    @property
+    def spent(self) -> int:
+        return self._spent
+
+    @property
+    def remaining(self) -> int:
+        return max(0, self._limit - self._spent)
+
+    @property
+    def exhausted(self) -> bool:
+        return self.remaining <= 0
+
+    def spend(self) -> bool:
+        """Claim one request. ``False`` means the caller must not send it."""
+
+        if self.exhausted:
+            return False
+        self._spent += 1
+        return True
+
+    def to_dict(self) -> dict[str, int]:
+        return {"limit": self._limit, "spent": self._spent}
+
+
+def resolve_scene_request_budget(value: Any) -> int:
+    """Read a configured ceiling, refusing "unlimited" in every spelling.
+
+    A value that cannot be read as a whole non-negative count is replaced by the
+    bounded default rather than interpreted: ``-1`` means "unlimited" in enough
+    other systems that honouring it here would reintroduce exactly the defect
+    this guard closes, and silently turning a typo into zero retrieval would be
+    just as wrong in the other direction. An explicit ``0`` is a real choice and
+    is honoured.
+    """
+
+    if isinstance(value, bool) or not isinstance(value, int):
+        return DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE
+    if value < 0:
+        return DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE
+    return value
+
+
 class AssetProvider(Protocol):
     """Deprecated news-only compatibility surface.
 
@@ -85,6 +175,7 @@ def search_provider(
     project_id: str,
     limit: int,
     media_attempts: list[dict[str, Any]] | None = None,
+    budget: SceneRequestBudget | None = None,
 ) -> list[dict[str, Any]]:
     """Ask one provider for one query, once per allowed media kind.
 
@@ -96,9 +187,16 @@ def search_provider(
     provider's own machine-readable error - so a half outage stays visible
     instead of hiding behind a whole-scene failure.
 
-    When every requested kind failed there is nothing to keep, and the first
-    error is raised exactly as before: a single-kind scene, and a provider that
-    is down entirely, behave unchanged.
+    When every kind that was actually sent failed there is nothing to keep, and
+    the first error is raised exactly as before: a single-kind scene, and a
+    provider that is down entirely, behave unchanged.
+
+    ``budget`` is the scene's shared request ceiling (VA-NEW-12). This function
+    is the last owner before the wire, so a kind with nothing left to spend is
+    never sent at all rather than sent and discarded; it is recorded as skipped
+    and never raises, because refusing to spend is not a provider failing. Both
+    production call sites pass the scene's budget; a direct caller that passes
+    none applies no ceiling here and never gets a private second allowance.
     """
 
     if supports_stock_contract(provider):
@@ -118,7 +216,20 @@ def search_provider(
 
         results: list[dict[str, Any]] = []
         failures: list[BaseException] = []
+        sent = 0
         for media_type in media_types:
+            if budget is not None and not budget.spend():
+                if media_attempts is not None:
+                    media_attempts.append(
+                        {
+                            "media_type": media_type,
+                            "status": "skipped",
+                            "reason": STOP_REASON_BUDGET_EXHAUSTED,
+                            "result_count": 0,
+                        }
+                    )
+                continue
+            sent += 1
             request = AssetSearchRequest(
                 query=query,
                 media_type=media_type,
@@ -163,9 +274,14 @@ def search_provider(
                         "result_count": len(found),
                     }
                 )
-        if failures and len(failures) == len(media_types):
+        # Compared against what was *sent*, not what was planned: a kind the
+        # budget refused was never asked, so it cannot make this look like a
+        # provider that is down. With nothing sent there is no failure to raise.
+        if failures and len(failures) == sent:
             raise failures[0]
         return results
+    if budget is not None and not budget.spend():
+        return []
     try:
         return provider.search(query, scene, limit=limit)
     except TypeError:

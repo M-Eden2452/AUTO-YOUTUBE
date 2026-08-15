@@ -490,5 +490,80 @@ class StrictModeUnaffectedTests(unittest.TestCase):
             self.assertNotIn("scientist collecting sample", provider.queries_received)
 
 
+class TargetedSearchSharesTheSceneBudgetTests(unittest.TestCase):
+    """VA-NEW-12 / M2-B: draft completion is inside the per-scene budget.
+
+    ``targeted_slot_search`` is the second place a scene can reach a provider.
+    Rule 7 already bounds it to one pass per scene, but a pass is not a cost: a
+    hard per-scene ceiling that the ladder could walk straight past would be a
+    ceiling on one path only. The same budget object travels down, so the
+    general search and the targeted pass draw from one count.
+    """
+
+    @staticmethod
+    def _run(root: Path, *, budget: object) -> tuple[SlotAwareFakeProvider, dict]:
+        from src.news.asset_manager import build_assets_manifest
+
+        fixture = root / "fixture.jpg"
+        Image.new("RGB", (1080, 1920), (30, 60, 90)).save(fixture)
+        provider = SlotAwareFakeProvider(fixture=fixture)
+        manifest = build_assets_manifest(
+            visual_plan={
+                "scenes": [_exact_location_scene()],
+                "intent_language": "ru",
+                "language": "ru",
+            },
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=[provider],
+            dry_run=False,
+            asset_selection={"max_provider_requests_per_scene": budget},
+            completion_mode=MODE_DRAFT_COMPLETE,
+            project_root=root / "project",
+            project_id="project_001",
+        )
+        return provider, manifest
+
+    def test_a_targeted_pass_cannot_spend_past_the_scene_ceiling(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            provider, _manifest = self._run(root, budget=3)
+
+            # Three general-search requests and nothing after them: the ladder
+            # does not get a second, private allowance.
+            self.assertEqual(len(provider.queries_received), 3)
+            self.assertNotIn("scientist", provider.queries_received)
+
+    def test_the_stop_is_visible_rather_than_a_silently_skipped_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            _provider, manifest = self._run(root, budget=3)
+
+            # Ladder attempts have always been recorded on the manifest ledger
+            # rather than the scene entry; the stop is recorded where the pass
+            # that was refused would itself have been recorded.
+            stops = [
+                attempt
+                for attempt in manifest["provider_attempts"]
+                if attempt.get("reason") == "request_budget_exhausted"
+            ]
+            self.assertEqual(len(stops), 1)
+            self.assertEqual(stops[0]["status"], "skipped")
+            self.assertEqual(stops[0]["request_budget"], {"limit": 3, "spent": 3})
+
+    def test_room_left_over_still_lets_the_targeted_pass_run(self) -> None:
+        """The ceiling bounds the ladder; it does not disable it."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            provider, manifest = self._run(root, budget=64)
+
+            self.assertIn("scientist", provider.queries_received)
+            self.assertTrue(manifest["scenes"][0][ASSEMBLY_KEY]["usable_in_draft"])
+
+
 if __name__ == "__main__":
     unittest.main()

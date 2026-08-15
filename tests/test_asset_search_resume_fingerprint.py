@@ -216,6 +216,36 @@ class AssetSearchResumeFingerprintTests(unittest.TestCase):
                 asset_search_fingerprint(loaded, plan, dry_run=False, asset_selection={}),
             )
 
+    def test_a_changed_per_scene_request_budget_is_not_silently_reused(self) -> None:
+        """M2-B: the budget is configured inside ``asset_selection``.
+
+        It decides how much of the query plan is actually sent, so it is a real
+        search input - and it needs no fingerprint version bump precisely because
+        ``asset_selection`` already travels in the payload verbatim.
+        """
+        from src.news.pipeline import asset_search_fingerprint
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            job, project_root, store = _dry_run_project(root)
+            plan = _read(_plan_path(project_root, job.language))
+            loaded = store.load_job(job.job_id)
+
+            def _fingerprint(selection: dict) -> str:
+                return asset_search_fingerprint(
+                    loaded, plan, dry_run=True, asset_selection=selection
+                )
+
+            base = {"mode": "semantic"}
+            self.assertNotEqual(
+                _fingerprint(base),
+                _fingerprint({**base, "max_provider_requests_per_scene": 8}),
+            )
+            self.assertNotEqual(
+                _fingerprint({**base, "max_provider_requests_per_scene": 8}),
+                _fingerprint({**base, "max_provider_requests_per_scene": 16}),
+            )
+
     def test_fingerprint_is_deterministic_and_order_independent(self) -> None:
         from src.news.pipeline import asset_search_fingerprint
 

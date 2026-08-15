@@ -148,12 +148,16 @@ from .asset_manifest_summaries import (
     visual_support_summary,
 )
 from .asset_provider_adapters import (
+    DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE,
+    STOP_REASON_BUDGET_EXHAUSTED,
     AssetProvider,
+    SceneRequestBudget,
     ensure_selected_asset_downloaded,
     provider_capabilities,
     public_candidate,
     quality_score,
     rank_provider_results,
+    resolve_scene_request_budget,
     rights_block_attempts,
     search_provider,
     stable_asset_id,
@@ -193,6 +197,7 @@ class SceneBuildState:
     source_class: str
     required_duration: float
     user_ranked: list[dict[str, Any]]
+    request_budget: SceneRequestBudget
     manual_request: dict[str, Any] | None = None
     generated_asset: dict[str, Any] | None = None
     selected: dict[str, Any] | None = None
@@ -244,6 +249,9 @@ class AssetManifestBuilder:
         self.visual_preview_config = load_visual_preview_config()
         self.semantic_visual_config = load_semantic_visual_config()
         self.selection_config = self._selection_config(asset_selection)
+        self.max_provider_requests_per_scene = resolve_scene_request_budget(
+            self.selection_config.get("max_provider_requests_per_scene")
+        )
         self.user_candidates = [
             inspect_user_asset(path, index)
             for index, path in enumerate(user_assets, start=1)
@@ -288,6 +296,13 @@ class AssetManifestBuilder:
             "mode": "semantic",
             "legacy_fallback_enabled": False,
             "vision_validation_enabled": False,
+            # VA-NEW-12. It lives in ``asset_selection`` because it decides how
+            # much of the query plan is actually sent, which makes it a real
+            # search input - and ``asset_selection`` already travels verbatim in
+            # ``asset_search_fingerprint``, so no version bump is owed for it.
+            "max_provider_requests_per_scene": (
+                DEFAULT_MAX_PROVIDER_REQUESTS_PER_SCENE
+            ),
             "visual_preview": {
                 "enabled": bool(self.visual_preview_config.get("enabled", True)),
                 "mode": str(
@@ -389,6 +404,7 @@ class AssetManifestBuilder:
             source_class=str(routing.get("source_class") or ""),
             required_duration=float(scene.get("target_duration_sec") or 0),
             user_ranked=user_ranked,
+            request_budget=SceneRequestBudget(self.max_provider_requests_per_scene),
         )
 
     def _search_scene_providers(self, state: SceneBuildState) -> None:
@@ -403,6 +419,11 @@ class AssetManifestBuilder:
             for name in ordered_names
             if name in self.providers_by_name
         ]
+        # The whole plan is read before any of it is sent. An untranslatable
+        # provider is a fact about the plan rather than a request, so its record
+        # is written here and can never be suppressed by a budget stop that
+        # happens later in the same scene.
+        planned_queries: list[tuple[AssetProvider, dict[str, Any]]] = []
         for provider in providers:
             planned = state.query_plan.for_provider(provider.name)
             if not planned:
@@ -443,8 +464,51 @@ class AssetManifestBuilder:
                     },
                 )
             ]
-            for query in allowed_queries:
-                self._run_provider_query(state, provider, query)
+            planned_queries.extend(
+                (provider, query) for query in allowed_queries
+            )
+        # VA-NEW-12: the whole provider x query composition draws from one scene
+        # budget. Per-source caps bounded each provider; nothing bounded their
+        # product, so the plan ran to the end however wide it was. Order is
+        # unchanged - provider-major, then query - only its end is now stated.
+        for index, (provider, query) in enumerate(planned_queries):
+            if state.request_budget.exhausted:
+                self._record_budget_stop(state, unsent=planned_queries[index:])
+                return
+            self._run_provider_query(state, provider, query)
+
+    def _record_budget_stop(
+        self,
+        state: SceneBuildState,
+        *,
+        unsent: list[tuple[AssetProvider, dict[str, Any]]],
+    ) -> None:
+        """Say plainly that the scene stopped on cost, not on a provider.
+
+        A budget stop is not a provider error, an empty result set, a rights
+        rejection or an untranslatable query, and it must not read as any of
+        them: the attempt keeps the existing ``skipped`` status and carries its
+        own reason, what was already spent, and how much of the plan never went
+        out. Recorded once per scene - one stop, not one row per unsent query.
+        """
+
+        self._record_provider_attempt(
+            state,
+            {
+                "scene_id": state.scene.get("scene_id", ""),
+                "provider": unsent[0][0].name if unsent else "",
+                "query": "",
+                "status": "skipped",
+                "reason": STOP_REASON_BUDGET_EXHAUSTED,
+                "message": (
+                    "Достигнут предел запросов к провайдерам для этой сцены: "
+                    f"{state.request_budget.limit}. "
+                    f"Не отправлено запланированных запросов: {len(unsent)}."
+                ),
+                "request_budget": state.request_budget.to_dict(),
+                "queries_not_sent": len(unsent),
+            },
+        )
 
     def _run_provider_query(
         self,
@@ -470,6 +534,7 @@ class AssetManifestBuilder:
                 project_id=self.project_id,
                 limit=5,
                 media_attempts=media_attempts,
+                budget=state.request_budget,
             )
             state.candidates.extend(
                 rank_provider_results(
@@ -960,6 +1025,10 @@ class AssetManifestBuilder:
                 scene_provider_attempts=state.scene_provider_attempts,
                 allow_emergency_backdrop=self.allow_emergency_backdrop,
                 original_selected_asset_id=original_selected_asset_id,
+                # The same object the general search drew from: the ladder is the
+                # scene's second route to a provider, and a ceiling one route can
+                # walk past is not a ceiling (VA-NEW-12).
+                request_budget=state.request_budget,
             )
             state.download_attempts.extend(ladder_attempts)
         if state.scene_review_bundle is not None:

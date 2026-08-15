@@ -170,5 +170,14 @@ raises only when every requested kind failed. One download URL no longer costs
 `max_retries` squared HTTP requests: the request stage and the body stage now
 share one attempt budget, while trying a *different* candidate stays the download
 ladder's separate concern. `ASSET_SEARCH_FINGERPRINT_VERSION` deliberately stays
-1. The next exact action is **M2-B** (`VA-NEW-12`) inside **PLAN-10C**, then
-**Review #3** over M2-A and M2-B.
+1.
+
+**M2-B closed (2026-08-15):** a bounded **PLAN-10C** correction closed
+`VA-NEW-12` and started no adaptive-budget or plateau policy. One scene now has a
+hard ceiling on provider search requests — 36 were measured before the fix — in
+`provider.search` calls rather than query attempts. The general search and the
+draft ladder share one counter, an exhausted budget never reaches the provider,
+the stop is its own `skipped` reason rather than a provider error, and candidates
+already found are kept. Default 64 via `asset_selection`, so the fingerprint
+version stays 1. The next exact action is **independent Review #3 over M2-A and
+M2-B**.

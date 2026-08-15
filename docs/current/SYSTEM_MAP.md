@@ -309,5 +309,14 @@ untouched, and no second retrieval path exists. `ProviderHttpClient`
 request**: `download_stream` and `_request` share one attempt budget instead of
 each counting on its own. Trying a *different* candidate stays with the download
 ladder (`ensure_selected_asset_downloaded`) — two layers by design, the hidden
-third one removed. The next exact action is **M2-B** (`VA-NEW-12`) inside
-**PLAN-10C**.
+third one removed.
+
+**M2-B closed (2026-08-15).** One owner is added and no boundary moves.
+`SceneRequestBudget` (`src/news/asset_provider_adapters.py`) is the single owner
+of **how many provider search requests one scene may send**, created once per
+scene by `AssetManifestBuilder._prepare_scene` and shared — not copied — with
+`targeted_slot_search`; `search_provider` enforces it as the last owner before
+the wire. That is a third distinct question beside the two above: *how many
+different requests* (here), *retry the same request* (`ProviderHttpClient`),
+*try a different candidate* (the download ladder). `build_scene_queries` remains
+the sole owner of which queries exist. Next is **Review #3** over M2-A and M2-B.

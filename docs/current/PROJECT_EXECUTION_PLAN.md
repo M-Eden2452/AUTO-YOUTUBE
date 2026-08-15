@@ -112,9 +112,15 @@ next_exact_action: >-
   the request stage and the body stage now share one attempt budget. Nothing else
   in PLAN-10B starts, its status stays blocked, and
   ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 - the reasoning is in
-  that block. THE NEXT EXACT ACTION is M2-B - VA-NEW-12, the minimal per-scene
-  request budget and stop guard - inside PLAN-10C, after which Review #3 covers
-  M2-A and M2-B together; no part of Review #3 has been performed.
+  that block. M2-B IS CLOSED by the bounded PLAN-10C correction recorded in the
+  M2-B CLOSURE block below: one scene now has a hard ceiling on provider search
+  requests, the unit is one provider.search call rather than a query attempt,
+  and the draft ladder draws from the same counter instead of a second private
+  allowance. Nothing else in PLAN-10C starts, its status stays blocked, and
+  ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 because the ceiling
+  lives in asset_selection, which the fingerprint payload already carries.
+  THE NEXT EXACT ACTION is independent Review #3 over M2-A and M2-B together;
+  no part of Review #3 has been performed.
   BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
@@ -563,6 +569,153 @@ Next: **M2-B** (`VA-NEW-12`, minimal per-scene request budget and stop guard)
 inside **PLAN-10C**, after which **Review #3** covers M2-A and M2-B together per
 the recorded batching strategy; none of Review #3 has been performed. Checkpoint
 remains PLAN-9D.
+
+**M2-A side effect, recorded here because M2-B is where it is paid.** Before
+M2-A a failing preferred media kind aborted the loop inside `search_provider`
+and the second kind was never asked: one request. After M2-A the second kind is
+asked: two. The behaviour is correct and bounded by the number of allowed kinds
+(at most two), but `VA-NEW-10` changed no `get_json` budget, so a scene whose
+preferred kind fails costs up to `2 × max_retries` HTTP requests where it used
+to cost `1 × max_retries`. This is a fact about cost, not a defect in M2-A — and
+it is exactly why the M2-B unit below is the request rather than the query
+attempt. It was not written into M2-A CLOSURE.
+
+**M2-B CLOSURE (2026-08-15).** `VA-NEW-12` is closed by the bounded **PLAN-10C**
+correction in the commit containing this record. Nothing else in that section
+starts: the adaptive `quick`/`standard`/`deep` contract, scene weight, subject
+complexity, plateau detection on best-so-far, "enough candidates already", the
+escalation order to the local library or another provider, and the
+`partial preview` / `E_generated` / `F_emergency` acceptance criterion are all
+untouched. The section keeps its `blocked` status and no PLAN-ID is created.
+
+**The defect was the composition, not the retries.** `VA-NEW-10` (M2-A) was
+about sending one request repeatedly; `VA-NEW-12` is about how many *different*
+requests one scene sends. Per-source caps existed — `limit=5` bounds the results
+of a single query — but nothing bounded provider × query after composition:
+`_search_scene_providers` (`src/news/asset_manifest_builder.py`) walked every
+routed provider against every allowed query to the end of the plan, regardless
+of what had already come back. Measured on the real production path at
+`36f23cc`, not modelled: one scene with three providers sent **36** provider
+search requests, and two such scenes sent **72**. The widest fan-out in any
+project on disk is 30 query attempts across five providers
+(`2026-08-09_diagnostic-ru-semantic-live-2`, `scene_002`), which under current
+retrieval symmetry costs up to **60** requests; the audit's analytical worst
+case is 5 providers × 19 queries × 2 kinds = 190.
+
+**The unit is one `provider.search` call — one query against one media kind.**
+That is what a provider rate-limits and bills for. A *query attempt* is
+deliberately not the unit: since `ae6d46c` a mixed scene sends one request per
+allowed media kind, so counting attempts undercounts real cost by exactly that
+multiplier — the side effect recorded above. An *HTTP request* is not the unit
+either: a single search may retry inside `ProviderHttpClient`, which M2-A made
+the sole owner of that decision, and a retry is a different question about the
+same request. `provider attempt`, `candidate attempt` and `HTTP request` stay
+three separate things.
+
+**One counter, one hard stop, and the primitive is not called when it is spent.**
+`SceneRequestBudget` (`src/news/asset_provider_adapters.py`) is created once per
+scene by the builder and travels down; the general search and the draft ladder
+share the same object, so a nested layer cannot open a second full allowance and
+re-create a hidden N². The ceiling is enforced inside `search_provider`, the last
+owner before the wire: a kind with nothing left is never sent rather than sent
+and discarded. `_search_scene_providers` also checks before starting a query, so
+an exhausted scene adds no empty rows to the ledger. A failed request is spent —
+failure does not refill, or a provider that is down would cost less than one that
+answers. `build_scene_queries` is untouched: the budget decides how many queries
+are *sent*, never how many are *built*.
+
+**`targeted_slot_search` is inside the budget, deliberately.** It is the scene's
+second route to a provider. Rule 7 already bounds it to one pass per scene, but a
+pass is not a cost, and a ceiling one route can walk past is not a ceiling. It
+draws from the same object and records its own refusal when there is nothing left.
+
+**The stop is honest and is not a failure.** It rides the existing attempt ledger
+as `status: skipped` with `reason: request_budget_exhausted`, carrying
+`request_budget` (limit and spent) and how many planned queries never went out —
+distinguishable from provider failure, rights rejection, no results, semantic
+abstain, malformed response and `query_translation_required`. No new status
+vocabulary, no new persisted artifact: the full stop-reason dictionary remains
+**PLAN-10A**. An untranslatable provider is recorded before any request is sent,
+so a budget stop can never suppress that plan-level fact.
+
+**Nothing found is lost, and partial success from M2-A survives.** Reaching the
+ceiling keeps every candidate already collected, does not reset the scene, does
+not block the next scene — each scene gets its own budget — and does not prevent
+a reviewable draft. When the budget cuts between two media kinds, the kind that
+answered keeps its candidates and the kind that was cut is honestly unresolved.
+Rights, semantic and quality thresholds are untouched; no `publish_ready` is
+granted, `strict` is not weakened, and network default-deny is unchanged.
+
+**Determinism.** No wall clock, no hidden reset. The ceiling is
+`asset_selection.max_provider_requests_per_scene`, default **64** — above the
+widest run the product has actually performed (60) so no real scene changes
+behaviour, below the analytical worst case it truncates. "Unlimited" is refused
+in every spelling: a negative or non-integer value is replaced by the default
+rather than interpreted, because `-1` means unlimited in enough other systems
+that honouring it would reintroduce this defect; an explicit `0` is a real choice
+and is honoured.
+
+**Resume — `ASSET_SEARCH_FINGERPRINT_VERSION` deliberately stays 1, and this was
+proved rather than assumed.** The ceiling lives in `asset_selection`, which
+`asset_search_fingerprint` (`src/news/pipeline.py:127`) already hashes verbatim
+in its payload, so a changed budget already stops a stale search being reused —
+covered by its own test. The version field's contract
+(`src/news/pipeline.py:106`) is "bump when the payload changes", and the payload
+does not change. The default is a code constant, which is not an input, exactly
+as M2-A reasoned. No second resume contract and no persisted cross-process budget
+state exist: the budget is per-scene, in-process, created once per scene, and a
+resumed run re-creates it once — resume cannot refill it inside one active
+operation.
+
+**Draft vs strict.** Identical ceiling, and `strict` is not weakened by it.
+`draft_complete` simply has a second route to a provider (the ladder), and that
+route is inside the same budget. `dry_run` sends nothing and is unchanged.
+
+**What deliberately stays out.** The full PLAN-10C adaptive contract and plateau
+policy. The PLAN-10A attempt ledger and stop-reason dictionary. Pagination and
+exhaustion, `C75`–`C78`, `VA-NEW-13` — **PLAN-10B**. `C47` and the local library
+— **PLAN-10D**. Vision and semantic default activation — **PLAN-9E**. Ranking
+and semantic quality, required-action matching, crop verification. The
+documentation line-count failure — still its own owner decision, still not
+repaired here. No provider was removed and no rights, semantic or quality
+threshold was lowered to fit the budget.
+
+**One network path continues after a budget stop, by design.** The budget is a
+*search request* budget. Downloading a candidate already found, and preview /
+Vision analysis of the shortlist, keep running — they have their own existing
+caps and owners (the download ladder's `max_attempts`, `ProviderHttpClient` from
+M2-A, `shortlist_size`, `maximum_candidates`, and the separate paid-approval
+gates), and stopping them would delete the "nothing found is lost" property. No
+*search* path continues. `src/news/asset_manager.py::_complete_scene_assembly`
+is an unbudgeted compatibility wrapper with zero callers in `src/` and `tests/`;
+it was left untouched rather than quietly changed.
+
+**Evidence.** RED first on `36f23cc` through the real production path
+(`build_assets_manifest` → `_search_scene_providers`), not an isolated fake
+counter: 16 failures and 2 errors across 12 checks, on real numbers — 36
+requests where 1, 2, 3, 7, 10 and 12 were configured, 72 across two scenes, 36
+where 0 was configured, 28 from two always-failing providers — plus 2 failures
+over the draft ladder (5 requests where 3 were configured, and no stop recorded
+at all). GREEN after: 13 owning checks plus 3 draft-ladder checks and 1
+fingerprint check OK; M2-A regression radius (`PartialMixedMediaRetrievalTests`,
+`TargetedSearchPartialMediaTests`, `DownloadRetryOwnershipTests`) 13 OK; owning
+targeted radius 91 OK; media-policy radius 35 OK; full canonical offline suite
+**2291** (2274 baseline plus exactly the 17 new checks) with the same single
+pre-existing doc-length failure of PRE-M2 CLOSURE and nothing else — failures
+before 1, failures after 1, no new failure; gates OK. That failure is now 183
+lines against the 100-line limit because this record and its three mirrors add
+to the same documents; it is still the documentation governance contract and is
+still deliberately not repaired here. No network, paid, Vision, TTS or render
+call was made. **Ratchet not taken:**
+`src.news.asset_manifest_builder`, `src.news.asset_provider_adapters` and
+`src.news.asset_scene_completion` keep their mypy baseline suppression — measured
+at 11 errors both at `36f23cc` and after this change, so this slice adds none,
+and all 11 are pre-existing debt in functions it does not touch (the
+`AssetProvider`/`StockProvider` protocol mismatch), whose repair is the mass
+cleanup that may not share a slice with a behaviour change.
+
+Next: **Review #3** over M2-A and M2-B together, per the recorded batching
+strategy; none of it has been performed. Checkpoint remains PLAN-9D.
 
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits
@@ -6920,11 +7073,15 @@ current-quality benchmark. Production logic этой записью не мен�
   2026-08-11:** `PLAN-9B` снят из блокеров — семейство закрыто, кроме
   отдельного destructive path PLAN-9B-5b, который к бюджету поиска отношения
   не имеет. Шаг остаётся blocked своим вторым блокером **PLAN-10B**.
-- **bounded correction до полного контракта (сверка 2026-08-11).** Этот owner
-  принимает **VA-NEW-12** (M2-B: минимальный hard per-scene request budget и
-  stop guard) как bounded correction до LIVE-5, не начиная свой полный
-  adaptive-budget contract и не переводя статус в completed. Класс, порядок и
-  обоснование — блок «Mini plan reconciliation 2026-08-11».
+- **bounded correction до полного контракта (сверка 2026-08-11) — closed
+  2026-08-15.** Этот owner принял и закрыл **VA-NEW-12** (M2-B: минимальный hard
+  per-scene request budget и stop guard) как bounded correction до LIVE-5, не
+  начиная свой полный adaptive-budget contract и не переводя статус в completed.
+  Единица бюджета — один `provider.search` (один запрос × один media kind);
+  единственный владелец — `SceneRequestBudget` в
+  `src/news/asset_provider_adapters.py`, один объект на сцену, общий для general
+  search и draft ladder. Adaptive policy, plateau, порядок эскалации и
+  `partial preview` этим слайсом не начаты. Детали — блок «M2-B CLOSURE».
 - **цель:** политика `quick` / `standard` / `deep` вместо одного фиксированного
   лимита. Бюджет учитывает важность и длительность сцены, сложность субъекта,
   число новых уникальных кандидатов, улучшение best-so-far, число providers,

@@ -221,6 +221,7 @@ class ProductionBuilderCompletionWiringTests(unittest.TestCase):
 
     def test_builder_passes_selected_candidate_as_authoritative_primary(self):
         from src.news.asset_manifest_builder import AssetManifestBuilder, SceneBuildState
+        from src.news.asset_provider_adapters import SceneRequestBudget
 
         semantic_scene = _scene()
         selected, ranked = select_with_media_policy(
@@ -264,6 +265,7 @@ class ProductionBuilderCompletionWiringTests(unittest.TestCase):
             source_class="",
             required_duration=5.0,
             user_ranked=[],
+            request_budget=SceneRequestBudget(64),
             selected=selected,
         )
 
@@ -307,6 +309,7 @@ def _run_production_technical_review(
 ):
     """Exercise the config-reachable production review seam without I/O."""
     from src.news.asset_manifest_builder import AssetManifestBuilder, SceneBuildState
+    from src.news.asset_provider_adapters import SceneRequestBudget
 
     semantic_scene = _scene()
     with tempfile.TemporaryDirectory() as tmp:
@@ -352,6 +355,7 @@ def _run_production_technical_review(
             source_class="",
             required_duration=5.0,
             user_ranked=[],
+            request_budget=SceneRequestBudget(64),
             selected=selected,
         )
         with patch(
