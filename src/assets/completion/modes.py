@@ -600,6 +600,13 @@ def _local_file_is_valid(
     # Root and provenance copies are both part of the manifest contract. If both are
     # present, neither may disagree with the bytes handed to the renderer.
     expected_checksums = _stored_checksums(candidate)
+    if not expected_checksums:
+        # An empty expectation satisfies ``all()`` vacuously, which would let an asset
+        # whose checksums were dropped after quality passed authorize whatever bytes now
+        # occupy that path. The final render boundary needs a recorded expectation and
+        # fails closed without one; earlier gates stay tolerant of manifests written
+        # before the checksum was persisted.
+        return not fresh
     return all(value == actual_checksum for value in expected_checksums)
 
 

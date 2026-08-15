@@ -290,6 +290,28 @@ class CompletionModeSafetyTests(unittest.TestCase):
                 blocking_reasons(corrupt_candidate, require_local_file=True),
             )
 
+    def test_final_render_gate_refuses_an_asset_with_no_recorded_checksum(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "unrecorded.png"
+            Image.new("RGB", (32, 32), "green").save(source)
+            candidate = _candidate("unrecorded", path=str(source))
+
+            # Earlier gates still read manifests written before a checksum was
+            # persisted, so a missing expectation is not a block there.
+            self.assertNotIn(
+                BLOCK_TECHNICAL,
+                blocking_reasons(candidate, require_local_file=True),
+            )
+            # The final boundary has nothing left to compare the bytes against.
+            self.assertIn(
+                BLOCK_TECHNICAL,
+                blocking_reasons(
+                    candidate,
+                    require_local_file=True,
+                    fresh_local_file_validation=True,
+                ),
+            )
+
     def test_unchanged_local_file_decode_validation_is_cached(self) -> None:
         from src.assets.download import validate_local_asset
 
@@ -876,6 +898,7 @@ class MultiSlotRendererTests(unittest.TestCase):
 
         for mutation, expected_block in (
             ("bytes_replaced", BLOCK_TECHNICAL),
+            ("checksums_removed", BLOCK_TECHNICAL),
             ("rights_revoked", BLOCK_RIGHTS),
         ):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
@@ -885,7 +908,9 @@ class MultiSlotRendererTests(unittest.TestCase):
                 source = root / "safe.bmp"
                 Image.new("RGB", (32, 32), "green").save(source)
                 asset = _candidate("safe", path=str(source))
-                asset["checksum_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+                digest = hashlib.sha256(source.read_bytes()).hexdigest()
+                asset["checksum_sha256"] = digest
+                asset["provenance"] = {"checksum_sha256": digest}
                 slot = VisualSlot(
                     slot_id="slot_001",
                     purpose=SLOT_PRIMARY,
@@ -926,7 +951,9 @@ class MultiSlotRendererTests(unittest.TestCase):
                 self.assertTrue(first_readiness.publish_ready)
                 source_stat = source.stat()
 
-                if mutation == "bytes_replaced":
+                if mutation == "rights_revoked":
+                    stored["allowed_for_render"] = False
+                else:
                     replacement = root / "replacement.bmp"
                     Image.new("RGB", (32, 32), "red").save(replacement)
                     self.assertEqual(replacement.stat().st_size, source_stat.st_size)
@@ -935,8 +962,11 @@ class MultiSlotRendererTests(unittest.TestCase):
                         source,
                         ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns),
                     )
-                else:
-                    stored["allowed_for_render"] = False
+                if mutation == "checksums_removed":
+                    # Dropping the recorded expectation must not become the way to
+                    # authorize whatever bytes now occupy the approved path.
+                    stored.pop("checksum_sha256", None)
+                    stored["provenance"].pop("checksum_sha256", None)
 
                 with (
                     patch("src.news.final_renderer._render_image_segment") as render,
@@ -966,6 +996,7 @@ class MultiSlotRendererTests(unittest.TestCase):
             source = root / "safe.png"
             Image.new("RGB", (32, 32), "green").save(source)
             asset = _candidate("safe", path=str(source))
+            asset["checksum_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
             stale_verdict = UsabilityVerdict(
                 usable_in_draft=False,
                 automatic_render_allowed=False,
@@ -1078,6 +1109,7 @@ class MultiSlotRendererTests(unittest.TestCase):
                     slot_verdict=VERDICT_PARTIAL,
                     path=str(path),
                 )
+                asset["checksum_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
                 slots.append(
                     VisualSlot(
                         slot_id=slot_id,
@@ -1143,6 +1175,7 @@ class MultiSlotRendererTests(unittest.TestCase):
             source = root / "safe.png"
             Image.new("RGB", (32, 32), "green").save(source)
             asset = _candidate("safe", path=str(source))
+            asset["checksum_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
             slot = VisualSlot(
                 slot_id="slot_001",
                 purpose=SLOT_PRIMARY,

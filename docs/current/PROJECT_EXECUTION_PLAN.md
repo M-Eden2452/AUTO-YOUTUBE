@@ -93,7 +93,8 @@ next_exact_action: >-
   cumulative counters are stored under planning_metadata.semantic_brief_usage in the localized plan while master keeps the planning-stage snapshot. Default
   fail-closed policy is unchanged. M1-E / VA-NEW-09 is closed by the bounded
   PLAN-9E correction recorded below. Review #2 rejected its first implementation
-  on two M1-E blockers; both are repaired. THE NEXT EXACT ACTION is the focused
+  on two M1-E blockers and its second on one remaining fresh-checksum blocker;
+  all three are repaired. THE NEXT EXACT ACTION is the focused
   independent Review #2 re-review over M1-D and M1-E. BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
@@ -310,6 +311,29 @@ technical, rights, policy and safety hard gates still apply. Characterization
 warms the cache before a same-size/same-mtime byte replacement; the real
 manual-user-asset render E2E is restored. Expanded targeted radius: 126 OK.
 Next: **focused independent Review #2 re-review over M1-D and M1-E**.
+
+**M1-E REVIEW #2 SECOND REPAIR (2026-08-15).** Review #2 stayed **REJECT** on
+one remaining M1-E blocker and reported no new M1-D finding. Fresh final-render
+validation compared the current bytes against every stored checksum, and
+`all([])` is true, so an asset carrying neither the root nor the provenance
+copy authorized itself: quality could pass with a recorded checksum, both copies
+could then be dropped, the bytes replaced, and the renderer still ran.
+`_local_file_is_valid` now fails closed at the fresh boundary when no
+expectation is recorded. The asymmetry is deliberate and covered by test: the
+non-final gates (quality, draft completion, replacement, report, scene
+completion) stay tolerant of manifests written before a checksum was persisted,
+because only the final boundary is a render authorization. Characterization RED
+reproduced the bypass end to end (`RuntimeError not raised`, renderer reached);
+GREEN adds the `checksums_removed` renderer regression — quality PASS → both
+checksum copies removed → bytes replaced → renderer not called — plus a unit
+test pinning the fresh/non-fresh asymmetry. Three renderer fixtures that had
+never recorded a checksum now record one, matching what
+`DownloadedAsset.from_candidate` writes for every real download. Stored projects
+were scanned before the change: 152 manifest assets carry a checksum, and all 35
+that do not are empty placeholders or point at files no longer on disk, so no
+existing project changes verdict. Targeted radius: 174 OK, gates OK. Next:
+**focused independent Review #2 re-review over M1-D and M1-E**. Checkpoint
+remains PLAN-9D.
 
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits

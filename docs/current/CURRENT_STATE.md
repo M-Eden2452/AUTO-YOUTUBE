@@ -307,3 +307,17 @@ cache-warmed mutation regression and real manual-user-asset render E2E pass;
 expanded targeted radius is 126 OK. The current checkpoint remains **PLAN-9D**.
 The next exact action is **focused independent Review #2 re-review over M1-D
 and M1-E**.
+
+**M1-E Review #2 second repair (2026-08-15):** Review #2 stayed **REJECT** on
+one remaining M1-E blocker and reported no new M1-D finding. Fresh final-render
+validation compared the current bytes against every stored checksum, but an
+asset carrying no checksum copy at all satisfied that comparison vacuously, so
+dropping both copies after quality passed re-authorized whatever bytes then
+occupied the approved path. The final boundary now fails closed without a
+recorded expectation, while earlier gates stay tolerant of manifests written
+before a checksum was persisted. The renderer regression covers quality PASS →
+both checksum copies removed → bytes replaced → renderer not called. No stored
+project asset changes verdict: every checksum-less manifest entry is an empty
+placeholder or points at a file that no longer exists. Targeted radius is 174
+OK and gates OK. The current checkpoint remains **PLAN-9D**. The next exact
+action is **focused independent Review #2 re-review over M1-D and M1-E**.
