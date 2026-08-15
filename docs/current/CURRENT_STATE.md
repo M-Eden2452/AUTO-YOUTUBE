@@ -341,8 +341,26 @@ undocumented double narrowing of `semantic_contract_present` in `35688dd`, which
 is not exploitable because strict render requires a passing quality report that
 carries no such carve-out; and the absent draft-mode byte-replacement regression,
 whose path is shared with strict and was verified empirically. Accepted HEAD
-`e03ad9e` is pushed; exact-head CI is run `31866721908`. The checkpoint remains
-**PLAN-9D** and no PLAN-ID was created. The next exact action is **resume FIRST
-OWNER SHORT** — the offline LOCAL diagnostic repeat on the accepted HEAD, through
-the same canonical workflow, to a real `draft_1080x1920.mp4` for the owner to
-watch; **M2-A does not start until that owner run has a result**.
+`e03ad9e` is pushed. The checkpoint remains **PLAN-9D** and no PLAN-ID was
+created.
+
+**Pre-M2 accounting (2026-08-15).** The FIRST OWNER SHORT resume-run is **done**:
+offline on the accepted HEAD, through the canonical workflow, to a real
+`draft_1080x1920.mp4` (`d5b86fb3…`, 10 128 608 bytes) that is **byte-identical**
+to the render taken before Review #2 — M1-E tightened authorization without
+breaking the legitimate path. 5 of 5 scenes are `usable_in_draft`, **0 of 5** are
+`publish_ready`, `quality_report.status` is `needs_review`, and subtitles were not
+built in this run. This is diagnostic evidence, not publish-ready acceptance. Its
+three findings keep their existing owners and are not M2-A scope: scene 3 reuses
+scene 1's asset (`pexels_9788590`) — **C47** under **PLAN-10D**;
+`crop_not_verified` on all five slots; `missing:action` on four scenes with
+`missing_required:action` on one. Two accounting facts belong beside it. Exact-head
+CI runs `31866721908` (`e03ad9e`) and `31867069337` (`3633e0a`) are both
+**failure**, both at «Install FFmpeg … Chocolatey» against the external feed (503
+and 504), with every later step skipped — no test ran, so this is an external
+outage and not CI green. The full local offline suite is 2261 tests at `3633e0a`
+with exactly one failure, `test_onboarding_documents_stay_short` (`START_HERE.md`
+154/100; `SYSTEM_MAP.md` 294/240 and this file 348/280 are masked behind it): a
+pre-existing documentation line-count governance contract, not a product
+regression, deliberately not repaired and awaiting its own owner decision. The
+next exact action is **M2-A** — `VA-NEW-06` + `VA-NEW-10` inside **PLAN-10B**.

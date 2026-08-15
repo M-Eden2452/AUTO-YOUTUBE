@@ -2,7 +2,7 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-14
+updated_at: 2026-08-15
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
@@ -98,10 +98,16 @@ next_exact_action: >-
   over M1-D and M1-E returned ACCEPT WITH MINOR NOTES, 0 BLOCKER/MAJOR, and the
   owner accepted that verdict as sufficient to close both slices. Its three MINOR
   notes are recorded in REVIEW #2 CLOSURE below and are explicitly NOT repaired by
-  a separate slice. THE NEXT EXACT ACTION is to resume FIRST OWNER SHORT — the
-  offline LOCAL diagnostic repeat on the accepted HEAD, through the same canonical
-  workflow, to a real draft_1080x1920.mp4 for the owner to watch. M2-A does not
-  start until that owner run has a result. BLOCKER-L1 remains separate and untouched.
+  a separate slice. The FIRST OWNER SHORT resume-run that had to precede M2-A IS
+  DONE: it ran offline on the accepted HEAD to a real draft_1080x1920.mp4, byte
+  identical to the render taken before Review #2, with 5 of 5 scenes usable in
+  draft, 0 of 5 publish-ready and quality needs_review — diagnostic evidence, not
+  publish-ready acceptance. It is recorded in the PRE-M2 CLOSURE block below
+  together with the two accounting facts that belong beside it (exact-head CI is
+  red on an external Chocolatey/FFmpeg outage before any test ran, and the full
+  local suite has exactly one known pre-existing doc-length failure).
+  THE NEXT EXACT ACTION is M2-A — VA-NEW-06 plus VA-NEW-10 inside PLAN-10B.
+  BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
@@ -403,6 +409,45 @@ repaired by a separate slice; no new PLAN-ID and no owner is assigned:
 
 Next: **resume FIRST OWNER SHORT** on the accepted HEAD, offline, to a real
 `draft_1080x1920.mp4`. Checkpoint remains PLAN-9D.
+
+**PRE-M2 CLOSURE (docs/accounting, 2026-08-15).** Three facts recorded before
+M2-A starts. No PLAN-ID is created, no step changes status, and no production
+code, test, config or schema is touched by this record.
+
+- **Exact-head CI is not green, and the cause is not this repository.** Run
+  `31866721908` (`e03ad9e`, the accepted Review #2 HEAD) and run `31867069337`
+  (`3633e0a`) both completed with conclusion **failure**, both at the same step —
+  «Install FFmpeg (ffmpeg-full 8.1.2, pinned via Chocolatey)» — against the
+  external Chocolatey feed: `503 Service Unavailable` on the first, `504 Gateway
+  Timeout` on the second. Every later step, «Run offline unit and integration
+  suite» included, is `skipped`, so **not one test ran**. Recorded as an external
+  setup outage; it is not CI green, it is not a product defect, and no code was
+  changed because of it.
+- **The full local offline suite has exactly one failure, and it predates this
+  step.** 2261 tests at `3633e0a`, one failure:
+  `tests/test_stage2_agent_onboarding.py::test_onboarding_documents_stay_short` —
+  `START_HERE.md` is 154 lines against a 100-line limit. `SYSTEM_MAP.md`
+  (294/240) and `CURRENT_STATE.md` (348/280) are over their own limits too and
+  are masked by that first assertion. This is the documentation line-count
+  governance contract, grown by the CLOSURE blocks added between `6dcce78` and
+  `e03ad9e`. It is not a product regression and touches no M1-D or M1-E contract.
+  It is deliberately **not repaired here**: the owner decision on how to hold that
+  contract has not been made, and this record and the M2-A closure add further
+  lines to the same documents.
+- **FIRST OWNER SHORT resume-run is done — diagnostic evidence, not acceptance.**
+  It ran offline on the accepted HEAD through the canonical workflow and produced
+  a real `draft_1080x1920.mp4` (`d5b86fb3…`, 10 128 608 bytes) that is
+  **byte-identical** to the render taken before Review #2, so M1-E tightened
+  authorization without breaking the legitimate path. 5 of 5 scenes are
+  `usable_in_draft`, **0 of 5** are `publish_ready`, and `quality_report.status`
+  is `needs_review`; no publish-ready evidence is claimed. Three findings, each
+  with an existing owner and none of them M2-A scope: scene 3 reuses scene 1's
+  asset (`pexels_9788590`) — **C47** under **PLAN-10D**; `crop_not_verified` on
+  all five slots; `missing:action` on four scenes with `missing_required:action`
+  on one. Subtitles were not built in this diagnostic run.
+
+The next exact action is **M2-A** — `VA-NEW-06` + `VA-NEW-10` inside
+**PLAN-10B** — not «resume FIRST OWNER SHORT». Checkpoint remains PLAN-9D.
 
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits

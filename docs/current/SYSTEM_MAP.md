@@ -290,5 +290,13 @@ boundary. Three MINOR notes are recorded in the REVIEW #2 CLOSURE block of
 repaired; one of them corrects the wording above — the quality *stage* is not
 tolerant of a missing checksum, `src/news/quality_check.py:232` already errors,
 and «non-final gates» here means the readiness helpers, not that stage. The
-checkpoint remains **PLAN-9D**, and the next exact action is **resume FIRST OWNER
-SHORT** offline on the accepted HEAD to a real `draft_1080x1920.mp4`.
+checkpoint remains **PLAN-9D**.
+
+**Pre-M2 accounting (2026-08-15).** The FIRST OWNER SHORT resume-run confirmed
+this map empirically rather than changing it: an offline render on the accepted
+HEAD came out **byte-identical** to the pre-Review-#2 render, so the re-authorization
+boundary at `src/assets/completion/modes.py::_local_file_is_valid` rejects nothing
+legitimate. 5 of 5 scenes usable in draft, 0 of 5 publish-ready. No owner, schema,
+activation status or module boundary changed. The next exact action is **M2-A** —
+`VA-NEW-06` (`search_provider`, `src/news/asset_provider_adapters.py`) and
+`VA-NEW-10` (`ProviderHttpClient`, `src/assets/http_client.py`) inside **PLAN-10B**.

@@ -148,7 +148,17 @@ repaired: the quality *stage* is in fact not tolerant of a missing checksum
 (`src/news/quality_check.py:232`), `35688dd` narrowed `semantic_contract_present`
 twice without a commit body, and there is no committed draft-mode byte-replacement
 regression. Accepted HEAD `e03ad9e` is pushed; exact-head CI is run
-`31866721908`. The checkpoint remains **PLAN-9D**, no PLAN-ID was created, and the
-next exact action is **resume FIRST OWNER SHORT** offline on the accepted HEAD to
-a real `draft_1080x1920.mp4`; **M2-A does not start until that owner run has a
-result**.
+`31866721908`. The checkpoint remains **PLAN-9D** and no PLAN-ID was created.
+
+**Pre-M2 accounting (2026-08-15):** the FIRST OWNER SHORT resume-run is **done**
+— offline on the accepted HEAD to a real `draft_1080x1920.mp4` that is
+byte-identical to the pre-Review-#2 render, 5 of 5 scenes `usable_in_draft`, 0 of
+5 `publish_ready`, quality `needs_review`. Diagnostic evidence, not acceptance.
+Exact-head CI runs `31866721908` and `31867069337` are both **failure** on an
+external Chocolatey/FFmpeg outage at the install step, before any test ran — not
+CI green, not a product defect. The full offline suite has exactly one known
+failure, `test_onboarding_documents_stay_short` (this file is 154 lines against a
+100-line limit): a pre-existing documentation governance contract, deliberately
+not repaired, awaiting its own owner decision. Details are in the PRE-M2 CLOSURE
+block of [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md). The next exact
+action is **M2-A** — `VA-NEW-06` + `VA-NEW-10` inside **PLAN-10B**.
