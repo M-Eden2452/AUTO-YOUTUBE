@@ -114,13 +114,23 @@ next_exact_action: >-
   ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 - the reasoning is in
   that block. M2-B IS CLOSED by the bounded PLAN-10C correction recorded in the
   M2-B CLOSURE block below: one scene now has a hard ceiling on provider search
-  requests, the unit is one provider.search call rather than a query attempt,
-  and the draft ladder draws from the same counter instead of a second private
-  allowance. Nothing else in PLAN-10C starts, its status stays blocked, and
-  ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 because the ceiling
-  lives in asset_selection, which the fingerprint payload already carries.
-  THE NEXT EXACT ACTION is independent Review #3 over M2-A and M2-B together;
-  no part of Review #3 has been performed.
+  requests within one search invocation, the unit is one provider.search call
+  rather than a query attempt, and the draft ladder draws from the same counter
+  instead of a second private allowance. In draft_complete the adaptation pass
+  may run a second bounded search over a changed scene, so that scene's ceiling
+  across the whole asset_search stage is 2 x budget - bounded and deterministic
+  (MAX_ADAPTATION_PASSES = 1). Nothing else in PLAN-10C starts, its status stays
+  blocked, and ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 because a
+  configured ceiling lives in asset_selection, which the fingerprint payload
+  already carries verbatim.
+  REVIEW #3 over M2-A and M2-B IS CLOSED: owner-provided verdict ACCEPT WITH
+  MINOR NOTES, 0 BLOCKER and 0 MAJOR, no repair slice. Its MINOR notes are
+  absorbed by the WP0-B governance slice recorded in REVIEW #3 CLOSURE below,
+  which also shortened the three routing mirrors and added a line-length guard
+  beside the existing line-count one; WP0-B is not closed by it.
+  THE NEXT EXACT ACTION is LIVE-5, the owner-issued live provider diagnostic:
+  every finding the audit named as mandatory before it is closed. LIVE-5 is a
+  paid network action and needs its own explicit owner approval.
   BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
@@ -560,9 +570,12 @@ plus 13 new) with the one pre-existing doc-length failure of PRE-M2 CLOSURE and
 nothing else, gates OK. No network, paid, Vision, TTS or render call was made.
 **Ratchet not taken:** `src.news.asset_provider_adapters`,
 `src.news.asset_manifest_builder` and `src.news.asset_scene_completion` keep
-their mypy baseline suppression — the 7 measured errors under it are pre-existing
+their mypy baseline suppression — the 11 measured errors under it are pre-existing
 type debt in functions this correction does not touch, and clearing them is the
-mass cleanup that may not share a slice with a behaviour change.
+mass cleanup that may not share a slice with a behaviour change. (The count read
+7 until 2026-08-15; re-measured independently at `3633e0a`, `36f23cc` and HEAD it
+is 11 at all three, so the delta this slice adds is still 0 and the decision not
+to take the ratchet is unchanged.)
 `src.assets.http_client` is not suppressed and is fully checked.
 
 Next: **M2-B** (`VA-NEW-12`, minimal per-scene request budget and stop guard)
@@ -656,10 +669,14 @@ that honouring it would reintroduce this defect; an explicit `0` is a real choic
 and is honoured.
 
 **Resume — `ASSET_SEARCH_FINGERPRINT_VERSION` deliberately stays 1, and this was
-proved rather than assumed.** The ceiling lives in `asset_selection`, which
-`asset_search_fingerprint` (`src/news/pipeline.py:127`) already hashes verbatim
-in its payload, so a changed budget already stops a stale search being reused —
-covered by its own test. The version field's contract
+proved rather than assumed.** A *configured* ceiling lives in `asset_selection`,
+which `asset_search_fingerprint` (`src/news/pipeline.py:127`) already hashes
+verbatim in its payload, so a changed configured budget already stops a stale
+search being reused — covered by its own test. The code default **64** is not in
+the payload, and no channel sets `max_provider_requests_per_scene` today, so
+changing that default in code does not invalidate a completed `asset_search` —
+exactly the same class as every other code default in `_selection_config`, and
+not a gap this slice leaves open. The version field's contract
 (`src/news/pipeline.py:106`) is "bump when the payload changes", and the payload
 does not change. The default is a code constant, which is not an input, exactly
 as M2-A reasoned. No second resume contract and no persisted cross-process budget
@@ -670,6 +687,17 @@ operation.
 **Draft vs strict.** Identical ceiling, and `strict` is not weakened by it.
 `draft_complete` simply has a second route to a provider (the ladder), and that
 route is inside the same budget. `dry_run` sends nothing and is unchanged.
+
+**What the ceiling is hard over (wording corrected 2026-08-15).** One *search
+invocation*. `draft_complete` runs the adaptation pass after the first manifest
+(`src/news/pipeline.py:586` → `run_adaptation_pass` → a second
+`build_asset_search_manifest`), and a second builder creates a second
+`SceneRequestBudget` for a changed scene. So across the whole `asset_search`
+stage a re-researched scene can spend up to **2 x budget**, and an unchanged
+scene still spends at most one. That is bounded and deterministic —
+`MAX_ADAPTATION_PASSES = 1` (`src/content/script_engine/adaptation.py:46`) — and
+the behaviour is correct; only the earlier phrasing, which read as a per-stage
+ceiling, was not.
 
 **What deliberately stays out.** The full PLAN-10C adaptive contract and plateau
 policy. The PLAN-10A attempt ledger and stop-reason dictionary. Pagination and
@@ -692,16 +720,22 @@ it was left untouched rather than quietly changed.
 
 **Evidence.** RED first on `36f23cc` through the real production path
 (`build_assets_manifest` → `_search_scene_providers`), not an isolated fake
-counter: 14 failures and 2 errors across 12 checks, on real numbers — 36
-requests where 1, 2, 3, 7, 10 and 12 were configured, 72 across two scenes, 36
-where 0 was configured, 28 from two always-failing providers — plus 2 failures
-over the draft ladder (5 requests where 3 were configured, and no stop recorded
-at all). GREEN after: 13 owning checks plus 3 draft-ladder checks and 1
-fingerprint check OK. Two of those 17 never had a RED state and are honest
-guards rather than reproductions: the untranslatable-provider check locks a
-property the flat-plan restructure introduced, and the fingerprint check would
-have passed before the change too — it exists to prove *why* no version bump is
-owed. M2-A regression radius (`PartialMixedMediaRetrievalTests`,
+counter: **15 failures and 2 errors across the 13 owning checks** — every one of
+the 13 was RED — on real numbers: 36 requests where 10 was configured, 36 again
+in each of the five exact-ceiling subTests (1, 2, 3, 7 and 12), 72 across two
+scenes, 36 where 0 was configured, 28 from two always-failing providers — plus 2
+failures over the draft ladder (5 requests where 3 were configured, and no stop
+recorded at all). GREEN after: 13 owning checks plus 3 draft-ladder checks and 1
+fingerprint check OK. Exactly two of those 17 never had a RED state and are
+honest guards rather than reproductions: the fingerprint check, which would have
+passed before the change too and exists to prove *why* no version bump is owed,
+and the draft-ladder check that the ceiling bounds the ladder without disabling
+it. `test_an_untranslatable_provider_survives_a_budget_stop` is **not** one of
+them — it was RED at `36f23cc` like the other twelve. (This corrects both earlier
+accountings of the same run: 16/2, then 14/2 across 12 checks, with the
+untranslatable-provider check named as the second guard. The counts were
+re-derived by re-running the current checks against an extracted `36f23cc` tree,
+not read from a report.) M2-A regression radius (`PartialMixedMediaRetrievalTests`,
 `TargetedSearchPartialMediaTests`, `DownloadRetryOwnershipTests`) 13 OK; owning
 targeted radius 91 OK; media-policy radius 35 OK; full canonical offline suite
 **2291** (2274 baseline plus exactly the 17 new checks) with the same single
@@ -718,8 +752,35 @@ and all 11 are pre-existing debt in functions it does not touch (the
 `AssetProvider`/`StockProvider` protocol mismatch), whose repair is the mass
 cleanup that may not share a slice with a behaviour change.
 
-Next: **Review #3** over M2-A and M2-B together, per the recorded batching
-strategy; none of it has been performed. Checkpoint remains PLAN-9D.
+**REVIEW #3 CLOSURE (2026-08-15).** Independent review over M2-A and M2-B
+together, per the recorded batching strategy, is complete. Owner-provided verdict
+**ACCEPT WITH MINOR NOTES**, **0 BLOCKER / 0 MAJOR**, no repair slice before the
+next one — the same class of evidence as the earlier externally-run reviews, so
+it leaves no review commit of its own in Git. Retrieval code is not touched by
+this record. Its MINOR notes are absorbed by the WP0-B slice containing this
+block rather than by a slice of their own, and each was re-verified against the
+repository first rather than accepted as stated:
+
+- the mypy count in **M2-A CLOSURE** said 7; independently re-measured it is 11,
+  identically at `3633e0a`, `36f23cc` and HEAD — corrected above, delta still 0;
+- the **M2-B CLOSURE** RED accounting said 14 failures and 2 errors across 12
+  checks and named the untranslatable-provider check as a never-RED guard; the
+  measured run is 15 failures and 2 errors across 13 checks, that check *was*
+  RED, and the second honest guard is the draft-ladder one — corrected above;
+- "hard ceiling" is per *search invocation*: in `draft_complete` the adaptation
+  pass can spend a second bounded budget on a changed scene — scoped above;
+- the fingerprint carries the *configured* ceiling, not the code default 64, and
+  no channel sets the key today — scoped above;
+- the targeted-search stop reaching manifest-level `provider_attempts` but not
+  the scene entry's is a pre-existing ledger shape M2-B did not introduce; it now
+  has a registry row (**C82**) under the existing ledger owner **PLAN-10A**
+  instead of a new PLAN-ID.
+
+Next: **LIVE-5**, the owner-issued live provider diagnostic — the whole set the
+audit named as mandatory before it (`VA-NEW-01`…`VA-NEW-06`, `VA-NEW-08`,
+`VA-NEW-09` plus the minimal `VA-NEW-10`/`VA-NEW-12` budget guards) is closed. It
+is a paid network action and needs its own explicit owner approval; nothing here
+grants it. `WP0-B` part two stays open. Checkpoint remains PLAN-9D.
 
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits

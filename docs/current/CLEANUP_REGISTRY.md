@@ -456,6 +456,18 @@ PLAN-10C / PLAN-10D / PLAN-9E не меняются. Owner decision 2026-08-14 �
 `maximum_calls_per_project`, а SDK вызывается с `max_retries=0`. Это латентное
 ограничение существующего semantic-brief live owner, не новый PLAN-ID.
 
+## Review #3 finding (C82)
+
+Внесено 2026-08-15 WP0-B governance-слайсом. Единственная MINOR-нота Review #3
+(M2-A + M2-B), у которой раньше не было владельца; остальные ноты были
+неточностями формулировок и исправлены прямо в execution plan. Дефект **не
+исправлялся**, новый PLAN-ID не создавался, номер VA-NEW не выдавался, статусы
+PLAN-10A / PLAN-10B / PLAN-10C не менялись.
+
+| ID | Предмет | Класс | Evidence | Action / disposition | Gate |
+|---|---|---|---|---|---|
+| C82 | стоп целевого поиска виден в реестре манифеста, но не в реестре сцены | **FACT** | Попытка общего поиска пишется сразу в оба места — `state.scene_provider_attempts` и `self.provider_attempts` (`src/news/asset_manifest_builder.py:591-592`), поэтому она видна и в scene entry (`:1135`, ключ `provider_attempts`), и на уровне манифеста (`:1300`). Попытки draft-ладдера идут другим маршрутом: `state.download_attempts.extend(ladder_attempts)` (`:1033`), оттуда в `self.provider_attempts` (`:1036-1037`), а в scene entry — под другим ключом `download_attempts` (`:1136`). Следствие: запись `status: skipped` / `reason: request_budget_exhausted`, сделанная внутри `targeted_slot_search`, в scene-level `provider_attempts` не появляется. Свойство **предсуществующее**: маршрут `download_attempts` M2-B не менял, он добавил в этот вызов только `request_budget` | `правка` внутри существующего attempt ledger, а не второй реестр: форма записи и словарь причин принадлежат его контракту. Второй ledger, новый persisted artifact и новый словарь статусов не создаются | **PLAN-10A** (attempt ledger и stop-reason dictionary) |
+
 ## C01-SEM — ownership inventory asset/semantic (PLAN-1C′)
 
 Зафиксировано 2026-08-07 слайсом `PLAN-1C′` от clean HEAD `b0e99a7`, ветка

@@ -78,6 +78,10 @@
 - Сохраняй tolerant readers, resume/force-stage и approval gates. Compatibility
   wrappers сохраняй только до их отдельного callers/replacement/retirement gate;
   бессрочный wrapper не является финальным состоянием.
+- Найденный дефект, кандидат на удаление и exit condition wrapper'а записываются
+  строкой в [docs/current/CLEANUP_REGISTRY.md](docs/current/CLEANUP_REGISTRY.md)
+  с существующим владельцем. Реестр — не разрешение на удаление, а второй реестр
+  не создаётся.
 
 ## Versioned agent skills
 
@@ -89,6 +93,7 @@
 - `replace-visual-slot`
 - `architecture-change`
 - `create-handoff`
+- `review-change`
 
 Используй только skill, соответствующий задаче, и проверяй команды по текущему `--help`.
 

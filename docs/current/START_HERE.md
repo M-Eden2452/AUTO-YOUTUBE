@@ -1,87 +1,74 @@
 ---
 status: current
-last_verified_commit: 69af3ca
-last_verified_date: 2026-08-08
+last_verified_commit: 5787c61
+last_verified_date: 2026-08-15
 source_paths:
   - AGENTS.md
   - docs/current/PROJECT_EXECUTION_PLAN.md
+  - docs/current/CURRENT_STATE.md
+  - docs/current/SYSTEM_MAP.md
   - docs/current/PRODUCT_PLAN.md
-  - docs/handoff/PROJECT_RESCUE_MASTER_PLAN.md
-  - docs/current/ARCHITECTURE_BOUNDARY_MAP.md
   - docs/current/CLEANUP_REGISTRY.md
-  - ai_youtube
   - src/ai_youtube/cli
-  - src/ai_youtube/apps
-  - src/config_resolver
-  - src/content_creation
-  - src/assets
-  - pipeline.py
-  - src/legacy_pipeline
-  - src/news
-  - src/providers
-  - src/production_catalog
-  - src/production_plan
-  - docs/adr
-  - tests
-  - skills/review-change
-  - .claude/agents/review-change.md
+  - skills
   - tools/qa/check_agent_docs.py
+  - tests/test_stage2_agent_onboarding.py
 ---
 
 # Start Here
 
-AI-YouTube — локальная offline-first платформа создания видео и переработки длинных
-source videos. Сейчас production-ready только два Shorts templates; код и Git имеют приоритет над этим документом.
+AI-YouTube — локальная offline-first платформа создания видео и переработки
+длинных source videos. Production-ready сегодня только два Shorts templates.
+Код и фактический Git важнее этого документа.
 
-Для начала работы достаточно:
+Это маршрутный документ. Он не пересказывает историю закрытий: у каждого
+закрытого шага единственный дом — активный execution plan, у каждого findings и
+retirement decision — cleanup registry.
 
-1. Прочитать [AGENTS.md](../../AGENTS.md).
-2. Проверить Git указанными там read-only командами.
-3. Прочитать [CURRENT_STATE.md](CURRENT_STATE.md). Открывать [SYSTEM_MAP.md](SYSTEM_MAP.md) только для архитектурной задачи.
+## Порядок чтения
 
-Текущий execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
-Он задаёт порядок работ; PLAN-6E завершён 2026-08-02: canonical read-only policy
-находится в `skills/review-change/`, тонкие Claude/Codex adapters ссылаются на неё,
-а controlled acceptance проверила безопасный и нарушающий synthetic diff. Локальный checker
-`python -m tools.qa.check_task_scope` принимает task-specific `--allow` /
-`--allow-dir` и возвращает `OK/0`, `STOP_REQUIRED/1` или `INVALID_INPUT/2`.
-Для Claude Code root `skills/` не считается автоматически загруженным:
-перед специализированной задачей нужно вручную открыть релевантный
-`skills/<skill-name>/SKILL.md`. PLAN-6E, PLAN-L0 и PLAN-9B-PRODUCER завершены.
-Owner decision 2026-08-05 добавил «POST-AUDIT STABILIZATION PROGRAM». PLAN-STAB-1 (`f0b69db`), PLAN-STAB-2
-(`0eea5be`) и PLAN-STAB-3 (`9222519`) завершены 2026-08-05 и independently reviewed — verdicts ACCEPT WITH
-MINOR, ACCEPT, ACCEPT WITH MINOR (owner-provided external review evidence, не отдельный Git commit).
-PLAN-STAB-4 (`0947e51`, runtime-сеть fail-closed, `src/runtime_network.py`) completed 2026-08-06,
-independently reviewed, verdict ACCEPT WITH MINOR (два findings non-blocking, не исправлены); gate
-пункт 4 satisfied. PLAN-STAB-5 (C50 rights-review preservation) completed 2026-08-06, independently reviewed, verdict ACCEPT (findings: нет), GitHub Actions run `31084873522` зелёный (1646 tests OK); пункт 5 gate satisfied; rights review стал monotonic и снимается только подтверждённой per-asset `rights_declaration` (owner decision 2026-08-06 — намеренный safety contract, детали в [CURRENT_STATE.md](CURRENT_STATE.md)). Owner decision 2026-08-06 утвердил активный execution route после PLAN-STAB-5: PLAN-STAB-9 (non-blocking follow-up) → PLAN-STAB-7 + PLAN-STAB-8 → PLAN-STAB-6 или residual-risk decision → stabilization review → PLAN-9B-2. PLAN-STAB-9 (shared rights vocabulary owner) implementation completed 2026-08-06, independently reviewed 2026-08-06, verdict **ACCEPT WITH MINOR** (non-blocking wording finding, исправлен): единственным владельцем словаря допустимых `rights_status` стал `src/assets/models.py` (immutable `RIGHTS_ALLOWED_STATUSES`), независимая копия `ALLOWED_RENDER_RIGHTS` в `src/news/models.py` удалена, а её import paths сохранены как compatibility re-exports того же объекта; неизвестный и отсутствующий status остаются fail-closed, права словарём не выдаются. PLAN-STAB-9 closed и остаётся non-blocking follow-up. PLAN-STAB-7 и PLAN-STAB-8 closed 2026-08-06: implementation commit `42fa741`, repair commit `8357402` закрыл все четыре finding F1-F4 независимого review без изменения контрактов; independent review verdict ACCEPT WITH MINOR, repair re-review verdict ACCEPT WITH MINOR (blocking findings: 0); GitHub Actions run `31101208366` и repair run `31110155685` оба зелёные; пункт 7 gate satisfied, PLAN-STAB-8 остаётся non-blocking. `tools/qa/check_agent_docs.py` остаётся единственным владельцем обоих контрактов и теперь проверяет current-routing integrity (один authoritative checkpoint, три mirror-документа, `next_exact_action`, completed шаг не может быть текущим) и Git-aware docs freshness (каждый `last_verified_commit`/`baseline_head` — настоящий commit и ancestor HEAD; drift `source_paths` — advisory `NOTE`; отсутствие Git и shallow clone fail-closed; возраст считается от даты HEAD commit, а не от системных часов). PLAN-STAB-6 (Claude permission hardening) closed 2026-08-07: implementation `3cedff10`, repair `b0a3547` закрыл review findings F1-F5, independent re-review verdict ACCEPT WITH MINOR (blocking findings: 0), GitHub Actions run `31147454618` (headSha `49385dd`) зелёный (1749 tests OK, failures=0, errors=0); пункт 6 blocking gate satisfied. Bounded owner-driven stabilization review результатов PLAN-STAB-1..9 (пункт 8 blocking gate, без собственного PLAN-ID) завершён 2026-08-07 read-only — ничего не редактировал, не commit и не push; final verdict **CLEAR TO PROCEED TO PLAN-9B-2**, blocking findings 0, все четыре свойства (user-output preservation, offline/paid fail-closed behavior, rights safety, однозначный current routing) подтверждены, предварительный архитектурный repair перед PLAN-9B-2 не требуется; targeted evidence — `tools.qa.check_agent_docs` exit 0, permission/routing/governance tests 140 OK, rights/network cross-contract tests 78 OK, closure CI run `31149780652` (headSha `2186b20`) зелёный (1749 tests OK, failures=0, errors=0); пункт 8 blocking gate satisfied и stabilization gate пройден целиком. PLAN-9B-2 (expansion + hardcode migration) closed 2026-08-07: implementation commit `66fd2431`, independent review verdict ACCEPT WITH MINOR (blocking findings 0), implementation CI run `31164020130` зелёный (1772 tests OK); repair commit `8c60295` закрыл review finding F1 (must_avoid punctuation bypass в `src/content/visual_planning/expansion.py`), independent re-review verdict ACCEPT (findings 0), repair CI run `31172361739` зелёный. F2 (non-provider-language must_avoid без translator) — recorded non-blocking limitation, `TranslatorService` не создавался. PLAN-9B-3 (query-path cleanup) closed 2026-08-07: implementation commit `72221e1`, independent review verdict ACCEPT WITH MINOR (blocking findings 0), CI run `31195789804` (headSha `72221e1861f7c62de01aa09056cfaf6f56ef99a7`) conclusion success; targeted 243 OK, expanded radius 209 OK, full offline suite 1780 OK. Все пять retirement candidates контракта закрыты: obsolete GLOSSARY substring matcher (C34) ретайрен ранее commit `141beae` в PLAN-9B-1, а текущий Unicode-aware token/phrase matcher вместе с seed-словарём `GLOSSARY` являются его replacement и сохранены намеренно; orca topic hardcode `_apply_video_first_topic_briefs` (C35), `legacy_broad_query` (C36), deprecated `make_stock_query` (C37) и superseded `semantic_selection/query_generator.py` (C38) ретайрены commit `72221e1` и записаны строкой R01 реестра. Формулировка «четыре из пяти закрыты» неверна. Reversible retirement mechanism выполнен целиком (annotated tag `retired/query-paths-2026-08-07` на `1bbfcad`, commit body, строка R01, внешний bundle вне worktree), Envato manual query source сохранён. Exclusion-список `_LEGACY_BROAD_QUERIES` в `src/assets/query_adapter.py` retirement candidate'ом не является: это persisted-compatibility guard, созданный PLAN-9B-1, сохранён намеренно с exit condition «снимается, когда pre-slice persisted планы перестают читаться». Findings F1 (вакуумный assertion `semantic_queries`) и F3/F4 (pre-existing: no-brief `_latin_terms` fallback; Envato cap `[:3]`) — non-blocking follow-up в уже существующих домах; F2 (`semantic_queries` пуст без provider-language evidence) — INFO, заявленное fail-closed поведение. Ни один не исправлялся, новых PLAN-ID не создавалось. PLAN-1C′ (capability owner gate: asset/semantic) closed 2026-08-07 одним docs-only commit: C01-SEM закрыт секцией ownership inventory в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md) — по каждому модулю объявленного scope записаны canonical owner, фактические callers, decision authority, persisted contract, owning tests и дубли. Единственный владелец решения об отборе — `rank_candidates`/`select_best_candidate` в `src/assets/semantic_selection/candidate_ranker.py`; `src/news/asset_manifest_builder.py` — orchestration owner; `semantic_visual_service` подключён, но вызывается после отбора всех сцен и на выбор не влияет; `vision_validator` — заглушка без единого caller. C31 перепроверен и подтверждён как неустранённый: файлы не переносились, physical target остаётся PLAN-13. Production-код, tests, схемы, config и runtime не менялись, найденные дефекты не исправлялись. PLAN-9C (semantic decision wiring) closed 2026-08-08: implementation тремя immutable commits (все trailer `Plan-Step: PLAN-9C`) — `8932957` подключил существующий Vision/semantic evidence producer внутри цикла отбора сцены к bounded shortlist, до скачивания вместо только после него; evidence достигает существующего decision owner (`candidate_ranker` через `vision_tags`), второй selector не создан, попутно закрыт дефект отчётности `semantic_rerank_enabled=False`. `668ff10` закрыл blocking finding — шипованный default mock backend больше не имеет production reselection authority, сохраняет только report/test роль. `8c1186f` закрыл второй finding — guard-тест переведён с вакуумно-зелёной ветки на реальный default backend, mutation-proof подтверждён. Final independent review verdict ACCEPT, blocking findings 0 (owner-provided evidence); GitHub Actions run `31250693048` (headSha `8c1186f`) conclusion success (owner-provided). Default-конфигурация не менялась, активация остаётся gate PLAN-9E. Non-blocking finding F2 (bounded shortlist/review window может измениться после semantic demotion) — MAJOR, non-blocking для wiring/order contract PLAN-9C, задокументирован follow-up в существующей секции PLAN-10C, новый PLAN-ID не создавался. Checkpoint — **PLAN-9D** (offline visual-quality evidence): **in progress**; оба blocking prerequisite сняты (PLAN-9B closed через PLAN-9B-2/PLAN-9B-3, PLAN-9C closed 2026-08-08), а commit `04fe035` уже выполнен под `Plan-Step: PLAN-9D` и дал benchmark harness и historical corpus, не закрыв шаг. Owner direction 2026-08-08 (plan reconciliation после read-only architecture/data-hygiene/stock-pipeline аудита) переформулировал, на чём измеряется decision quality: candidate pools обязаны представлять current retrieval behaviour, а historical projects остаются historical failure / compatibility evidence и перестают быть основным current-quality benchmark. Основание — ни один runtime project не создан текущим query stack (самый новый файл в `projects/` от 2026-07-28, PLAN-9B-1 `141beae` от 2026-08-01, файлов новее 2026-08-01 ноль), а замороженный `tests/data/plan9d/corpus_v1.json` собран из них: 6 из 16 сцен получены ретайренным subject-free литералом `nature science wildlife observation` (registry C36), сцены «геккон», «колибри» и «пингвины» делят один и тот же pool без единого кандидата с заявленным субъектом; owner ground truth на тот момент не существовал (`annotations_v1.json` в статусе `WAITING_FOR_OWNER_ANNOTATION`); **снято PLAN-9D-D 2026-08-12** — владелец выполнил слепой проход по 14 сценам замороженного current corpus, файл лежит под каноническим `tests/data/plan9d/current_annotations_v1.json` и привязан к `corpus_sha256` этого корпуса. Шаг разбит на под-слайсы PLAN-9D-A…PLAN-9D-G; top-level route `PLAN-9D → PLAN-9A → PLAN-10A → PLAN-10B → PLAN-10C → PLAN-9E` сохранён дословно, PLAN-10A/PLAN-10B/PLAN-10C/PLAN-10D и PLAN-9E не подтягиваются, а current retrieval capture реализацией PLAN-10B не является. Итоговое evaluation PLAN-9D остаётся offline: bounded provider capture нужен только для подготовки current corpus, после чего корпус замораживается. PLAN-9D-A (historical evidence curation) closed 2026-08-08, commit `2bae6f6d23d8cbf874fcf71883334a7ea4d8619d`: `corpus_v1.json`/`annotations_v1.json` заменены на `tests/data/plan9d/historical_failure_evidence_v1.json`, curated runtime dependency сократилась с 107 до 45 путей (14 манифестов, 31 кадр, 33.47 MB, 7 projects); PLAN-9D в целом остаётся in progress. PLAN-9D-B (current-HEAD retrieval capture) closed 2026-08-08, commit `69af3ca7387fa9fe649fabf0fd464ec519f76400`: current corpus снят и заморожен в `tests/data/plan9d/current_corpus_v1.json` (14 сцен, 1064 наблюдения, 1052 уникальных ассета, 64 кадра, `corpus_sha256` `da8e50a968afc72fcc427ffeb9b0e58fe264119f9d191d17849ce2265fa89b35`); `capture_head_sha` `d01914d77822057569a491216cfecf21b08f5d0c` независимо подтверждён этим docs closure как production HEAD без изменений `src`/`config`/`schemas` между `d01914d` и `69af3ca`. Два capture attempts независимо перепроверены: первый остановлен собственным freeze-time secret scan (ложное срабатывание на "authorization"), не оставил ни одного артефакта и ничего не отобрал; второй — единственный сохранившийся, его raw capture и preview-cache integrity (56 previewed candidates, 56 уникальных `cache_key`, ноль коллизий) подтверждают отсутствие кросс-run смешивания. Capture-integrity verdict — **VALID_CAPTURE**. Corpus несёт три уровня — raw retrieval (1064, метаданные), ranked/rights-filtered pool (те же 1064), visually previewed shortlist (56 из 1064) — и только shortlist доступен PLAN-9D-C визуально; качество retrieval этим closure не заявляется. PLAN-9D в целом остаётся in progress. Следующее точное действие — отдельный owner-issued implementation slice **PLAN-9D-C** (retrieval quality gate) в отдельном новом чате — offline gate на замороженном current corpus, без provider network call, этим docs closure не запускаемый. PLAN-9D-C закрыт 2026-08-09 и не переписывается, но diagnostic Short после него оказался заблокирован: обычный подготовленный русский сценарий вообще не несёт provider-language evidence, deterministic extraction выбрала субъектами грамматические дополнения, `produce_brief` честно вернул пусто, и большинство сцен пришло в `query_adapter` со статусом `query_translation_required`. Root cause — отсутствующая semantic capability, а не сломанная проводка producer; deterministic fail-closed контракт остаётся верным. Owner decision 2026-08-09 утвердил bounded capability-слайс **PLAN-9B-PRODUCER-M** (model-assisted semantic VisualBrief adapter), closed 2026-08-09: `src/content/visual_planning/semantic_brief.py` внутри существующего owner заполняет существующий `VisualBrief`, все строки запросов по-прежнему строит существующая expansion ladder, второй planner/query owner и `TranslatorService` не создавались, schema не менялась. Adapter в том слайсе был доступен только через injection, ни один production caller его не передавал, реальная модель/сеть/платный вызов не выполнялись; для live-активации требовались два раздельных owner decision — класс сетевого действия для text-model вызова (в `src.runtime_network.NETWORK_ACTIONS` его тогда не было) и отдельное paid approval. Оба приняты и исполнены слайсом **PLAN-9B-PRODUCER-M-LIVE** 2026-08-09, и оба по-прежнему по умолчанию закрыты. Ручной авторский бриф остаётся override; C63 остаётся открытым и не трогался; PLAN-9D-D — NOT STARTED/blocked; `current_checkpoint` не менялся. Independent review принял архитектуру (verdict ACCEPT WITH NON-BLOCKING FINDINGS); три MAJOR findings найдены до подключения реальной модели и закрыты bounded repair слайсом того же PLAN-ID — критерий готовности к semantic assistance (отсутствие provider-language subject вместо полной пустоты брифа), сохранение `must_include`/`must_avoid` при overlay и разделение ожидаемого отказа модели от дефекта интеграции. Independent review того repair commit оставил два repository-confirmed препятствия перед live activation, и оба закрыты вторым bounded repair слайсом того же PLAN-ID: неверный, но provider-language subject больше не глушит semantic assistance — достаточность решается provenance (тему видео заявил producer, `collect_entities` уже помечает такую сущность), а не видом слова, без quality classifier и blacklist; и реально вызванный backend, отказавший навсегда, оставляет тот же видимый `semantic_brief_unavailable`, что и отказавший временно, потому что `retryable` больше не отвечает на вопрос «был ли вызов». Independent review того второго repair commit оставил последний repository-confirmed blocker, и он закрыт третьим bounded repair слайсом того же PLAN-ID: эвристически извлечённый subject/place больше не получает авторитет автора — `deterministic._plan_scene` перестал писать `must_include`, потому что `rank_candidates` трактует это поле как hard requirement автора и отклонял корректного кандидата при `subject_match=100.0` из-за устаревшей догадки, пережившей semantic correction (воспроизведено на русской сцене про пингвинов со словом `NASA`); явный авторский `must_include` остаётся hard и blocking, изменился источник авторитета, а не его сила. Тем же слайсом отозван topic-provenance bypass: слово внутри глобальной строки `topic` больше не подавляет semantic model, потому что `Antarctic penguin colonies` помечает `antarctic` и `penguin` одинаково; единственный scene-level источник с реальным авторитетом — авторский `visual_brief`, и другого в репозитории нет. Ни classifier, ни blacklist, ни новая provenance-схема не вводились; deterministic-only выход изменился намеренно, байт-идентичность не заявляется. **PLAN-9B-PRODUCER-M-LIVE** (closed 2026-08-09) сделал adapter достижимым из production: live semantic backend реализован (`src/content/semantic_brief_openai.py`, один backend `openai`), production caller — `src/news/visual_plan.py`. По умолчанию активация **выключена**, и включают её два раздельных разрешения: сетевое — класс `semantic_brief` в `src.runtime_network.NETWORK_ACTIONS` (`--allow-network semantic_brief`, по умолчанию deny), платное — `config/semantic_brief.json` (в репозитории всё выключено). Одно другого не заменяет, наличие `OPENAI_API_KEY` разрешением не является, потолок — один вызов на сцену без авторского смысла, скрытых retry нет. MAJOR-A закрыт: авторский бриф из одних constraints больше не подавляет смысловую помощь. Review activation commit, live-3 и live-4 выполнены (2026-08-09): role-contract repair подтверждён, остаточные ложные выборы локализованы в selection-слое и metadata evidence — см. docs/audits/VISUAL_ASSETS_COMPARATIVE_AUDIT_2026-08-10.md. Первый bounded sub-slice **PLAN-9C-2** (unified media-selection policy foundation) выполнен 2026-08-10: канонический decision owner `src/assets/semantic_selection/media_policy.py` заменил безусловную video-first подмену bounded-предпочтением среди конкурентных кандидатов и hard whitelist существующего `allowed_media_kinds`; builder, facade-дубль и post-Vision reselection идут через одну политику. Следующее точное действие — второй bounded sub-slice **PLAN-9C-2** (retrieval symmetry), затем **PLAN-9C-3**; checkpoint остаётся PLAN-9D. Детали — в [CURRENT_STATE.md](CURRENT_STATE.md).
-Correction **PLAN-9C-2-B1** (2026-08-10) supersedes the preceding first-commit completion wording: `388b9b1` created the canonical media-policy owner, but independent review found a second reachable selector in draft completion. This repair completed end-to-end application by making the canonical selection authoritative for ladder assembly and removing the ladder's own `prefer_video` pool. Retrieval symmetry remains the next bounded sub-slice; checkpoint stays PLAN-9D. CI repair (`9f9b6f2`, `bcf6c2a`, `8ca755f`, `68acdb2`)
-вернул `.github/workflows/offline-tests.yml` в зелёное состояние (GitHub Actions run `31039985187`,
-1/1 checks, failures=0, errors=0; локальный full suite — 1589 тестов, OK); PLAN-STAB-16 частично
-выполнена — green CI baseline готов, secret scan/dependency audit/lint/type-check остаются pending.
-Retrieval-symmetry closure **PLAN-9C-2** (2026-08-10) supersedes the pending wording above: allowed image+video now reaches provider retrieval as both supported request kinds regardless of preference; single-kind modes remain hard, and legacy missing/empty allowed lists remain preferred-only. New checks 8/8, owning radius 226 and full offline suite 2131 are green. **PLAN-9C-2 is complete**; next exact action is a separate owner-issued **PLAN-9C-3**. Current checkpoint remains **PLAN-9D**; PLAN-9D-D remains NOT STARTED / blocked (2026-08-10 snapshot; PLAN-9D-D was closed 2026-08-12 — see the final line of this file). Точное значение и следующее действие — в самом плане. [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md) остаётся историческим контекстом и текущий порядок выполнения не задаёт.
+1. [AGENTS.md](../../AGENTS.md) — канонический контракт работы с репозиторием.
+2. Git read-only командами, перечисленными там.
+3. [CURRENT_STATE.md](CURRENT_STATE.md) — что существует и что ограничено сегодня.
+4. [SYSTEM_MAP.md](SYSTEM_MAP.md) — только для архитектурной задачи.
 
-Metadata-evidence closure **PLAN-9C-3** (2026-08-10) supersedes that next-action wording: positive semantic evidence now preserves field quality and coherent locality; Sierra Negra/Life On Earth no longer receive subject=100 from broad catalogue prose, while explicit Pexels hummingbird/orca remain 100. `METADATA_FIELDS` is synchronized; provider confidence, negative terms, IA normalization, rights and PLAN-9C-2 behavior are unchanged. Targeted radius 375 and full offline suite 2143 are green. Current checkpoint remains **PLAN-9D**; PLAN-9D-D remains NOT STARTED / blocked pending LIVE-5 and owner decision (2026-08-10 snapshot; PLAN-9D-D was closed 2026-08-12 — see the final line of this file). **Mini plan reconciliation 2026-08-11 supersedes the LIVE-5 next-action wording above.** WP0-A machine gates (`98e58fe`, `a9bfc11` — requirements-dev.lock, Ruff/Mypy baselines, `scripts/gates.py`, `.githooks/pre-commit`, CI gate step, AGENTS «Gates»), VA-NEW-01 / M1-A (`15cb20d`), VA-NEW-03 (`37ca498`) and VA-NEW-02 / M1-B (this commit: source-SHA/local-transform preview key v2; targeted 206, full 2170, gates OK) are closed. LIVE-5 is not next: VA-NEW-04, 05, 06, 08, 09 plus minimal 10/12 budget guards remain. The next exact action is an owner decision for **M1-C / VA-NEW-04+05** inside **PLAN-9A**, because persisted `replaces_asset_id` and evidence-carry scope require separate approval before implementation. The authoritative route summary — what blocks LIVE-5, what blocks v1, where Vision lives, when M3/M4/M5 and longform v1.1 happen, review batching, WP0-B placement — is the block «Mini plan reconciliation 2026-08-11» in [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md); read it instead of relying on any earlier chat.
+## Маршрут
 
-Продуктовое направление: [PRODUCT_PLAN.md](PRODUCT_PLAN.md). Разделение простое:
-execution plan отвечает за **порядок реализации** (checkpoint, статусы,
-зависимости, gates), product plan — за **направление продукта** и сохранённые
-идеи. Идея из product plan не реализуется напрямую: сначала она должна стать
-bounded execution slice в execution plan.
+Текущий checkpoint — **PLAN-9D**. Авторитет — поле `current_checkpoint` во
+frontmatter [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md), а не этот
+абзац; там же `next_exact_action` и evidence каждого закрытия.
 
-Этапы 0–8 завершены. Этап 8 создал canonical boundaries для
-`fullscreen_voiceover`, `story_card`, `anime_clipper` и legacy pipeline, но
-оставшиеся old owners и wrappers ещё не retired. Documentary gate 8E закрыт
-без migration. Этап 9A удалил D01 provider names, D02 standalone downloader и
-D03 `packages/` placeholder. 9B-P01 зафиксировал два target engines:
-`content_creator` для short/long creation и `video_repurposer` на основе
-существующего Anime Factory. Repurposer пока disabled.
-Подробная проверенная карта зависимостей находится в
-[ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md), а решения по
-кандидатам cleanup — в [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md).
-Исторические handoff и отчёты находятся в [docs/archive](../archive/README.md) и не
-являются текущим источником истины.
+Следующее точное действие — **LIVE-5**, owner-issued live provider diagnostic.
+Набор, который аудит объявил обязательным до него (`VA-NEW-01`…`VA-NEW-06`,
+`VA-NEW-08`, `VA-NEW-09` и минимальные budget guards `VA-NEW-10`/`VA-NEW-12`),
+закрыт; Review #3 над M2-A и M2-B закрыт с verdict ACCEPT WITH MINOR NOTES.
+LIVE-5 — платное сетевое действие и требует отдельного явного разрешения
+владельца; этим документом оно не выдаётся.
 
-Безопасная проверка интерфейса:
+Вторая часть `WP0-B` (governance/docs diet) остаётся открытой — см. блок
+«WP0-B (governance/docs diet) — placement» в плане.
+
+## Кто чем владеет
+
+- порядок работ, checkpoint, статусы шагов и evidence закрытий —
+  [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md);
+- направление продукта и сохранённые идеи — [PRODUCT_PLAN.md](PRODUCT_PLAN.md).
+  Идея оттуда не реализуется напрямую: сначала она становится bounded slice
+  в execution plan;
+- модули, границы и владельцы — [SYSTEM_MAP.md](SYSTEM_MAP.md), подробная
+  проверенная карта — [ARCHITECTURE_BOUNDARY_MAP.md](ARCHITECTURE_BOUNDARY_MAP.md);
+- findings, retirement decisions и exit conditions —
+  [CLEANUP_REGISTRY.md](CLEANUP_REGISTRY.md);
+- процедуры под конкретную задачу — `skills/<skill-name>/SKILL.md`. Для Claude
+  Code root `skills/` не считается автоматически загруженным: нужный файл
+  открывается вручную перед специализированной задачей.
+
+[docs/archive](../archive/README.md) и [docs/audits](../audits/README.md) — это
+evidence, а не текущий источник истины; не считай их актуальными без проверки
+кода. [PROJECT_RESCUE_MASTER_PLAN.md](../handoff/PROJECT_RESCUE_MASTER_PLAN.md)
+остаётся историческим контекстом и текущий порядок работ не задаёт.
+
+## Безопасная проверка интерфейса
 
 ```powershell
 .\venv\Scripts\python.exe -m ai_youtube capabilities --json
@@ -92,92 +79,9 @@ D03 `packages/` placeholder. 9B-P01 зафиксировал два target engin
 должен получить exit condition в cleanup registry; бессрочный wrapper не
 является финальным состоянием.
 
-Для отдельного runtime workspace используй глобальный `--workspace`, переменную `AI_YOUTUBE_WORKSPACE`
-или path config. Без явной настройки legacy workspace остаётся корнем репозитория; физическая миграция runtime ещё не выполнялась.
+Для отдельного runtime workspace используй глобальный `--workspace`, переменную
+`AI_YOUTUBE_WORKSPACE` или path config. Без явной настройки legacy workspace
+остаётся корнем репозитория; физическая миграция runtime не выполнялась.
 
-Не запускай сеть, providers, Vision, TTS, скачивание или платные действия без отдельного разрешения пользователя.
-Review #1 (M1-A...M1-C) closed 2026-08-11: verdict ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run `31526039612` green. The current checkpoint remains **PLAN-9D**. **M1-D / VA-NEW-08 is closed** inside PLAN-9A: the owner decision on the persisted field set was issued in the M1-D prompt, and a completed `asset_search` is now reusable only when `assets_manifest.json` proves which inputs produced it — missing, unparseable and mismatching fingerprints all recompute the search and stale the existing `STALE_STAGES` render set, while legacy manifests stay readable; live provider identity is deliberately outside the fingerprint and stays with VA-NEW-06/M2-A. Composition, boundaries and evidence are in the «M1-D CLOSURE» block of the execution plan. Next exact action is **M1-E / VA-NEW-09**; Review #2 covers M1-D and M1-E together and none of it has been performed. Две bounded corrections 2026-08-12 закрыты внутри существующих владельцев и маршрут не меняют: `VA-NEW-22` — Pixabay video preview читается из thumbnail выбранного rendition, а не из отсутствующего в текущих ответах `picture_id` (внутри PLAN-10B); `VA-NEW-23` — review bundle не называет выбранным ассет, которого не показал, и не переименовывает честный abstention в выбор (внутри PLAN-9A). Пакетирование находок диагностики в RD-A/RD-B/RD-C остаётся предложением и owner decision не является; RD-B и RD-C не реализованы. **AUD-DELTA-CLOSE (2026-08-13) supersedes every PLAN-9D-D and next-action statement above.** PLAN-9D-D закрыт 2026-08-12, PLAN-9D-E измерил metadata-only baseline (4/14 agreement, 1/14 auto_safe), M1-D / VA-NEW-08 закрыт commit `f3b607a`. Три docs-only commits 2026-08-13 маршрут не меняли и теперь учтены в плане блоком «AUD-DELTA-CLOSE»: `6224c6f` (оба аудита внесены в `docs/audits/` как evidence + индекс каталога + баннеры), `a577c22` (C01-SEM исправлен после PLAN-9C, находки retrieval-аудита записаны строками C64–C74 реестра), `1f67e29` (корневой README переписан по факту кода). Этот commit закрывает пять учётных ошибок сверки, удаляет `COMMANDS.md` по **OD-S-7**/**PLAN-7** и переносит подтверждённые дефекты EXP-001 в реестр строками **C75–C78** с существующим owner **PLAN-10B**. Owner decision 2026-08-13: временный network gate по **C65** не разрешён — вопрос возвращается после Review #2 как «можно ли просто ретайрить legacy retrieval stacks». Current checkpoint остаётся **PLAN-9D**; следующее точное действие — **FIRST OWNER SHORT** (offline draft diagnostic, ничего не запускается этим commit), затем **M1-E / VA-NEW-09**, затем Review #2 по M1-D+M1-E, ни одна часть которого не выполнена. **Обновлено 2026-08-14 (docs reconciliation):** FIRST OWNER SHORT выполнен, за ним CURATED LOCAL LIBRARY и LOCAL diagnostic repeat на HEAD `a8549ff` — 5/5 сцен получили usable slot и первый черновой `draft_1080x1920.mp4` существует, но `quality_check` = `needs_review`, все слоты draft-only и publish-ready evidence нет. Следующее точное действие — **STOCK repeat через `semantic_brief`**: он требует двух отдельных разрешений (`--allow-network semantic_brief` и paid approval) и docs-слайсом не запускается. Затем **M1-E / VA-NEW-09**, затем Review #2 по M1-D+M1-E, ни одна часть которого не выполнена. Находки прогона записаны строками **C79–C81** реестра; owner decision: `C79` — pre-v1 bounded correction после STOCK diagnostic и до M4/PLAN-11 в существующих `entities.stem` / `semantic_selection.evidence` owners, `C81` — post-v1 product discovery без implementation owner, `C80` принадлежит **PLAN-9E**. Повтор кадра блокирует publish-ready конкретного ролика без ручной замены/approval, но не платформу v1 и не переносит PLAN-10D. STOCK repeat этим docs-слайсом не разрешается: отдельный execution prompt обязан назвать network/paid scopes. `maximum_budget_usd` не hard dollar cap; hard runtime bound live `semantic_brief` — `maximum_calls_per_project`, SDK без retry. Checkpoint остаётся **PLAN-9D**, PLAN-ID не создавались.
-
-**Routing update after the 2026-08-14 STOCK repeat:** the repeat is complete and
-recorded in `docs/audits/STOCK_SEMANTIC_REPEAT_2026-08-14.md`; the `.env`
-reachability and persisted semantic-usage defects it exposed are closed in the
-existing PLAN-9B-PRODUCER-M-LIVE owners: only OPENAI_API_KEY is read after both gates, neighbouring secrets remain unloaded, and the localized plan accumulates usage across adaptation replans while master keeps its planning-stage snapshot. The current checkpoint remains
-**PLAN-9D**. The next exact action is **M1-E / VA-NEW-09** inside **PLAN-9E**,
-followed by Review #2 over M1-D and M1-E.
-
-**Routing update after M1-E / VA-NEW-09:** the bounded PLAN-9E correction is
-closed. Strict and draft render now re-authorize every current visual-slot
-snapshot through the canonical usability owner immediately before segment
-creation; modern manifests must remain publish-ready, while tolerant legacy
-readers still require current rights and bytes to pass. The checkpoint remains
-**PLAN-9D**. The next exact action is **independent Review #2 over M1-D and
-M1-E**.
-
-**M1-E Review #2 repair update (2026-08-14):** the first Review #2 verdict was
-**REJECT** on two M1-E blockers and found no M1-D blocker. Final-render local
-validation now bypasses the metadata-keyed cache and recomputes decode plus
-SHA-256, so same-size/same-mtime byte replacement cannot reuse old evidence.
-The publish-ready gate remains for authoritative semantic decisions; the
-existing `selected_by=user_asset_priority_manual` compatibility path retains
-its prior strict behavior after upstream quality approval, while fresh bytes,
-checksum, technical, rights, policy and safety hard gates still apply. The
-cache-warmed mutation regression and real manual-user-asset render E2E pass;
-expanded targeted radius is 126 OK. The current checkpoint remains **PLAN-9D**.
-The next exact action is **focused independent Review #2 re-review over M1-D
-and M1-E**.
-
-**M1-E Review #2 second repair (2026-08-15):** Review #2 stayed **REJECT** on
-one remaining M1-E blocker and reported no new M1-D finding. An asset that
-carried no checksum copy at all passed fresh final-render validation vacuously,
-so dropping both copies after quality passed re-authorized whatever bytes then
-occupied the approved path. The final render boundary now fails closed without
-a recorded checksum, while earlier gates stay tolerant of manifests written
-before one was persisted. Targeted radius is 174 OK and gates OK. The
-checkpoint remains **PLAN-9D**. The next exact action is **focused independent
-Review #2 re-review over M1-D and M1-E**.
-
-**Review #2 closed (2026-08-15):** verdict **ACCEPT WITH MINOR NOTES** over
-`f3b607a` (M1-D) and `0a05c7e`/`35688dd`/`e03ad9e` (M1-E) — 0 BLOCKER, 0 MAJOR.
-The owner accepted it as sufficient to close both slices; no repair slice and no
-re-review follow. The review reproduced RED for all four commits itself, rescanned
-`projects/` independently (zero checksum-less assets exist on disk), enumerated
-every production writer of a renderable asset, and verified draft separately from
-strict. Its three MINOR notes live in the REVIEW #2 CLOSURE block of
-[PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md) and are deliberately not
-repaired: the quality *stage* is in fact not tolerant of a missing checksum
-(`src/news/quality_check.py:232`), `35688dd` narrowed `semantic_contract_present`
-twice without a commit body, and there is no committed draft-mode byte-replacement
-regression. Accepted HEAD `e03ad9e` is pushed; exact-head CI is run
-`31866721908`. The checkpoint remains **PLAN-9D** and no PLAN-ID was created.
-
-**Pre-M2 accounting (2026-08-15):** the FIRST OWNER SHORT resume-run is **done**
-— offline on the accepted HEAD to a real `draft_1080x1920.mp4` that is
-byte-identical to the pre-Review-#2 render, 5 of 5 scenes `usable_in_draft`, 0 of
-5 `publish_ready`, quality `needs_review`. Diagnostic evidence, not acceptance.
-Exact-head CI runs `31866721908` and `31867069337` are both **failure** on an
-external Chocolatey/FFmpeg outage at the install step, before any test ran — not
-CI green, not a product defect. The full offline suite has exactly one known
-failure, `test_onboarding_documents_stay_short` (this file is 154 lines against a
-100-line limit): a pre-existing documentation governance contract, deliberately
-not repaired, awaiting its own owner decision. Details are in the PRE-M2 CLOSURE
-block of [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
-
-**M2-A closed (2026-08-15):** a bounded **PLAN-10B** correction closed
-`VA-NEW-06` and `VA-NEW-10` and started nothing else in that section. A media
-kind that fails no longer erases the kind that answered — each kind is its own
-provider attempt, the failure stays visible in the existing ledger, and the call
-raises only when every requested kind failed. One download URL no longer costs
-`max_retries` squared HTTP requests: the request stage and the body stage now
-share one attempt budget, while trying a *different* candidate stays the download
-ladder's separate concern. `ASSET_SEARCH_FINGERPRINT_VERSION` deliberately stays
-1.
-
-**M2-B closed (2026-08-15):** a bounded **PLAN-10C** correction closed
-`VA-NEW-12` and started no adaptive-budget or plateau policy. One scene now has a
-hard ceiling on provider search requests — 36 were measured before the fix — in
-`provider.search` calls rather than query attempts. The general search and the
-draft ladder share one counter, an exhausted budget never reaches the provider,
-the stop is its own `skipped` reason rather than a provider error, and candidates
-already found are kept. Default 64 via `asset_selection`, so the fingerprint
-version stays 1. The next exact action is **independent Review #3 over M2-A and
-M2-B**.
+Не запускай сеть, providers, Vision, TTS, скачивание, render или платные
+действия без отдельного разрешения владельца.
