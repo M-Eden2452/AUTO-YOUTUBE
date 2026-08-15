@@ -692,12 +692,16 @@ it was left untouched rather than quietly changed.
 
 **Evidence.** RED first on `36f23cc` through the real production path
 (`build_assets_manifest` → `_search_scene_providers`), not an isolated fake
-counter: 16 failures and 2 errors across 12 checks, on real numbers — 36
+counter: 14 failures and 2 errors across 12 checks, on real numbers — 36
 requests where 1, 2, 3, 7, 10 and 12 were configured, 72 across two scenes, 36
 where 0 was configured, 28 from two always-failing providers — plus 2 failures
 over the draft ladder (5 requests where 3 were configured, and no stop recorded
 at all). GREEN after: 13 owning checks plus 3 draft-ladder checks and 1
-fingerprint check OK; M2-A regression radius (`PartialMixedMediaRetrievalTests`,
+fingerprint check OK. Two of those 17 never had a RED state and are honest
+guards rather than reproductions: the untranslatable-provider check locks a
+property the flat-plan restructure introduced, and the fingerprint check would
+have passed before the change too — it exists to prove *why* no version bump is
+owed. M2-A regression radius (`PartialMixedMediaRetrievalTests`,
 `TargetedSearchPartialMediaTests`, `DownloadRetryOwnershipTests`) 13 OK; owning
 targeted radius 91 OK; media-policy radius 35 OK; full canonical offline suite
 **2291** (2274 baseline plus exactly the 17 new checks) with the same single
