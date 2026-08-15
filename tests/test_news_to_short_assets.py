@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 from PIL import Image
 
+from src.providers.fake_provider import FakeStockProvider
+
 
 class _CapturingStockProvider:
     name = "capture"
@@ -40,6 +42,34 @@ class _CapturingStockProvider:
     @staticmethod
     def health_check():
         return None
+
+
+class _HalfOutageStockProvider(FakeStockProvider):
+    """Answers one media type and is down for the neighbouring one.
+
+    A real provider fails per endpoint, not per scene: the image search can
+    answer while the video search times out. This fixture reproduces exactly
+    that shape so ``search_provider`` can be asked what it does with a mixed
+    request when only half of it comes back.
+    """
+
+    def __init__(self, *, failing_media_type: str, **kwargs: object) -> None:
+        super().__init__(**kwargs)  # type: ignore[arg-type]
+        self.failing_media_type = failing_media_type
+        self.requested_media_types: list[str] = []
+
+    def search(self, request):  # type: ignore[override]
+        from src.assets.provider_contract import ProviderNetworkError
+
+        self.requested_media_types.append(request.media_type)
+        if request.media_type == self.failing_media_type:
+            raise ProviderNetworkError(
+                f"{self.name} {request.media_type} endpoint is unavailable.",
+                provider=self.name,
+                query=request.query,
+                retryable=True,
+            )
+        return super().search(request)
 
 
 class NewsToShortAssetTests(unittest.TestCase):
@@ -1071,6 +1101,166 @@ class NewsToShortAssetTests(unittest.TestCase):
             self.assertEqual(manifest["missing_scenes"][0]["scene_id"], "scene_001")
             self.assertEqual(manifest["missing_scenes"][0]["reason"], "license_review_required")
             self.assertTrue(any(attempt.get("download_status") == "blocked" for attempt in manifest["provider_attempts"]))
+
+
+class PartialMixedMediaRetrievalTests(unittest.TestCase):
+    """VA-NEW-06 / M2-A: one failing media type may not erase the other's results.
+
+    ``search_provider`` asks one provider once per allowed media kind. Since
+    retrieval symmetry (``ae6d46c``) a mixed scene sends two requests, and a
+    single failing one used to abort the whole call, discarding candidates that
+    had already come back. Isolation is per provider attempt: the surviving kind
+    keeps its results, the failing kind stays visible as a failed attempt, and a
+    call where nothing survived still raises rather than reporting empty success.
+    """
+
+    @staticmethod
+    def _mixed_scene(*, visual_type: str = "video") -> dict[str, object]:
+        return {
+            "scene_id": "scene_001",
+            "visual_type": visual_type,
+            "allowed_media_kinds": ["image", "video"],
+            "primary_query": "orca ocean",
+        }
+
+    def _search(
+        self,
+        provider: object,
+        *,
+        scene: dict[str, object] | None = None,
+        media_attempts: list[dict[str, object]] | None = None,
+    ) -> list[dict[str, object]]:
+        from src.news.asset_manager import _search_provider
+
+        # The ledger collector is opt-in, so a caller that does not want the
+        # per-media-type record keeps calling exactly as it always has.
+        extra = {} if media_attempts is None else {"media_attempts": media_attempts}
+        return _search_provider(
+            provider,
+            "orca ocean",
+            scene if scene is not None else self._mixed_scene(),
+            {"must_not_include": []},
+            project_id="va_new_06",
+            limit=5,
+            **extra,
+        )
+
+    def test_a_satisfied_media_type_survives_a_failing_preferred_neighbour(self) -> None:
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+
+        results = self._search(provider)
+
+        self.assertEqual(provider.requested_media_types, ["video", "image"])
+        self.assertEqual([str(item["media_type"]) for item in results], ["image"])
+
+    def test_a_satisfied_media_type_survives_a_failing_secondary_neighbour(self) -> None:
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+
+        results = self._search(provider, scene=self._mixed_scene(visual_type="image"))
+
+        self.assertEqual(provider.requested_media_types, ["image", "video"])
+        self.assertEqual([str(item["media_type"]) for item in results], ["image"])
+
+    def test_a_failed_media_type_stays_visible_as_its_own_attempt(self) -> None:
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+        media_attempts: list[dict[str, object]] = []
+
+        self._search(provider, media_attempts=media_attempts)
+
+        self.assertEqual(
+            [(item["media_type"], item["status"]) for item in media_attempts],
+            [("video", "failed"), ("image", "completed")],
+        )
+        error = media_attempts[0]["error"]
+        assert isinstance(error, dict)
+        self.assertEqual(error["code"], "network_error")
+        self.assertTrue(error["retryable"])
+        self.assertEqual(media_attempts[0]["result_count"], 0)
+        self.assertEqual(media_attempts[1]["result_count"], 1)
+
+    def test_a_satisfied_media_type_is_never_re_requested_because_a_neighbour_failed(
+        self,
+    ) -> None:
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+
+        self._search(provider)
+
+        self.assertEqual(provider.requested_media_types.count("image"), 1)
+        self.assertEqual(provider.requested_media_types.count("video"), 1)
+
+    def test_every_media_type_failing_still_raises_instead_of_reporting_empty_success(
+        self,
+    ) -> None:
+        from src.assets.provider_contract import ProviderRateLimitError
+
+        provider = FakeStockProvider(mode="rate_limit")
+        media_attempts: list[dict[str, object]] = []
+
+        with self.assertRaises(ProviderRateLimitError):
+            self._search(provider, media_attempts=media_attempts)
+
+        self.assertEqual(
+            [(item["media_type"], item["status"]) for item in media_attempts],
+            [("video", "failed"), ("image", "failed")],
+        )
+
+    def test_a_single_media_type_scene_keeps_its_failure_raising_unchanged(self) -> None:
+        from src.assets.provider_contract import ProviderNetworkError
+
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+
+        with self.assertRaises(ProviderNetworkError):
+            self._search(
+                provider,
+                scene={
+                    "scene_id": "scene_001",
+                    "visual_type": "video",
+                    "allowed_media_kinds": ["video"],
+                    "primary_query": "orca ocean",
+                },
+            )
+
+    def test_manifest_builder_keeps_partial_results_and_still_reports_the_failure(
+        self,
+    ) -> None:
+        """Production path: the builder is where a lost half used to disappear."""
+        from src.news.asset_manager import build_assets_manifest
+
+        provider = _HalfOutageStockProvider(failing_media_type="video")
+        manifest = build_assets_manifest(
+            visual_plan={
+                "language": "en",
+                "scenes": [self._mixed_scene()],
+            },
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=[provider],
+            dry_run=False,
+            project_id="va_new_06_integration",
+            allow_infographic_fallback=False,
+            allow_emergency_backdrop=False,
+        )
+
+        scene_entry = manifest["scenes"][0]
+        self.assertEqual(
+            [str(item["media_type"]) for item in scene_entry["candidates"]],
+            ["image"],
+        )
+
+        attempt = scene_entry["provider_attempts"][0]
+        self.assertEqual(attempt["status"], "completed")
+        self.assertEqual(attempt["result_count"], 1)
+        self.assertEqual(
+            [(item["media_type"], item["status"]) for item in attempt["media_attempts"]],
+            [("video", "failed"), ("image", "completed")],
+        )
+
+        # The half that failed is still an honest provider error, not a silent gap.
+        self.assertEqual(
+            [error["code"] for error in manifest["provider_errors"]],
+            ["network_error"],
+        )
+        self.assertEqual(manifest["provider_errors"][0]["media_type"], "video")
 
 
 if __name__ == "__main__":

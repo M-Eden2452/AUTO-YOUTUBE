@@ -352,6 +352,7 @@ def targeted_slot_search(
                 "kind": item.kind,
                 "status": "started",
             }
+            media_attempts: list[dict[str, Any]] = []
             try:
                 provider_results = search_provider(
                     provider,
@@ -360,6 +361,7 @@ def targeted_slot_search(
                     semantic_scene.to_dict(),
                     project_id=project_id,
                     limit=5,
+                    media_attempts=media_attempts,
                 )
                 new_candidates.extend(
                     rank_provider_results(
@@ -391,5 +393,7 @@ def targeted_slot_search(
                         },
                     }
                 )
+            if media_attempts:
+                attempt["media_attempts"] = media_attempts
             attempts.append(attempt)
     return new_candidates, attempts

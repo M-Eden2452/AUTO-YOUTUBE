@@ -297,6 +297,17 @@ this map empirically rather than changing it: an offline render on the accepted
 HEAD came out **byte-identical** to the pre-Review-#2 render, so the re-authorization
 boundary at `src/assets/completion/modes.py::_local_file_is_valid` rejects nothing
 legitimate. 5 of 5 scenes usable in draft, 0 of 5 publish-ready. No owner, schema,
-activation status or module boundary changed. The next exact action is **M2-A** —
-`VA-NEW-06` (`search_provider`, `src/news/asset_provider_adapters.py`) and
-`VA-NEW-10` (`ProviderHttpClient`, `src/assets/http_client.py`) inside **PLAN-10B**.
+activation status or module boundary changed.
+
+**M2-A closed (2026-08-15).** Two owners on this map keep their boundaries and
+gain an explicit one. `search_provider`
+(`src/news/asset_provider_adapters.py`) remains the single retrieval seam, and
+each allowed media kind is now its own provider attempt inside it — error
+isolation only; selection, ranking, rights, media policy and the query path are
+untouched, and no second retrieval path exists. `ProviderHttpClient`
+(`src/assets/http_client.py`) is now the **single owner of retrying the same HTTP
+request**: `download_stream` and `_request` share one attempt budget instead of
+each counting on its own. Trying a *different* candidate stays with the download
+ladder (`ensure_selected_asset_downloaded`) — two layers by design, the hidden
+third one removed. The next exact action is **M2-B** (`VA-NEW-12`) inside
+**PLAN-10C**.

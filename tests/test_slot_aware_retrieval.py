@@ -387,6 +387,80 @@ class TargetedSlotRetrievalIntegrationTests(unittest.TestCase):
             self.assertEqual(titles, {"Antarctic ice cave interior"})
 
 
+class HalfOutageSlotProvider(FakeStockProvider):
+    """Answers the image endpoint and is down for video - a real half-outage."""
+
+    name = "fake"
+
+    def __init__(self, *, fixture: Path, failing_media_type: str) -> None:
+        super().__init__(image_fixture=fixture)
+        self.failing_media_type = failing_media_type
+        self.requested_media_types: list[str] = []
+
+    def search(self, request):  # type: ignore[override]
+        from src.assets.provider_contract import ProviderNetworkError
+
+        self.requested_media_types.append(request.media_type)
+        if request.media_type == self.failing_media_type:
+            raise ProviderNetworkError(
+                f"fake {request.media_type} endpoint is unavailable.",
+                provider=self.name,
+                query=request.query,
+                retryable=True,
+            )
+        return super().search(request)
+
+
+class TargetedSearchPartialMediaTests(unittest.TestCase):
+    """VA-NEW-06 / M2-A at the second ``search_provider`` call site.
+
+    ``targeted_slot_search`` asks the same provider through the same retrieval
+    owner, so a mixed-kind targeted query loses its answered half in exactly the
+    same way the general search did. It is wired to the real ``search_provider``
+    and ``rank_provider_results`` here, the way production injects them.
+    """
+
+    def test_a_targeted_query_keeps_the_media_type_that_answered(self) -> None:
+        from src.assets.semantic_selection import analyze_scene
+        from src.news.asset_provider_adapters import (
+            rank_provider_results,
+            search_provider,
+        )
+        from src.news.asset_scene_completion import targeted_slot_search
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixture.jpg"
+            Image.new("RGB", (1080, 1920), (30, 60, 90)).save(fixture)
+            provider = HalfOutageSlotProvider(fixture=fixture, failing_media_type="video")
+            scene = _exact_location_scene(allowed_media_kinds=["image", "video"])
+
+            found, attempts = targeted_slot_search(
+                scene=scene,
+                semantic_scene=analyze_scene(scene),
+                slot_names=["subject"],
+                ordered_providers=[provider],
+                provider_capabilities={provider.name: provider.capabilities().to_dict()},
+                project_id="va_new_06_targeted",
+                sent_queries=set(),
+                rank_provider_results=rank_provider_results,
+                search_provider=search_provider,
+            )
+
+            self.assertEqual(provider.requested_media_types, ["image", "video"])
+            self.assertEqual([str(item["media_type"]) for item in found], ["image"])
+
+            self.assertEqual(attempts[0]["status"], "completed")
+            self.assertEqual(attempts[0]["result_count"], 1)
+            self.assertEqual(
+                [
+                    (item["media_type"], item["status"])
+                    for item in attempts[0]["media_attempts"]
+                ],
+                [("image", "completed"), ("video", "failed")],
+            )
+
+
 class StrictModeUnaffectedTests(unittest.TestCase):
     def test_strict_mode_never_triggers_a_targeted_search(self) -> None:
         from src.news.asset_manager import build_assets_manifest

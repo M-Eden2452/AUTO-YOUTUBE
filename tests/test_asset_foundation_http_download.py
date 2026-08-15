@@ -144,6 +144,111 @@ class AssetHttpDownloadTests(unittest.TestCase):
             self.assertEqual(len(result["checksum_sha256"]), 64)
 
 
+class DownloadRetryOwnershipTests(unittest.TestCase):
+    """VA-NEW-10 / M2-A: one owner of "send this request again", not two nested.
+
+    ``download_stream`` had its own retry loop around ``_request``, which retries
+    on its own, so a single download URL cost up to ``max_retries`` squared HTTP
+    requests. Retrying the same request is one decision with one budget; trying
+    a *different* candidate stays a separate concern of the download ladder.
+    """
+
+    setUp = AssetHttpDownloadTests.setUp
+
+    def _always(self, response_factory, count: int = 40) -> FlakySession:
+        return FlakySession([response_factory() for _ in range(count)])
+
+    def test_one_download_url_never_costs_more_than_the_configured_budget(self) -> None:
+        from src.assets.http_client import ProviderHttpClient
+        from src.assets.provider_contract import ProviderDownloadError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            session = self._always(lambda: FakeResponse(status_code=502))
+            client = ProviderHttpClient(session=session, max_retries=3, backoff_base=0, sleep=lambda _seconds: None)
+
+            with self.assertRaises(ProviderDownloadError):
+                client.download_stream("https://example.test/file.mp4", Path(tmp) / "clip.bin")
+
+            self.assertEqual(session.calls, 3)
+
+    def test_a_rate_limited_download_is_not_hammered_by_a_second_retry_layer(self) -> None:
+        from src.assets.http_client import ProviderHttpClient
+        from src.assets.provider_contract import ProviderDownloadError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            session = self._always(
+                lambda: FakeResponse(status_code=429, headers={"Retry-After": "7"})
+            )
+            sleeps: list[float] = []
+            client = ProviderHttpClient(session=session, max_retries=3, backoff_base=0, sleep=sleeps.append)
+
+            with self.assertRaises(ProviderDownloadError):
+                client.download_stream("https://example.test/file.mp4", Path(tmp) / "clip.bin")
+
+            self.assertEqual(session.calls, 3)
+            # The provider's own Retry-After still governs the wait between the
+            # attempts that remain - collapsing the layers may not lose it.
+            self.assertEqual(sleeps, [7.0, 7.0])
+
+    def test_a_mid_stream_body_failure_still_retries_within_the_same_budget(self) -> None:
+        from src.assets.http_client import ProviderHttpClient
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "clip.bin"
+            session = FlakySession(
+                [
+                    FakeResponse(
+                        status_code=200,
+                        headers={"Content-Type": "video/mp4", "Content-Length": "6"},
+                        chunks=[b"abc", b"def"],
+                        raise_during_iter=True,
+                    ),
+                    FakeResponse(
+                        status_code=200,
+                        headers={"Content-Type": "video/mp4", "Content-Length": "6"},
+                        chunks=[b"abc", b"def"],
+                    ),
+                ]
+            )
+            client = ProviderHttpClient(session=session, max_retries=3, backoff_base=0, sleep=lambda _seconds: None)
+
+            result = client.download_stream(
+                "https://example.test/file.mp4",
+                target,
+                allowed_content_types={"video/mp4"},
+                min_bytes=1,
+            )
+
+            self.assertEqual(session.calls, 2)
+            self.assertEqual(result["bytes"], 6)
+
+    def test_a_transport_failure_before_the_body_shares_the_same_budget(self) -> None:
+        from src.assets.http_client import ProviderHttpClient
+        from src.assets.provider_contract import ProviderDownloadError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            session = self._always(lambda: requests.ConnectionError("refused"))
+            client = ProviderHttpClient(session=session, max_retries=4, backoff_base=0, sleep=lambda _seconds: None)
+
+            with self.assertRaises(ProviderDownloadError):
+                client.download_stream("https://example.test/file.mp4", Path(tmp) / "clip.bin")
+
+            self.assertEqual(session.calls, 4)
+
+    def test_a_non_retryable_status_still_costs_exactly_one_request(self) -> None:
+        from src.assets.http_client import ProviderHttpClient
+        from src.assets.provider_contract import ProviderInvalidResponseError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            session = self._always(lambda: FakeResponse(status_code=404))
+            client = ProviderHttpClient(session=session, max_retries=3, backoff_base=0, sleep=lambda _seconds: None)
+
+            with self.assertRaises(ProviderInvalidResponseError):
+                client.download_stream("https://example.test/file.mp4", Path(tmp) / "clip.bin")
+
+            self.assertEqual(session.calls, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
 

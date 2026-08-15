@@ -106,7 +106,15 @@ next_exact_action: >-
   together with the two accounting facts that belong beside it (exact-head CI is
   red on an external Chocolatey/FFmpeg outage before any test ran, and the full
   local suite has exactly one known pre-existing doc-length failure).
-  THE NEXT EXACT ACTION is M2-A — VA-NEW-06 plus VA-NEW-10 inside PLAN-10B.
+  M2-A IS CLOSED by the bounded PLAN-10B correction recorded in the M2-A CLOSURE
+  block below: a media kind that fails no longer erases the kind that answered,
+  and one download URL no longer costs max_retries squared HTTP requests because
+  the request stage and the body stage now share one attempt budget. Nothing else
+  in PLAN-10B starts, its status stays blocked, and
+  ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 - the reasoning is in
+  that block. THE NEXT EXACT ACTION is M2-B - VA-NEW-12, the minimal per-scene
+  request budget and stop guard - inside PLAN-10C, after which Review #3 covers
+  M2-A and M2-B together; no part of Review #3 has been performed.
   BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
@@ -448,6 +456,113 @@ code, test, config or schema is touched by this record.
 
 The next exact action is **M2-A** — `VA-NEW-06` + `VA-NEW-10` inside
 **PLAN-10B** — not «resume FIRST OWNER SHORT». Checkpoint remains PLAN-9D.
+
+**M2-A CLOSURE (2026-08-15).** `VA-NEW-06` and `VA-NEW-10` are closed by the
+bounded **PLAN-10B** correction in the commit containing this record. Nothing
+else in that section starts: the pagination / exhaustion contract is untouched,
+the section keeps its `blocked` status, and no PLAN-ID is created.
+
+**VA-NEW-06 — a failing media kind no longer erases the one that answered.**
+Since retrieval symmetry (`ae6d46c`) a mixed scene sends `search_provider`
+(`src/news/asset_provider_adapters.py`) one request per allowed media kind, and
+the kinds shared a single `try` at the call sites: one failing request aborted
+the whole call and discarded candidates that had already come back, so a provider
+whose video endpoint was down also cost the scene its images. Each kind is now
+its own provider attempt. Results already collected are kept, the failing kind is
+recorded, and the call raises only when **every** requested kind failed — so a
+single-kind scene, and a provider that is down entirely, behave exactly as
+before, raising the same first error. The isolation covers the whole attempt,
+including the rights/policy normalisation of what the provider returned.
+
+**The failure stays visible; nothing is swallowed.** `search_provider` takes an
+opt-in `media_attempts` collector and appends one record per kind — `completed`
+with its `result_count`, or `failed` carrying the provider's own machine-readable
+`code` and `retryable` plus the `media_type`. Both production call sites pass it.
+`_run_provider_query` (`asset_manifest_builder.py`) attaches it to the existing
+provider attempt and, when the call did *not* raise, also reports the failed kind
+into the existing `provider_errors` list, so a partial outage stays a real
+provider error instead of a silent gap; the raising path already reported it and
+is not double-counted. `targeted_slot_search` (`asset_scene_completion.py`)
+attaches the same record to its own attempt. No new ledger and no new status
+vocabulary: the attempt's `status` keeps meaning «the query ran», and
+`media_attempts` is one additive key. Selection, ranking, rights, media policy
+and the query path are unchanged — this correction moves error isolation only.
+
+**VA-NEW-10 — one owner of «send this request again».** The R² lived inside
+`ProviderHttpClient` (`src/assets/http_client.py`), not between the client and
+the ladder: `download_stream` retried the whole request in its own loop while
+`_request` independently retried the same request, so one download URL cost up to
+`max_retries` **squared** HTTP requests — measured at 9 with the default 3, and
+16 with 4. A provider that was rate-limiting got hit nine times for one file.
+`_request` is now the single owner of that decision and takes an explicit attempt
+budget; `download_stream` creates one budget for the whole download and passes it
+in, so the request stage and the body stage draw from the same count. One
+download URL now costs at most `max_retries` requests. Body-transfer retry is
+preserved — a stream that dies mid-body still gets another attempt, from the same
+budget — `Retry-After` still governs the wait, a non-retryable status still costs
+exactly one request, and `get_json` is unchanged: with no budget passed
+`_request` creates its own of exactly `max_retries`, with the same backoff.
+
+**Two retry layers remain, and that is the intended shape.** Retrying the same
+request belongs to `ProviderHttpClient`; trying a *different* candidate belongs
+to the download ladder (`ensure_selected_asset_downloaded`, `max_attempts` — 3
+from the builder, 1 from draft completion). Those are different questions about
+different URLs and are deliberately not collapsed, because collapsing them would
+delete genuine try-next-candidate behaviour. What was removed is the third,
+hidden layer inside the client. No new retry loop was created anywhere.
+
+**Resume — `ASSET_SEARCH_FINGERPRINT_VERSION` deliberately stays 1.** The
+question was answered rather than assumed. `VA-NEW-06` *can* change what
+`search_provider` returns for identical inputs, but only when a provider request
+fails, and the version field does not answer that question: its contract is
+stated where it lives (`src/news/pipeline.py:106`) — bump when *the payload*
+changes — and the payload is the inputs the search runs on (`visual_plan`,
+`user_assets`, `channel`, `asset_selection`, `completion_mode`, `dry_run`), none
+of which changes here. The M1-D CLOSURE already declared that things which vary
+without the inputs varying stay outside the fingerprint (live provider identity,
+the local media index); a provider being down is exactly that kind of runtime
+variation, and two runs of the same completed search could already differ before
+this change. A bump would force every existing project to re-run `asset_search`
+for a change that can only *preserve* results previously discarded and can never
+authorize anything — rights, usability, checksum and render gates are untouched
+and still re-evaluated downstream. Repo precedent agrees: `a8549ff` changed
+local-library retrieval results for identical inputs after M1-D landed and did
+not bump. M1-D compatibility semantics are used unchanged and no second resume
+contract exists.
+
+**What deliberately stays out of this slice.** The PLAN-10B pagination /
+exhaustion / provider-contract work itself. `C75`–`C78` (EXP-001 provider
+defects): same owner, but not in the authorised bounded-correction set — same
+owner is not permission, their registry attribution is already correct and
+nothing there is touched. `VA-NEW-12` budget guards — that is **M2-B** inside
+**PLAN-10C**. `C47` duplicate frame — **PLAN-10D**. Provider-registry
+convergence — closed negatively as `D-2`, there is nothing to implement. The
+`crop_not_verified` and required-action findings of the resume-run, and the
+documentation line-count failure, all keep the homes recorded in PRE-M2 CLOSURE.
+
+**Evidence.** RED first on `3633e0a` through the real production path, not an
+isolated fake: 8 checks over `search_provider` and both of its call sites — 2
+failures (`[] != ['image']`: the surviving image candidates lost at the manifest
+builder and again at `targeted_slot_search`), 5 errors (three of them the
+`ProviderNetworkError` escaping and destroying the results, two the
+not-yet-existing ledger), and 1 correctly green guard proving a single-kind scene
+still raises; plus 5 retry-ownership checks with 3 failures on real numbers
+(9 requests where 3 were configured, 16 where 4 were). GREEN after: 16 owning
+checks OK, owning radius 135 OK, retrieval/completion/resume radius 236 OK,
+rights/evidence radius 121 OK, full canonical offline suite 2274 (2261 baseline
+plus 13 new) with the one pre-existing doc-length failure of PRE-M2 CLOSURE and
+nothing else, gates OK. No network, paid, Vision, TTS or render call was made.
+**Ratchet not taken:** `src.news.asset_provider_adapters`,
+`src.news.asset_manifest_builder` and `src.news.asset_scene_completion` keep
+their mypy baseline suppression — the 7 measured errors under it are pre-existing
+type debt in functions this correction does not touch, and clearing them is the
+mass cleanup that may not share a slice with a behaviour change.
+`src.assets.http_client` is not suppressed and is fully checked.
+
+Next: **M2-B** (`VA-NEW-12`, minimal per-scene request budget and stop guard)
+inside **PLAN-10C**, after which **Review #3** covers M2-A and M2-B together per
+the recorded batching strategy; none of Review #3 has been performed. Checkpoint
+remains PLAN-9D.
 
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits

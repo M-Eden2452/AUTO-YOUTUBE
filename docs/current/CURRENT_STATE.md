@@ -362,5 +362,27 @@ outage and not CI green. The full local offline suite is 2261 tests at `3633e0a`
 with exactly one failure, `test_onboarding_documents_stay_short` (`START_HERE.md`
 154/100; `SYSTEM_MAP.md` 294/240 and this file 348/280 are masked behind it): a
 pre-existing documentation line-count governance contract, not a product
-regression, deliberately not repaired and awaiting its own owner decision. The
-next exact action is **M2-A** — `VA-NEW-06` + `VA-NEW-10` inside **PLAN-10B**.
+regression, deliberately not repaired and awaiting its own owner decision.
+
+**M2-A closed (2026-08-15).** A bounded **PLAN-10B** correction closed
+`VA-NEW-06` and `VA-NEW-10`; the pagination/exhaustion contract is untouched and
+the section stays `blocked`. `search_provider` now treats each allowed media kind
+as its own provider attempt: a kind that fails no longer discards candidates a
+neighbouring kind already returned, the failure is recorded per kind (`code`,
+`retryable`, `media_type`) on the existing provider attempt and reported into the
+existing `provider_errors`, and the call still raises when **every** requested
+kind failed — a single-kind scene and a fully-down provider behave exactly as
+before. `ProviderHttpClient` had the nested retry: `download_stream` retried the
+whole request while `_request` retried it again, costing up to `max_retries`
+squared requests for one URL (9 measured at the default 3). `_request` is now the
+single owner of «send this request again» and takes an explicit budget that
+`download_stream` shares across the request and body stages, so one URL costs at
+most `max_retries` requests; body-transfer retry, `Retry-After` and `get_json`
+are unchanged. Trying a *different* candidate remains the download ladder's own
+concern and was not collapsed into it. `ASSET_SEARCH_FINGERPRINT_VERSION`
+deliberately stays 1: the payload it versions is the search *inputs*, none of
+which changed, and a failing provider is the same kind of runtime variation the
+M1-D closure already placed outside the fingerprint. Evidence RED→GREEN is in the
+M2-A CLOSURE block. The next exact action is **M2-B** (`VA-NEW-12`, minimal
+per-scene request budget) inside **PLAN-10C**, then **Review #3** over M2-A and
+M2-B; `C75`–`C78`, PLAN-10D and the pagination contract stay out.

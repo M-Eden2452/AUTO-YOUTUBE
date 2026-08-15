@@ -160,5 +160,15 @@ CI green, not a product defect. The full offline suite has exactly one known
 failure, `test_onboarding_documents_stay_short` (this file is 154 lines against a
 100-line limit): a pre-existing documentation governance contract, deliberately
 not repaired, awaiting its own owner decision. Details are in the PRE-M2 CLOSURE
-block of [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md). The next exact
-action is **M2-A** — `VA-NEW-06` + `VA-NEW-10` inside **PLAN-10B**.
+block of [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md).
+
+**M2-A closed (2026-08-15):** a bounded **PLAN-10B** correction closed
+`VA-NEW-06` and `VA-NEW-10` and started nothing else in that section. A media
+kind that fails no longer erases the kind that answered — each kind is its own
+provider attempt, the failure stays visible in the existing ledger, and the call
+raises only when every requested kind failed. One download URL no longer costs
+`max_retries` squared HTTP requests: the request stage and the body stage now
+share one attempt budget, while trying a *different* candidate stays the download
+ladder's separate concern. `ASSET_SEARCH_FINGERPRINT_VERSION` deliberately stays
+1. The next exact action is **M2-B** (`VA-NEW-12`) inside **PLAN-10C**, then
+**Review #3** over M2-A and M2-B.

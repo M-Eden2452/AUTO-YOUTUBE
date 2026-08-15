@@ -84,7 +84,23 @@ def search_provider(
     *,
     project_id: str,
     limit: int,
+    media_attempts: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    """Ask one provider for one query, once per allowed media kind.
+
+    Each media kind is its own provider attempt. A real provider fails per
+    endpoint, so a kind that could not be served may not discard what a
+    neighbouring kind already returned, and a kind that answered is never asked
+    again because of it. ``media_attempts`` is an opt-in collector that receives
+    one record per kind - satisfied with its result count, or failed with the
+    provider's own machine-readable error - so a half outage stays visible
+    instead of hiding behind a whole-scene failure.
+
+    When every requested kind failed there is nothing to keep, and the first
+    error is raised exactly as before: a single-kind scene, and a provider that
+    is down entirely, behave unchanged.
+    """
+
     if supports_stock_contract(provider):
         preferred = scene_media_type(scene)
         try:
@@ -101,6 +117,7 @@ def search_provider(
         )
 
         results: list[dict[str, Any]] = []
+        failures: list[BaseException] = []
         for media_type in media_types:
             request = AssetSearchRequest(
                 query=query,
@@ -125,15 +142,61 @@ def search_provider(
                     or []
                 ),
             )
-            results.extend(
-                candidate_to_rankable(candidate)
-                for candidate in provider.search(request)  # type: ignore[arg-type]
-            )
+            try:
+                found = [
+                    candidate_to_rankable(candidate)
+                    for candidate in provider.search(request)  # type: ignore[arg-type]
+                ]
+            except Exception as exc:
+                failures.append(exc)
+                if media_attempts is not None:
+                    media_attempts.append(
+                        _media_attempt_failed(exc, provider=provider, media_type=media_type)
+                    )
+                continue
+            results.extend(found)
+            if media_attempts is not None:
+                media_attempts.append(
+                    {
+                        "media_type": media_type,
+                        "status": "completed",
+                        "result_count": len(found),
+                    }
+                )
+        if failures and len(failures) == len(media_types):
+            raise failures[0]
         return results
     try:
         return provider.search(query, scene, limit=limit)
     except TypeError:
         return provider.search(query, scene)
+
+
+def _media_attempt_failed(
+    error: BaseException,
+    *,
+    provider: AssetProvider,
+    media_type: str,
+) -> dict[str, Any]:
+    """One failed media-kind attempt, classified by code rather than message."""
+
+    if isinstance(error, ProviderError):
+        record = error.to_dict()
+    else:
+        record = {
+            "code": "provider_unexpected_error",
+            "provider": str(getattr(provider, "name", "")),
+            "query": "",
+            "retryable": False,
+            "message": str(error),
+        }
+    record["media_type"] = media_type
+    return {
+        "media_type": media_type,
+        "status": "failed",
+        "result_count": 0,
+        "error": record,
+    }
 
 
 def _retrieval_media_types(

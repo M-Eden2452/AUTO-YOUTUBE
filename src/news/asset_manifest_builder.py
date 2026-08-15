@@ -460,6 +460,7 @@ class AssetManifestBuilder:
             "query_source": str(query.get("query_source") or ""),
             "status": "started",
         }
+        media_attempts: list[dict[str, Any]] = []
         try:
             results = search_provider(
                 provider,
@@ -468,6 +469,7 @@ class AssetManifestBuilder:
                 state.semantic_scene.to_dict(),
                 project_id=self.project_id,
                 limit=5,
+                media_attempts=media_attempts,
             )
             state.candidates.extend(
                 rank_provider_results(
@@ -478,6 +480,20 @@ class AssetManifestBuilder:
                 )
             )
             attempt.update({"status": "completed", "result_count": len(results)})
+            # A media kind that failed beside one that answered is still a real
+            # provider failure. The call did not raise, so this is where it gets
+            # reported; when it does raise, the handlers below already report it.
+            for record in media_attempts:
+                if record.get("status") != "failed":
+                    continue
+                error = dict(record.get("error") or {})
+                error.update(
+                    {
+                        "scene_id": state.scene.get("scene_id", ""),
+                        "query": str(query["query"]),
+                    }
+                )
+                self.provider_errors.append(error)
         except ProviderError as exc:
             error = exc.to_dict()
             error.update(
@@ -498,6 +514,8 @@ class AssetManifestBuilder:
             }
             self.provider_errors.append(error)
             attempt.update({"status": "failed", "error": error})
+        if media_attempts:
+            attempt["media_attempts"] = media_attempts
         self._record_provider_attempt(state, attempt)
 
     def _record_provider_attempt(
