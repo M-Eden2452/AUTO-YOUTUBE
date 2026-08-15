@@ -271,3 +271,24 @@ tolerant of manifests written before a checksum was persisted. No schema,
 owner or activation status changed. The checkpoint remains **PLAN-9D**, and the
 next exact action is **focused independent Review #2 re-review over M1-D and
 M1-E**.
+
+**Review #2 closed (2026-08-15):** the focused independent re-review of `f3b607a`
+(M1-D) and `0a05c7e`/`35688dd`/`e03ad9e` (M1-E) returned **ACCEPT WITH MINOR
+NOTES**, 0 BLOCKER/MAJOR, accepted by the owner as sufficient to close both
+slices. No owner, schema, activation status or module boundary changed. The two
+authorization boundaries confirmed by the review are the ones already mapped
+here: `src/news/pipeline.py` proves which inputs produced a reusable
+`asset_search` before the completed-stage snapshot is read, and
+`src/assets/completion/modes.py::_local_file_is_valid` re-decodes and re-hashes
+the current bytes at the single final-render call site
+(`src/news/final_renderer.py:330`), bypassing the metadata-keyed cache and failing
+closed without a recorded expectation. Draft and strict were verified separately
+and are equally strong on byte authorization; `story_card_text_only_v1` renders no
+asset bytes, so `fullscreen_voiceover_v1` remains the only template behind this
+boundary. Three MINOR notes are recorded in the REVIEW #2 CLOSURE block of
+[PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md) and are deliberately not
+repaired; one of them corrects the wording above — the quality *stage* is not
+tolerant of a missing checksum, `src/news/quality_check.py:232` already errors,
+and «non-final gates» here means the readiness helpers, not that stage. The
+checkpoint remains **PLAN-9D**, and the next exact action is **resume FIRST OWNER
+SHORT** offline on the accepted HEAD to a real `draft_1080x1920.mp4`.

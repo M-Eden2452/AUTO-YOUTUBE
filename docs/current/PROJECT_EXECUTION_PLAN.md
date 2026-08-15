@@ -94,8 +94,14 @@ next_exact_action: >-
   fail-closed policy is unchanged. M1-E / VA-NEW-09 is closed by the bounded
   PLAN-9E correction recorded below. Review #2 rejected its first implementation
   on two M1-E blockers and its second on one remaining fresh-checksum blocker;
-  all three are repaired. THE NEXT EXACT ACTION is the focused
-  independent Review #2 re-review over M1-D and M1-E. BLOCKER-L1 remains separate and untouched.
+  all three are repaired. Review #2 is now CLOSED: focused independent re-review
+  over M1-D and M1-E returned ACCEPT WITH MINOR NOTES, 0 BLOCKER/MAJOR, and the
+  owner accepted that verdict as sufficient to close both slices. Its three MINOR
+  notes are recorded in REVIEW #2 CLOSURE below and are explicitly NOT repaired by
+  a separate slice. THE NEXT EXACT ACTION is to resume FIRST OWNER SHORT — the
+  offline LOCAL diagnostic repeat on the accepted HEAD, through the same canonical
+  workflow, to a real draft_1080x1920.mp4 for the owner to watch. M2-A does not
+  start until that owner run has a result. BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
@@ -334,6 +340,69 @@ that do not are empty placeholders or point at files no longer on disk, so no
 existing project changes verdict. Targeted radius: 174 OK, gates OK. Next:
 **focused independent Review #2 re-review over M1-D and M1-E**. Checkpoint
 remains PLAN-9D.
+
+**REVIEW #2 CLOSURE (2026-08-15).** Focused independent read-only re-review of
+the exact M1-D commit (`f3b607a`) and the three M1-E commits (`0a05c7e`,
+`35688dd`, `e03ad9e`) is complete. Verdict: **ACCEPT WITH MINOR NOTES**, 0
+BLOCKER, 0 MAJOR. **M1-D and M1-E are both closed**, their composition is safe,
+and the owner accepted this verdict as sufficient without a further repair or
+re-review. The 23 unrelated commits between `f3b607a` and `e03ad9e` were not a
+review range and were not audited. Accepted HEAD `e03ad9e` is pushed to
+`origin/governance-reset`; exact-head CI is run `31866721908` (`offline-tests`),
+`in_progress` at the single permitted lookup and not polled.
+
+What the re-review established independently rather than accepting from the
+implementation record: RED was reproduced for all four commits by extracting the
+parent tree with `git archive` into a scratch directory and running the newer
+tests against it, without touching the worktree — `f3b607a` 7 failures/2 errors
+(matching its commit body), `0a05c7e` 2 failures, `35688dd` 1 failure/2 errors
+(`bytes_replaced` reaching the renderer through the metadata-keyed cache), and
+`e03ad9e` 2 failures. `projects/` was rescanned from scratch over every
+renderable `selected_asset` (assembly slots plus the legacy root key): 40
+manifests, 146 reachable records, 35 without any stored checksum, and **zero** of
+those 35 present on disk — 25 carry no local path at all and 10 point at files
+that no longer exist, so both classes were already blocked before this change and
+no stored project changes verdict. Every production writer of a renderable
+`selected_asset` was enumerated from the call graph and each records a checksum;
+the only writer that does not, `generated_fallback_asset`, emits `path: ""`, is
+already `BLOCK_MISSING_FILE`, and is disabled on the canonical path. Draft was
+verified separately from strict by running `_create_scene_segments` in both modes
+against byte replacement, checksum removal and both together — draft blocks
+identically and is not weaker. Owning tests 61 OK, adjacent radius 94 OK; no
+network, paid, Vision, TTS or production render call was made by the review.
+
+Three MINOR notes, recorded here as the accounting home and deliberately **not**
+repaired by a separate slice; no new PLAN-ID and no owner is assigned:
+
+- **MINOR-1 (docs/accounting).** The M1-E SECOND REPAIR block above, and the
+  `e03ad9e` commit body, both say the non-final gates «quality, draft completion,
+  replacement, report, scene completion» stay tolerant of a missing checksum.
+  That is accurate for the readiness helpers (`blocking_reasons` /
+  `evaluate_usability` with `fresh_local_file_validation=False`) but **not** for
+  the quality stage: `src/news/quality_check.py:232` already makes a missing root
+  `checksum_sha256` a hard error, and did so before M1-E. Runtime is correct; only
+  the wording overstates what «quality» refers to. The code comment in
+  `modes.py` and the mirror documents say «earlier gates» / «non-final gates» and
+  are accurate as written.
+- **MINOR-2 (code accounting).** `35688dd` narrowed `semantic_contract_present`
+  in `src/news/final_renderer.py` twice — it dropped the `explicit_assembly` term
+  and added the `selected_by != "user_asset_priority_manual"` carve-out — under an
+  empty commit body, with the rationale living only in that commit's docs entry.
+  The renderer is therefore more permissive than `quality_check.py:246` for two
+  classes (assembly without a semantic decision; manual user assets). Not
+  exploitable on the canonical path: strict `final_render` requires
+  `quality.status == "passed"` (`src/news/pipeline.py:717`) and the canonical
+  workflow re-runs `quality_check` immediately before the render
+  (`fullscreen_voiceover/use_case.py:529`), and quality carries no carve-out. Both
+  branches remain strictly stronger than the pre-`0a05c7e` state, where strict did
+  not re-evaluate the slot at all.
+- **MINOR-3 (test coverage).** There is no committed draft-mode regression for
+  byte replacement; only strict has one. The code path is shared — the readiness
+  call sits above the draft/strict branch — and the review verified draft
+  empirically, so this is a coverage gap rather than a defect.
+
+Next: **resume FIRST OWNER SHORT** on the accepted HEAD, offline, to a real
+`draft_1080x1920.mp4`. Checkpoint remains PLAN-9D.
 
 
 **AUD-DELTA-CLOSE (docs/accounting, 2026-08-13).** Three docs-only commits

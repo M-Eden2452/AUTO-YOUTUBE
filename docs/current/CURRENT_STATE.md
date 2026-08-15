@@ -321,3 +321,28 @@ project asset changes verdict: every checksum-less manifest entry is an empty
 placeholder or points at a file that no longer exists. Targeted radius is 174
 OK and gates OK. The current checkpoint remains **PLAN-9D**. The next exact
 action is **focused independent Review #2 re-review over M1-D and M1-E**.
+
+**Review #2 closed (2026-08-15):** the focused independent re-review of `f3b607a`
+(M1-D) and `0a05c7e`/`35688dd`/`e03ad9e` (M1-E) returned **ACCEPT WITH MINOR
+NOTES** — 0 BLOCKER, 0 MAJOR — and the owner accepted it as sufficient to close
+both slices without a further repair or re-review. The review re-derived its own
+evidence: RED reproduced for all four commits against extracted parent trees
+without touching the worktree; `projects/` rescanned independently (40 manifests,
+146 reachable `selected_asset` records, 35 without a checksum, **zero** of them
+present on disk); every production writer of a renderable asset enumerated from
+the call graph and confirmed to record a checksum; draft verified separately from
+strict and found equally strong on byte authorization. Owning tests 61 OK,
+adjacent radius 94 OK, no network/paid/Vision/TTS/render call. Its three MINOR
+notes are recorded in the REVIEW #2 CLOSURE block of the execution plan and are
+deliberately **not** repaired by a separate slice: the wording that calls the
+quality *stage* tolerant of a missing checksum (it is not —
+`src/news/quality_check.py:232` already errors, and did so before M1-E); the
+undocumented double narrowing of `semantic_contract_present` in `35688dd`, which
+is not exploitable because strict render requires a passing quality report that
+carries no such carve-out; and the absent draft-mode byte-replacement regression,
+whose path is shared with strict and was verified empirically. Accepted HEAD
+`e03ad9e` is pushed; exact-head CI is run `31866721908`. The checkpoint remains
+**PLAN-9D** and no PLAN-ID was created. The next exact action is **resume FIRST
+OWNER SHORT** — the offline LOCAL diagnostic repeat on the accepted HEAD, through
+the same canonical workflow, to a real `draft_1080x1920.mp4` for the owner to
+watch; **M2-A does not start until that owner run has a result**.

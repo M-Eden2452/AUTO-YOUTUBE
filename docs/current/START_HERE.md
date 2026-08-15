@@ -135,3 +135,20 @@ a recorded checksum, while earlier gates stay tolerant of manifests written
 before one was persisted. Targeted radius is 174 OK and gates OK. The
 checkpoint remains **PLAN-9D**. The next exact action is **focused independent
 Review #2 re-review over M1-D and M1-E**.
+
+**Review #2 closed (2026-08-15):** verdict **ACCEPT WITH MINOR NOTES** over
+`f3b607a` (M1-D) and `0a05c7e`/`35688dd`/`e03ad9e` (M1-E) — 0 BLOCKER, 0 MAJOR.
+The owner accepted it as sufficient to close both slices; no repair slice and no
+re-review follow. The review reproduced RED for all four commits itself, rescanned
+`projects/` independently (zero checksum-less assets exist on disk), enumerated
+every production writer of a renderable asset, and verified draft separately from
+strict. Its three MINOR notes live in the REVIEW #2 CLOSURE block of
+[PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md) and are deliberately not
+repaired: the quality *stage* is in fact not tolerant of a missing checksum
+(`src/news/quality_check.py:232`), `35688dd` narrowed `semantic_contract_present`
+twice without a commit body, and there is no committed draft-mode byte-replacement
+regression. Accepted HEAD `e03ad9e` is pushed; exact-head CI is run
+`31866721908`. The checkpoint remains **PLAN-9D**, no PLAN-ID was created, and the
+next exact action is **resume FIRST OWNER SHORT** offline on the accepted HEAD to
+a real `draft_1080x1920.mp4`; **M2-A does not start until that owner run has a
+result**.
