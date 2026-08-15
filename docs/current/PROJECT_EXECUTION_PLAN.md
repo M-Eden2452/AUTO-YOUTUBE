@@ -128,9 +128,22 @@ next_exact_action: >-
   absorbed by the WP0-B governance slice recorded in REVIEW #3 CLOSURE below,
   which also shortened the three routing mirrors and added a line-length guard
   beside the existing line-count one; WP0-B is not closed by it.
-  THE NEXT EXACT ACTION is LIVE-5, the owner-issued live provider diagnostic:
-  every finding the audit named as mandatory before it is closed. LIVE-5 is a
-  paid network action and needs its own explicit owner approval.
+  LIVE-5 IS DONE and recorded in docs/audits/LIVE_5_2026-08-15.md: the run
+  completed end to end to a draft MP4, 5 of 5 scenes got a slot against the 3 of
+  5 baseline, rights are verified 7 of 7, there are no duplicates and no
+  generated fallbacks, and the paid spend was 15 semantic-brief calls at $0.15
+  plus one ElevenLabs pass. Verdict PARTIAL, not PASS: only 2 of 5 selections are
+  right by meaning, video slots are still 0, publish_ready is false and the MP4
+  carries no subtitles. Selection quality, not coverage, is now the binding
+  constraint. The run reproduced C79, C75/C76, C77, C78 and C82 with evidence and
+  repaired none of them, and it added two registry rows - C83 (use_local_library
+  is a dead key, so the local library was never actually disabled and still
+  scored candidates) and C84 (the semantic-brief ceiling is per adapter, not per
+  project, so 12 became 15). THE NEXT EXACT ACTION is the owner's choice between
+  C79 as the pre-v1 bounded correction already scheduled after the STOCK
+  diagnostic and before M4/PLAN-11, and a second LIVE run on the LIVE-4 animal
+  script for a second data point; the owner has stated that more runs are needed
+  and one diagnostic does not establish a trend.
   BLOCKER-L1 remains separate and untouched.
   The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
@@ -891,6 +904,32 @@ plan step. Он измеряет качество отбора по persisted ev
 > (M1-E), 06 и 10 (M2-A, commit `36f23cc`), 12 (M2-B, commit `7e2b85c`).
 > Необходимых по контракту аудита блокеров LIVE-5 не осталось; классы A/A′/B
 > и состав набора при этом не пересматривались.
+
+**LIVE-5 CLOSURE (2026-08-15).** LIVE-5 выполнен и записан в
+[docs/audits/LIVE_5_2026-08-15.md](../audits/LIVE_5_2026-08-15.md) от HEAD
+`68c46cd`; проект
+`projects/2026-08-15_solnechnaya-panel-lovit-svet-tolko-dnem-nochyu-2`.
+Новый PLAN-ID не создан, checkpoint остаётся PLAN-9D, providers/retrieval/ranking
+не менялись.
+
+Измерено: прогон дошёл до конца (`draft_completed`), 5 из 5 сцен получили слот
+против 3 из 5 в baseline 14.08, 7 слотов, все — реальные provider-ассеты, без
+generated/emergency карточек и без дублей. Права чистые: 7 из 7 verified,
+0 blocked. Видео-слотов по-прежнему 0, `publish_ready` false, субтитры в MP4
+не попали (оба выходных файла байт-идентичны). Платное: 15 вызовов semantic
+brief на $0.15 и одна генерация ElevenLabs.
+
+Вердикт **PARTIAL**: покрытие и права выросли, но по смыслу верны только 2 из 5
+сцен (сцены 002, 003 и 004 — подмены), а PASS требует 4 из 5. Визуальную оценку
+владелец выставляет сам по review board и итоговым кадрам.
+
+Открытым осталось: `C79` (самый дорогой дефект прогона — смысловые слова сцены
+остаются по-русски в matchable-полях), `C75`/`C76` (Wikimedia video: 44 попытки,
+0 результатов), `C77`, `C78`, `C82` (стоп на 64 запросах не виден в scene-level
+реестре) — измерены и не исправлены. Два новых дефекта записаны строками в
+registry: `C83` (`use_local_library` — мёртвый ключ, локальная библиотека
+участвовала в скоринге вопреки выключению) и `C84` (потолок вызовов semantic
+brief действует на адаптер, а не на проект: 15 при заявленных 12).
 
 **WHAT MUST HAPPEN BEFORE LIVE-5.** Каждый пункт — bounded correction внутри
 уже существующего owner; новых PLAN-ID нет. Класс **A** — прямо искажает
