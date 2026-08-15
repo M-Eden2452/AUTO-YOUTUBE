@@ -267,5 +267,170 @@ class MetadataEvidenceRepairTest(unittest.TestCase):
         self.assertNotEqual(by_id["ia"]["provider_confidence"], by_id["pexels"]["provider_confidence"])
 
 
+class RussianMorphologyMatchingTest(unittest.TestCase):
+    """C79 - the scene's own words, inflected, in the provider's own metadata.
+
+    Extraction has always stemmed: ``visual_planning.entities`` groups ``панель`` and
+    ``панелей`` under one key and picks the scene's subject from that group. Matching
+    did not, and the two relations it did have cannot express Russian inflection - a
+    literal comparison misses ``панелей`` outright, and the prefix relation misses it
+    too, because Russian changes the character *at* the boundary (``ь`` becomes ``е``).
+
+    Measured on the solar run these cases are written from: a local record whose title
+    names the scene's subject in the genitive plural scored 7.5, and a car dashboard
+    won the scene at 72.9 - on the strength of sharing one uninflected word.
+
+    What this class does *not* claim is that the scene is now won. The repair reaches
+    every question ``semantic_stem_score`` answers - the slot verdict, the support
+    status, the required-slot refusal - and stops there, because the weighted average
+    that gates ``score_below_*`` is still computed from the literal primitive. Both
+    halves are pinned below, the closed one and the open one, so the open one cannot
+    quietly be read as closed. See ``C79`` and ``C89`` in the cleanup registry.
+    """
+
+    RIGHT = "local_solar_assembly_line"
+    WRONG = "stock_car_dashboard"
+
+    def _scene(self, **overrides: list[str]) -> SemanticScene:
+        return SemanticScene(
+            scene_id="scene_solar_panel_assembly",
+            subject=["панель"],
+            action=["сборка"],
+            environment=["завод"],
+            source_class=CLASS_SPECIFIC_OBJECT,
+            **overrides,
+        )
+
+    def _ranked(
+        self, scene: SemanticScene
+    ) -> tuple[dict[str, dict[str, object]], list[dict[str, object]]]:
+        candidates = [
+            _candidate(
+                self.RIGHT,
+                provider="local_library",
+                title="Автоматизированная линия сборки солнечных панелей",
+                description="Роботизированная линия сборки солнечных панелей на заводе",
+            ),
+            _candidate(
+                self.WRONG,
+                provider="pexels",
+                title="Панель приборов автомобиля",
+                description="Панель приборов и руль автомобиля крупным планом",
+            ),
+        ]
+        ranked = rank_candidates(scene, candidates, source_class=scene.source_class)
+        return {str(item["asset_id"]): item for item in ranked}, ranked
+
+    def test_inflected_subject_is_a_matched_slot_not_an_absent_requirement(self) -> None:
+        """Closed by C79: every question the stem primitive answers now answers it.
+
+        The subject and the action are named by the metadata in another case, and the
+        slot layer says so. An exacting class used to refuse this candidate outright
+        for a requirement its own evidence met.
+        """
+        by_id, _ = self._ranked(self._scene())
+        right = by_id[self.RIGHT]
+
+        self.assertEqual(_slot(right, "subject")["status"], "matched")
+        self.assertEqual(_slot(right, "action")["status"], "matched")
+        decision = right["selection_decision"]
+        assert isinstance(decision, dict)
+        self.assertNotIn(
+            "required_slot_missing:subject", decision["reject_reasons"]
+        )
+        self.assertEqual(right["slot_verdict"], "complete")
+
+    def test_the_score_that_gates_selection_is_still_morphology_blind(self) -> None:
+        """Open, and pinned so it stays visible: C89.
+
+        ``candidate_ranker._field_match`` asks ``semantic_literal_score`` about the
+        scene's *derived* description, so the average that gates ``score_below_*``
+        still scores an inflected subject at zero. The consequence is the whole
+        product defect: the slot layer calls the subject matched, the average calls it
+        absent, the candidate stays ``unsupported`` and refused, and the record that
+        merely shares an uninflected word outranks the one that names the subject.
+
+        Making this a passing assertion rather than a fixed test is deliberate. The
+        one-line swap to the stem primitive was measured against the frozen PLAN-9D
+        ground truth and moved scene_009 off the annotator's preferred candidate, so
+        it is not a change this slice may make on the way past.
+        """
+        by_id, ranked = self._ranked(self._scene())
+        right = by_id[self.RIGHT]
+
+        self.assertEqual(right["subject_match"], 0.0)
+        self.assertTrue(right["rejected"])
+        self.assertEqual(ranked[0]["asset_id"], self.WRONG)
+
+    def test_english_prefix_variants_are_still_decided_by_the_prefix_relation(self) -> None:
+        """``Antarctica``/``antarctic`` share no stem - only a prefix. Both survive.
+
+        The stemmer strips Cyrillic endings only, so it reduces to plain equality on a
+        Latin word. The repair is additive precisely so this case keeps its old answer:
+        replacing the prefix relation with stem equality would have broken it.
+        """
+        result = _rank(
+            _candidate(
+                "antarctic_station",
+                title="Research station on the antarctic plateau",
+            ),
+            subject="antarctica",
+        )
+
+        self.assertEqual(_slot(result, "subject")["status"], "matched")
+
+    def test_english_words_that_merely_look_alike_are_still_refused(self) -> None:
+        """``sampling``/``samples`` is the pair the module names as a non-match.
+
+        Neither relation reaches it: they share no prefix, and the stemmer strips
+        Cyrillic endings only, so on a Latin pair stem equality is plain equality.
+        """
+        result = _rank(
+            _candidate("lab_sampling", title="Sampling procedure in the laboratory"),
+            subject="samples",
+        )
+
+        self.assertNotEqual(_slot(result, "subject")["status"], "matched")
+
+    def test_the_authors_literal_requirement_is_not_stemmed_with_the_rest(self) -> None:
+        """``must_include`` stays verbatim. This repair is not a way around it.
+
+        The same inflection the subject is now forgiven is still fatal here, because
+        ``must_include`` is a statement about the frame that the author wrote, not a
+        derived paraphrase of the scene.
+        """
+        by_id, _ = self._ranked(self._scene(must_include=["панель"]))
+        right = by_id[self.RIGHT]
+        decision = right["selection_decision"]
+        assert isinstance(decision, dict)
+
+        self.assertTrue(right["rejected"])
+        self.assertIn("must_include_missing:панель", decision["reject_reasons"])
+
+    def test_a_prohibition_written_in_another_case_is_still_a_prohibition(self) -> None:
+        """``must_not_include`` is literal, and nothing here loosened it."""
+        by_id, _ = self._ranked(self._scene(must_not_include=["панель"]))
+
+        wrong = by_id[self.WRONG]
+        decision = wrong["selection_decision"]
+        assert isinstance(decision, dict)
+        self.assertTrue(wrong["rejected"])
+        self.assertIn("must_avoid_match:панель", decision["reject_reasons"])
+
+    def test_a_declared_conflict_now_catches_its_own_inflections(self) -> None:
+        """``conflicting_context`` already used the stem relation, so it moves too.
+
+        It moves in the safe direction: a conflict the author declared is *found* in
+        one more wording rather than missed. Recorded here so the change is not silent.
+        """
+        by_id, _ = self._ranked(self._scene(conflicting_context=["автомобиль"]))
+
+        wrong = by_id[self.WRONG]
+        decision = wrong["selection_decision"]
+        assert isinstance(decision, dict)
+        self.assertTrue(wrong["rejected"])
+        self.assertIn("conflicting_context:автомобиль", decision["reject_reasons"])
+
+
 if __name__ == "__main__":
     unittest.main()

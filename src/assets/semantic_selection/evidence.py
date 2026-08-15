@@ -15,11 +15,29 @@ The rules themselves are unchanged:
   rounded up to a match.
 - A term written in a script the metadata cannot contain is *undecidable*, not
   unmatched: an English title neither confirms nor denies a Russian subject.
+
+What C79 corrected is not a rule but a disagreement. Extraction has always stemmed:
+``visual_planning.entities`` groups ``панель`` and ``панелей`` under one key and picks
+a scene's subject out of that group. This side had only a prefix relation, which cannot
+express Russian inflection at all - Russian changes the character *at* the boundary, so
+``панель`` and ``панелей`` share no prefix - and a scene's own subject went unmatched in
+metadata that named it. The same stemmer is now reused here, as an addition to the
+prefix relation rather than a replacement for it.
+
+That closes the half of C79 these primitives own, and not the other half. Every question
+asked through ``semantic_stem_score`` - the slot verdict, the support status, the
+required-slot refusal - now reads an inflected word as the word it is. The ranker's
+weighted average still asks ``semantic_literal_score`` about the same derived
+description, so it still reads that word as absent, and it is the half that decides
+whether a candidate is selected. That is ``C89``, and it is a bounded slice of its own:
+the one-line swap was measured against the frozen PLAN-9D ground truth and moved a scene
+off the annotator's preferred candidate, which is not a change to make in passing.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,7 +64,8 @@ CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 
 # Shortest word for which a shared prefix is meaningful. "antarctic"/"antarctica" is a
 # morphological variant of one name; "car"/"cargo" is not, and four letters is not
-# enough to tell those apart. Used only by the slot layer - see ``stem_match``.
+# enough to tell those apart. The floor guards both relations in
+# ``morphological_variant``, which the slot layer reaches through ``semantic_stem_score``.
 MIN_STEM_LENGTH = 5
 
 # A positive multiword claim from broad prose is coherent only when all of its words
@@ -178,22 +197,65 @@ def contains_concept(concept: str, token_set: set[str], text: str) -> bool:
     return concept_score(concept, token_set, text) >= 99.0
 
 
-def stem_match(word: str, token_set: set[str]) -> bool:
-    """Whether ``word`` appears in the evidence, allowing a morphological variant.
+_ENTITY_STEM: Callable[[str], str] | None = None
 
-    ``Antarctica`` in a brief and ``antarctic`` in a title are the same place, and a
-    slot that calls that "missing" refuses correct material for a suffix. Only a
-    genuine prefix relation counts, and only from five characters up, so this stays a
-    spelling allowance rather than a guess: ``sampling`` and ``samples`` do not match.
+
+def _entity_stem() -> Callable[[str], str]:
+    """``visual_planning.entities.stem``, resolved on first use and kept.
+
+    Imported here rather than at module scope because at module scope it is a cycle:
+    ``visual_planning``'s package import reaches ``script_engine.text_analysis`` and
+    from there ``src.news``, which imports this subpackage back - measured, not feared.
+    Deferring it to the first comparison lets the same one stemmer be reused without
+    either side having to be loaded first, and ``sys.modules`` caches the module, so
+    this costs a lookup rather than an import.
     """
+    global _ENTITY_STEM
+    if _ENTITY_STEM is None:
+        from src.content.visual_planning.entities import stem
+
+        _ENTITY_STEM = stem
+    return _ENTITY_STEM
+
+
+def morphological_variant(word: str, other: str) -> bool:
+    """Whether two words of evidence length are inflections of one word.
+
+    Two relations, and the second only ever adds to the first:
+
+    - a **shared prefix**, from five characters up. ``Antarctica`` in a brief and
+      ``antarctic`` in a title are the same place, and a slot that calls that "missing"
+      refuses correct material for a suffix. The floor keeps this a spelling allowance
+      rather than a guess: ``sampling`` and ``samples`` do not match;
+    - a **shared stem**, computed by the one stemmer this repository has -
+      ``visual_planning.entities.stem``, the key extraction already groups a scene's
+      words by. The prefix relation cannot reach a Russian inflection, because Russian
+      changes the character at the boundary: ``панель`` and ``панелей`` diverge at the
+      sixth letter and share no prefix, yet extraction had already called them one word.
+
+    Neither relation is weakened by the other's presence, and the pair that documents
+    the floor is still refused by both. The stemmer strips Cyrillic endings only, so on
+    a Latin pair stem equality collapses to plain equality and every English case above
+    is decided exactly as it was before - which is why ``antarctica``/``antarctic``
+    still needs the prefix relation and could not be replaced by this one.
+    """
+    if len(word) < MIN_STEM_LENGTH or len(other) < MIN_STEM_LENGTH:
+        return False
+    if other.startswith(word) or word.startswith(other):
+        return True
+    # ``stem`` never returns a stub for a word this long: it strips an ending only when
+    # at least ``MIN_STEM_CHARS`` survive, and returns the word untouched otherwise.
+    stem = _entity_stem()
+    return stem(word) == stem(other)
+
+
+def stem_match(word: str, token_set: set[str]) -> bool:
+    """Whether ``word`` appears in the evidence, allowing a morphological variant."""
     if word in token_set:
         return True
     if len(word) < MIN_STEM_LENGTH:
         return False
-    return any(
-        len(other) >= MIN_STEM_LENGTH and (other.startswith(word) or word.startswith(other))
-        for other in token_set
-    )
+    return any(morphological_variant(word, other) for other in token_set)
 
 
 def stem_concept_score(concept: str, token_set: set[str], text: str) -> float:
@@ -276,9 +338,7 @@ def _description_concept_score(
 def _token_matches(word: str, token: str, *, stem: bool) -> bool:
     if word == token:
         return True
-    if not stem or len(word) < MIN_STEM_LENGTH or len(token) < MIN_STEM_LENGTH:
-        return False
-    return token.startswith(word) or word.startswith(token)
+    return stem and morphological_variant(word, token)
 
 
 @dataclass(frozen=True)
@@ -402,6 +462,7 @@ __all__ = [
     "contains_concept",
     "evidence_values",
     "metadata_status",
+    "morphological_variant",
     "provider_evidence_fields",
     "provider_evidence_text",
     "semantic_concept_score",
