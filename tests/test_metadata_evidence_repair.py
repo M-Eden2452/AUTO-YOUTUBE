@@ -280,12 +280,16 @@ class RussianMorphologyMatchingTest(unittest.TestCase):
     names the scene's subject in the genitive plural scored 7.5, and a car dashboard
     won the scene at 72.9 - on the strength of sharing one uninflected word.
 
-    What this class does *not* claim is that the scene is now won. The repair reaches
-    every question ``semantic_stem_score`` answers - the slot verdict, the support
-    status, the required-slot refusal - and stops there, because the weighted average
-    that gates ``score_below_*`` is still computed from the literal primitive. Both
-    halves are pinned below, the closed one and the open one, so the open one cannot
-    quietly be read as closed. See ``C79`` and ``C89`` in the cleanup registry.
+    C79 repaired the slot layer's half; C89 carried it to the weighted average that
+    actually selects, so the scene is now won on the production path. What made C89 a
+    slice of its own rather than a one-line swap is *which* tolerance the average may
+    have: the ranker credits a confirmed shared stem and refuses the slot layer's prefix
+    allowance. ``EnglishPrefixCreditGuardTest`` below is the other half of this pair and
+    holds that line.
+
+    What this class still does not claim is anything about English retrieval quality.
+    The scene here is Russian and synthetic; the measured corpus (PLAN-9D, 14 scenes) is
+    English and contains no inflection case at all.
     """
 
     RIGHT = "local_solar_assembly_line"
@@ -340,27 +344,27 @@ class RussianMorphologyMatchingTest(unittest.TestCase):
         )
         self.assertEqual(right["slot_verdict"], "complete")
 
-    def test_the_score_that_gates_selection_is_still_morphology_blind(self) -> None:
-        """Open, and pinned so it stays visible: C89.
+    def test_the_score_that_gates_selection_reads_the_inflected_subject(self) -> None:
+        """Closed by C89: the average that selects sees what the slot layer sees.
 
-        ``candidate_ranker._field_match`` asks ``semantic_literal_score`` about the
-        scene's *derived* description, so the average that gates ``score_below_*``
-        still scores an inflected subject at zero. The consequence is the whole
-        product defect: the slot layer calls the subject matched, the average calls it
-        absent, the candidate stays ``unsupported`` and refused, and the record that
-        merely shares an uninflected word outranks the one that names the subject.
+        This used to be the pinned open state. ``candidate_ranker._field_match`` asked
+        ``semantic_literal_score`` about the scene's *derived* description, so the
+        average that gates ``score_below_*`` scored an inflected subject at zero: the
+        slot layer called the subject matched, the average called it absent, the
+        candidate stayed refused, and the record that merely shares an uninflected word
+        outranked the one that names the subject.
 
-        Making this a passing assertion rather than a fixed test is deliberate. The
-        one-line swap to the stem primitive was measured against the frozen PLAN-9D
-        ground truth and moved scene_009 off the annotator's preferred candidate, so
-        it is not a change this slice may make on the way past.
+        It now asks ``semantic_inflection_score``, and the whole defect closes at once -
+        the subject is a full match, the right record is not rejected, and it wins.
+        Measured on this synthetic Russian case only; see the class docstring.
         """
         by_id, ranked = self._ranked(self._scene())
         right = by_id[self.RIGHT]
 
-        self.assertEqual(right["subject_match"], 0.0)
-        self.assertTrue(right["rejected"])
-        self.assertEqual(ranked[0]["asset_id"], self.WRONG)
+        self.assertEqual(right["subject_match"], 100.0)
+        self.assertFalse(right["rejected"])
+        self.assertEqual(ranked[0]["asset_id"], self.RIGHT)
+        self.assertTrue(by_id[self.WRONG]["rejected"])
 
     def test_english_prefix_variants_are_still_decided_by_the_prefix_relation(self) -> None:
         """``Antarctica``/``antarctic`` share no stem - only a prefix. Both survive.
@@ -430,6 +434,90 @@ class RussianMorphologyMatchingTest(unittest.TestCase):
         assert isinstance(decision, dict)
         self.assertTrue(wrong["rejected"])
         self.assertIn("conflicting_context:автомобиль", decision["reject_reasons"])
+
+
+class EnglishPrefixCreditGuardTest(unittest.TestCase):
+    """A guard, not a RED: green before C89 and green after it.
+
+    Its job is to fail for the *next* person. The obvious way to close C89 was to point
+    ``_field_match`` at the slot layer's ``semantic_stem_score``. That was written,
+    measured and reverted: it moved PLAN-9D's ``scene_009`` off the annotator's preferred
+    candidate (``preferred_matches`` 4 -> 3), and the cause was not the stemmer but the
+    prefix relation, which credits ``power`` to ``powered``.
+
+    The case below is that scene distilled to two candidates and one requirement, so the
+    failure is visible without the frozen corpus:
+
+    ================  ==========  ==========  =============
+    relation          A (right)   B (wrong)   verdict
+    ================  ==========  ==========  =============
+    literal            33.33       33.33      tied
+    stem + prefix      33.33       66.67      B wins on ``power`` in ``powered``
+    stem only          33.33       33.33      tied - what ranking asks for
+    ================  ==========  ==========  =============
+
+    A shows a photovoltaic installation; B shows a portable light tower that merely runs
+    *on* solar panels. Nothing here says the ranker should prefer A - the two are tied on
+    this field and other evidence decides. It says only that ``powered`` may not be
+    scored as evidence of a ``power plant``.
+    """
+
+    RIGHT = "photovoltaic_installation"
+    WRONG = "portable_light_tower"
+
+    def _ranked(self) -> dict[str, dict[str, object]]:
+        scene = SemanticScene(
+            scene_id="scene_solar_power_plant",
+            subject=["solar power plant"],
+            action=["aerial view of panel rows"],
+            source_class=CLASS_SPECIFIC_OBJECT,
+        )
+        candidates = [
+            _candidate(
+                self.RIGHT,
+                title="Photovoltaic panel at the National Solar Energy Center",
+                description=(
+                    "Solar cells on a photovoltaic panel at the National Solar Energy "
+                    "Center in the Negev Desert."
+                ),
+            ),
+            _candidate(
+                self.WRONG,
+                title="A portable light tower powered by solar panels",
+                description=(
+                    "A portable light tower powered by solar panels stands in a desert "
+                    "landscape, showcasing renewable energy technology."
+                ),
+            ),
+        ]
+        ranked = rank_candidates(scene, candidates, source_class=scene.source_class)
+        return {str(item["asset_id"]): item for item in ranked}
+
+    def test_a_prefix_is_not_scored_as_evidence_of_the_word_it_prefixes(self) -> None:
+        """``powered`` is not a ``power plant``, and ``panels`` is not ``panel rows``.
+
+        Both fields are asserted, because the reverted change credited both: the subject
+        through ``power`` in ``powered`` and the action through ``panel`` in ``panels``.
+        """
+        by_id = self._ranked()
+        right, wrong = by_id[self.RIGHT], by_id[self.WRONG]
+
+        self.assertEqual(33.333, right["subject_match"])
+        self.assertEqual(33.333, wrong["subject_match"])
+        self.assertEqual(0.0, wrong["action_match"])
+
+    def test_the_wrong_candidate_does_not_outscore_the_right_one_on_the_subject(self) -> None:
+        """The comparison the average actually makes, stated as a comparison.
+
+        The numbers above pin today's arithmetic; this pins the property that survives a
+        re-weighting - a candidate may not overtake on a field it only prefix-matches.
+        """
+        by_id = self._ranked()
+
+        self.assertLessEqual(
+            float(by_id[self.WRONG]["subject_match"]),
+            float(by_id[self.RIGHT]["subject_match"]),
+        )
 
 
 if __name__ == "__main__":

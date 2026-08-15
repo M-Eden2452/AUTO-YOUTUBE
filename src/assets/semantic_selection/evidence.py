@@ -24,14 +24,26 @@ express Russian inflection at all - Russian changes the character *at* the bound
 metadata that named it. The same stemmer is now reused here, as an addition to the
 prefix relation rather than a replacement for it.
 
-That closes the half of C79 these primitives own, and not the other half. Every question
-asked through ``semantic_stem_score`` - the slot verdict, the support status, the
-required-slot refusal - now reads an inflected word as the word it is. The ranker's
-weighted average still asks ``semantic_literal_score`` about the same derived
-description, so it still reads that word as absent, and it is the half that decides
-whether a candidate is selected. That is ``C89``, and it is a bounded slice of its own:
-the one-line swap was measured against the frozen PLAN-9D ground truth and moved a scene
-off the annotator's preferred candidate, which is not a change to make in passing.
+C89 carried that repair the rest of the way, to the weighted average that actually
+selects a candidate - and deliberately not by handing the ranker the slot layer's
+relation. The two layers ask different questions of the same words:
+
+- the slot layer asks a **binary** question, "is this the thing at all", once per
+  candidate. A spelling allowance such as ``antarctica``/``antarctic`` belongs there:
+  refusing correct material over a suffix costs a scene, and nothing accumulates;
+- the ranker asks a **competitive** question, "which of ten candidates gets the higher
+  score". There the same allowance is summed across fields, and a prefix stops being a
+  spelling allowance and becomes an argument: ``powered`` is credited as evidence of
+  ``power plant``, and the candidate that merely runs *on* solar panels outbids the one
+  that *is* a photovoltaic installation. Measured, not feared - that is exactly how a
+  naive stem-aware ranker moved PLAN-9D's ``scene_009`` off the annotator's choice, and
+  the shift came entirely from the prefix relation, with zero stem credit on either side.
+
+So ranking asks ``semantic_inflection_score``: literal, plus a *confirmed shared stem*,
+and no prefix relation. The slot layer keeps ``semantic_stem_score``, prefix included.
+Different questions, different strictness - which is why this asymmetry is not the C79
+disagreement returning: there the two layers gave different answers about the *same*
+word by accident; here they answer different questions on purpose.
 """
 
 from __future__ import annotations
@@ -64,8 +76,8 @@ CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 
 # Shortest word for which a shared prefix is meaningful. "antarctic"/"antarctica" is a
 # morphological variant of one name; "car"/"cargo" is not, and four letters is not
-# enough to tell those apart. The floor guards both relations in
-# ``morphological_variant``, which the slot layer reaches through ``semantic_stem_score``.
+# enough to tell those apart. The floor guards both relations below, whichever of them a
+# caller asks for.
 MIN_STEM_LENGTH = 5
 
 # A positive multiword claim from broad prose is coherent only when all of its words
@@ -218,47 +230,80 @@ def _entity_stem() -> Callable[[str], str]:
     return _ENTITY_STEM
 
 
-def morphological_variant(word: str, other: str) -> bool:
-    """Whether two words of evidence length are inflections of one word.
+def prefix_variant(word: str, other: str) -> bool:
+    """A **shared prefix**, from five characters up: a spelling allowance.
 
-    Two relations, and the second only ever adds to the first:
+    ``Antarctica`` in a brief and ``antarctic`` in a title are the same place, and a slot
+    that calls that "missing" refuses correct material for a suffix. The floor keeps this
+    an allowance rather than a guess: ``sampling`` and ``samples`` do not match.
 
-    - a **shared prefix**, from five characters up. ``Antarctica`` in a brief and
-      ``antarctic`` in a title are the same place, and a slot that calls that "missing"
-      refuses correct material for a suffix. The floor keeps this a spelling allowance
-      rather than a guess: ``sampling`` and ``samples`` do not match;
-    - a **shared stem**, computed by the one stemmer this repository has -
-      ``visual_planning.entities.stem``, the key extraction already groups a scene's
-      words by. The prefix relation cannot reach a Russian inflection, because Russian
-      changes the character at the boundary: ``панель`` and ``панелей`` diverge at the
-      sixth letter and share no prefix, yet extraction had already called them one word.
-
-    Neither relation is weakened by the other's presence, and the pair that documents
-    the floor is still refused by both. The stemmer strips Cyrillic endings only, so on
-    a Latin pair stem equality collapses to plain equality and every English case above
-    is decided exactly as it was before - which is why ``antarctica``/``antarctic``
-    still needs the prefix relation and could not be replaced by this one.
+    What it cannot tell is whether the shared prefix is the *same word*. ``power`` is a
+    prefix of ``powered``, and it is also a prefix of ``powerless``. That is tolerable
+    for a yes/no question about one candidate and not tolerable inside a competitive
+    score, which is why the ranker asks for the relation below instead.
     """
     if len(word) < MIN_STEM_LENGTH or len(other) < MIN_STEM_LENGTH:
         return False
-    if other.startswith(word) or word.startswith(other):
-        return True
+    return other.startswith(word) or word.startswith(other)
+
+
+def inflected_variant(word: str, other: str) -> bool:
+    """A **shared stem**: the same word written with a different ending.
+
+    Computed by the one stemmer this repository has - ``visual_planning.entities.stem``,
+    the key extraction already groups a scene's words by. The prefix relation cannot
+    reach a Russian inflection, because Russian changes the character at the boundary:
+    ``панель`` and ``панелей`` diverge at the sixth letter and share no prefix, yet
+    extraction had already called them one word.
+
+    The stemmer strips Cyrillic endings only, so on a Latin pair this collapses to plain
+    equality: ``power``/``powered`` and ``panel``/``panels`` are *not* variants here.
+    That is the whole reason the ranker can use it - it adds Russian morphology to a
+    competitive score without adding an English prefix allowance to it.
+    """
+    if len(word) < MIN_STEM_LENGTH or len(other) < MIN_STEM_LENGTH:
+        return False
     # ``stem`` never returns a stub for a word this long: it strips an ending only when
     # at least ``MIN_STEM_CHARS`` survive, and returns the word untouched otherwise.
     stem = _entity_stem()
     return stem(word) == stem(other)
 
 
-def stem_match(word: str, token_set: set[str]) -> bool:
-    """Whether ``word`` appears in the evidence, allowing a morphological variant."""
+def morphological_variant(word: str, other: str) -> bool:
+    """Either relation above - the tolerant reading, used by the slot layer.
+
+    Neither relation is weakened by the other's presence, and the pair that documents the
+    floor (``sampling``/``samples``) is still refused by both.
+    """
+    return prefix_variant(word, other) or inflected_variant(word, other)
+
+
+#: How two words may be considered the same word. ``None`` means "not at all": the
+#: literal reading. Passing the relation rather than a flag keeps the slot layer's
+#: tolerance and the ranker's strictness one mechanism with two settings, rather than
+#: two mechanisms that can drift apart. Both C79 and C89 were exactly that drift,
+#: between layers that were each answering correctly on their own.
+WordVariant = Callable[[str, str], bool]
+
+
+def stem_match(
+    word: str, token_set: set[str], *, variant: WordVariant = morphological_variant
+) -> bool:
+    """Whether ``word`` appears in the evidence, allowing a variant of it."""
     if word in token_set:
         return True
     if len(word) < MIN_STEM_LENGTH:
         return False
-    return any(morphological_variant(word, other) for other in token_set)
+    return any(variant(word, other) for other in token_set)
 
 
-def stem_concept_score(concept: str, token_set: set[str], text: str) -> float:
+def stem_concept_score(
+    concept: str,
+    token_set: set[str],
+    text: str,
+    *,
+    variant: WordVariant = morphological_variant,
+) -> float:
     """Like ``concept_score``, but tolerant of morphological variants.
 
     Used for the *derived* description of a scene (subject, action, place, context),
@@ -273,7 +318,7 @@ def stem_concept_score(concept: str, token_set: set[str], text: str) -> float:
     words = [word for word in WORD_RE.findall(normalized) if word]
     if not words:
         return 0.0
-    matched = sum(1 for word in words if stem_match(word, token_set))
+    matched = sum(1 for word in words if stem_match(word, token_set, variant=variant))
     return 100.0 * matched / len(words)
 
 
@@ -281,7 +326,7 @@ def semantic_concept_score(
     concept: str,
     fields: tuple[EvidenceField, ...],
     *,
-    stem: bool = False,
+    variant: WordVariant | None = None,
 ) -> float:
     """Positive semantic evidence, preserving field quality and lexical locality.
 
@@ -298,10 +343,18 @@ def semantic_concept_score(
     scores: list[float] = []
     for evidence_field in fields:
         if evidence_field.name == "description":
-            scores.append(_description_concept_score(words, evidence_field.token_sequence, stem=stem))
+            scores.append(
+                _description_concept_score(words, evidence_field.token_sequence, variant=variant)
+            )
             continue
-        scorer = stem_concept_score if stem else concept_score
-        scores.append(scorer(concept, evidence_field.token_set, evidence_field.text))
+        if variant is None:
+            scores.append(concept_score(concept, evidence_field.token_set, evidence_field.text))
+            continue
+        scores.append(
+            stem_concept_score(
+                concept, evidence_field.token_set, evidence_field.text, variant=variant
+            )
+        )
     return max(scores, default=0.0)
 
 
@@ -309,14 +362,14 @@ def _description_concept_score(
     words: list[str],
     sequence: tuple[str, ...],
     *,
-    stem: bool,
+    variant: WordVariant | None,
 ) -> float:
     if not sequence:
         return 0.0
     if len(words) == 1:
         return (
             DESCRIPTION_SINGLE_WORD_SCORE
-            if any(_token_matches(words[0], token, stem=stem) for token in sequence)
+            if any(_token_matches(words[0], token, variant=variant) for token in sequence)
             else 0.0
         )
 
@@ -327,7 +380,7 @@ def _description_concept_score(
         matched = sum(
             1
             for word in words
-            if any(_token_matches(word, token, stem=stem) for token in window)
+            if any(_token_matches(word, token, variant=variant) for token in window)
         )
         best = max(best, matched)
         if best == len(words):
@@ -335,10 +388,10 @@ def _description_concept_score(
     return 100.0 * best / len(words)
 
 
-def _token_matches(word: str, token: str, *, stem: bool) -> bool:
+def _token_matches(word: str, token: str, *, variant: WordVariant | None) -> bool:
     if word == token:
         return True
-    return stem and morphological_variant(word, token)
+    return variant is not None and variant(word, token)
 
 
 @dataclass(frozen=True)
@@ -370,10 +423,21 @@ class CandidateEvidence:
         return stem_concept_score(concept, set(self.token_set), self.text)
 
     def semantic_literal_score(self, concept: str) -> float:
-        return semantic_concept_score(concept, self.fields, stem=False)
+        return semantic_concept_score(concept, self.fields)
+
+    def semantic_inflection_score(self, concept: str) -> float:
+        """The competitive reading: literal, plus a confirmed shared stem, no prefix.
+
+        Asked by the weighted average that selects a candidate. Strictly more permissive
+        than ``semantic_literal_score`` - nothing that matched literally stops matching -
+        and strictly less permissive than ``semantic_stem_score``, which is the point:
+        see the module docstring on why a prefix allowance cannot be summed.
+        """
+        return semantic_concept_score(concept, self.fields, variant=inflected_variant)
 
     def semantic_stem_score(self, concept: str) -> float:
-        return semantic_concept_score(concept, self.fields, stem=True)
+        """The tolerant reading, for the slot layer's yes/no question about one term."""
+        return semantic_concept_score(concept, self.fields, variant=morphological_variant)
 
     def contains(self, concept: str) -> bool:
         return contains_concept(concept, set(self.token_set), self.text)
@@ -457,12 +521,15 @@ __all__ = [
     "TAG_FIELDS",
     "WORD_RE",
     "CandidateEvidence",
+    "WordVariant",
     "build_evidence",
     "concept_score",
     "contains_concept",
     "evidence_values",
+    "inflected_variant",
     "metadata_status",
     "morphological_variant",
+    "prefix_variant",
     "provider_evidence_fields",
     "provider_evidence_text",
     "semantic_concept_score",

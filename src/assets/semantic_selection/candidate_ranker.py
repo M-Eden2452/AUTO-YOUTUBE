@@ -611,6 +611,14 @@ def _field_match(
     text cannot contain - an English title simply cannot confirm or deny a Russian
     subject, and pretending it denies it is what made every candidate score 0 once the
     query stopped being counted as evidence.
+
+    The score is ``semantic_inflection_score``: literal, plus a word the stemmer confirms
+    is the same word in another ending. It is deliberately *not* the slot layer's
+    ``semantic_stem_score``, which also credits a shared prefix. This function's result is
+    summed into a weighted average and compared between candidates, and a prefix
+    allowance that is harmless as a yes/no answer becomes an argument once it is scored:
+    ``powered`` would count as evidence of a ``power plant``. The asymmetry is named in
+    ``evidence``'s module docstring, which owns both relations.
     """
     if not values:
         # The scene does not constrain this field, so nothing can contradict it. This
@@ -624,7 +632,7 @@ def _field_match(
         terms = alias_map.get(value, [value])
         if any(not evidence.is_undecidable(term) for term in terms):
             decidable = True
-        scores.append(max(evidence.semantic_literal_score(term) for term in terms))
+        scores.append(max(evidence.semantic_inflection_score(term) for term in terms))
     return sum(scores) / len(scores), decidable
 
 
