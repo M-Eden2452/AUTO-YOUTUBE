@@ -42,6 +42,7 @@ from src.content.script_engine.adaptation import (
     normalize_adaptation_mode,
 )
 from src.content.script_engine.fact_locks import extract_fact_locks
+from src.content.semantic_brief_openai import semantic_brief_usage_from_plan
 
 from .models import NewsJob, completion_settings
 
@@ -265,18 +266,10 @@ def run_adaptation_pass(
             {"missing_scenes": merged.get("missing_scenes", [])},
         )
     else:
-        previous_usage = (
-            (visual_plan.get("planning_metadata") or {}).get(
-                "semantic_brief_usage"
-            )
-            or {}
-        )
-        cumulative_usage = (
-            (accepted_plan.get("planning_metadata") or {}).get(
-                "semantic_brief_usage"
-            )
-            or {}
-        )
+        # The adaptation is discarded, but the money it spent is not: the rejected plan
+        # is dropped while its running total is written back onto the plan that stays.
+        previous_usage = semantic_brief_usage_from_plan(visual_plan)
+        cumulative_usage = semantic_brief_usage_from_plan(accepted_plan)
         if cumulative_usage and cumulative_usage != previous_usage:
             retained_plan = dict(visual_plan)
             retained_metadata = dict(retained_plan.get("planning_metadata") or {})
@@ -306,44 +299,6 @@ def run_adaptation_pass(
     }
 
 
-def _usage_calls(usage: dict[str, Any]) -> int:
-    try:
-        return int(usage.get("calls") or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
-def _usage_cost(usage: dict[str, Any]) -> float:
-    try:
-        return float(usage.get("estimated_cost_usd") or 0.0)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _accumulate_semantic_brief_usage(
-    plan: dict[str, Any], previous_plan: dict[str, Any]
-) -> dict[str, Any]:
-    """Carry prior spend forward while keeping each adapter's call cap unchanged."""
-    metadata = dict(plan.get("planning_metadata") or {})
-    current = dict(metadata.get("semantic_brief_usage") or {})
-    previous = dict(
-        (previous_plan.get("planning_metadata") or {}).get(
-            "semantic_brief_usage"
-        )
-        or {}
-    )
-    if not current and not previous:
-        return plan
-    usage = dict(current or previous)
-    if current and previous:
-        usage["calls"] = _usage_calls(previous) + _usage_calls(current)
-        usage["estimated_cost_usd"] = round(
-            _usage_cost(previous) + _usage_cost(current), 6
-        )
-    metadata["semantic_brief_usage"] = usage
-    return {**plan, "planning_metadata": metadata}
-
-
 def _replan(
     adapted_script: dict[str, Any],
     *,
@@ -352,18 +307,29 @@ def _replan(
     visual_plan: dict[str, Any],
     usage_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Rebuild a plan while preserving scenes and cumulative semantic spend.
+    """Rebuild a plan while preserving scenes and the project's semantic spend.
 
-    The localized visual plan is the cumulative project record; the master plan keeps
-    the planning-stage snapshot. The call cap remains per adapter instance.
+    A pass replans twice - once for the proposal, once for what was accepted - and each
+    replan asks for its own adapter. What keeps that from being three fresh paid quotas
+    is ``prior_usage``: this replan starts from what the project already spent, and the
+    plan it returns already carries the running total, so nothing is added a second time
+    here. ``usage_plan`` is how the second replan starts from the first one's total
+    rather than from the plan on disk.
+
+    The localized visual plan is the cumulative project record; the master plan keeps the
+    planning-stage snapshot and is never read back as a seed.
     """
     from .visual_plan import build_visual_plan
 
-    plan = build_visual_plan(
-        adapted_script, language=job.language, user_assets=job.user_assets, research=research
+    prior_usage = semantic_brief_usage_from_plan(
+        usage_plan if usage_plan is not None else visual_plan
     )
-    plan = _accumulate_semantic_brief_usage(
-        plan, usage_plan if usage_plan is not None else visual_plan
+    plan = build_visual_plan(
+        adapted_script,
+        language=job.language,
+        user_assets=job.user_assets,
+        research=research,
+        prior_usage=prior_usage,
     )
     # Anything the stored plan carried that the planner does not produce (an author's
     # hand-written brief on an untouched scene) is preserved rather than regenerated.

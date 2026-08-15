@@ -63,6 +63,7 @@ from typing import Any
 from src.audio.scene_timeline import apply_timeline_to_script, build_scene_timeline
 from src.assets.completion import MODE_DRAFT_COMPLETE, normalize_mode
 from src.assets.completion.replacement import STALE_STAGES
+from src.content.semantic_brief_openai import semantic_brief_usage_from_plan
 
 from .article_ingestor import ArticleIngestionError, ingest_article, load_text_file
 from .asset_manager import build_news_asset_manifest
@@ -517,6 +518,26 @@ def _run_stage(
     return result_path
 
 
+def _readable_plan(path: Path) -> dict[str, Any]:
+    """A stored plan, or an empty one when it cannot be read.
+
+    Tolerant on purpose, and the cost is stated rather than hidden: a corrupt stage
+    artifact must re-execute its stage and repair itself (see
+    ``test_visual_plan_stage_idempotency_missing_and_corrupt_output``), so an unreadable
+    plan cannot be allowed to stop the run. It does mean a *destroyed* record of paid
+    spend reads as "nothing spent" - a record that no longer states a number cannot bound
+    a budget. That limitation is registered under ``C86``; ordinary runs cannot reach it,
+    because every write goes through ``atomic_write_json`` under the project lock.
+    """
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _dispatch_stage(
     stage_name: str,
     store: NewsProjectStore,
@@ -563,12 +584,21 @@ def _dispatch_stage(
         # from the script alone when an older project has no research on disk.
         claims_path = root / "research" / "claims.json"
         research = store.read_json(claims_path) if claims_path.is_file() else {}
+        lang_path = root / "localizations" / job.language / "visual" / "visual_plan.json"
+        # Rerunning this stage (--force-stage, resume, a restarted process) must not hand
+        # the project a second paid quota, nor overwrite the record of what it spent. The
+        # localized plan is the cumulative project record; the master file below is a
+        # snapshot of this build, and is never read back as a budget seed.
+        prior_usage = semantic_brief_usage_from_plan(_readable_plan(lang_path))
         plan = build_visual_plan(
-            script, language=job.language, user_assets=job.user_assets, research=research
+            script,
+            language=job.language,
+            user_assets=job.user_assets,
+            research=research,
+            prior_usage=prior_usage,
         )
         master = {**plan, "language": "master", "master_language": job.language}
         store.write_json(root / "master" / "master_visual_plan.json", master)
-        lang_path = root / "localizations" / job.language / "visual" / "visual_plan.json"
         store.write_json(lang_path, plan)
         job.localizations[job.language].visual_plan_path = str(lang_path)
         store.save_job(job)

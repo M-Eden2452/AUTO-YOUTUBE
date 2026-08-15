@@ -36,8 +36,28 @@ Does not own:
 всегда сильнее. Backend читает секрет только из окружения, а значение никогда не
 попадает ни в конфиг, ни в отчёт, ни в текст ошибки.
 
+Бюджет принадлежит **проекту**, а не экземпляру backend. Один project_id строит план
+не один раз (стадия ``visual_plan``, два ``_replan`` адаптации, ``--force-stage``,
+resume, restart), и каждый build просит новый адаптер. Поэтому потраченное приходит
+внутрь параметром ``prior_usage``: оно ограничивает вызовы *до* запроса и оно же
+уезжает в ``usage_summary``. Складывается прошлое с текущим ровно в одном месте —
+``usage_summary``, — чтобы запись проекта нельзя было ни занизить, ни удвоить.
+
+Два потолка, и они говорят разное:
+
+- ``maximum_calls_per_project`` — детерминированный жёсткий предел на **число** платных
+  запросов проекта. Он выполняется точно;
+- ``maximum_budget_usd`` — **оценочный** предел, вычисляемый из
+  ``estimated_cost_per_call_usd`` до вызова. Фактическая цена этому процессу
+  недоступна: ответ читается только через ``output_text``, токены не читаются нигде.
+  Гарантией суммы счёта провайдера он не является и таковой здесь не объявляется.
+
 Ретраев нет: клиент создаётся с ``max_retries=0``, бюджет расходуется *до* вызова,
 поэтому упавший платный запрос не может быть повторён молча.
+
+Одновременных процессов над одним project_id этот слой не разводит: они прочитают один
+и тот же ``prior_usage`` с диска и каждый получит полную оставшуюся квоту. Блокировки
+здесь нет, и это ограничение названо, а не закрыто.
 
 See also: ``docs/current/PROJECT_EXECUTION_PLAN.md`` (PLAN-9B-PRODUCER-M-LIVE),
 ``src/content/visual_planning/semantic_brief.py``, ``src/runtime_network.py``.
@@ -199,10 +219,44 @@ def _described(field: str) -> dict[str, Any]:
     return {"type": "string", "description": str(description)}
 
 
+def usage_calls(usage: dict[str, Any] | None) -> int:
+    """Сколько платных запросов уже записано. Отсутствие записи — это ноль, не ошибка."""
+    try:
+        value = int((usage or {}).get("calls") or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, value)
+
+
+def usage_cost(usage: dict[str, Any] | None) -> float:
+    """Какая **оценка** расхода уже записана. Не счёт провайдера."""
+    try:
+        value = float((usage or {}).get("estimated_cost_usd") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, value)
+
+
+def semantic_brief_usage_from_plan(plan: dict[str, Any] | None) -> dict[str, Any]:
+    """Запись проекта из уже сохранённого плана. Единственный толерантный читатель.
+
+    Каноническим источником является **локализованный** план
+    ``localizations/<lang>/visual/visual_plan.json``; ``master_visual_plan.json`` —
+    снимок стадии планирования, и складывать эти два зеркала нельзя. У проекта, созданного
+    до появления учёта, поля нет, и это читается как ноль.
+    """
+    metadata = (plan or {}).get("planning_metadata")
+    usage = metadata.get("semantic_brief_usage") if isinstance(metadata, dict) else None
+    return dict(usage) if isinstance(usage, dict) else {}
+
+
 class OpenAISemanticBriefBackend:
     """Инъектируемый вызов модели: подпись ``SemanticBriefCompletionFn``.
 
-    Экземпляр живёт один прогон, потому что счётчик вызовов — это и есть бюджет.
+    Экземпляр живёт один build плана, а бюджет — весь проект, поэтому потраченное
+    приходит параметром ``prior_usage`` и учитывается перед каждым запросом.
+    ``self.calls`` остаётся счётчиком **своего** экземпляра; проектную сумму называет
+    ровно один метод — ``usage_summary``.
     """
 
     backend_id = BACKEND_ID
@@ -213,10 +267,13 @@ class OpenAISemanticBriefBackend:
         config: SemanticBriefModelConfig,
         *,
         client: Any | None = None,
+        prior_usage: dict[str, Any] | None = None,
     ) -> None:
         self.config = config
         self.client = client
         self.calls = 0
+        self.prior_calls = usage_calls(prior_usage)
+        self.prior_cost = usage_cost(prior_usage)
 
     def __call__(self, prompt: str, options: dict[str, Any]) -> str:
         scene_id = str(options.get("scene_id") or "?")
@@ -226,10 +283,22 @@ class OpenAISemanticBriefBackend:
                 "Платный вызов смысловой модели не разрешён: " + ", ".join(sorted(blockers)),
                 planner=ADAPTER_ID,
             )
-        if self.calls >= self.config.maximum_calls_per_project:
+        # Оба потолка проверяются до сети и до SDK, и оба считают от проектного прошлого,
+        # а не от нуля этого экземпляра. Проект, уже перебравший опущенный потолок,
+        # получает отказ, а не отрицательный остаток.
+        if self.prior_calls + self.calls >= self.config.maximum_calls_per_project:
             raise SemanticBriefUnavailableError(
                 f"Бюджет вызовов модели исчерпан ({self.config.maximum_calls_per_project}): "
                 f"сцена {scene_id} не отправлена.",
+                planner=ADAPTER_ID,
+            )
+        projected = self._projected_cost_usd()
+        if projected > round(self.config.maximum_budget_usd, 6):
+            raise SemanticBriefUnavailableError(
+                f"Оценочный бюджет модели исчерпан "
+                f"(оценка ${projected} при потолке ${self.config.maximum_budget_usd}): "
+                f"сцена {scene_id} не отправлена. Это оценка по "
+                f"estimated_cost_per_call_usd, а не счёт провайдера.",
                 planner=ADAPTER_ID,
             )
         try:
@@ -261,16 +330,27 @@ class OpenAISemanticBriefBackend:
             ) from exc
         return _text_from_response(response)
 
+    def _projected_cost_usd(self) -> float:
+        """Оценка расхода проекта, включая ещё не отправленный запрос."""
+        return round(
+            self.prior_cost + (self.calls + 1) * self.config.estimated_cost_per_call_usd, 6
+        )
+
     def usage_summary(self) -> dict[str, Any]:
-        """Что этот прогон потратил. Только числа и идентификаторы."""
+        """Что потратил **проект**: его прошлое плюс этот экземпляр.
+
+        Единственное место, где эти два слагаемых складываются. Ни один вызывающий не
+        складывает их повторно, иначе запись проекта удвоилась бы на каждом replan'е.
+        ``estimated_cost_usd`` — оценка, а не сумма счёта провайдера.
+        """
         return {
             "backend": self.backend_id,
             "backend_version": self.backend_version,
             "model": self.config.model,
-            "calls": self.calls,
+            "calls": self.prior_calls + self.calls,
             "maximum_calls_per_project": self.config.maximum_calls_per_project,
             "estimated_cost_usd": round(
-                self.calls * self.config.estimated_cost_per_call_usd, 6
+                self.prior_cost + self.calls * self.config.estimated_cost_per_call_usd, 6
             ),
         }
 
@@ -297,6 +377,7 @@ def build_semantic_brief_adapter(
     config: SemanticBriefModelConfig | None = None,
     *,
     client: Any | None = None,
+    prior_usage: dict[str, Any] | None = None,
 ) -> ModelSemanticBriefAdapter | None:
     """Адаптер, который действительно может позвонить модели — либо ``None``.
 
@@ -307,6 +388,10 @@ def build_semantic_brief_adapter(
     Проверяются обе двери. Сетевая проверяется здесь, чтобы адаптер вообще не появлялся
     в неразрешённом прогоне, и ещё раз в самом backend перед вызовом SDK — разрешение
     живёт в ``ContextVar`` и может отличаться к моменту вызова.
+
+    ``prior_usage`` — уже записанная трата этого project_id. Без него новый адаптер
+    получил бы полную квоту заново, что и делало потолок пределом одного build'а, а не
+    проекта.
     """
     settings = config if config is not None else SemanticBriefModelConfig.from_config(
         load_semantic_brief_config()
@@ -326,7 +411,7 @@ def build_semantic_brief_adapter(
         if value:
             os.environ[API_KEY_ENV_VAR] = value
     return ModelSemanticBriefAdapter(
-        OpenAISemanticBriefBackend(settings, client=client),
+        OpenAISemanticBriefBackend(settings, client=client, prior_usage=prior_usage),
         approved=True,
         model_id=settings.model,
     )
@@ -339,6 +424,23 @@ def semantic_brief_usage_summary(
     backend = getattr(adapter, "completion_fn", None)
     summary = getattr(backend, "usage_summary", None)
     return dict(summary()) if callable(summary) else {}
+
+
+def semantic_brief_project_usage(
+    adapter: ModelSemanticBriefAdapter | None,
+    *,
+    prior_usage: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Запись проекта после одного build'а плана. Здесь ничего не складывается.
+
+    Прошлое проекта уже учтено backend'ом — тем же значением, которым он ограничивал
+    вызовы, — поэтому его сумма берётся у ``usage_summary`` как есть. Когда адаптера нет
+    (оплата или сеть выключены, ключа нет), новый build не тратил ничего, и прошлая
+    запись переносится **безусловно**: build без адаптера — не причина забыть, сколько
+    проект уже потратил.
+    """
+    summary = semantic_brief_usage_summary(adapter)
+    return summary if summary else dict(prior_usage or {})
 
 
 def activation_diagnostics(config: SemanticBriefModelConfig | None = None) -> dict[str, Any]:
@@ -447,5 +549,9 @@ __all__ = [
     "load_semantic_brief_config",
     "paid_call_blockers",
     "response_schema",
+    "semantic_brief_project_usage",
+    "semantic_brief_usage_from_plan",
     "semantic_brief_usage_summary",
+    "usage_calls",
+    "usage_cost",
 ]

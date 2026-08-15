@@ -26,7 +26,7 @@ from typing import Any
 from src.content.script_engine import from_legacy_script
 from src.content.semantic_brief_openai import (
     build_semantic_brief_adapter,
-    semantic_brief_usage_summary,
+    semantic_brief_project_usage,
 )
 from src.content.visual_planning import VisualPlanRequest, build_plan
 
@@ -39,14 +39,23 @@ def build_visual_plan(
     language: str,
     user_assets: list[str] | None = None,
     research: dict[str, Any] | None = None,
+    prior_usage: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The visual_plan.json payload for this script. Signature unchanged since Stage AB.
 
     ``research`` is optional and additive: claims sharpen which entity the video is
     actually about, but the plan is built from the script alone when they are absent
     (which is the case for every caller written before this stage).
+
+    ``prior_usage`` is what this project has already spent on paid semantic briefs. A
+    caller that rebuilds a plan for an existing project - the ``visual_plan`` stage on a
+    rerun, either ``_replan`` of an adaptation pass - passes it so the project's ceiling
+    is the project's, not this build's. Omitting it means "this is the project's first
+    build", which is true for every caller written before this stage.
     """
-    planning = build_visual_plan_result(script, language=language, research=research)
+    planning = build_visual_plan_result(
+        script, language=language, research=research, prior_usage=prior_usage
+    )
     return planning.to_legacy_plan(
         language=language,
         script=script,
@@ -59,6 +68,7 @@ def build_visual_plan_result(
     *,
     language: str,
     research: dict[str, Any] | None = None,
+    prior_usage: dict[str, Any] | None = None,
 ):
     """Full planning outcome (plan + validation), for callers that want both."""
     research = research or {}
@@ -72,13 +82,16 @@ def build_visual_plan_result(
         format_id="vertical_short",
         template_id="fullscreen_voiceover_v1",
     )
-    brief_adapter = build_semantic_brief_adapter()
+    # The project's prior spend seeds the adapter's guards and, after the build, is the
+    # same value the record is reconciled against. One variable, used twice, so the
+    # ceiling the backend enforced and the number written to disk cannot disagree.
+    brief_adapter = build_semantic_brief_adapter(prior_usage=prior_usage)
     planning = build_plan(
         request,
         source_text=str(research.get("summary") or ""),
         brief_adapter=brief_adapter,
     )
-    usage = semantic_brief_usage_summary(brief_adapter)
+    usage = semantic_brief_project_usage(brief_adapter, prior_usage=prior_usage)
     if usage:
         planning.result.metadata["semantic_brief_usage"] = usage
     return planning

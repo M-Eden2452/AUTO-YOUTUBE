@@ -12,6 +12,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 from PIL import Image
@@ -812,6 +813,41 @@ class PipelineTerminalStateTests(unittest.TestCase):
         self.assertGreater(report["summary"]["weak_fragment_count"], 0)
 
 
+def _planner_stub(spend_per_build: int) -> Any:
+    """A ``build_visual_plan`` that behaves like the real one about ``prior_usage``.
+
+    Since C84 the running total belongs to the plan builder: it is handed the project's
+    prior spend, it enforces the ceiling against it, and it returns a plan whose usage
+    *already includes* that prior. ``_replan`` adds nothing on top, so a stub that
+    returned a fixed number would be testing a contract that no longer exists.
+
+    The stub records every ``prior_usage`` it was given, which is what makes "the second
+    replan continues the first, and counts it exactly once" checkable.
+    """
+    seen: list[dict[str, Any]] = []
+
+    def build(script: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+        prior = dict(kwargs.get("prior_usage") or {})
+        seen.append(prior)
+        calls = int(prior.get("calls") or 0) + spend_per_build
+        marker = "proposed" if len(seen) == 1 else "accepted"
+        return {
+            "planning_metadata": {
+                "semantic_brief_usage": {
+                    "backend": "openai",
+                    "model": "fixture-model",
+                    "calls": calls,
+                    "maximum_calls_per_project": 8,
+                    "estimated_cost_usd": round(calls * 0.01, 6),
+                }
+            },
+            "scenes": [{"scene_id": "scene_001", "marker": marker}],
+        }
+
+    build.seen = seen  # type: ignore[attr-defined]
+    return build
+
+
 class AdaptationRollbackTests(unittest.TestCase):
     def test_two_adaptation_replans_accumulate_usage_without_reusing_proposed_scenes(
         self,
@@ -841,33 +877,8 @@ class AdaptationRollbackTests(unittest.TestCase):
             },
             "scenes": [{"scene_id": "scene_001", "marker": "original"}],
         }
-        fresh_plans = [
-            {
-                "planning_metadata": {
-                    "semantic_brief_usage": {
-                        "backend": "openai",
-                        "model": "fixture-model",
-                        "calls": 2,
-                        "maximum_calls_per_project": 8,
-                        "estimated_cost_usd": 0.02,
-                    }
-                },
-                "scenes": [{"scene_id": "scene_001", "marker": "proposed"}],
-            },
-            {
-                "planning_metadata": {
-                    "semantic_brief_usage": {
-                        "backend": "openai",
-                        "model": "fixture-model",
-                        "calls": 3,
-                        "maximum_calls_per_project": 8,
-                        "estimated_cost_usd": 0.03,
-                    }
-                },
-                "scenes": [{"scene_id": "scene_001", "marker": "accepted"}],
-            },
-        ]
-        with patch("src.news.visual_plan.build_visual_plan", side_effect=fresh_plans):
+        planner = _planner_stub(spend_per_build=2)
+        with patch("src.news.visual_plan.build_visual_plan", side_effect=planner):
             proposed = _replan(
                 script, job=job, research={}, visual_plan=original_plan
             )
@@ -879,9 +890,12 @@ class AdaptationRollbackTests(unittest.TestCase):
                 usage_plan=proposed,
             )
 
+        # Seeded from the plan on disk, then from the proposal - never twice from the
+        # same spend, which is what a plan-level merge on top of this would have done.
+        self.assertEqual([item.get("calls") for item in planner.seen], [1, 3])
         usage = accepted["planning_metadata"]["semantic_brief_usage"]
-        self.assertEqual(usage["calls"], 6)
-        self.assertEqual(usage["estimated_cost_usd"], 0.06)
+        self.assertEqual(usage["calls"], 5)
+        self.assertEqual(usage["estimated_cost_usd"], 0.05)
         self.assertEqual(accepted["scenes"][0]["marker"], "original")
 
     def test_no_change_adaptation_persists_cumulative_semantic_usage(self) -> None:
@@ -938,32 +952,7 @@ class AdaptationRollbackTests(unittest.TestCase):
                     }
                 ],
             }
-            fresh_plans = [
-                {
-                    "planning_metadata": {
-                        "semantic_brief_usage": {
-                            "backend": "openai",
-                            "model": "fixture-model",
-                            "calls": 2,
-                            "maximum_calls_per_project": 8,
-                            "estimated_cost_usd": 0.02,
-                        }
-                    },
-                    "scenes": [{"scene_id": "scene_001", "marker": "proposed"}],
-                },
-                {
-                    "planning_metadata": {
-                        "semantic_brief_usage": {
-                            "backend": "openai",
-                            "model": "fixture-model",
-                            "calls": 3,
-                            "maximum_calls_per_project": 8,
-                            "estimated_cost_usd": 0.03,
-                        }
-                    },
-                    "scenes": [{"scene_id": "scene_001", "marker": "accepted"}],
-                },
-            ]
+            planner = _planner_stub(spend_per_build=2)
             paths = script_paths(root, job.language)
             visual_plan_path = (
                 root / "localizations" / job.language / "visual" / "visual_plan.json"
@@ -974,7 +963,7 @@ class AdaptationRollbackTests(unittest.TestCase):
             store.write_json(root / "research" / "claims.json", {"claims": []})
 
             with patch(
-                "src.news.visual_plan.build_visual_plan", side_effect=fresh_plans
+                "src.news.visual_plan.build_visual_plan", side_effect=planner
             ):
                 result = run_adaptation_pass(
                     store=store,
@@ -986,9 +975,10 @@ class AdaptationRollbackTests(unittest.TestCase):
             persisted = store.read_json(visual_plan_path)
 
         self.assertEqual(result["status"], "no_change")
+        self.assertEqual([item.get("calls") for item in planner.seen], [1, 3])
         usage = persisted["planning_metadata"]["semantic_brief_usage"]
-        self.assertEqual(usage["calls"], 6)
-        self.assertEqual(usage["estimated_cost_usd"], 0.06)
+        self.assertEqual(usage["calls"], 5)
+        self.assertEqual(usage["estimated_cost_usd"], 0.05)
         self.assertEqual(persisted["scenes"][0]["marker"], "original")
 
     def test_one_pass_is_spent_but_unhelpful_adaptation_rolls_back(self) -> None:

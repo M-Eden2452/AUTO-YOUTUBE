@@ -1033,9 +1033,10 @@ acceptance через manual / provider-metadata / human-review путь.
 > product discovery without an implementation owner. The repeated frame blocks
 > publish-ready for its artifact without manual replacement/approval, not
 > platform v1; PLAN-10D stays post-v1. This docs slice does not authorize STOCK
-> repeat: a separate execution prompt must name network/paid scopes. In current
-> live `semantic_brief`, `maximum_budget_usd` is only a positive gate, while
-> `maximum_calls_per_project` and `max_retries=0` are the hard runtime bounds.
+> repeat: a separate execution prompt must name network/paid scopes. The paid
+> bounds of live `semantic_brief` as this decision found them were corrected by
+> `C84`/`C85`/`C86`; what each bound now does is stated in the `C84–C86` block of
+> `CLEANUP_REGISTRY.md`.
 
 
 **WHEN M3 / M4 / M5.** `M3` (user product slice) начинается после LIVE-5:
@@ -5786,7 +5787,13 @@ misleading/conflict · paid approval.
   не появилось и разойтись с парсером она не может.
 - **call bound и retry.** Не более одного вызова на сцену, у которой смысл не
   задан автором; сверх этого — `maximum_calls_per_project` как жёсткий потолок
-  прогона. Клиент создаётся с `max_retries=0`, место в бюджете расходуется
+  **проекта**: с `C84` потраченное переносится между build'ами плана через
+  `prior_usage`, поэтому ни новый экземпляр backend, ни replan, ни
+  `--force-stage`, ни resume новой квоты не выдают (до `C84` потолок фактически
+  действовал на один build). `maximum_budget_usd` с `C85` проверяется перед
+  каждым запросом как **оценочный** предел из `estimated_cost_per_call_usd`;
+  фактическую сумму счёта провайдера система не знает и не гарантирует.
+  Клиент создаётся с `max_retries=0`, место в бюджете расходуется
   **до** вызова, поэтому упавший платный запрос не может быть повторён молча.
   Скрытых retry нет ни на одном уровне.
 - **секреты.** Ключ только из `OPENAI_API_KEY`, только по факту наличия
