@@ -885,6 +885,13 @@ plan step. Он измеряет качество отбора по persisted ev
 называет обязательный до LIVE-5 набор: **VA-NEW-01, 02, 03, 04, 05, 06, 08,
 09 плюс минимальные budget guards 10/12**. Из него закрыты 01, 02, 03, 04 и 05.
 
+> **Статус-коррекция набора (2026-08-15):** строка выше отражает состояние до
+> M1-D/M1-E и M2-A/M2-B и больше не актуальна. Фактически закрыт **весь**
+> перечисленный набор: 01, 02, 03, 04, 05 (блоки M1-A…M1-C), 08 (M1-D), 09
+> (M1-E), 06 и 10 (M2-A, commit `36f23cc`), 12 (M2-B, commit `7e2b85c`).
+> Необходимых по контракту аудита блокеров LIVE-5 не осталось; классы A/A′/B
+> и состав набора при этом не пересматривались.
+
 **WHAT MUST HAPPEN BEFORE LIVE-5.** Каждый пункт — bounded correction внутри
 уже существующего owner; новых PLAN-ID нет. Класс **A** — прямо искажает
 evidence самого LIVE-5; **A′** — не искажает evidence, но делает сам live-run
@@ -903,9 +910,9 @@ resume acceptance, но не до LIVE-5 по контракту аудита.
 > **M1-E status correction (2026-08-14):** the row above is closed by the M1-E
 > commit containing this record; the historical pending marker is superseded.
 
-| M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | да | да |
-| M2-A | VA-NEW-10 nested retries R² | `src/assets/http_client.py` | **PLAN-10B** | один retry owner | A′ | да, минимально | да |
-| M2-B | VA-NEW-12 uncapped request budget/stop | retrieval budget | **PLAN-10C** | budget/plateau policy | A′ | да, минимально | да |
+| M2-A | VA-NEW-06 partial mixed-media success теряется | `search_provider` | **PLAN-10B** | provider error composition | A | **закрыт** `36f23cc` | да |
+| M2-A | VA-NEW-10 nested retries R² | `src/assets/http_client.py` | **PLAN-10B** | один retry owner | A′ | **закрыт** `36f23cc` | да |
+| M2-B | VA-NEW-12 uncapped request budget/stop | retrieval budget | **PLAN-10C** | budget/plateau policy | A′ | **закрыт** `7e2b85c` | да |
 | RD-A | VA-NEW-22 Pixabay video preview reads a field current responses no longer carry | `src/providers/pixabay_provider.py` | **PLAN-10B** (correction) | provider contract behavior | A | **closed by this commit** | yes |
 | RD-A | VA-NEW-23 review bundle named a selection it did not show | `src/assets/review_bundle.py` | **PLAN-9A** (correction) | selected-asset lineage | A | **closed by this commit** | yes |
 
