@@ -1068,8 +1068,9 @@ shared services без продуктовой необходимости зап�
 
 **WHAT IS POST-V1.** `M5` longform/v1.1 · retirement legacy (**PLAN-L1…L4**,
 **PLAN-9B-5b** wrapper retirement) · Vision activation при желании владельца ·
-**PLAN-10D** · **PLAN-12**…**PLAN-15** · Motion (`MOTION-CS1…CS4`) ·
-`WP0-B`.
+**PLAN-10D** · **PLAN-12**…**PLAN-15** · Motion (`MOTION-CS1…CS4`).
+`WP0-B` в этом списке **не стоит**: он current и открыт — единственный его
+статус записан в блоке «WP0-B (governance/docs diet) — placement» ниже.
 
 **REVIEW BATCHING STRATEGY.** Recommended execution policy; контракт review в
 `AGENTS.md` и `skills/review-change/` не меняется. Review #1 — M1-A…M1-C
@@ -1079,15 +1080,16 @@ state: resume и strict render). Review #3 — M2-A…M2-B, до LIVE-5 (retriev
 resilience и budget). Границы совпадают с фактическими risk boundaries:
 каждая тройка меняет один класс инвариантов и один набор owners.
 
-**WP0-B (governance/docs diet) — placement.** Рекомендация: **parallel,
-между M2-B и LIVE-5**, не раньше и не позже. Раньше — задержит блокеры
-LIVE-5; позже — переносит контекстный налог на весь M3/M4. Обоснование
-измеримо: `START_HERE.md` — 98 строк при лимите 100, `SYSTEM_MAP.md` — 239 при
-240, `CURRENT_STATE.md` — 278 при 280 (`tests/test_stage2_agent_onboarding.py`),
-то есть суммарный запас всех трёх routing mirrors — пять строк, и следующая
-сверка маршрута в них уже не поместится. Состав WP0-B (ROUTE.md, упрощение
-mirrors, архив журналов и completed-секций, docs diet, README/COMMANDS truth,
-size guards) этой сверкой **не выполняется**. **Порядковое ограничение
+**WP0-B (governance/docs diet) — placement. Это единственный статус `WP0-B` в
+current-документах: current и открыт, не post-v1.** Окно «parallel, между M2-B и
+LIVE-5» израсходовано — LIVE-5 прошёл 2026-08-15 без WP0-B. Прежнее обоснование
+(запас routing mirrors в пять строк) израсходовано тоже: REVIEW #3 ужал зеркала
+до 87/94/148 при лимитах 100/280/240. Действующее обоснование измерено
+2026-08-16: журнал не исчез, а переехал сюда — план вырос с 7 471 строки на
+`f3b607a` до 8 275 за три дня, секция «Current checkpoint» держит 1 578 строк,
+`next_exact_action` — 142 строки с девятью «IS DONE / closed by». Состав WP0-B
+(ROUTE.md, упрощение mirrors, архив журналов и completed-секций, docs diet,
+README/COMMANDS truth, size guards) ни одной сверкой не выполнен. **Порядковое ограничение
 (добавлено 2026-08-13, governance audit R9):** ADR-бэкфилл выполняется **до**
 переноса закрытых секций в архив, иначе обоснования долговечных решений уедут в
 архивный snapshot вместе с временным документом. Кандидаты названы аудитом
@@ -2306,11 +2308,13 @@ behavior или замораживает accidental legacy implementation.
 раздел «Accidental invariants».
 
 **Физический restructure каталога `tests/` не является prerequisite product
-work и в критический путь не входит.** [FACT] сейчас 112 плоских модулей,
-30 403 строки, `conftest.py` отсутствует, network guard ставится из
-`tests/__init__.py`. Плоская структура с осмысленными именами работает;
-реструктуризация дала бы большой diff и нулевую product-ценность. Вопрос
-пересматривается **после** PLAN-L, когда модулей останется около 106.
+work и в критический путь не входит.** [FACT] на 2026-08-16 — **137 модулей
+`test_*.py`** (144 файла `*.py` в каталоге), **53 221 строка** (`wc -l
+tests/*.py`); прежняя запись «112 плоских модулей, 30 403 строки» устарела и
+занижала объём на 75 % по строкам. `conftest.py` отсутствует, network guard
+ставится из `tests/__init__.py`. Плоская структура с осмысленными именами
+работает; реструктуризация дала бы большой diff и нулевую product-ценность.
+Вопрос пересматривается **после** PLAN-L.
 Именование вида `test_anime_factory_v3/v4` и `test_stage1…stage4` кодирует
 историю rescue, а не ответственность — кандидаты на переименование, но не
 приоритет.

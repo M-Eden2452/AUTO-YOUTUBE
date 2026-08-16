@@ -38,12 +38,14 @@ retirement decision — cleanup registry.
 frontmatter [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md), а не этот
 абзац; там же `next_exact_action` и evidence каждого закрытия.
 
-Следующее точное действие — **LIVE-5**, owner-issued live provider diagnostic.
-Набор, который аудит объявил обязательным до него (`VA-NEW-01`…`VA-NEW-06`,
-`VA-NEW-08`, `VA-NEW-09` и минимальные budget guards `VA-NEW-10`/`VA-NEW-12`),
-закрыт; Review #3 над M2-A и M2-B закрыт с verdict ACCEPT WITH MINOR NOTES.
-LIVE-5 — платное сетевое действие и требует отдельного явного разрешения
-владельца; этим документом оно не выдаётся.
+**LIVE-5 выполнен 2026-08-15** (`docs/audits/LIVE_5_2026-08-15.md`, verdict
+PARTIAL: 5/5 сцен получили слот, но 2/5 верны по смыслу, видео-слотов 0, MP4 без
+субтитров). Набор, объявленный обязательным до него (`VA-NEW-01`…`VA-NEW-06`,
+`VA-NEW-08`, `VA-NEW-09`, budget guards `VA-NEW-10`/`VA-NEW-12`), закрыт;
+Review #3 над M2-A и M2-B закрыт с verdict ACCEPT WITH MINOR NOTES. Следующее
+точное действие берётся из `next_exact_action` плана, а не из этого абзаца.
+Любой следующий live-прогон — платное сетевое действие и требует отдельного
+явного разрешения владельца; этим документом оно не выдаётся.
 
 Вторая часть `WP0-B` (governance/docs diet) остаётся открытой — см. блок
 «WP0-B (governance/docs diet) — placement» в плане.
