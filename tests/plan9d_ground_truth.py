@@ -74,9 +74,11 @@ runtime data it was once built from.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -1133,3 +1135,123 @@ def compare_arms(baseline: dict[str, Any], candidate_arm: dict[str, Any]) -> dic
             "blocking_regressions": len(blocking_regressions),
         },
     }
+
+
+# --------------------------------------------------------------------------- #
+# Reading the number out loud
+#
+# The measurement above existed long before this command did, but only as an
+# assertion: the sole way to learn N/M was to run
+# ``test_plan9d_ground_truth_baseline`` and read the expected value out of a
+# failure message. That is a working instrument nobody can consult, and it is why
+# three product reports in a row discussed selection quality in prose. This
+# command computes nothing new - same corpus, same arm, same ``evaluate_arm`` the
+# frozen test calls - it only makes the result readable without an assertion.
+#
+# Output is ASCII on purpose. The console this repository runs on is cp1252 and
+# would raise on a Cyrillic label instead of printing a number; ``--out`` writes
+# UTF-8 for anything that needs the raw text.
+# --------------------------------------------------------------------------- #
+
+#: Scene outcomes in the order a reader needs them: what cannot be scored first,
+#: then the answer, then the two ways of being wrong that are not the same defect.
+_SCENE_VERDICTS: tuple[tuple[str, str], ...] = (
+    ("unscorable_winner_not_visible", "unscorable"),
+    ("undecidable", "undecidable"),
+    ("selection_matches_preferred", "match"),
+    ("unacceptable_selected", "unacceptable"),
+    ("correct_abstention", "abstained-ok"),
+    ("wrong_abstention", "abstained-wrong"),
+)
+
+
+def scene_verdict(row: dict[str, Any]) -> str:
+    """One word for what happened in a scene."""
+
+    for flag, word in _SCENE_VERDICTS:
+        if row.get(flag):
+            return word
+    # Something was chosen, it was not struck out and it was not what the owner
+    # picked. That is the ordinary miss, and it is the population a selection
+    # change is trying to move.
+    return "miss"
+
+
+def format_measurement(report: dict[str, Any], *, corpus_path: Path | None = None) -> str:
+    """The aggregate and the per-scene rows, as plain text."""
+
+    if report.get("status") != STATUS_COMPLETE:
+        blocking = report.get("blocking") or []
+        return "\n".join(
+            [f"status  {report.get('status')}", "the corpus is not measurable yet:"]
+            + [f"  - {item}" for item in blocking]
+        )
+    aggregate = report["aggregate"]
+    scorable = aggregate["scorable_scenes"]
+    lines = [
+        f"arm       {report['arm']}  (evidence: {report['evidence_source']})",
+        f"corpus    {(corpus_path or CURRENT_CORPUS_PATH).name}  sha256 {report['corpus_sha256'][:16]}",
+        f"annotator {report.get('annotator') or '-'}  at {report.get('annotated_at_utc') or '-'}",
+        "",
+        f"preferred_matches            {aggregate['preferred_matches']} / {scorable} scorable"
+        f"  ({aggregate['scenes']} scenes)",
+    ]
+    for key in (
+        "unacceptable_selected",
+        "abstentions",
+        "correct_abstentions",
+        "wrong_abstentions",
+        "must_avoid_escaped",
+        "non_real_footage_selected",
+        "safe_escalations_to_review",
+        "auto_safe",
+        "undecidable_cases",
+        "unscorable_winner_not_visible",
+    ):
+        lines.append(f"{key:<28} {aggregate[key]}")
+    rows = report["scenes"]
+    width = max([len(str(r["scene_key"])) for r in rows] + [len("scene")])
+    lines += ["", f"{'scene':<{width}}  {'selected':<10} {'preferred':<10} verdict"]
+    lines.append("-" * (width + 34))
+    for row in rows:
+        lines.append(
+            f"{str(row['scene_key']):<{width}}  "
+            f"{str(row['system_selected'] or '-'):<10} "
+            f"{str(row['human_preferred'] or '-'):<10} "
+            f"{scene_verdict(row)}"
+        )
+    return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m tests.plan9d_ground_truth",
+        description="Print the frozen-corpus selection measurement (PLAN-9D). Offline.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    measure = sub.add_parser("measure", help="aggregate and per-scene rows for the metadata-only arm")
+    measure.add_argument("--corpus", default=str(CURRENT_CORPUS_PATH))
+    measure.add_argument("--annotations", default=str(CURRENT_ANNOTATIONS_PATH))
+    measure.add_argument("--json", action="store_true", help="the raw report instead of the table")
+    measure.add_argument("--out", default="", help="write UTF-8 here instead of stdout")
+    args = parser.parse_args(argv)
+
+    corpus = load_current_corpus(Path(args.corpus))
+    annotations = load_annotations(Path(args.annotations))
+    report = evaluate_arm(corpus, annotations, run_metadata_baseline(corpus))
+    text = (
+        json.dumps(report, indent=2, sort_keys=True)
+        if args.json
+        else format_measurement(report, corpus_path=Path(args.corpus))
+    )
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+    else:
+        print(text)
+    # A waiting measurement is not a crash, but it is not a number either. The
+    # exit code keeps a caller from mistaking one for the other.
+    return 0 if report["status"] == STATUS_COMPLETE else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

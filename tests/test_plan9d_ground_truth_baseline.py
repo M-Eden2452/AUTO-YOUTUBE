@@ -63,9 +63,11 @@ from tests.plan9d_ground_truth import (
     evaluate_arm,
     fixture_kind_of,
     generation_class_of,
+    format_measurement,
     load_annotations,
     load_current_corpus,
     run_metadata_baseline,
+    scene_verdict,
     validate_annotations,
     validate_corpus,
 )
@@ -949,6 +951,85 @@ class ArmComparisonTests(unittest.TestCase):
         corpus = _current_corpus()
         waiting = evaluate_arm(corpus, annotation_template(corpus), run_metadata_baseline(corpus))
         self.assertEqual(compare_arms(waiting, self._arm("b"))["status"], STATUS_WAITING)
+
+
+class MeasurementReadoutTests(unittest.TestCase):
+    """The number stops being something only an assertion can say.
+
+    These tests deliberately do not run the arm. Rendering is a pure function of
+    an already-computed report, and the arm costs ~62 s on this corpus - putting
+    it behind three formatting tests is exactly the cost R15 exists to remove.
+    """
+
+    @staticmethod
+    def _report(**aggregate: int) -> dict[str, Any]:
+        base = {
+            "scenes": 14,
+            "scorable_scenes": 14,
+            "unscorable_winner_not_visible": 0,
+            "preferred_matches": 4,
+            "unacceptable_selected": 2,
+            "abstentions": 3,
+            "correct_abstentions": 0,
+            "wrong_abstentions": 3,
+            "must_avoid_escaped": 0,
+            "non_real_footage_selected": 0,
+            "safe_escalations_to_review": 10,
+            "auto_safe": 1,
+            "undecidable_cases": 0,
+        }
+        base.update(aggregate)
+        return {
+            "status": STATUS_COMPLETE,
+            "arm": ARM_METADATA_ONLY,
+            "evidence_source": ARM_METADATA_ONLY,
+            "corpus_sha256": "b" * 64,
+            "annotator": "Test2",
+            "annotated_at_utc": "2026-08-12T08:05:31Z",
+            "blocking": [],
+            "scenes": [
+                {
+                    "scene_key": "scene_001",
+                    "system_selected": "C17",
+                    "human_preferred": "C20",
+                    "selection_matches_preferred": False,
+                }
+            ],
+            "aggregate": base,
+        }
+
+    def test_the_readout_states_the_denominator_and_not_just_the_number(self) -> None:
+        # 4 on its own is not a measurement: the honest denominator is the
+        # scorable scenes, because the difference is scenes where the owner was
+        # never shown the winner.
+        text = format_measurement(self._report())
+        self.assertIn("preferred_matches            4 / 14 scorable", text)
+        self.assertIn("must_avoid_escaped           0", text)
+        self.assertIn("scene_001", text)
+
+    def test_an_unmeasurable_corpus_prints_why_instead_of_a_number(self) -> None:
+        text = format_measurement(
+            {"status": STATUS_WAITING, "blocking": ["annotations are not frozen"]}
+        )
+        self.assertIn(STATUS_WAITING, text)
+        self.assertIn("annotations are not frozen", text)
+        self.assertNotIn("preferred_matches", text)
+
+    def test_each_way_of_being_wrong_gets_its_own_word(self) -> None:
+        # Choosing a struck-out candidate and choosing nothing where something
+        # was acceptable are different defects and will not be fixed by the same
+        # change, so the readout may not collapse them into "not a match".
+        cases = {
+            "unscorable_winner_not_visible": "unscorable",
+            "undecidable": "undecidable",
+            "selection_matches_preferred": "match",
+            "unacceptable_selected": "unacceptable",
+            "correct_abstention": "abstained-ok",
+            "wrong_abstention": "abstained-wrong",
+        }
+        for flag, word in cases.items():
+            self.assertEqual(scene_verdict({flag: True}), word, flag)
+        self.assertEqual(scene_verdict({}), "miss")
 
 
 if __name__ == "__main__":
