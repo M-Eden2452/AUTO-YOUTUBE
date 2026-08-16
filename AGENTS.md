@@ -9,7 +9,9 @@
 2. Прочитай [docs/current/START_HERE.md](docs/current/START_HERE.md).
 3. Для архитектурной работы открой
    [docs/current/SYSTEM_MAP.md](docs/current/SYSTEM_MAP.md); для статуса —
-   [docs/current/CURRENT_STATE.md](docs/current/CURRENT_STATE.md).
+   [docs/current/CURRENT_STATE.md](docs/current/CURRENT_STATE.md); долговечные
+   решения — [docs/adr/](docs/adr/), направление продукта —
+   [docs/current/PRODUCT_PLAN.md](docs/current/PRODUCT_PLAN.md).
 4. Если задача продолжает текущую программу работ и это обычный bounded slice,
    достаточно прочитать `current_checkpoint` и релевантный раздел конкретного
    PLAN-ID в [docs/current/PROJECT_EXECUTION_PLAN.md](docs/current/PROJECT_EXECUTION_PLAN.md),
@@ -44,6 +46,13 @@
 Слайс, меняющий модуль из ruff/mypy baseline в `pyproject.toml`, снимает
 подавление для этого модуля либо одной строкой в commit body объясняет,
 почему ratchet в этом слайсе невозможен.
+
+## Review по классам риска
+
+- LOW (docs-only, механика, рефакторинг без смены контракта) — только gates.
+- MEDIUM — один батч-review на границе пакета, а не на каждый слайс.
+- HIGH (отбор · права · сеть · деньги · persisted schema · authority) — owner
+  decision до работы, независимый `review-change` после, findings — тестами.
 
 ## Безопасность
 
@@ -82,6 +91,10 @@
   строкой в [docs/current/CLEANUP_REGISTRY.md](docs/current/CLEANUP_REGISTRY.md)
   с существующим владельцем. Реестр — не разрешение на удаление, а второй реестр
   не создаётся.
+- Новый governance-механизм до v1 (документ-правило, чекер, реестр, роль) —
+  только по owner decision, который называет заменяемое или отказ,
+  предотвращённый по факту. Evidence-отчёт в существующем каталоге
+  `docs/audits/` механизмом не является и этим правилом не ограничен.
 
 ## Versioned agent skills
 
