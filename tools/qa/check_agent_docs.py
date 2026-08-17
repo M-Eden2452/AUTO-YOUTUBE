@@ -193,6 +193,16 @@ CURRENT_ROUTING_MARKERS = frozenset({"текущий", "current"})
 PLAN_REFERENCE_RE = re.compile(r"(?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*")
 # `PLAN-ID` reads like an identifier but is prose; it never defines a step.
 PLAN_PROSE_WORDS = frozenset({"PLAN-ID", "PLAN-IDs"})
+# `next_exact_action` is the one field a new session reads before anything else,
+# and it is a pointer: checkpoint, next action, condition, who decides. Nothing
+# stopped it from becoming a journal instead, and nothing noticed when it did -
+# it reached 143 lines and 10 832 characters, nine "IS DONE / closed by" entries
+# deep, while the checks beside this one verified only that it named a defined
+# step. Closure history has a home already (the plan's own "Current checkpoint"
+# section), so the limit takes nothing away; 600 characters is about the four
+# sentences the field is supposed to be, measured against the shortened field
+# rather than chosen round.
+NEXT_EXACT_ACTION_MAX_CHARS = 600
 BULLET_PLAN_DEFINITION_RE = re.compile(
     r"^\s*-\s+\*\*((?:PLAN|MOTION)-[A-Za-z0-9′]+(?:-[A-Za-z0-9′]+)*)\*\*\s+—\s"
 )
@@ -835,6 +845,12 @@ def validate_routing(root: Path) -> list[str]:
         errors.append(
             f"{name}: next_exact_action does not name current_checkpoint "
             f"{checkpoint}; the stated next action is stale"
+        )
+    if len(action) > NEXT_EXACT_ACTION_MAX_CHARS:
+        errors.append(
+            f"{name}: next_exact_action is {len(action)} characters, limit "
+            f"{NEXT_EXACT_ACTION_MAX_CHARS}; it is a pointer, not a journal - "
+            "move the closure history into the plan's Current checkpoint section"
         )
 
     for relative in ROUTING_MIRRORS:

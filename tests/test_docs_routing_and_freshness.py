@@ -534,6 +534,33 @@ class RoutingTests(unittest.TestCase):
             any("does not name current_checkpoint" in error for error in errors), errors
         )
 
+    def test_next_exact_action_that_grew_into_a_journal_is_reported(self) -> None:
+        """The field is a pointer. Length is the only thing that says so.
+
+        Its two neighbours above check that the action names a defined step and
+        the current checkpoint - both of which a 143-line closure journal
+        satisfies perfectly, which is how the real field reached 10 832
+        characters without a single complaint.
+        """
+        self._plan(
+            action=(
+                "finish PLAN-STAB-7. " + "Closed earlier and recorded here. " * 20
+            )
+        )
+        errors = validate_routing(self.root)
+        self.assertTrue(
+            any("is a pointer, not a journal" in error for error in errors), errors
+        )
+
+    def test_an_action_at_the_limit_is_still_accepted(self) -> None:
+        """The guard refuses a journal, not a sentence that happens to be long."""
+        action = "finish PLAN-STAB-7. " + "x" * (
+            check_agent_docs.NEXT_EXACT_ACTION_MAX_CHARS - len("finish PLAN-STAB-7. ")
+        )
+        self.assertEqual(len(action), check_agent_docs.NEXT_EXACT_ACTION_MAX_CHARS)
+        self._plan(action=action)
+        self.assertEqual(validate_routing(self.root), [])
+
     def test_completed_step_cannot_be_the_current_checkpoint(self) -> None:
         self._plan(
             checkpoint="PLAN-STAB-9",

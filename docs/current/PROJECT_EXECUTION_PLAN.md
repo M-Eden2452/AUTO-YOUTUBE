@@ -2,150 +2,20 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-15
+updated_at: 2026-08-17
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Review #1 (M1-A...M1-C, identity/evidence lineage) is closed: verdict cluster
-  ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run 31526039612
-  (headSha 2577307) conclusion success. Owner decision 2026-08-12 closed
-  PLAN-9D-D (blind ground truth landed under the canonical name) and
-  PLAN-9D-E (metadata-only baseline measured: 4/14 agreement, 2 owner-rejected
-  picks, 3 wrong abstentions, 1/14 auto_safe). PLAN-9D-F/PLAN-9D-G stay
-  optional quality track behind a separate paid-Vision approval, so PLAN-9D
-  no longer blocks the route. The current checkpoint remains PLAN-9D.
-  M1-D / VA-NEW-08 (resume fingerprints) is implemented and closed inside
-  PLAN-9A: the owner decision on the persisted field set was issued in the
-  M1-D prompt and the resulting composition is recorded in the M1-D CLOSURE
-  block. THE NEXT EXACT ACTION is M1-E / VA-NEW-09 (strict render TOCTOU)
-  inside PLAN-9E, after which Review #2 covers M1-D and M1-E together; no
-  part of Review #2 has been performed. The owner-authorized targeted
-  retrieval diagnostic (read-only, no commit) changes no route and closes no
-  step; the two bounded corrections VA-NEW-22 and VA-NEW-23 it led to are
-  closed inside PLAN-10B and PLAN-9A and move neither the checkpoint nor this
-  action. Owner decision 2026-08-13 (AUD-DELTA-CLOSE) inserts one step ahead of
-  M1-E without changing it: FIRST OWNER SHORT — the offline draft diagnostic
-  already described below — runs first, because in three months no video has
-  been looked at through the canonical path and the diagnostic is read-only to
-  the route. So the order is FIRST OWNER SHORT, then M1-E / VA-NEW-09, then
-  Review #2 over M1-D and M1-E. The current checkpoint stays PLAN-9D and no
-  PLAN-ID is created by either the diagnostic or this record.
-  FIRST OWNER SHORT ran on 2026-08-13 and is recorded in
-  docs/audits/FIRST_OWNER_SHORT_2026-08-13.md: neither the LOCAL nor the STOCK
-  path reached an MP4, both stopped at assembly_has_no_slots, and no paid call
-  was made. Owner decision 2026-08-14 orders the route that follows from it and
-  puts the product ahead of further cleanup: CURATED LOCAL LIBRARY, then the
-  LOCAL diagnostic repeat and the STOCK repeat through semantic_brief. The LOCAL
-  repeat has already reached the first finished draft MP4 milestone; M1-E /
-  VA-NEW-09 and Review #2 over M1-D and M1-E remain after the STOCK repeat.
-  CURATED LOCAL LIBRARY is executed and recorded in
-  docs/audits/CURATED_LIBRARY_2026-08-14.md - 72 curated records with frame
-  content, provenance, rights and checksums, versioned in
-  assets/library/metadata/curated_library.json and applied to the runtime index
-  by tools/library/curated_index.py. BLOCKER-L2 is closed: the records carry
-  rights, and owner decision 2026-08-14 gave provider local_library in
-  config/license_policy.json the same two contexts the pexels and pixabay
-  providers already have - internal_content_production allowed at
-  requires_schema_version 1, public_multi_user_product blocked until the future
-  commercial audit - so all 72 evaluate as allowed. The nine clips whose source
-  page was recorded nowhere were confirmed against the providers under a separate
-  owner-approved read-only network check and added with verified canonical URLs
-  and credits. Making the library live
-  immediately exposed the ranker debt already recorded in FIRST OWNER SHORT: the
-  query "orca" returned a solar-farm clip, because _score_asset admitted a
-  candidate on type, aspect and duration with zero keyword hits. Two bounded
-  corrections closed that and the blocker under it - fbf223a stopped scoring
-  "nothing could be checked" as a perfect match, and a8549ff gave both local
-  matchers one Unicode-aware tokenizer, so a Russian query participates in
-  selection at all. Neither commit closes a PLAN-ID: C40 and PLAN-10D keep their
-  open scope (one canonical matcher/provider, and the C47 diversity reserve).
-  THE LOCAL DIAGNOSTIC REPEAT IS DONE - three runs, the last recorded in
-  docs/audits/FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md
-  from HEAD a8549ff: 5 of 5 scenes got a usable visual slot where the same
-  script had got 0 of 5, all five shortlists differ, one ElevenLabs call, and
-  the first draft_1080x1920.mp4 of this program exists (23.93s, 1080x1920,
-  audio present). That is a draft, not a product: quality_check is
-  needs_review, all five slots are marked draft-only requiring replacement,
-  publish_ready is false, and owner frame review scored 2 GOOD, 1 ACCEPTABLE,
-  2 BAD. No publish-ready evidence is claimed by this record. The three defects
-  behind the BAD frames now have registry rows instead of a wrong owner - C79
-  (extraction stems Russian, evidence matching does not; both bad scenes share
-  the extracted subject "панель"), C80 (the canonical paid Vision backend
-  bypasses runtime_network default-deny; legacy bypasses remain C65) and C81 (a
-  hook score exists for text and has no visual equivalent). Owner decision
-  2026-08-14 makes C79 a pre-v1 bounded correction after the STOCK diagnostic
-  and before M4/PLAN-11; C81 is post-v1 product discovery without an
-  implementation owner; C80 belongs to PLAN-9E. The duplicate frame in scene 3
-  is C47 under PLAN-10D, which stays post-v1: it blocks publish-ready approval
-  for that artifact without manual replacement/approval, not platform v1. THE
-  STOCK REPEAT THROUGH semantic_brief IS DONE and recorded in
-  docs/audits/STOCK_SEMANTIC_REPEAT_2026-08-14.md. All 5 scenes received accepted
-  provider-language briefs and real provider retrieval ran, but only 3/5 scenes
-  received licensed image slots; two scenes stayed unresolved, no video slot won,
-  and no MP4 or quality evidence was produced. The run stopped at the paid voice
-  gate. It also exposed two live-wiring defects: repository .env was not visible
-  before visual_plan, and semantic usage was not persisted. Both are closed by a
-  bounded correction inside the existing PLAN-9B-PRODUCER-M-LIVE owners:
-  only OPENAI_API_KEY is copied from repository .env after paid+network gates;
-  a still-missing key is visible as semantic_brief_unavailable, and secret-free
-  cumulative counters are stored under planning_metadata.semantic_brief_usage in the localized plan while master keeps the planning-stage snapshot. Default
-  fail-closed policy is unchanged. M1-E / VA-NEW-09 is closed by the bounded
-  PLAN-9E correction recorded below. Review #2 rejected its first implementation
-  on two M1-E blockers and its second on one remaining fresh-checksum blocker;
-  all three are repaired. Review #2 is now CLOSED: focused independent re-review
-  over M1-D and M1-E returned ACCEPT WITH MINOR NOTES, 0 BLOCKER/MAJOR, and the
-  owner accepted that verdict as sufficient to close both slices. Its three MINOR
-  notes are recorded in REVIEW #2 CLOSURE below and are explicitly NOT repaired by
-  a separate slice. The FIRST OWNER SHORT resume-run that had to precede M2-A IS
-  DONE: it ran offline on the accepted HEAD to a real draft_1080x1920.mp4, byte
-  identical to the render taken before Review #2, with 5 of 5 scenes usable in
-  draft, 0 of 5 publish-ready and quality needs_review — diagnostic evidence, not
-  publish-ready acceptance. It is recorded in the PRE-M2 CLOSURE block below
-  together with the two accounting facts that belong beside it (exact-head CI is
-  red on an external Chocolatey/FFmpeg outage before any test ran, and the full
-  local suite has exactly one known pre-existing doc-length failure).
-  M2-A IS CLOSED by the bounded PLAN-10B correction recorded in the M2-A CLOSURE
-  block below: a media kind that fails no longer erases the kind that answered,
-  and one download URL no longer costs max_retries squared HTTP requests because
-  the request stage and the body stage now share one attempt budget. Nothing else
-  in PLAN-10B starts, its status stays blocked, and
-  ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 - the reasoning is in
-  that block. M2-B IS CLOSED by the bounded PLAN-10C correction recorded in the
-  M2-B CLOSURE block below: one scene now has a hard ceiling on provider search
-  requests within one search invocation, the unit is one provider.search call
-  rather than a query attempt, and the draft ladder draws from the same counter
-  instead of a second private allowance. In draft_complete the adaptation pass
-  may run a second bounded search over a changed scene, so that scene's ceiling
-  across the whole asset_search stage is 2 x budget - bounded and deterministic
-  (MAX_ADAPTATION_PASSES = 1). Nothing else in PLAN-10C starts, its status stays
-  blocked, and ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 because a
-  configured ceiling lives in asset_selection, which the fingerprint payload
-  already carries verbatim.
-  REVIEW #3 over M2-A and M2-B IS CLOSED: owner-provided verdict ACCEPT WITH
-  MINOR NOTES, 0 BLOCKER and 0 MAJOR, no repair slice. Its MINOR notes are
-  absorbed by the WP0-B governance slice recorded in REVIEW #3 CLOSURE below,
-  which also shortened the three routing mirrors and added a line-length guard
-  beside the existing line-count one; WP0-B is not closed by it.
-  LIVE-5 IS DONE and recorded in docs/audits/LIVE_5_2026-08-15.md: the run
-  completed end to end to a draft MP4, 5 of 5 scenes got a slot against the 3 of
-  5 baseline, rights are verified 7 of 7, there are no duplicates and no
-  generated fallbacks, and the paid spend was 15 semantic-brief calls at $0.15
-  plus one ElevenLabs pass. Verdict PARTIAL, not PASS: only 2 of 5 selections are
-  right by meaning, video slots are still 0, publish_ready is false and the MP4
-  carries no subtitles. Selection quality, not coverage, is now the binding
-  constraint. The run reproduced C79, C75/C76, C77, C78 and C82 with evidence and
-  repaired none of them, and it added two registry rows - C83 (use_local_library
-  is a dead key, so the local library was never actually disabled and still
-  scored candidates) and C84 (the semantic-brief ceiling is per adapter, not per
-  project, so 12 became 15). THE NEXT EXACT ACTION is the owner's choice between
-  C79 as the pre-v1 bounded correction already scheduled after the STOCK
-  diagnostic and before M4/PLAN-11, and a second LIVE run on the LIVE-4 animal
-  script for a second data point; the owner has stated that more runs are needed
-  and one diagnostic does not establish a trend.
-  BLOCKER-L1 remains separate and untouched.
-  The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
+  Checkpoint PLAN-9D, in progress; this slice does not move it. NEXT: package C
+  (the measurement stand) of docs/audits/ROLLOUT_PLAN_2026-08-17.md, which must
+  run before package D - the frozen corpus cannot see language, so a D
+  acceptance would pass on any edit. CONDITION: C needs the owner's blind
+  labelling of corpus v2; an agent cannot produce it. Packages 0 and A are done
+  (d05d5ec, 3619fe1). WHO DECIDES: the owner, at entry to each package. This
+  field issues no PLAN-ID; the closure history it used to carry is in "Current
+  checkpoint" below.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -1087,7 +957,11 @@ LIVE-5» израсходовано — LIVE-5 прошёл 2026-08-15 без WP
 до 87/94/148 при лимитах 100/280/240. Действующее обоснование измерено
 2026-08-16: журнал не исчез, а переехал сюда — план вырос с 7 471 строки на
 `f3b607a` до 8 275 за три дня, секция «Current checkpoint» держит 1 578 строк,
-`next_exact_action` — 142 строки с девятью «IS DONE / closed by». Состав WP0-B
+`next_exact_action` — 142 строки с девятью «IS DONE / closed by». **Последнее
+закрыто 2026-08-17 пакетом B:** поле сокращено с 10 227 символов до 545, журнал
+перенесён дословно в «Routing journal» ниже, а `NEXT_EXACT_ACTION_MAX_CHARS`
+в `tools/qa/check_agent_docs.py` не даёт ему вырасти снова. Остальная часть
+обоснования в силе: секция по-прежнему длинная. Состав WP0-B
 (ROUTE.md, упрощение mirrors, архив журналов и completed-секций, docs diet,
 README/COMMANDS truth, size guards) ни одной сверкой не выполнен. **Порядковое ограничение
 (добавлено 2026-08-13, governance audit R9):** ADR-бэкфилл выполняется **до**
@@ -1767,6 +1641,182 @@ script; `C58` — честного pre-final preview нет, оценивать 
   - **возвращать опровергнутые механизмы** — см. «Ревизия 2.1: опровергнутые
     формулировки».
 
+### Маршрут после 2026-08-17
+
+Порядок внедрения находок 15–17.08 —
+[docs/audits/ROLLOUT_PLAN_2026-08-17.md](../audits/ROLLOUT_PLAN_2026-08-17.md),
+статус `proposal`: он задаёт порядок, но не выдаёт разрешение и **PLAN-ID не
+создаёт** — вход в каждый пакет объявляет владелец. Checkpoint не двигается:
+остаётся **PLAN-9D**.
+
+```
+0 ─ A ─ B ─┬─ C ─ D ─ E ─ F …
+           ├─ ADR (+P)   параллельно, не на критическом пути
+           ├─ T
+           └─ G          governance-полоса, когда удобно
+```
+
+| Пакет | Что | Состояние |
+|---|---|---|
+| **0** Сохранность | отчёты 15–17.08 в git и в индексе | закрыт `d05d5ec` |
+| **A** Точка истины `C89` | независимое ревью `ec369f8`, `ede8c4b` | закрыт `3619fe1`, verdict scope PASS · objective PASS |
+| **B** План перестаёт себе противоречить | это поле, замок, база замера, строка `C92` | закрыт коммитом, содержащим эту запись |
+| **C** Прибор | корпус v2 видит язык | следующий; нужна слепая разметка владельца |
+| **D** Доказуемость | `is_undecidable` пофайлово | строго после C; класс HIGH |
+| **E** Безопасность | `synthesize` под `require_network`, `C87` | до следующего платного прогона |
+| **F**, **ADR**, **T**, **G** | смысл · движение · витрина; долговечные решения; тесты; governance | по маршруту |
+
+**C строго перед D**: замороженный корпус не видит языка, приёмка `C91` прошла
+бы на любой правке. **ADR не ждёт**: три решения владельца существуют только в
+отчёте. MAJOR из [ревью C79/C89](../audits/REVIEW_C79_C89_2026-08-17.md)
+принадлежит пакету D.
+
+### Routing journal — перенесено из `next_exact_action` 2026-08-17
+
+Хронология закрытий, дословно перенесённая пакетом B из `next_exact_action`, где
+она накопилась девятью «IS DONE / closed by» и довела поле-указатель до 10 227
+символов. Ни одно слово не изменено и ничего не удалено: это история, а не
+маршрут — маршрут выше.
+
+Review #1 (M1-A...M1-C, identity/evidence lineage) is closed: verdict cluster
+ACCEPT, MAJOR-RR-01 CLOSED, 0 remaining BLOCKER/MAJOR; CI run 31526039612
+(headSha 2577307) conclusion success. Owner decision 2026-08-12 closed
+PLAN-9D-D (blind ground truth landed under the canonical name) and
+PLAN-9D-E (metadata-only baseline measured: 4/14 agreement, 2 owner-rejected
+picks, 3 wrong abstentions, 1/14 auto_safe). PLAN-9D-F/PLAN-9D-G stay
+optional quality track behind a separate paid-Vision approval, so PLAN-9D
+no longer blocks the route. The current checkpoint remains PLAN-9D.
+M1-D / VA-NEW-08 (resume fingerprints) is implemented and closed inside
+PLAN-9A: the owner decision on the persisted field set was issued in the
+M1-D prompt and the resulting composition is recorded in the M1-D CLOSURE
+block. THE NEXT EXACT ACTION is M1-E / VA-NEW-09 (strict render TOCTOU)
+inside PLAN-9E, after which Review #2 covers M1-D and M1-E together; no
+part of Review #2 has been performed. The owner-authorized targeted
+retrieval diagnostic (read-only, no commit) changes no route and closes no
+step; the two bounded corrections VA-NEW-22 and VA-NEW-23 it led to are
+closed inside PLAN-10B and PLAN-9A and move neither the checkpoint nor this
+action. Owner decision 2026-08-13 (AUD-DELTA-CLOSE) inserts one step ahead of
+M1-E without changing it: FIRST OWNER SHORT — the offline draft diagnostic
+already described below — runs first, because in three months no video has
+been looked at through the canonical path and the diagnostic is read-only to
+the route. So the order is FIRST OWNER SHORT, then M1-E / VA-NEW-09, then
+Review #2 over M1-D and M1-E. The current checkpoint stays PLAN-9D and no
+PLAN-ID is created by either the diagnostic or this record.
+FIRST OWNER SHORT ran on 2026-08-13 and is recorded in
+docs/audits/FIRST_OWNER_SHORT_2026-08-13.md: neither the LOCAL nor the STOCK
+path reached an MP4, both stopped at assembly_has_no_slots, and no paid call
+was made. Owner decision 2026-08-14 orders the route that follows from it and
+puts the product ahead of further cleanup: CURATED LOCAL LIBRARY, then the
+LOCAL diagnostic repeat and the STOCK repeat through semantic_brief. The LOCAL
+repeat has already reached the first finished draft MP4 milestone; M1-E /
+VA-NEW-09 and Review #2 over M1-D and M1-E remain after the STOCK repeat.
+CURATED LOCAL LIBRARY is executed and recorded in
+docs/audits/CURATED_LIBRARY_2026-08-14.md - 72 curated records with frame
+content, provenance, rights and checksums, versioned in
+assets/library/metadata/curated_library.json and applied to the runtime index
+by tools/library/curated_index.py. BLOCKER-L2 is closed: the records carry
+rights, and owner decision 2026-08-14 gave provider local_library in
+config/license_policy.json the same two contexts the pexels and pixabay
+providers already have - internal_content_production allowed at
+requires_schema_version 1, public_multi_user_product blocked until the future
+commercial audit - so all 72 evaluate as allowed. The nine clips whose source
+page was recorded nowhere were confirmed against the providers under a separate
+owner-approved read-only network check and added with verified canonical URLs
+and credits. Making the library live
+immediately exposed the ranker debt already recorded in FIRST OWNER SHORT: the
+query "orca" returned a solar-farm clip, because _score_asset admitted a
+candidate on type, aspect and duration with zero keyword hits. Two bounded
+corrections closed that and the blocker under it - fbf223a stopped scoring
+"nothing could be checked" as a perfect match, and a8549ff gave both local
+matchers one Unicode-aware tokenizer, so a Russian query participates in
+selection at all. Neither commit closes a PLAN-ID: C40 and PLAN-10D keep their
+open scope (one canonical matcher/provider, and the C47 diversity reserve).
+THE LOCAL DIAGNOSTIC REPEAT IS DONE - three runs, the last recorded in
+docs/audits/FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md
+from HEAD a8549ff: 5 of 5 scenes got a usable visual slot where the same
+script had got 0 of 5, all five shortlists differ, one ElevenLabs call, and
+the first draft_1080x1920.mp4 of this program exists (23.93s, 1080x1920,
+audio present). That is a draft, not a product: quality_check is
+needs_review, all five slots are marked draft-only requiring replacement,
+publish_ready is false, and owner frame review scored 2 GOOD, 1 ACCEPTABLE,
+2 BAD. No publish-ready evidence is claimed by this record. The three defects
+behind the BAD frames now have registry rows instead of a wrong owner - C79
+(extraction stems Russian, evidence matching does not; both bad scenes share
+the extracted subject "панель"), C80 (the canonical paid Vision backend
+bypasses runtime_network default-deny; legacy bypasses remain C65) and C81 (a
+hook score exists for text and has no visual equivalent). Owner decision
+2026-08-14 makes C79 a pre-v1 bounded correction after the STOCK diagnostic
+and before M4/PLAN-11; C81 is post-v1 product discovery without an
+implementation owner; C80 belongs to PLAN-9E. The duplicate frame in scene 3
+is C47 under PLAN-10D, which stays post-v1: it blocks publish-ready approval
+for that artifact without manual replacement/approval, not platform v1. THE
+STOCK REPEAT THROUGH semantic_brief IS DONE and recorded in
+docs/audits/STOCK_SEMANTIC_REPEAT_2026-08-14.md. All 5 scenes received accepted
+provider-language briefs and real provider retrieval ran, but only 3/5 scenes
+received licensed image slots; two scenes stayed unresolved, no video slot won,
+and no MP4 or quality evidence was produced. The run stopped at the paid voice
+gate. It also exposed two live-wiring defects: repository .env was not visible
+before visual_plan, and semantic usage was not persisted. Both are closed by a
+bounded correction inside the existing PLAN-9B-PRODUCER-M-LIVE owners:
+only OPENAI_API_KEY is copied from repository .env after paid+network gates;
+a still-missing key is visible as semantic_brief_unavailable, and secret-free
+cumulative counters are stored under planning_metadata.semantic_brief_usage in the localized plan while master keeps the planning-stage snapshot. Default
+fail-closed policy is unchanged. M1-E / VA-NEW-09 is closed by the bounded
+PLAN-9E correction recorded below. Review #2 rejected its first implementation
+on two M1-E blockers and its second on one remaining fresh-checksum blocker;
+all three are repaired. Review #2 is now CLOSED: focused independent re-review
+over M1-D and M1-E returned ACCEPT WITH MINOR NOTES, 0 BLOCKER/MAJOR, and the
+owner accepted that verdict as sufficient to close both slices. Its three MINOR
+notes are recorded in REVIEW #2 CLOSURE below and are explicitly NOT repaired by
+a separate slice. The FIRST OWNER SHORT resume-run that had to precede M2-A IS
+DONE: it ran offline on the accepted HEAD to a real draft_1080x1920.mp4, byte
+identical to the render taken before Review #2, with 5 of 5 scenes usable in
+draft, 0 of 5 publish-ready and quality needs_review — diagnostic evidence, not
+publish-ready acceptance. It is recorded in the PRE-M2 CLOSURE block below
+together with the two accounting facts that belong beside it (exact-head CI is
+red on an external Chocolatey/FFmpeg outage before any test ran, and the full
+local suite has exactly one known pre-existing doc-length failure).
+M2-A IS CLOSED by the bounded PLAN-10B correction recorded in the M2-A CLOSURE
+block below: a media kind that fails no longer erases the kind that answered,
+and one download URL no longer costs max_retries squared HTTP requests because
+the request stage and the body stage now share one attempt budget. Nothing else
+in PLAN-10B starts, its status stays blocked, and
+ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 - the reasoning is in
+that block. M2-B IS CLOSED by the bounded PLAN-10C correction recorded in the
+M2-B CLOSURE block below: one scene now has a hard ceiling on provider search
+requests within one search invocation, the unit is one provider.search call
+rather than a query attempt, and the draft ladder draws from the same counter
+instead of a second private allowance. In draft_complete the adaptation pass
+may run a second bounded search over a changed scene, so that scene's ceiling
+across the whole asset_search stage is 2 x budget - bounded and deterministic
+(MAX_ADAPTATION_PASSES = 1). Nothing else in PLAN-10C starts, its status stays
+blocked, and ASSET_SEARCH_FINGERPRINT_VERSION deliberately stays 1 because a
+configured ceiling lives in asset_selection, which the fingerprint payload
+already carries verbatim.
+REVIEW #3 over M2-A and M2-B IS CLOSED: owner-provided verdict ACCEPT WITH
+MINOR NOTES, 0 BLOCKER and 0 MAJOR, no repair slice. Its MINOR notes are
+absorbed by the WP0-B governance slice recorded in REVIEW #3 CLOSURE below,
+which also shortened the three routing mirrors and added a line-length guard
+beside the existing line-count one; WP0-B is not closed by it.
+LIVE-5 IS DONE and recorded in docs/audits/LIVE_5_2026-08-15.md: the run
+completed end to end to a draft MP4, 5 of 5 scenes got a slot against the 3 of
+5 baseline, rights are verified 7 of 7, there are no duplicates and no
+generated fallbacks, and the paid spend was 15 semantic-brief calls at $0.15
+plus one ElevenLabs pass. Verdict PARTIAL, not PASS: only 2 of 5 selections are
+right by meaning, video slots are still 0, publish_ready is false and the MP4
+carries no subtitles. Selection quality, not coverage, is now the binding
+constraint. The run reproduced C79, C75/C76, C77, C78 and C82 with evidence and
+repaired none of them, and it added two registry rows - C83 (use_local_library
+is a dead key, so the local library was never actually disabled and still
+scored candidates) and C84 (the semantic-brief ceiling is per adapter, not per
+project, so 12 became 15). THE NEXT EXACT ACTION is the owner's choice between
+C79 as the pre-v1 bounded correction already scheduled after the STOCK
+diagnostic and before M4/PLAN-11, and a second LIVE run on the LIVE-4 animal
+script for a second data point; the owner has stated that more runs are needed
+and one diagnostic does not establish a trend.
+BLOCKER-L1 remains separate and untouched.
+The current checkpoint stays PLAN-9D; no new PLAN-ID is created.
+
 ## Шаблон задания для нового чата
 
 Историю предыдущих чатов пересказывать не нужно. Достаточно отправить:
@@ -2308,9 +2358,13 @@ behavior или замораживает accidental legacy implementation.
 раздел «Accidental invariants».
 
 **Физический restructure каталога `tests/` не является prerequisite product
-work и в критический путь не входит.** [FACT] на 2026-08-16 — **137 модулей
-`test_*.py`** (144 файла `*.py` в каталоге), **53 221 строка** (`wc -l
-tests/*.py`); прежняя запись «112 плоских модулей, 30 403 строки» устарела и
+work и в критический путь не входит.** [FACT] на 2026-08-17, HEAD `3619fe1`, —
+**137 модулей `test_*.py` и 48 852 строки в них**; всего в каталоге 144 файла
+`*.py` и **53 495 строк** (`wc -l tests/*.py`). Две базы названы раздельно
+намеренно: прежняя запись давала одно число «53 221» под подписью `wc -l
+tests/*.py`, и по нему нельзя было понять, посчитаны модули тестов или весь
+каталог, — а с 2026-08-16 оно к тому же разошлось с фактом на 274 строки.
+Ещё более ранняя запись «112 плоских модулей, 30 403 строки» устарела и
 занижала объём на 75 % по строкам. `conftest.py` отсутствует, network guard
 ставится из `tests/__init__.py`. Плоская структура с осмысленными именами
 работает; реструктуризация дала бы большой diff и нулевую product-ценность.
