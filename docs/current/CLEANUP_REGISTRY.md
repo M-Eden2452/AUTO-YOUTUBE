@@ -1407,12 +1407,42 @@ project tests — 286 OK.
 
 | Предмет | Что именно заморожено | Почему это anchor, а не контракт | Действие | Gate |
 |---|---|---|---|---|
-| `tests/test_apps_structure.py` (19 строк) | существование файлов `pipeline.py` и `anime_factory/pipeline.py`; импортируемость `apps.*.main` | это снимок временных compatibility wrappers, а не обещание пользователю | переписать в fitness-тест «нет второго canonical public CLI», затем retire исходный | **PLAN-9B-5b или PLAN-L4 — что наступит раньше.** Общее правило: test/caller классифицируется и мигрирует/ретайрится вместе с тем parent surface, который фактически удаляется первым. Модуль импортирует `apps.news_to_short.main` (ретайр — **PLAN-9B-5b**) и `apps.youtube_pipeline.main` (ретайр — **PLAN-L4**); там же `tests/test_fullscreen_voiceover_application_boundary.py`. Все реальные test-callers wrapper'а обязаны быть migrated/updated **до** его retirement |
+| `tests/test_apps_structure.py` (39 строк) | существование файлов `pipeline.py` и `anime_factory/pipeline.py`; импортируемость `apps.*.main` | это снимок временных compatibility wrappers, а не обещание пользователю | переписать в fitness-тест «нет второго canonical public CLI», затем retire исходный | **PLAN-9B-5b или PLAN-L4 — что наступит раньше.** Общее правило: test/caller классифицируется и мигрирует/ретайрится вместе с тем parent surface, который фактически удаляется первым. Модуль импортирует `apps.news_to_short.main` (ретайр — **PLAN-9B-5b**) и `apps.youtube_pipeline.main` (ретайр — **PLAN-L4**); там же `tests/test_fullscreen_voiceover_application_boundary.py`. Все реальные test-callers wrapper'а обязаны быть migrated/updated **до** его retirement |
 | `tests/test_reproducibility_contract.py:24-27` | буквальное равенство `packages.find.include == ["ai_youtube*","src*","anime_factory*","apps*"]` | упадёт в момент исправления C25 и удаления `apps/`; фиксирует implementation detail с авторитетом контракта | переписать в инвариант: «нет package root вне объявленного набора», «wheel импортирует канонический CLI» | **PLAN-L4** |
-| `tests/test_stage2_agent_onboarding.py:19` | `today=date(2026,7,29)` и точное равенство множества `REQUIRED_SKILLS` | замораживает момент времени; добавление reviewer-skill (PLAN-6E) уронит тест | заменить на минимальный обязательный набор skills + автопроверку всех найденных; дату передавать аргументом | **PLAN-6A** |
-| `tests/test_stage2_agent_onboarding.py:26` | `AGENTS.md ≤ 120` строк | число не является архитектурным решением; `AGENTS.md` должен быть коротким **по responsibility** | переклассифицировать в measurement/warning | **PLAN-6A** |
-| `tests/test_documentary_visual_engine.py` (295), `tests/test_channel_profiles.py`, `tests/test_size_comparison_engine.py` | реализация legacy-движков и чтение legacy-каналов | замораживают ретайримую архитектуру | KSG извлекает полезные проверки, затем retire | **PLAN-L0 → L3** |
+| `tests/test_stage2_agent_onboarding.py:166` | точное равенство множества `REQUIRED_SKILLS` | добавление skill требует согласованной правки теста | заменить на минимальный обязательный набор skills + автопроверку всех найденных | **PLAN-6A** |
+| `tests/test_stage2_agent_onboarding.py:11` | `AGENTS.md ≤ 120` строк (`ONBOARDING_LINE_LIMITS`) | число не является архитектурным решением; `AGENTS.md` должен быть коротким **по responsibility** | переклассифицировать в measurement/warning | **PLAN-6A** |
+| `tests/test_documentary_visual_engine.py` (348), `tests/test_channel_profiles.py`, `tests/test_size_comparison_engine.py` | реализация legacy-движков и чтение legacy-каналов | замораживают ретайримую архитектуру | KSG извлекает полезные проверки, затем retire | **PLAN-L0 → L3** |
 | `tests/test_legacy_pipeline_internals_contract.py`, `tests/test_legacy_pipeline_application_boundary.py` | CHARACTERIZATION этапов 6F/8D | своё назначение выполнили: рефакторинг, который они охраняли, завершён | retire вместе с носителем | **PLAN-L3 / L4** |
+| `tests/test_cli_internals_contract.py`, `tests/test_wizard_internals_contract.py`, `tests/test_content_creation_service_internals_contract.py`, `tests/test_semantic_visual_evaluation_internals_contract.py` | сигнатуры и import surface через `inspect.signature` | тот же класс, что и строка выше: снимок реализации, а не обещание пользователю; в разделе до 2026-08-17 числился только legacy-модуль | классифицировать при ретайре или переписывании носителя; отдельным слайсом не чистить | **вместе с носителем** |
+
+**Дополнено 2026-08-17 (пакет T).** Четыре модуля выше добавлены: раздел
+оценивал анкеры по вреду для архитектуры и не видел ни их полного состава, ни их
+цены. Цена измерена сейчас и оказалась не там, где её ожидали: пять модулей
+`*_internals_contract` вместе — **16 тестов за 0.930 с**
+(`.\venv\Scripts\python.exe -B -m unittest tests.test_cli_internals_contract …`),
+то есть как анкеры они дороги архитектурно, но не по времени. Дорог был
+характеризационный модуль `tests/test_input_query_truth_characterization`:
+**176.599 с** на 4 тестах до этого пакета и **65.723 с** после того, как он
+перестал материализовать превью кандидатов; assert'ы при этом не менялись. Цена
+анкера записывается здесь в секундах именно затем, чтобы решение «держать или
+переписать» принималось с обеими величинами.
+
+**Числа раздела приведены к текущему коду 2026-08-17 (пакет T), каждое
+перепроверено командой, а не взято из отчёта.** `test_apps_structure.py` — 19 →
+**39** строк, `test_documentary_visual_engine.py` — 295 → **348**
+(`grep -c "" <файл>`). Строка про `test_stage2_agent_onboarding.py:19`
+**закрыта наполовину и переписана**: замороженной даты в файле больше нет
+(`grep -n "date(" tests/test_stage2_agent_onboarding.py` — ноль совпадений,
+`validate_repository(REPO_ROOT)` на строке 83 вызывается без `today`), поэтому
+эта половина анкером быть перестала; осталось только точное равенство
+`REQUIRED_SKILLS`, переехавшее на строку **166**. Вторая строка указывала на
+`:26` и описывала не тот из двух «120»: по этому номеру лежит
+`ONBOARDING_MAX_LINE_LENGTH` — предел длины строки **в символах** (сейчас
+строка 28), а лимит на **количество** строк — это `ONBOARDING_LINE_LIMITS` на
+строке **11**; строка исправлена на него. Соседняя `C49` — измерение, а не
+инвариант: сейчас Python-child порождают **7** модулей
+(`grep -l "sys\.executable" tests/*.py`) при **21** модуле, где вообще
+встречается слово `subprocess`; записанные там 12 относились к HEAD `adcbb19`.
 
 Не-anchor для контраста, менять нельзя без отдельного решения:
 `tests/test_asset_import_boundaries.py` и `tests/test_capability_consistency.py`
