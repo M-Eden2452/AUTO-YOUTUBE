@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from src.assets.completion.assembly import SceneVisualAssembly, read_assembly
+from src.assets.query_adapter import STATUS_OK
 from src.assets.completion.modes import (
     BLOCK_MISSING_FILE,
     PRIORITY_CRITICAL,
@@ -96,7 +97,15 @@ def search_queries_for(scene_entry: dict[str, Any]) -> list[str]:
         queries.extend(_query_strings(values))
     plan = scene_entry.get("query_plan") if isinstance(scene_entry.get("query_plan"), dict) else {}
     for item in plan.get("queries") or []:
-        if isinstance(item, dict) and item.get("query"):
+        # Only what the plan meant to send. A query the language gate refused is
+        # now recorded in the plan (``query_language_unsupported``), and offering
+        # it back here as a usable phrase would resurrect the one string the gate
+        # exists to stop. Absent status reads as sendable, which is what every
+        # plan written before that record looked like.
+        if not isinstance(item, dict) or not item.get("query"):
+            continue
+        status = str(item.get("status") or STATUS_OK)
+        if status in {STATUS_OK, ""}:
             queries.append(str(item["query"]))
     composed = " ".join(
         part

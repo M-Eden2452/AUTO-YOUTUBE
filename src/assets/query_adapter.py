@@ -20,6 +20,12 @@ If none of that yields a usable query the scene is reported as
 ``query_translation_required`` and **no request is sent**. There is no translator here
 and none is invented: a guessed translation would silently swap the subject of the
 video, which is worse than an empty result.
+
+A query refused for its language is written into the plan as
+``query_language_unsupported`` rather than dropped in silence. It stays unsendable,
+but it is now visible: while a scene kept at least one English query the loss of its
+most precise one was recorded nowhere, so "the language broke" and "the plan was
+narrow" produced identical evidence.
 """
 
 from __future__ import annotations
@@ -31,6 +37,13 @@ from typing import Any
 
 STATUS_OK = "ok"
 STATUS_TRANSLATION_REQUIRED = "query_translation_required"
+#: A single candidate string this provider cannot be searched with. Written into the
+#: plan instead of being dropped in silence: while a scene still had *some* English
+#: query, the loss of its most precise one left no record anywhere, so a language
+#: failure and a deliberately narrow plan looked identical in the saved evidence
+#: (language audit 2026-08-16, K9). It is never sendable - ``for_provider`` returns
+#: only ``STATUS_OK`` - so no request and no budget follows from it.
+STATUS_LANGUAGE_UNSUPPORTED = "query_language_unsupported"
 
 SOURCE_EXPLICIT = "explicit_override"
 SOURCE_BRIEF_FIELDS = "visual_brief_fields"
@@ -300,7 +313,7 @@ def build_scene_queries(
             ),
             *adapted,
         ]
-        chosen = _provider_ready_candidates(candidates, languages=languages)
+        chosen, dropped = _provider_ready_candidates(candidates, languages=languages)
         if not chosen:
             plan.queries.append(
                 ProviderQuery(
@@ -316,6 +329,7 @@ def build_scene_queries(
                 )
             )
             plan.untranslatable_providers.append(provider)
+            plan.queries.extend(_dropped_records(provider, dropped, languages=languages))
             continue
         for index, item in enumerate(chosen):
             plan.queries.append(
@@ -328,7 +342,40 @@ def build_scene_queries(
                     source=str(item.get("source") or SOURCE_BRIEF_FIELDS),
                 )
             )
+        plan.queries.extend(_dropped_records(provider, dropped, languages=languages))
     return plan
+
+
+def _dropped_records(
+    provider: str,
+    dropped: list[dict[str, Any]],
+    *,
+    languages: tuple[str, ...],
+) -> list[ProviderQuery]:
+    """The queries this provider was *not* asked, and why.
+
+    Appended after the sendable ones so the position of the plan's first entry -
+    which existing readers use to tell a fully blocked scene from a working one -
+    keeps its meaning.
+    """
+
+    supported = ", ".join(str(language).casefold() for language in languages)
+    return [
+        ProviderQuery(
+            provider=provider,
+            query=str(item["query"]),
+            language=str(item["language"]),
+            kind=str(item.get("kind") or "primary"),
+            fallback_level=int(item.get("fallback_level") or 0),
+            source=str(item.get("source") or SOURCE_BRIEF_FIELDS),
+            status=STATUS_LANGUAGE_UNSUPPORTED,
+            notes=(
+                f"Запрос написан на {item['language']!r}, провайдер ищет только на "
+                f"{supported!r}: не отправлен, бюджет не потрачен."
+            ),
+        )
+        for item in dropped
+    ]
 
 
 # --- Targeted per-slot queries (stage Q2.3) ----------------------------------
@@ -547,25 +594,35 @@ def _provider_ready_candidates(
     candidates: list[dict[str, Any]],
     *,
     languages: tuple[str, ...],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Filter and stably deduplicate candidates for one provider.
 
     Language belongs to each candidate string, not to the set it arrived in. This
     lets safe English alternatives survive beside a Russian primary while keeping
     every unsupported or mixed-script string away from an English-only provider.
+
+    Returns the sendable candidates *and* the ones refused for their language, so
+    the caller can record the refusal. Only the language refusal is returned: an
+    empty string and a repeat of a query already chosen are not a loss of evidence,
+    and reporting them would bury the one line a reader needs.
     """
     supported = {str(language).casefold() for language in languages}
     seen: set[str] = set()
     chosen: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
     for item in candidates:
         query = _clean_query_text(str(item.get("query") or ""))
         language = _query_language(query)
         key = _query_key(query)
-        if not query or not language or language not in supported or key in seen:
+        if not query or not language or key in seen:
+            continue
+        if language not in supported:
+            seen.add(key)
+            dropped.append({**item, "query": query, "language": language})
             continue
         seen.add(key)
         chosen.append({**item, "query": query, "language": language})
-    return chosen
+    return chosen, dropped
 
 
 def _glossary_terms(scene: dict[str, Any]) -> list[str]:
@@ -695,6 +752,7 @@ __all__ = [
     "SOURCE_GLOSSARY",
     "SOURCE_LATIN_TOKENS",
     "SOURCE_SAME_LANGUAGE",
+    "STATUS_LANGUAGE_UNSUPPORTED",
     "STATUS_OK",
     "STATUS_TRANSLATION_REQUIRED",
     "ProviderQuery",

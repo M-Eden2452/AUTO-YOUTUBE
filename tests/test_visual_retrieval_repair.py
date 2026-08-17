@@ -14,6 +14,7 @@ from src.assets.query_adapter import (
     SOURCE_EXPLICIT,
     SOURCE_GLOSSARY,
     SOURCE_SAME_LANGUAGE,
+    STATUS_LANGUAGE_UNSUPPORTED,
     STATUS_OK,
     STATUS_TRANSLATION_REQUIRED,
     build_scene_queries,
@@ -325,6 +326,98 @@ class ProviderQueryLanguageTests(unittest.TestCase):
         self.assertIn("wikimedia", plan.untranslatable_providers)
         self.assertEqual(plan.queries[0].status, STATUS_TRANSLATION_REQUIRED)
         self.assertEqual(plan.queries[0].query, "")
+
+    def test_a_query_refused_for_its_language_is_recorded_in_the_plan(self) -> None:
+        """K9: the scene still searched, so nothing said its best query was lost.
+
+        Characterized before the change: the mixed-alphabet leading query of every
+        LIVE-5 scene was skipped inside ``_provider_ready_candidates`` and the plan
+        came back with three ``ok`` rows and nothing else, so the saved evidence of
+        a language failure was identical to that of a deliberately narrower plan.
+        The record has to name the query itself - "some query was dropped" cannot
+        be acted on - and it must stay unsendable.
+        """
+
+        scene = _scene(
+            narration="Солнечная панель ловит свет только днём.",
+            primary_query="solar panel in daylight Солнечная",
+            visual_brief={
+                "subject": "solar panel",
+                "action": "catching sunlight",
+                "place": "rooftop",
+            },
+        )
+        plan = build_scene_queries(scene, providers=["pexels"], intent_language="ru")
+
+        sendable = plan.for_provider("pexels")
+        self.assertTrue(sendable)
+        self.assertTrue(all(query.language == "en" for query in sendable))
+        refused = [
+            query for query in plan.queries if query.status == STATUS_LANGUAGE_UNSUPPORTED
+        ]
+        self.assertEqual(
+            ["solar panel in daylight Солнечная"], [query.query for query in refused]
+        )
+        self.assertEqual(["ru"], [query.language for query in refused])
+        self.assertNotIn(refused[0], sendable)
+        self.assertIn("не отправлен", refused[0].notes)
+        self.assertEqual(plan.untranslatable_providers, [])
+
+    def test_the_refused_record_never_becomes_a_request(self) -> None:
+        """The trace is evidence, not a queue: only ``ok`` may be sent.
+
+        ``for_provider`` is the single door between the plan and the network, and
+        the request budget is spent from what comes through it, so a plan that
+        gained rows must not have gained requests.
+        """
+
+        scene = _scene(
+            primary_query="долинах собрали Сухих",
+            visual_brief=ANTARCTIC_BRIEF,
+        )
+        plan = build_scene_queries(scene, providers=["pexels", "wikimedia"], intent_language="ru")
+        for provider in ("pexels", "wikimedia"):
+            sendable = plan.for_provider(provider)
+            self.assertTrue(sendable)
+            self.assertTrue(
+                all(query.status == STATUS_OK for query in sendable), provider
+            )
+            self.assertTrue(
+                any(
+                    query.status == STATUS_LANGUAGE_UNSUPPORTED
+                    for query in plan.queries
+                    if query.provider == provider
+                ),
+                provider,
+            )
+        persisted = plan.to_dict()
+        self.assertEqual(
+            {STATUS_OK, STATUS_LANGUAGE_UNSUPPORTED},
+            {item["status"] for item in persisted["queries"]},
+        )
+
+    def test_a_fully_blocked_scene_still_leads_with_its_translation_verdict(self) -> None:
+        """Order is a contract: readers take the first entry as the scene's verdict.
+
+        ``asset_manifest_builder`` writes the ledger line for a blocked scene from
+        the ``query_translation_required`` entry, and existing tests read
+        ``queries[0]``. The refusal rows are appended after it for that reason.
+        """
+
+        scene = _scene(narration="совершенно непереводимое", primary_query="непереводимое слово")
+        plan = build_scene_queries(scene, providers=["wikimedia"], intent_language="ru")
+        self.assertEqual(plan.queries[0].status, STATUS_TRANSLATION_REQUIRED)
+        self.assertEqual(plan.queries[0].query, "")
+        self.assertIn("wikimedia", plan.untranslatable_providers)
+        self.assertEqual(
+            ["непереводимое слово"],
+            [
+                query.query
+                for query in plan.queries
+                if query.status == STATUS_LANGUAGE_UNSUPPORTED
+            ],
+        )
+        self.assertEqual([], plan.for_provider("wikimedia"))
 
     def test_t1a_prepared_queries_are_filtered_and_stably_deduplicated(self) -> None:
         brief = {

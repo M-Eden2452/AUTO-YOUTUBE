@@ -761,14 +761,27 @@ class SemanticBriefReachesTheProviderTest(unittest.TestCase):
     """The whole point: an ordinary Russian script gets an executable English query."""
 
     def test_today_the_same_script_cannot_reach_a_provider(self) -> None:
+        """Nothing sendable, and the verdict says why.
+
+        The assertion used to be that the scene's whole status *set* was
+        ``query_translation_required``. A plan now also carries the Russian
+        strings it refused (``query_language_unsupported``, language audit K9), so
+        the set has a second member while the fact this test names - not one query
+        reaches a provider - is unchanged. The claim is asserted directly instead
+        of through the shape of the set.
+        """
+
         script = _script()
         planning = build_plan(_request(script))
-        statuses = {
-            scene_id: {query.status for query in _provider_queries(planning, script, scene_id).queries}
-            for scene_id in NARRATIONS
+        plans = {
+            scene_id: _provider_queries(planning, script, scene_id) for scene_id in NARRATIONS
         }
-        self.assertEqual(statuses["scene_002"], {STATUS_TRANSLATION_REQUIRED})
-        self.assertEqual(statuses["scene_004"], {STATUS_TRANSLATION_REQUIRED})
+        for scene_id in ("scene_002", "scene_004"):
+            plan = plans[scene_id]
+            statuses = {query.status for query in plan.queries}
+            self.assertEqual([], plan.for_provider("pexels"), scene_id)
+            self.assertNotIn(STATUS_OK, statuses, scene_id)
+            self.assertIn(STATUS_TRANSLATION_REQUIRED, statuses, scene_id)
 
     def test_every_scene_reaches_the_provider_with_its_own_subject(self) -> None:
         script = _script()
