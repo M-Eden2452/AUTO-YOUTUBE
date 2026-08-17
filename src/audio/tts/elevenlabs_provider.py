@@ -8,6 +8,7 @@ import requests
 
 from src.runtime_network import (
     NETWORK_ACTION_VOICE_PREFLIGHT,
+    NETWORK_ACTION_VOICE_SYNTHESIS,
     NetworkAccessDeniedError,
     require_network,
 )
@@ -35,6 +36,15 @@ class ElevenLabsProvider(TTSProvider):
             raise ValueError("ElevenLabs synthesis requires output_path.")
         if not self.api_key:
             raise PermissionError("ELEVENLABS_API_KEY is not configured.")
+        # The paid call carries its own network class, and the check stands here
+        # rather than at the callers: TTSProviderManager.synthesize has the
+        # ``approved=`` gate, but src/audio/voice_cli.py and
+        # src/production_plan/solar_vs_nuclear_render.py call this method
+        # directly and would each need their own copy of it. Placed before mkdir
+        # so a denied run leaves nothing on disk, and after the key check so an
+        # unconfigured key keeps its own message instead of being relabelled a
+        # permission denial.
+        require_network(NETWORK_ACTION_VOICE_SYNTHESIS, detail=ELEVENLABS_API_HOST)
         output_path = Path(request.output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         response = self.http.post(

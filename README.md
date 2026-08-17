@@ -121,8 +121,10 @@ evidence, правами, промежуточными планами и ито�
 
 - **Сеть запрещена по классам.** Разрешение выдаётся отдельно на каждый класс:
   `provider_search`, `asset_download`, `preview_download`, `article_fetch`,
-  `voice_preflight`, `semantic_brief` (`src/runtime_network.py`). Наличие ключа
-  в `.env` разрешением не является.
+  `voice_preflight`, `voice_synthesis`, `semantic_brief`
+  (`src/runtime_network.py`). Наличие ключа в `.env` разрешением не является.
+  Бесплатная проверка аккаунта (`voice_preflight`) и платная генерация озвучки
+  (`voice_synthesis`) — разные классы: одобрив первый, второй вы не открываете.
 - **Платное — отдельно от сети.** Озвучка не запускается без
   `--approve-paid-generation`; платный анализ кадров имеет собственный бюджет и
   выключен в конфиге.

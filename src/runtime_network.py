@@ -61,6 +61,11 @@ NETWORK_ACTION_ASSET_DOWNLOAD = "asset_download"
 NETWORK_ACTION_PREVIEW_DOWNLOAD = "preview_download"
 NETWORK_ACTION_ARTICLE_FETCH = "article_fetch"
 NETWORK_ACTION_VOICE_PREFLIGHT = "voice_preflight"
+# Отдельный класс от preflight намеренно (2026-08-17): preflight читает аккаунт и
+# ничего не тратит, synthesize генерирует и стоит денег. Один класс на оба означал
+# бы, что разрешение на бесплатную проверку голосов открывает платную генерацию —
+# ровно то, что запрещает инвариант «одобренный класс не открывает соседние».
+NETWORK_ACTION_VOICE_SYNTHESIS = "voice_synthesis"
 NETWORK_ACTION_SEMANTIC_BRIEF = "semantic_brief"
 
 # Порядок фиксирован: он же используется как порядок `choices` в CLI и в
@@ -71,6 +76,7 @@ NETWORK_ACTIONS: tuple[str, ...] = (
     NETWORK_ACTION_PREVIEW_DOWNLOAD,
     NETWORK_ACTION_ARTICLE_FETCH,
     NETWORK_ACTION_VOICE_PREFLIGHT,
+    NETWORK_ACTION_VOICE_SYNTHESIS,
     NETWORK_ACTION_SEMANTIC_BRIEF,
 )
 
@@ -80,6 +86,10 @@ NETWORK_ACTION_DESCRIPTIONS: dict[str, str] = {
     NETWORK_ACTION_PREVIEW_DOWNLOAD: "Скачивание превью кандидатов для визуальной проверки.",
     NETWORK_ACTION_ARTICLE_FETCH: "Загрузка исходной статьи по URL.",
     NETWORK_ACTION_VOICE_PREFLIGHT: "Проверка аккаунта, голосов и моделей ElevenLabs (без генерации).",
+    NETWORK_ACTION_VOICE_SYNTHESIS: (
+        "Платная генерация озвучки у провайдера TTS. Разрешением на оплату не является: "
+        "платный гейт остаётся у voice_workflow и provider_manager."
+    ),
     NETWORK_ACTION_SEMANTIC_BRIEF: (
         "Запрос к текстовой модели о смысле сцены для визуального брифа "
         "(без генерации сценария и без Vision). Разрешением на оплату не является."
@@ -220,6 +230,7 @@ __all__ = [
     "NETWORK_ACTION_PROVIDER_SEARCH",
     "NETWORK_ACTION_SEMANTIC_BRIEF",
     "NETWORK_ACTION_VOICE_PREFLIGHT",
+    "NETWORK_ACTION_VOICE_SYNTHESIS",
     "NetworkAccessDeniedError",
     "NetworkApproval",
     "approval_for_actions",

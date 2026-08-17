@@ -177,6 +177,13 @@ def paid_call_blockers(config: SemanticBriefModelConfig) -> list[str]:
         reasons.append("maximum_calls_per_project_required")
     if config.maximum_budget_usd <= 0:
         reasons.append("maximum_budget_usd_required")
+    # C87: без положительной оценки стоимости объявленный потолок в долларах не
+    # может быть превышен ни при каком числе вызовов — `_projected_cost_usd`
+    # прибавляет ноль за вызов, — поэтому денежный guard молча выключен, а отчёт
+    # выглядит так, будто бюджет ограничивает прогон. Отсутствующая оценка при
+    # объявленном бюджете называется отказом, а не считается нулевой ценой.
+    if config.estimated_cost_per_call_usd <= 0:
+        reasons.append("estimated_cost_per_call_usd_required")
     return reasons
 
 
@@ -463,6 +470,11 @@ def activation_diagnostics(config: SemanticBriefModelConfig | None = None) -> di
         "paid_blockers": paid_call_blockers(settings),
         "maximum_calls_per_project": settings.maximum_calls_per_project,
         "maximum_budget_usd": settings.maximum_budget_usd,
+        # Потолок печатается рядом с ответом на вопрос «а может ли он сработать»:
+        # раньше непустой `maximum_budget_usd` рядом с пустым `paid_blockers`
+        # читался как «бюджет ограничивает», даже когда ограничить он не мог (C87).
+        "estimated_cost_per_call_usd": settings.estimated_cost_per_call_usd,
+        "usd_budget_enforceable": settings.estimated_cost_per_call_usd > 0,
         "api_key_configured": bool(os.getenv(API_KEY_ENV_VAR)),
     }
 

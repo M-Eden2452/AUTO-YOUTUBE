@@ -415,8 +415,18 @@ class EstimatedMoneyGuardTest(unittest.TestCase):
                 backend("prompt", {"scene_id": "scene_001"})
         self.assertEqual(client.call_count, 0)
 
-    def test_without_a_per_call_estimate_only_the_call_cap_bounds_the_run(self) -> None:
-        """No estimate means no money statement can be made - and none is made."""
+    def test_without_a_per_call_estimate_nothing_is_sent_at_all(self) -> None:
+        """C87, closed 2026-08-17 by owner decision: no estimate is now a refusal.
+
+        This test previously froze the opposite - that a missing estimate simply
+        left the call cap as the only bound, so two calls went out under a
+        declared 0.03 USD ceiling that could never bind. That was the defect:
+        ``_projected_cost_usd`` adds zero per call, so the money guard was
+        silently off while ``activation_diagnostics`` showed a budget and no
+        blockers. The owner chose the blocker over a documented caveat, so a
+        declared budget without an estimate now stops before the first call
+        rather than after the last one the counter allows.
+        """
         client = _ProjectClient()
         backend = OpenAISemanticBriefBackend(
             _approved_config(
@@ -427,11 +437,10 @@ class EstimatedMoneyGuardTest(unittest.TestCase):
             client=client,
         )
         with network_approval_scope(_approval()):
-            backend("prompt", {"scene_id": "scene_001"})
-            backend("prompt", {"scene_id": "scene_002"})
-            with self.assertRaises(SemanticBriefUnavailableError):
-                backend("prompt", {"scene_id": "scene_003"})
-        self.assertEqual(client.call_count, 2)
+            with self.assertRaises(SemanticBriefUnavailableError) as ctx:
+                backend("prompt", {"scene_id": "scene_001"})
+        self.assertIn("estimated_cost_per_call_usd_required", str(ctx.exception))
+        self.assertEqual(client.call_count, 0)
         self.assertEqual(backend.usage_summary()["estimated_cost_usd"], 0.0)
 
 

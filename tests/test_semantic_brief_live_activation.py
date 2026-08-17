@@ -278,10 +278,38 @@ class PaidGateTest(unittest.TestCase):
             [
                 "allow_paid_calls_required",
                 "confirm_paid_calls_required",
+                "estimated_cost_per_call_usd_required",
                 "maximum_budget_usd_required",
                 "maximum_calls_per_project_required",
             ],
         )
+
+    def test_a_declared_budget_with_a_zero_estimate_is_not_approval(self) -> None:
+        """C87: a ceiling that cannot be reached is not a ceiling.
+
+        ``_projected_cost_usd`` adds ``estimated_cost_per_call_usd`` per call, so a
+        zero estimate made the USD guard unable to exceed any budget - every
+        projection stayed at ``prior_cost + 0``. The configuration still passed
+        every blocker, and ``activation_diagnostics`` printed a non-empty
+        ``maximum_budget_usd`` beside an empty ``paid_blockers``, which reads as
+        "the budget constrains this run". The only real limit was the call count.
+        """
+        client = _FakeOpenAIClient()
+        config = _approved_config(estimated_cost_per_call_usd=0.0)
+        self.assertIn("estimated_cost_per_call_usd_required", paid_call_blockers(config))
+        planning = _plan(client, config=config)
+        self.assertEqual(client.call_count, 0)
+        self.assertIsNone(planning)
+
+    def test_diagnostics_say_whether_the_usd_ceiling_can_bind(self) -> None:
+        inert = activation_diagnostics(_approved_config(estimated_cost_per_call_usd=0.0))
+        self.assertFalse(inert["usd_budget_enforceable"])
+        self.assertEqual(inert["estimated_cost_per_call_usd"], 0.0)
+        self.assertIn("estimated_cost_per_call_usd_required", inert["paid_blockers"])
+
+        enforceable = activation_diagnostics(_approved_config())
+        self.assertTrue(enforceable["usd_budget_enforceable"])
+        self.assertEqual(enforceable["paid_blockers"], [])
 
     def test_the_two_gates_are_independent(self) -> None:
         """Paid approved, network denied - the other half of the invariant."""

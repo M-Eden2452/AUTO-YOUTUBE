@@ -367,6 +367,149 @@ class VoicePreflightBoundaryTests(unittest.TestCase):
                     require_network(action)
 
 
+def _silent_wav_bytes(*, seconds: float = 0.5, rate: int = 44100) -> bytes:
+    """Half a second of silence as a real WAV, built in memory."""
+
+    import io
+    import wave
+
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(b"\x00\x00" * int(rate * seconds))
+    return buffer.getvalue()
+
+
+class RespondingRequests:
+    """The only fake here that answers, for the one test that needs a success.
+
+    Every other recorder in this module proves a negative. This one proves the
+    guard did not also close the approved path: it records the POST and returns
+    a body, so the test can tell "the boundary let an approved call through"
+    apart from "the boundary is simply broken".
+    """
+
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+        self.calls: list[tuple[str, str]] = []
+
+    def post(self, url: str, **kwargs):
+        self.calls.append(("POST", url))
+
+        class _Response:
+            status_code = 200
+
+        response = _Response()
+        response.content = self.payload
+        return response
+
+
+class VoiceSynthesisBoundaryTests(unittest.TestCase):
+    """Paid generation is its own network class, not a byproduct of preflight.
+
+    Until 2026-08-17 ``synthesize`` was the only ElevenLabs entry point without a
+    ``require_network`` call: preflight and ``list_voices`` were guarded and the
+    paid POST was not. The manager's ``approved=`` gate did not cover it either,
+    because ``src/audio/voice_cli.py`` and
+    ``src/production_plan/solar_vs_nuclear_render.py`` call the provider method
+    directly. These tests hold both halves: nothing reaches the wire unapproved,
+    and approving the free account check does not open the paid call.
+    """
+
+    def _request(self, output_path: Path):
+        return _tts_request().with_updates(output_path=str(output_path))
+
+    def test_synthesize_performs_no_post_without_network_approval(self) -> None:
+        from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
+
+        http = RecordingRequests()
+        provider = ElevenLabsProvider(api_key="configured-but-not-approved", http_client=http)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "voice" / "scene.wav"
+            with self.assertRaises(NetworkAccessDeniedError) as ctx:
+                provider.synthesize(self._request(output))
+            self.assertEqual(http.calls, [])
+            # A denied run leaves no trace on disk: the guard stands before the
+            # directory is created, not merely before the socket.
+            self.assertFalse(output.exists())
+            self.assertFalse(output.parent.exists())
+        self.assertEqual(ctx.exception.action, "voice_synthesis")
+        self.assertEqual(ctx.exception.next_action, "--allow-network voice_synthesis")
+
+    def test_preflight_approval_does_not_unlock_paid_synthesis(self) -> None:
+        from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
+
+        approval = approval_for_actions(
+            [NETWORK_ACTION_VOICE_PREFLIGHT],
+            granted_by="test",
+        )
+        http = RecordingRequests()
+        provider = ElevenLabsProvider(api_key="configured", http_client=http)
+        with tempfile.TemporaryDirectory() as tmp, network_approval_scope(approval):
+            output = Path(tmp) / "scene.wav"
+            with self.assertRaises(NetworkAccessDeniedError) as ctx:
+                provider.synthesize(self._request(output))
+            self.assertEqual(http.calls, [])
+            self.assertFalse(output.exists())
+        self.assertEqual(ctx.exception.action, "voice_synthesis")
+
+    def test_synthesis_approval_does_not_unlock_the_free_preflight(self) -> None:
+        # The other direction of the same invariant: the two classes are
+        # neighbours, and a neighbour is never opened by name.
+        from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
+        from src.runtime_network import NETWORK_ACTION_VOICE_SYNTHESIS
+
+        approval = approval_for_actions(
+            [NETWORK_ACTION_VOICE_SYNTHESIS],
+            granted_by="test",
+        )
+        http = RecordingRequests()
+        provider = ElevenLabsProvider(api_key="configured", http_client=http)
+        with network_approval_scope(approval):
+            plan = provider.preflight(_tts_request())
+        self.assertEqual(http.calls, [])
+        self.assertIn("voice_preflight", " ".join(plan.errors))
+
+    def test_approved_synthesis_still_reaches_the_provider(self) -> None:
+        from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
+        from src.runtime_network import NETWORK_ACTION_VOICE_SYNTHESIS
+
+        approval = approval_for_actions(
+            [NETWORK_ACTION_VOICE_SYNTHESIS],
+            granted_by="test",
+        )
+        payload = _silent_wav_bytes()
+        http = RespondingRequests(payload)
+        provider = ElevenLabsProvider(api_key="configured", http_client=http)
+        with tempfile.TemporaryDirectory() as tmp, network_approval_scope(approval):
+            output = Path(tmp) / "voice" / "scene.wav"
+            result = provider.synthesize(self._request(output))
+            self.assertEqual(output.read_bytes(), payload)
+        self.assertEqual(len(http.calls), 1)
+        self.assertEqual(result.provider, "elevenlabs")
+        # A real WAV rather than a placeholder: the provider probes the file it
+        # just wrote, so a fake body would make this test measure the fallback
+        # decoder instead of the boundary.
+        self.assertAlmostEqual(result.duration_sec, 0.5, places=3)
+
+    def test_missing_api_key_is_still_reported_before_the_network_class(self) -> None:
+        # Ordering is deliberate: an unconfigured key is a configuration fact and
+        # keeps its own message, so the fix does not relabel a setup mistake as a
+        # permission denial.
+        from src.audio.tts.elevenlabs_provider import ElevenLabsProvider
+
+        http = RecordingRequests()
+        provider = ElevenLabsProvider(api_key="", http_client=http)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "scene.wav"
+            with self.assertRaises(PermissionError) as ctx:
+                provider.synthesize(self._request(output))
+        self.assertNotIsInstance(ctx.exception, NetworkAccessDeniedError)
+        self.assertEqual(http.calls, [])
+
+
 class RequestPlumbingParityTests(unittest.TestCase):
     def _cli_namespace(self, **overrides) -> Namespace:
         base = dict(

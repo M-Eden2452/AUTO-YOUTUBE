@@ -31,6 +31,31 @@ def _voice_preflight_approved():
     )
 
 
+def _voice_audition_approved():
+    """Grant preflight *and* synthesis for the one test that pays.
+
+    The audition action does not stop at reading the account: it performs a real
+    paid POST (its own manifest records ``paid_call_performed: True``). Before
+    2026-08-17 that call had no network class at all, so granting preflight was
+    enough to reach it - which is exactly the defect the class split closed. The
+    two classes are named here together because this path genuinely uses both,
+    and never widened in the shared helper above.
+    """
+    from src.runtime_network import (
+        NETWORK_ACTION_VOICE_PREFLIGHT,
+        NETWORK_ACTION_VOICE_SYNTHESIS,
+        approval_for_actions,
+        network_approval_scope,
+    )
+
+    return network_approval_scope(
+        approval_for_actions(
+            [NETWORK_ACTION_VOICE_PREFLIGHT, NETWORK_ACTION_VOICE_SYNTHESIS],
+            granted_by="test_voice_workflow",
+        )
+    )
+
+
 class VoiceWorkflowTests(unittest.TestCase):
     def test_tts_cache_key_changes_for_voice_model_language_text_and_settings(self) -> None:
         from src.audio.tts.models import TTSRequest, compute_tts_cache_key
@@ -270,10 +295,10 @@ class VoiceWorkflowTests(unittest.TestCase):
             fake_http.get.side_effect = fake_get
             fake_http.post.return_value = Mock(status_code=200, content=b"RIFF....WAVEfmt ")
 
-            # The audition path runs a preflight first, so this test grants the
-            # voice_preflight class it exercises. The paid synthesis itself stays
-            # governed by the existing VoiceApproval owner, unchanged.
-            with _voice_preflight_approved(), patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls:
+            # The audition path runs a preflight and then pays, so this test
+            # grants both classes it exercises. The paid gate itself stays with
+            # the existing VoiceApproval owner, unchanged.
+            with _voice_audition_approved(), patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls:
                 from src.audio.tts.elevenlabs_provider import ElevenLabsProvider as RealProvider
 
                 provider_cls.return_value = RealProvider(api_key="test-key", http_client=fake_http)
@@ -300,7 +325,7 @@ class VoiceWorkflowTests(unittest.TestCase):
             self.assertEqual(fake_http.post.call_count, 1)
 
             # Re-running the same audition must hit the cached preview file, not call again.
-            with _voice_preflight_approved(), patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls2:
+            with _voice_audition_approved(), patch("src.audio.voice_cli.ElevenLabsProvider") as provider_cls2:
                 provider_cls2.return_value = RealProvider(api_key="test-key", http_client=fake_http)
                 with redirect_stdout(StringIO()):
                     run_voice_cli(
