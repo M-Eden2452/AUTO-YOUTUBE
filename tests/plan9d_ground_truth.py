@@ -99,6 +99,15 @@ DATA_ROOT = Path(__file__).resolve().parent / "data" / "plan9d"
 #: The benchmark input. Captured and frozen by PLAN-9D-B; absent until then, and
 #: its absence is reported rather than papered over.
 CURRENT_CORPUS_PATH = DATA_ROOT / "current_corpus_v1.json"
+#: The bilingual corpus of PLAN-9D-H, built from two runs that the current stack
+#: produced. It exists because v1 cannot see language at all - 14 English subjects,
+#: an empty media index, two Cyrillic candidate records out of 1064 - so a language
+#: or provability fix measured on v1 would pass on any edit (language audit, K12).
+#: It does not replace v1: v1 stays frozen and keeps its own 4/14.
+CURRENT_CORPUS_V2_PATH = DATA_ROOT / "current_corpus_v2.json"
+#: The owner's blind labels for v2. Absent until the blind pass happens; PLAN-9D-H
+#: does not close before it, and no agent may write it.
+CURRENT_ANNOTATIONS_V2_PATH = DATA_ROOT / "current_annotations_v2.json"
 #: The owner's blind labels for that capture. Written once by PLAN-9D-D.
 CURRENT_ANNOTATIONS_PATH = DATA_ROOT / "current_annotations_v1.json"
 #: Curated proof that the pre-9B/9C retrieval defects were real (PLAN-9D-A).
@@ -112,6 +121,27 @@ HISTORICAL_EVIDENCE_SCHEMA_VERSION = "plan9d-historical-evidence-1"
 #: 2026-08-08 reconciliation, so it is data, not a naming convention.
 GENERATION_CURRENT = "current_head_capture"
 GENERATION_HISTORICAL = "historical_pre_query_fixes"
+
+#: What a corpus is *asked*. Both are measured by the same harness and both are
+#: current benchmark input; the class says what a number taken from a scene may be
+#: quoted as.
+#:
+#: ``blind_annotation`` («слепая разметка»)
+#:     A pool a real run produced, whose ground truth is the owner's blind
+#:     preference. This is what v1 is, so an undeclared corpus reads as this one
+#:     and the frozen v1 keeps validating byte for byte.
+#: ``incident_analysis`` («разбор инцидента»)
+#:     A scene built to reproduce one named outcome - the same real candidates, a
+#:     requirement written by hand. It is honest evidence about a mechanism and
+#:     dishonest evidence about the field, because no run ever asked it. The class
+#:     is what keeps a later reader from quoting the second as the first.
+#:
+#: Declared for the corpus and overridable per scene, because one blind pass has to
+#: cover both: the owner's judgement on a ban is exactly what an incident scene
+#: needs, and asking for it on a second board would spend a second blind pass.
+CORPUS_CLASS_BLIND = "blind_annotation"
+CORPUS_CLASS_INCIDENT = "incident_analysis"
+CORPUS_CLASSES = (CORPUS_CLASS_BLIND, CORPUS_CLASS_INCIDENT)
 
 #: What a frozen payload is *for*. ``historical_project_corpus`` is the raw
 #: project harvest the builder produces; ``historical_failure_evidence`` is the
@@ -322,6 +352,22 @@ def generation_class_of(payload: dict[str, Any]) -> str:
     return ""
 
 
+def corpus_class_of(payload: dict[str, Any], scene: dict[str, Any] | None = None) -> str:
+    """What this corpus - or this one scene - is asked, reading v1 honestly.
+
+    An undeclared payload is a blind-annotation corpus: that is what the only
+    corpus written before the field existed actually is, and inventing a second
+    reading would retro-label the frozen v1 without touching it.
+    """
+
+    if scene is not None:
+        declared = str(scene.get("corpus_class") or "").strip()
+        if declared:
+            return declared
+    declared = str(payload.get("corpus_class") or "").strip()
+    return declared or CORPUS_CLASS_BLIND
+
+
 def fixture_kind_of(payload: dict[str, Any]) -> str:
     """What this payload is for, with the same reading of an unstamped payload."""
 
@@ -371,16 +417,54 @@ def load_current_corpus(path: Path = CURRENT_CORPUS_PATH) -> dict[str, Any]:
     return corpus
 
 
+def annotations_path_for(corpus: dict[str, Any]) -> Path:
+    """The labels this corpus belongs to, as the corpus itself declares them.
+
+    A corpus that declares nothing means v1, whose only file name is the one below.
+    The pack takes the same field, so the page's save button and the harness's read
+    cannot drift apart - they did once, and a finished blind pass sat unread beside
+    a harness still answering ``WAITING_FOR_OWNER_ANNOTATION``.
+    """
+
+    declared = str(corpus.get("annotations_filename") or "").strip()
+    return DATA_ROOT / declared if declared else CURRENT_ANNOTATIONS_PATH
+
+
 def load_annotations(path: Path = CURRENT_ANNOTATIONS_PATH) -> dict[str, Any]:
     annotations = json.loads(path.read_text(encoding="utf-8"))
     validate_annotations(annotations)
     return annotations
 
 
+#: Where a candidate's pixels come from when the capture sampled no frame for it.
+#: A run previews only its shortlist, so most of a saved pool has no frame at all -
+#: and a card with nothing to look at is not a question a human can answer. Two
+#: sources are already on disk and cost no network: the cached provider preview the
+#: run downloaded, and the file of a local-library candidate.
+EVIDENCE_KIND_PREVIEW = "cached_preview"
+EVIDENCE_KIND_LOCAL_FILE = "local_library_file"
+EVIDENCE_KINDS = (EVIDENCE_KIND_PREVIEW, EVIDENCE_KIND_LOCAL_FILE)
+
+
+def candidate_is_visible(entry: dict[str, Any]) -> bool:
+    """Did the annotator have anything to look at for this candidate?
+
+    One question, one answer, used by both the page that asks the owner and the
+    measurement that scores the answer. They disagreed once - the pack showed a
+    card the measurement counted as invisible - and the corpus is the only place
+    that can settle it.
+    """
+
+    return bool(entry.get("frames") or entry.get("visual_evidence"))
+
+
 def validate_corpus(corpus: dict[str, Any]) -> None:
     assert_current_benchmark_input(corpus, context="corpus")
     if corpus.get("schema_version") != CORPUS_SCHEMA_VERSION:
         raise BenchmarkError(f"unexpected corpus schema_version: {corpus.get('schema_version')!r}")
+    declared_class = corpus_class_of(corpus)
+    if declared_class not in CORPUS_CLASSES:
+        raise BenchmarkError(f"unknown corpus_class: {declared_class!r}")
     for field_name in ("corpus_version", "built_at_utc", "corpus_sha256", "scenes"):
         if not corpus.get(field_name):
             raise BenchmarkError(f"corpus is missing {field_name}")
@@ -403,6 +487,14 @@ def validate_corpus(corpus: dict[str, Any]) -> None:
         unknown = set(scene.get("categories") or []) - set(CORPUS_CATEGORIES)
         if unknown:
             raise BenchmarkError(f"{key}: unknown corpus categories {sorted(unknown)}")
+        scene_class = corpus_class_of(corpus, scene)
+        if scene_class not in CORPUS_CLASSES:
+            raise BenchmarkError(f"{key}: unknown corpus_class {scene_class!r}")
+        if scene_class == CORPUS_CLASS_INCIDENT and not str(scene.get("incident_note") or "").strip():
+            raise BenchmarkError(
+                f"{key}: an incident scene must say what it reproduces and what was "
+                "written by hand; without that it reads as a captured scene"
+            )
         candidates = scene["candidates"]
         if len(candidates) < 2:
             raise BenchmarkError(f"{key}: a benchmark scene needs at least two candidates")
@@ -436,6 +528,15 @@ def validate_corpus(corpus: dict[str, Any]) -> None:
                 for name in ("local_frame_path", "sha256"):
                     if not frame.get(name):
                         raise BenchmarkError(f"{key}/{blind_id}: frame without {name}")
+            for evidence in candidate.get("visual_evidence") or []:
+                if str(evidence.get("kind") or "") not in EVIDENCE_KINDS:
+                    raise BenchmarkError(
+                        f"{key}/{blind_id}: visual evidence of unknown kind "
+                        f"{evidence.get('kind')!r}"
+                    )
+                for name in ("local_path", "sha256"):
+                    if not evidence.get(name):
+                        raise BenchmarkError(f"{key}/{blind_id}: visual evidence without {name}")
         orders = sorted(int(c["input_order"]) for c in candidates)
         if orders != list(range(len(candidates))):
             raise BenchmarkError(f"{key}: input_order must be a permutation of 0..n-1, got {orders}")
@@ -994,12 +1095,17 @@ def evaluate_arm(
         # scoring that as a mismatch would measure preview coverage while
         # reporting it as decision quality. Abstention is a different state and
         # stays fully scorable - "chose nothing" is visible to both parties.
-        visible = {str(entry["blind_id"]) for entry in scene["candidates"] if entry["frames"]}
+        visible = {
+            str(entry["blind_id"])
+            for entry in scene["candidates"]
+            if candidate_is_visible(entry)
+        }
         winner_not_visible = bool(chosen) and chosen not in visible
 
         rows.append(
             {
                 "scene_key": key,
+                "corpus_class": corpus_class_of(corpus, scene),
                 "categories": list(scene.get("categories") or []),
                 "system_selected": chosen,
                 "system_selected_visible": bool(chosen) and chosen in visible,
@@ -1041,6 +1147,12 @@ def evaluate_arm(
         "safe_escalations_to_review": sum(1 for r in rows if r["safe_escalation_to_review"]),
         "auto_safe": sum(1 for r in rows if r["auto_safe"]),
         "undecidable_cases": sum(1 for r in rows if r["undecidable"]),
+        # Kept apart from the totals rather than folded into them: an incident
+        # scene proves something about a mechanism and nothing about the field,
+        # so a reader has to be able to see how much of the number it carries.
+        "incident_scenes": sum(
+            1 for r in rows if r["corpus_class"] == CORPUS_CLASS_INCIDENT
+        ),
     }
     return {
         "status": STATUS_COMPLETE,
@@ -1177,6 +1289,65 @@ def scene_verdict(row: dict[str, Any]) -> str:
     return "miss"
 
 
+def winner_changes(baseline: dict[str, Any], report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Which scenes changed hands between two measurements of the same corpus.
+
+    The number a selection change is judged by is "zero changed winners", and until
+    now that phrase could only be checked by eye against two tables. Named scenes
+    are what an acceptance can actually be written against: a change that moves
+    nothing is additive, and a change that moves something has to say what.
+
+    Both sides must be the same frozen corpus. Comparing across corpora would
+    produce a list of differences that are really differences between pools.
+    """
+
+    for name, arm in (("baseline", baseline), ("report", report)):
+        if arm.get("status") != STATUS_COMPLETE:
+            raise BenchmarkError(f"{name} is not a complete measurement: {arm.get('status')!r}")
+    if str(baseline.get("corpus_sha256")) != str(report.get("corpus_sha256")):
+        raise BenchmarkError(
+            "the baseline was measured against a different corpus; a winner diff "
+            "across corpora compares pools, not decisions"
+        )
+    before = {str(row["scene_key"]): row for row in baseline.get("scenes") or []}
+    changes: list[dict[str, Any]] = []
+    for row in report.get("scenes") or []:
+        key = str(row["scene_key"])
+        old = before.get(key)
+        if old is None:
+            raise BenchmarkError(f"the baseline does not cover scene {key}")
+        if old.get("system_selected") != row.get("system_selected"):
+            changes.append(
+                {
+                    "scene_key": key,
+                    "was": old.get("system_selected"),
+                    "now": row.get("system_selected"),
+                    "was_verdict": scene_verdict(old),
+                    "now_verdict": scene_verdict(row),
+                }
+            )
+    missing = sorted(set(before) - {str(row["scene_key"]) for row in report.get("scenes") or []})
+    if missing:
+        raise BenchmarkError(f"the measurement does not cover baseline scenes {missing}")
+    return changes
+
+
+def format_winner_changes(changes: list[dict[str, Any]], *, baseline_path: Path) -> str:
+    """The diff, named scene by scene. ASCII, like the rest of this command."""
+
+    lines = [f"baseline  {baseline_path.name}", ""]
+    if not changes:
+        lines.append("changed_winners              0  (additive on this corpus)")
+        return "\n".join(lines)
+    lines.append(f"changed_winners              {len(changes)}")
+    for change in changes:
+        lines.append(
+            f"  {change['scene_key']}: was {change['was'] or '-'} ({change['was_verdict']})"
+            f" -> now {change['now'] or '-'} ({change['now_verdict']})"
+        )
+    return "\n".join(lines)
+
+
 def format_measurement(report: dict[str, Any], *, corpus_path: Path | None = None) -> str:
     """The aggregate and the per-scene rows, as plain text."""
 
@@ -1207,18 +1378,20 @@ def format_measurement(report: dict[str, Any], *, corpus_path: Path | None = Non
         "auto_safe",
         "undecidable_cases",
         "unscorable_winner_not_visible",
+        "incident_scenes",
     ):
-        lines.append(f"{key:<28} {aggregate[key]}")
+        lines.append(f"{key:<28} {aggregate.get(key, 0)}")
     rows = report["scenes"]
     width = max([len(str(r["scene_key"])) for r in rows] + [len("scene")])
-    lines += ["", f"{'scene':<{width}}  {'selected':<10} {'preferred':<10} verdict"]
-    lines.append("-" * (width + 34))
+    lines += ["", f"{'scene':<{width}}  {'selected':<10} {'preferred':<10} {'verdict':<16} class"]
+    lines.append("-" * (width + 52))
     for row in rows:
         lines.append(
             f"{str(row['scene_key']):<{width}}  "
             f"{str(row['system_selected'] or '-'):<10} "
             f"{str(row['human_preferred'] or '-'):<10} "
-            f"{scene_verdict(row)}"
+            f"{scene_verdict(row):<16} "
+            f"{str(row.get('corpus_class') or CORPUS_CLASS_BLIND)}"
         )
     return "\n".join(lines)
 
@@ -1231,19 +1404,62 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     measure = sub.add_parser("measure", help="aggregate and per-scene rows for the metadata-only arm")
     measure.add_argument("--corpus", default=str(CURRENT_CORPUS_PATH))
-    measure.add_argument("--annotations", default=str(CURRENT_ANNOTATIONS_PATH))
+    measure.add_argument(
+        "--annotations",
+        default="",
+        help=(
+            "the owner's labels; by default the file the corpus itself names, so a "
+            "corpus is never measured against another corpus's ground truth"
+        ),
+    )
     measure.add_argument("--json", action="store_true", help="the raw report instead of the table")
     measure.add_argument("--out", default="", help="write UTF-8 here instead of stdout")
+    measure.add_argument(
+        "--baseline",
+        default="",
+        help=(
+            "an earlier report from this same command with --json; the changed "
+            "winners are then printed scene by scene"
+        ),
+    )
     args = parser.parse_args(argv)
 
     corpus = load_current_corpus(Path(args.corpus))
-    annotations = load_annotations(Path(args.annotations))
+    annotations_path = Path(args.annotations) if args.annotations else annotations_path_for(corpus)
+    if not annotations_path.is_file():
+        # A missing ground truth is the ordinary state of a corpus whose blind pass
+        # has not happened yet, and it is reported as waiting rather than as a
+        # crash. Filling it in is the owner's work and nobody else's.
+        report = {
+            "status": STATUS_WAITING,
+            "arm": ARM_METADATA_ONLY,
+            "corpus_sha256": corpus["corpus_sha256"],
+            "blocking": [f"no annotation file at {annotations_path}"],
+            "scenes": [],
+            "aggregate": {},
+        }
+        text = format_measurement(report, corpus_path=Path(args.corpus))
+        if args.out:
+            Path(args.out).write_text(text + "\n", encoding="utf-8")
+        else:
+            print(text)
+        return 1
+    annotations = load_annotations(annotations_path)
     report = evaluate_arm(corpus, annotations, run_metadata_baseline(corpus))
+    changes: list[dict[str, Any]] | None = None
+    if args.baseline:
+        baseline_path = Path(args.baseline)
+        changes = winner_changes(
+            json.loads(baseline_path.read_text(encoding="utf-8")), report
+        )
+        report = {**report, "winner_changes": changes}
     text = (
         json.dumps(report, indent=2, sort_keys=True)
         if args.json
         else format_measurement(report, corpus_path=Path(args.corpus))
     )
+    if changes is not None and not args.json:
+        text += "\n\n" + format_winner_changes(changes, baseline_path=Path(args.baseline))
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
     else:

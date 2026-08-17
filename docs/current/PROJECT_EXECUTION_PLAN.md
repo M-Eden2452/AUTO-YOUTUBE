@@ -8,14 +8,14 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress; unchanged by this slice. NEXT is PLAN-9D-H -
-  the bilingual ground truth, package C of the rollout plan in docs/audits
-  (see the route block below). It runs before PLAN-9C-4, which stays blocked on
-  it: the frozen v1 corpus cannot see language, so a provability acceptance
-  would pass on any edit. CONDITION: PLAN-9D-H closes only after the owner's
-  blind labelling of 73 cards; an agent cannot produce it. WHO DECIDES: the
-  owner, at entry to each step. The closure history this field used to carry is
-  in "Current checkpoint" below.
+  Checkpoint PLAN-9D, in progress; unchanged by this slice. NEXT is the owner's
+  blind labelling inside PLAN-9D-H (package C): corpus v2 and the blind board
+  were built 2026-08-17, so 55 of its 78 cards - the ones carrying pictures -
+  wait for the owner. PLAN-9C-4 stays blocked on that labelling: without it the
+  corpus measures nothing and a provability acceptance would pass on any edit.
+  CONDITION: PLAN-9D-H closes only after the labelling; an agent cannot produce
+  it. WHO DECIDES: the owner, at entry to each step. The closure history this
+  field used to carry is in "Current checkpoint" below.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -1661,7 +1661,7 @@ script; `C58` — честного pre-final preview нет, оценивать 
 | **0** Сохранность | отчёты 15–17.08 в git и в индексе | закрыт `d05d5ec` |
 | **A** Точка истины `C89` | независимое ревью `ec369f8`, `ede8c4b` | закрыт `3619fe1`, verdict scope PASS · objective PASS |
 | **B** План перестаёт себе противоречить | это поле, замок, база замера, строка `C92` | закрыт коммитом, содержащим эту запись |
-| **C** Прибор | корпус v2 видит язык | **PLAN-9D-H**, следующий; нужна слепая разметка владельца |
+| **C** Прибор | корпус v2 видит язык | **PLAN-9D-H**, in progress: корпус и доска собраны 2026-08-17, ждёт слепой разметки 55 карточек владельцем |
 | **D** Доказуемость | `is_undecidable` пофайлово | **PLAN-9C-4**, blocked до PLAN-9D-H; класс HIGH |
 | **E** Безопасность | `synthesize` под `require_network`, `C87` | до следующего платного прогона |
 | **F**, **ADR**, **T**, **G** | смысл · движение · витрина; долговечные решения; тесты; governance | по маршруту |
@@ -7123,10 +7123,35 @@ current-quality benchmark. Production logic этой записью не мен�
 
 #### PLAN-9D-H — двуязычный ground truth (корпус v2)
 
-- **status:** pending / not started · **commit:** — · **зависимость:** нет
-  блокирующей; решения владельца получены 2026-08-17 (состав корпуса, размер
-  шортлиста). Пакет **C** маршрута
+- **status:** in progress · **commit:** сборка корпуса и доска — коммит,
+  содержащий эту запись · **зависимость:** нет блокирующей; решения владельца
+  получены 2026-08-17 (состав корпуса, размер шортлиста). Пакет **C** маршрута
   [ROLLOUT_PLAN_2026-08-17.md](../audits/ROLLOUT_PLAN_2026-08-17.md).
+- **сделано 2026-08-17 (evidence:
+  [PLAN_9D_H_CORPUS_V2_2026-08-17.md](../audits/PLAN_9D_H_CORPUS_V2_2026-08-17.md)).**
+  Корпус `tests/data/plan9d/current_corpus_v2.json` заморожен: 11 сцен,
+  **78 карточек** (73 уникальных из десяти снятых сцен + 5 инцидентной), картинки
+  у 55, кириллических записей кандидатов 30 против 2 в v1 — `K12` закрыт. Класс
+  корпуса добавлен полем схемы `plan9d-corpus-1` и переопределяется у сцены;
+  корпус без поля читается как «слепая разметка», поэтому v1 валидируется байт в
+  байт и даёт прежние **4/14** с теми же 14 победителями. Названный случай в
+  корпусе поимённо (`pexels_32386564`, `live_5/scene_003`, `local_library`,
+  `semantic 0.0`, `final 7.5` против 72.968). Случай с запретом собран
+  синтетически одной инцидентной сценой с русским требованием на настоящих
+  кандидатах: на слове «градирня» одна запись поймана буквально и уходит
+  последней, её близнец не поймана и идёт первой. `measure --baseline` печатает
+  изменившихся победителей поимённо. `K9` исправлен: отброшенный по языку запрос
+  пишется в план как `query_language_unsupported`, остаётся неотправляемым и
+  бюджет не тратит. Доска — существующий `render_pack` плюс каталог слепых медиа;
+  второй доски не создано.
+- **не сделано и ждёт владельца:** слепая разметка **55 карточек с картинками**
+  по доске (`%TEMP%\plan9d_h\plan9d_h_pack.html`, медиа —
+  `%TEMP%\plan9d_h\media\`, пересобирается командой `pack` из
+  `tests/data/plan9d/README.md`). Кнопка сохраняет
+  `tests/data/plan9d/current_annotations_v2.json`; до этого файла `measure` на v2
+  отвечает `WAITING_FOR_OWNER_ANNOTATION`. Ограничение, записанное в сам корпус:
+  это хвост сохранённой десятки, а не пул (234 попытки и 1303 результата LIVE-5
+  против 100 сохранённых записей), и глубже офлайн-материала нет.
 - **цель:** корпус, способный увидеть языковой дефект. Существующий v1 этого не
   может: 14/14 английских субъектов, пустой `media_index`, поэтому приёмка
   правки доказуемости прошла бы на нём при любой правке (`K12` языкового

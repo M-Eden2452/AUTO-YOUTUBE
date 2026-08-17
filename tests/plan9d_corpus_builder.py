@@ -1,14 +1,16 @@
 """Hand-run PLAN-9D data tooling: harvest, curate, and render the blind pack.
 
 Not a test; nothing imports it at test time except the locks that exercise its
-pure functions. Three commands, in the order they are actually used:
+pure functions. Four commands, in the order they are actually used:
 
-    build    projects/ -> a historical project corpus (intermediate, not committed)
-    curate   that corpus + the manifests -> the compact historical failure evidence
-    pack     a *current* frozen corpus -> the owner's blind annotation page
+    build     projects/ -> a historical project corpus (intermediate, not committed)
+    curate    that corpus + the manifests -> the compact historical failure evidence
+    build-v2  two saved runs -> the bilingual corpus v2 (PLAN-9D-H)
+    pack      a *current* frozen corpus -> the owner's blind annotation page
 
     .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder build --out %TEMP%\\hist.json
     .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder curate --source-corpus %TEMP%\\hist.json
+    .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder build-v2
     .\\venv\\Scripts\\python.exe -B -m tests.plan9d_corpus_builder pack --corpus <current> --out %TEMP%\\pack.html
 
 Offline by construction: it reads ``projects/*/assets/assets_manifest.json`` and
@@ -50,9 +52,12 @@ be verified and the tests never need the image bytes.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
+import shutil
+import subprocess
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -75,10 +80,18 @@ from src.news.asset_manifest_builder import select_best_with_video
 from .plan9d_ground_truth import (
     ANNOTATIONS_SCHEMA_VERSION,
     CANDIDATE_FLAG_SPEC,
+    CORPUS_CLASS_BLIND,
+    CORPUS_CLASS_INCIDENT,
     CORPUS_SCHEMA_VERSION,
     CURRENT_ANNOTATIONS_PATH,
+    CURRENT_ANNOTATIONS_V2_PATH,
+    CURRENT_CORPUS_V2_PATH,
+    EVIDENCE_KIND_LOCAL_FILE,
+    EVIDENCE_KIND_PREVIEW,
+    FIXTURE_KIND_CURRENT_BENCHMARK,
     FIXTURE_KIND_HISTORICAL_CORPUS,
     FIXTURE_KIND_HISTORICAL_EVIDENCE,
+    GENERATION_CURRENT,
     GENERATION_HISTORICAL,
     HISTORICAL_EVIDENCE_PATH,
     HISTORICAL_EVIDENCE_SCHEMA_VERSION,
@@ -87,7 +100,9 @@ from .plan9d_ground_truth import (
     BenchmarkError,
     assert_current_benchmark_input,
     assign_blind_ids,
+    candidate_is_visible,
     canonical_json,
+    corpus_class_of,
     corpus_digest,
     generation_class_of,
     historical_digest,
@@ -152,6 +167,11 @@ STRONG_SUPPORT = frozenset({SUPPORT_FULL, SUPPORT_PARTIAL})
 
 TARGET_SCENES = 16
 MAX_SCENES_PER_PROJECT = 3
+
+#: Same question the query adapter asks of a string, asked here of a stored record.
+#: Imported rather than restated would be better, but the adapter's copy is private
+#: to it, and this one is used for counting rather than for a decision.
+_CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 
 
 # --------------------------------------------------------------------------- #
@@ -494,6 +514,592 @@ def annotation_template(corpus: dict[str, Any]) -> dict[str, Any]:
             }
             for scene in corpus["scenes"]
         ],
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Corpus v2 - the two runs the current stack produced (PLAN-9D-H)
+#
+# v1 cannot see language. Its 14 subjects are English, its media index is empty,
+# and 2 of 1064 candidate records carry any Cyrillic at all, so a language or
+# provability fix measured on it moves nothing and passes on any edit (language
+# audit 2026-08-16, K12). v2 is built from the two runs on disk that the current
+# retrieval stack produced, and it is built *offline*: both projects already store
+# every candidate they ranked, and re-running either one is a paid network action
+# this step does not have.
+#
+# What this can and cannot ask, stated once so no later reader has to guess: a run
+# saves the ten candidates it shortlisted and rejected per scene, not the pool it
+# searched. LIVE-5 made 234 provider attempts and saw 1303 results; 100 records
+# survive in its manifest. So v2 can ask "of the ten it kept, did it keep the right
+# one" and can never ask "was the right answer at rank forty".
+# --------------------------------------------------------------------------- #
+
+CORPUS_V2_VERSION = "plan9d-h-2026-08-17"
+
+#: The material owner decision 2026-08-17 named. Two runs, both after the query
+#: fixes of PLAN-9B/9C, so both are current benchmark input; each carries the HEAD
+#: it ran on and the report that describes it, because the two differ and a reader
+#: must not have to assume one HEAD for the whole corpus.
+CURRENT_RUNS: tuple[dict[str, Any], ...] = (
+    {
+        "run_id": "live_5",
+        "project": "2026-08-15_solnechnaya-panel-lovit-svet-tolko-dnem-nochyu-2",
+        "head_sha": "68c46cdd254198ba082c6d1495879badbdbcd00a",
+        "run_date": "2026-08-15",
+        "evidence": "docs/audits/LIVE_5_2026-08-15.md",
+        "what_it_was": (
+            "paid live run: providers searched and previews downloaded, 5 scenes, "
+            "verdict PARTIAL (2 of 5 scenes right by meaning)"
+        ),
+    },
+    {
+        "run_id": "local_after_fix",
+        "project": "2026-08-14_solnechnaya-panel-lovit-svet-tolko-dnem-nochyu-3",
+        "head_sha": "a8549ff995c64ace5a5e3a32521df104a2e06ba3",
+        "run_date": "2026-08-14",
+        "evidence": "docs/audits/FIRST_OWNER_SHORT_LOCAL_SOLAR_AFTER_CYRILLIC_FIX_2026-08-14.md",
+        "what_it_was": (
+            "local diagnostic after the Cyrillic tokenisation fix: the curated local "
+            "library answered 5 of 5 scenes, 2 frames good and 2 bad by eye"
+        ),
+    },
+)
+
+#: Requirements written by hand on a real pool, to reproduce one named mechanism.
+#: Both runs declared **no** prohibition at all - ``must_not_include`` is empty in
+#: all ten scenes - so the ban layer cannot be measured from captured data, and the
+#: MAJOR of the package-A review ("the author's ban does not see declensions")
+#: would have nothing to be accepted against.
+#:
+#: The one case here is chosen because the contrast lives *inside* the scene: on the
+#: same ban word, one real candidate is caught literally and its twin is not. Both
+#: carry Russian metadata from the same curated library; the only difference is the
+#: grammatical case the provider's title happens to use.
+INCIDENT_SCENES: tuple[dict[str, Any], ...] = (
+    {
+        "case_id": "ban_declension_cooling_tower",
+        "run_id": "local_after_fix",
+        "scene_id": "scene_004",
+        "scene_text": (
+            "Покажите электростанцию, вырабатывающую электричество, "
+            "но без градирен в кадре."
+        ),
+        "semantic_scene": {
+            "subject": ["электростанция"],
+            "action": ["вырабатывает электричество"],
+            "environment": ["энергетика"],
+            "location": [],
+            "must_include": [],
+            "must_not_include": ["градирня"],
+            "should_include": [],
+            "context": [],
+            "conflicting_context": [],
+            "secondary_subjects": [],
+            "camera": [],
+            "mood": [],
+            "visual_priority": "exact_subject",
+            "fallback_level": 1,
+        },
+        "categories": ["must_avoid_declared", "subject_mismatch_risk"],
+        "incident_note": (
+            "Требование и запрет написаны рукой (PLAN-9D-H), кандидаты и их "
+            "метаданные - настоящие, из прогона local_after_fix/scene_004. "
+            "Воспроизводит MAJOR-1 ревью пакета A: запрет 'градирня' буквально "
+            "совпадает с записью pexels_6468629 ('атомная станция ... градирнями' "
+            "плюс ключевое слово в именительном) и не совпадает с pexels_29491854 "
+            "('Градирни атомной станции на закате'), хотя положительная сторона "
+            "оценки после C79 считает обе записи полным совпадением слова. "
+            "Русское требование здесь не украшение: v1 не содержит ни одного "
+            "русского субъекта, а §4A языкового аудита показал, что русское "
+            "требование делает semantic_unverified блокирующим для всего пула."
+        ),
+    },
+)
+
+
+def _run_project_root(run: dict[str, Any]) -> Path:
+    return PROJECTS_ROOT / str(run["project"])
+
+
+def _preview_cache_index(project_root: Path) -> dict[str, dict[str, Any]]:
+    """Cached provider previews of one run, keyed by the URL they were fetched from.
+
+    The record carries the size and the digest the run itself computed, so nothing
+    here re-reads or re-downloads a picture to describe it.
+    """
+
+    index: dict[str, dict[str, Any]] = {}
+    previews = project_root / "assets" / "previews"
+    if not previews.is_dir():
+        return index
+    for directory in sorted(previews.iterdir()):
+        record_path = directory / "preview_record.json"
+        if not record_path.is_file():
+            continue
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        url = str(record.get("preview_source_url") or "")
+        local = Path(str(record.get("local_path") or ""))
+        if not url or not local.is_file():
+            continue
+        index[url] = {
+            "local_path": local,
+            "sha256": str(record.get("sha256") or ""),
+            "width": int(record.get("width") or 0),
+            "height": int(record.get("height") or 0),
+            "media_type": str(record.get("preview_media_type") or ""),
+        }
+    return index
+
+
+def _file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _repo_relative(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _visual_evidence(
+    candidate: dict[str, Any],
+    *,
+    previews: dict[str, dict[str, Any]],
+    frames: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Pixels that already exist on disk for this candidate, or nothing.
+
+    Sampled frames win when the run produced them - that is the v1 channel and the
+    measurement already counts it. Otherwise two sources cost no network: the
+    preview the run cached, and the file of a local-library candidate, which is the
+    asset itself. A candidate the run never previewed stays without pixels; that is
+    a limit of the saved data and is reported rather than filled in.
+    """
+
+    if frames:
+        return []
+    url = str(candidate.get("preview_url") or "")
+    cached = previews.get(url)
+    if cached:
+        return [
+            {
+                "kind": EVIDENCE_KIND_PREVIEW,
+                "local_path": _repo_relative(cached["local_path"]),
+                "sha256": cached["sha256"] or _file_digest(cached["local_path"]),
+                "width": cached["width"],
+                "height": cached["height"],
+                "media_type": cached["media_type"] or "image",
+            }
+        ]
+    for key in ("path", "local_path", "downloaded_path"):
+        raw = str(candidate.get(key) or "")
+        if not raw:
+            continue
+        local = Path(raw)
+        if not local.is_file():
+            continue
+        return [
+            {
+                "kind": EVIDENCE_KIND_LOCAL_FILE,
+                "local_path": _repo_relative(local),
+                "sha256": str(candidate.get("checksum_sha256") or "") or _file_digest(local),
+                "width": int(candidate.get("width") or 0),
+                "height": int(candidate.get("height") or 0),
+                "media_type": str(candidate.get("media_type") or candidate.get("type") or ""),
+                "duration_sec": float(candidate.get("duration_sec") or candidate.get("duration") or 0.0),
+            }
+        ]
+    return []
+
+
+def _captured_provider(candidate: dict[str, Any]) -> str:
+    """The provider that really supplied this candidate.
+
+    Read from the stored decision first. The asset id prefix is not the provider
+    and never was: ``pexels_32386564`` in LIVE-5 scene_003 carries
+    ``provider: local_library``, and an external review built a whole
+    recommendation on reading the prefix instead.
+    """
+
+    decision = candidate.get("selection_decision")
+    if isinstance(decision, dict) and str(decision.get("provider") or "").strip():
+        return str(decision["provider"]).strip()
+    return str(candidate.get("provider") or "").strip()
+
+
+def _captured_decision(candidate: dict[str, Any], *, taken: bool) -> dict[str, Any]:
+    """What the run recorded about this candidate. Evidence, never an input.
+
+    ``run_metadata_baseline`` builds its pool from ``entry["candidate"]`` alone, so
+    a sibling key cannot reach the decision owner; the blind pack renders the
+    requirement and the pictures, so it cannot reach the annotator either. It is
+    here because the case this corpus exists for is stated in these numbers.
+    """
+
+    return {
+        "provider": _captured_provider(candidate),
+        "media_type": str(candidate.get("media_type") or candidate.get("type") or ""),
+        "shortlisted": taken,
+        "final_score": candidate.get("final_score"),
+        "semantic_score": candidate.get("semantic_score"),
+        "semantic_match_status": str(candidate.get("semantic_match_status") or ""),
+        "subject_match": candidate.get("subject_match"),
+        "quality_score": candidate.get("quality_score"),
+        "vertical_score": candidate.get("vertical_score"),
+        "rejected": bool(candidate.get("rejected")),
+        "blocking_reject_reasons": [
+            str(item) for item in (candidate.get("blocking_reject_reasons") or [])
+        ],
+    }
+
+
+def _run_scene_pool(scene: dict[str, Any]) -> list[tuple[dict[str, Any], bool]]:
+    """The ten saved candidates of one scene, deduplicated by asset id.
+
+    A saved scene lists the same asset more than once - inside ``candidates`` and
+    across the two lists - so the ten records of a scene are not ten assets. The
+    first occurrence wins and its list is remembered, because "the run kept this
+    one" is part of the evidence.
+    """
+
+    pool: list[tuple[dict[str, Any], bool]] = []
+    seen: set[str] = set()
+    for candidates, taken in ((scene.get("candidates") or [], True), (scene.get("rejected_candidates") or [], False)):
+        for candidate in candidates:
+            asset_id = str(candidate.get("asset_id") or "")
+            if not asset_id or asset_id in seen:
+                continue
+            seen.add(asset_id)
+            pool.append((candidate, taken))
+    return pool
+
+
+def _attempt_statistics(scene: dict[str, Any]) -> dict[str, int]:
+    attempts = [item for item in (scene.get("provider_attempts") or []) if isinstance(item, dict)]
+    return {
+        "provider_attempts": len(attempts),
+        "provider_results": sum(int(item.get("result_count") or 0) for item in attempts),
+        "saved_candidate_records": len(scene.get("candidates") or [])
+        + len(scene.get("rejected_candidates") or []),
+    }
+
+
+def _v2_scene(
+    run: dict[str, Any],
+    scene: dict[str, Any],
+    *,
+    scene_text: str,
+    previews: dict[str, dict[str, Any]],
+    frames_by_asset: dict[str, list[dict[str, Any]]],
+    prefer_video: bool,
+    scene_key: str | None = None,
+    semantic_scene: dict[str, Any] | None = None,
+    corpus_class: str = CORPUS_CLASS_BLIND,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """One corpus scene out of one saved scene of one run."""
+
+    key = scene_key or f"{run['run_id']}/{scene['scene_id']}"
+    pool = _run_scene_pool(scene)
+    # Same proof v1 makes: the archival copies of the provider record are dropped
+    # only after this scene has been ranked with and without them and answered
+    # identically. Otherwise the frozen corpus would be a different pool than the
+    # one the run decided on, and every number taken from it would be about a
+    # corpus rather than about a run.
+    _assert_archival_keys_are_inert(
+        {
+            "scene_key": key,
+            "semantic_scene": semantic_scene or scene.get("semantic_scene") or {},
+            "raw_candidates": [candidate for candidate, _ in pool],
+            "prefer_video": prefer_video,
+            "required_duration_sec": float(scene.get("required_duration_sec") or 0.0),
+            "require_provider_metadata": bool(
+                (scene.get("provider_routing") or {}).get("requires_provider_metadata")
+            ),
+            "source_class": str(scene.get("source_class") or ""),
+        }
+    )
+    blind = assign_blind_ids(key, [str(candidate.get("asset_id")) for candidate, _ in pool])
+    entries: list[dict[str, Any]] = []
+    for index, (candidate, taken) in enumerate(pool):
+        asset_id = str(candidate.get("asset_id"))
+        frames = frames_by_asset.get(asset_id) or []
+        entries.append(
+            {
+                "blind_id": blind[asset_id],
+                "asset_id": asset_id,
+                "input_order": index,
+                "frames": frames,
+                "visual_evidence": _visual_evidence(candidate, previews=previews, frames=frames),
+                "captured_decision": _captured_decision(candidate, taken=taken),
+                "candidate": _strip_ranker_output(candidate, drop_archival=True),
+            }
+        )
+    entries.sort(key=lambda entry: int(entry["blind_id"][1:]))
+    selected_asset_id = str((scene.get("selected_asset") or {}).get("asset_id") or "")
+    stored_semantic = dict(semantic_scene or scene.get("semantic_scene") or {})
+    stored_semantic.setdefault("scene_id", str(scene.get("scene_id") or ""))
+    record: dict[str, Any] = {
+        "scene_key": key,
+        "corpus_class": corpus_class,
+        "run_id": str(run["run_id"]),
+        "project": str(run["project"]),
+        "scene_id": str(scene.get("scene_id") or ""),
+        "scene_text": scene_text,
+        "semantic_scene": stored_semantic,
+        "visual_brief": scene.get("visual_brief") or {},
+        "primary_query": str(scene.get("primary_query") or ""),
+        "query_plan": scene.get("query_plan") or {},
+        "required_duration_sec": float(scene.get("required_duration_sec") or 0.0),
+        "source_class": str(scene.get("source_class") or ""),
+        "require_provider_metadata": bool(
+            (scene.get("provider_routing") or {}).get("requires_provider_metadata")
+        ),
+        "prefer_video": prefer_video,
+        "target_aspect_ratio": "9:16",
+        "categories": [],
+        "captured_attempt_statistics": _attempt_statistics(scene),
+        "selected_blind_id": blind.get(selected_asset_id, ""),
+        "candidates": entries,
+    }
+    record.update(extra or {})
+    return record
+
+
+def build_corpus_v2() -> dict[str, Any]:
+    """Freeze the bilingual corpus. Offline, and it writes nothing to ``projects/``."""
+
+    scenes: list[dict[str, Any]] = []
+    by_run_scene: dict[tuple[str, str], tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, list[dict[str, Any]]], bool, str]] = {}
+    for run in CURRENT_RUNS:
+        root = _run_project_root(run)
+        manifest = json.loads((root / "assets" / "assets_manifest.json").read_text(encoding="utf-8"))
+        review_path = root / "assets" / "review" / "visual_review_manifest.json"
+        review = json.loads(review_path.read_text(encoding="utf-8")) if review_path.is_file() else {}
+        previews = _preview_cache_index(root)
+        prefer_video = str(manifest.get("visual_mode") or "") == "video_first"
+        text_by_scene = {
+            str(item.get("scene_id")): str(item.get("scene_text") or "")
+            for item in review.get("scenes") or []
+        }
+        frames_by_scene = {
+            str(item.get("scene_id")): _available_frames(item.get("sampled_frames") or {})
+            for item in review.get("scenes") or []
+        }
+        for scene in manifest.get("scenes") or []:
+            scene_id = str(scene.get("scene_id") or "")
+            scene_text = text_by_scene.get(scene_id, "")
+            if not scene_text:
+                # The review manifest is written per prepared scene, so a scene it
+                # never covered has no narration there. The requirement is what the
+                # annotator judges against, so it is taken from the brief rather
+                # than left blank.
+                brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
+                scene_text = " ".join(
+                    part
+                    for part in (
+                        str(brief.get("subject") or ""),
+                        str(brief.get("action") or ""),
+                        str(brief.get("place") or ""),
+                    )
+                    if part
+                ).strip() or scene_id
+            frames = frames_by_scene.get(scene_id, {})
+            record = _v2_scene(
+                run,
+                scene,
+                scene_text=scene_text,
+                previews=previews,
+                frames_by_asset=frames,
+                prefer_video=prefer_video,
+            )
+            scenes.append(record)
+            by_run_scene[(str(run["run_id"]), scene_id)] = (
+                run,
+                scene,
+                previews,
+                frames,
+                prefer_video,
+                scene_text,
+            )
+
+    for spec in INCIDENT_SCENES:
+        found = by_run_scene.get((str(spec["run_id"]), str(spec["scene_id"])))
+        if found is None:
+            raise RuntimeError(f"{spec['case_id']}: {spec['run_id']}/{spec['scene_id']} is not in the runs")
+        run, scene, previews, frames, prefer_video, _text = found
+        base = dict(scene.get("semantic_scene") or {})
+        base.update(spec["semantic_scene"])
+        scenes.append(
+            _v2_scene(
+                run,
+                scene,
+                scene_text=str(spec["scene_text"]),
+                previews=previews,
+                frames_by_asset=frames,
+                prefer_video=prefer_video,
+                scene_key=f"{spec['run_id']}/{spec['scene_id']}#{spec['case_id']}",
+                semantic_scene=base,
+                corpus_class=CORPUS_CLASS_INCIDENT,
+                extra={
+                    "case_id": str(spec["case_id"]),
+                    "incident_note": str(spec["incident_note"]),
+                    "derived_from_scene_key": f"{spec['run_id']}/{spec['scene_id']}",
+                    "categories": sorted(set(spec.get("categories") or [])),
+                },
+            )
+        )
+
+    for record in scenes:
+        if record["corpus_class"] == CORPUS_CLASS_INCIDENT:
+            continue
+        categories, _selected, _support = categorize(
+            {
+                "semantic_scene": record["semantic_scene"],
+                "raw_candidates": [entry["candidate"] for entry in record["candidates"]],
+                "prefer_video": record["prefer_video"],
+                "required_duration_sec": record["required_duration_sec"],
+                "require_provider_metadata": record["require_provider_metadata"],
+                "source_class": record["source_class"],
+            }
+        )
+        record["categories"] = sorted(categories)
+
+    corpus: dict[str, Any] = {
+        "schema_version": CORPUS_SCHEMA_VERSION,
+        "corpus_version": CORPUS_V2_VERSION,
+        "fixture_kind": FIXTURE_KIND_CURRENT_BENCHMARK,
+        "generation_class": GENERATION_CURRENT,
+        "generation_class_reason": (
+            "both runs are later than the query work of PLAN-9B-1..9B-3 and PLAN-9C, "
+            "so their pools were retrieved by the current stack; the per-run HEAD is "
+            "declared in source_runs because the two runs differ"
+        ),
+        "corpus_class": CORPUS_CLASS_BLIND,
+        "annotations_filename": CURRENT_ANNOTATIONS_V2_PATH.name,
+        "built_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "plan_step": "PLAN-9D-H",
+        "source": (
+            "saved candidate records of two local runs; no network, no provider search, "
+            "no download, no re-run"
+        ),
+        "source_runs": [dict(run) for run in CURRENT_RUNS],
+        "evaluation_constants": {
+            "used_asset_ids": "empty - every scene is judged on its own",
+            "vision_tags": "empty - this corpus is the metadata-only arm",
+            "framing": "production dimensions come from the candidate record, never from a preview",
+            "input_order": (
+                "position in the saved manifest (candidates, then rejected_candidates, "
+                "deduplicated by asset id); ranking is a stable sort, so this order is "
+                "the tie-break, exactly as in v1"
+            ),
+        },
+        "known_limits": [
+            "This is the tail a run saved, not the pool it searched: 10 records per "
+            "scene against 234 provider attempts and 1303 results in LIVE-5 alone. "
+            "A question of the form 'the right candidate was at rank forty' cannot be "
+            "asked of this corpus, and no offline material can answer it - the only "
+            "way to widen the pool is another paid run.",
+            "Pixels exist only where the run left them: a sampled frame, a cached "
+            "preview, or the file of a local-library candidate. Candidates the run "
+            "never previewed carry no picture and are on the board as cards a person "
+            "cannot judge; they stay in the measured pool because the ranker saw them.",
+            "A video candidate is shown as stills. A label on such a card is a "
+            "judgement about frames, not about motion.",
+            "Neither run declared a single prohibition, so every ban case here is an "
+            "incident scene with a hand-written requirement.",
+        ],
+        "scene_count": len(scenes),
+        "observation_count": sum(len(record["candidates"]) for record in scenes),
+        "card_statistics": _v2_card_statistics(scenes),
+        "language_statistics": _v2_language_statistics(scenes),
+        "scenes": scenes,
+        "corpus_sha256": "",
+    }
+    corpus["corpus_sha256"] = corpus_digest(corpus)
+    return corpus
+
+
+def _v2_card_statistics(scenes: list[dict[str, Any]]) -> dict[str, int]:
+    """How many cards there are, and how many a person can actually judge.
+
+    Counted here rather than in prose because the two numbers are quoted together
+    and once drifted apart in v1's own docstring: cards and frames are different
+    units, and so are "in the corpus" and "on the page".
+    """
+
+    cards = [(scene, entry) for scene in scenes for entry in scene["candidates"]]
+    return {
+        "cards": len(cards),
+        "blind_annotation_cards": sum(
+            len(scene["candidates"]) for scene in scenes if scene["corpus_class"] == CORPUS_CLASS_BLIND
+        ),
+        "incident_cards": sum(
+            len(scene["candidates"]) for scene in scenes if scene["corpus_class"] == CORPUS_CLASS_INCIDENT
+        ),
+        "distinct_asset_ids": len({entry["asset_id"] for _scene, entry in cards}),
+        "cards_with_pictures": sum(1 for _scene, entry in cards if candidate_is_visible(entry)),
+        "cards_without_pictures": sum(1 for _scene, entry in cards if not candidate_is_visible(entry)),
+        "cards_from_sampled_frames": sum(1 for _scene, entry in cards if entry["frames"]),
+        "cards_from_cached_preview": sum(
+            1
+            for _scene, entry in cards
+            if any(ev["kind"] == EVIDENCE_KIND_PREVIEW for ev in entry["visual_evidence"])
+        ),
+        "cards_from_local_file": sum(
+            1
+            for _scene, entry in cards
+            if any(ev["kind"] == EVIDENCE_KIND_LOCAL_FILE for ev in entry["visual_evidence"])
+        ),
+    }
+
+
+def _v2_language_statistics(scenes: list[dict[str, Any]]) -> dict[str, Any]:
+    """What v1 could not answer: is there any Cyrillic in the way of a decision?
+
+    v1 had 14 English subjects out of 14, an empty media index and 2 candidate
+    records with Cyrillic out of 1064, which is why a language fix measured on it
+    could not move. These counters are the same question asked of v2.
+    """
+
+    cyrillic_records = 0
+    russian_subject_scenes: list[str] = []
+    providers: Counter = Counter()
+    for scene in scenes:
+        subject = " ".join(str(item) for item in (scene["semantic_scene"].get("subject") or []))
+        if _CYRILLIC_RE.search(subject):
+            russian_subject_scenes.append(str(scene["scene_key"]))
+        for entry in scene["candidates"]:
+            candidate = entry["candidate"]
+            text = " ".join(
+                [
+                    str(candidate.get("title") or ""),
+                    str(candidate.get("description") or ""),
+                    " ".join(str(item) for item in (candidate.get("keywords") or [])),
+                    " ".join(str(item) for item in (candidate.get("tags") or [])),
+                ]
+            )
+            if _CYRILLIC_RE.search(text):
+                cyrillic_records += 1
+            providers[entry["captured_decision"]["provider"]] += 1
+    return {
+        "candidate_records_with_cyrillic_metadata": cyrillic_records,
+        "scenes_with_a_russian_subject": russian_subject_scenes,
+        "scenes_with_a_russian_prohibition": [
+            str(scene["scene_key"])
+            for scene in scenes
+            if any(
+                _CYRILLIC_RE.search(str(item))
+                for item in (scene["semantic_scene"].get("must_not_include") or [])
+            )
+        ],
+        "cards_by_provider": dict(sorted(providers.items())),
     }
 
 
@@ -921,7 +1527,91 @@ function save(){
 ANNOTATIONS_FILENAME = CURRENT_ANNOTATIONS_PATH.name
 
 
-def render_pack(corpus: dict[str, Any]) -> str:
+#: How many stills a local video contributes to a card. The run itself sampled five
+#: for the two clips it previewed; three is enough to see what a clip is of, and the
+#: card stays readable.
+LOCAL_VIDEO_STILL_POSITIONS = (0.1, 0.5, 0.9)
+
+
+def materialize_blind_media(corpus: dict[str, Any], media_dir: Path) -> dict[tuple[str, str], list[str]]:
+    """Copy the pictures the pack shows into blind-named files beside the page.
+
+    Necessary rather than tidy. A cached preview lives under a content-addressed
+    directory and leaks nothing, but a local-library candidate is a file called
+    ``pexels_video_solar_panel_assembly_line_factory_conveyor_...mp4``: pointing the
+    page at it would put the answer in the ``src`` attribute of the card the owner
+    is being asked to judge. Names here are derived from the blind id only.
+
+    Offline: it copies files already on disk and, for a local clip, asks ``ffmpeg``
+    for stills. No network, no provider, no project directory is written to.
+    """
+
+    media_dir.mkdir(parents=True, exist_ok=True)
+    by_card: dict[tuple[str, str], list[str]] = {}
+    for scene in corpus["scenes"]:
+        scene_slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(scene["scene_key"]))
+        for entry in scene["candidates"]:
+            blind_id = str(entry["blind_id"])
+            names: list[str] = []
+            for index, frame in enumerate(entry.get("frames") or []):
+                source = REPO_ROOT / str(frame["local_frame_path"])
+                if not source.is_file():
+                    continue
+                target = media_dir / f"{scene_slug}_{blind_id}_f{index}{source.suffix.lower()}"
+                if not target.exists():
+                    shutil.copyfile(source, target)
+                names.append(target.name)
+            for index, evidence in enumerate(entry.get("visual_evidence") or []):
+                source = REPO_ROOT / str(evidence["local_path"])
+                if not source.is_file():
+                    continue
+                if str(evidence.get("media_type") or "") == "video":
+                    names.extend(_local_video_stills(source, evidence, media_dir, f"{scene_slug}_{blind_id}_v{index}"))
+                    continue
+                target = media_dir / f"{scene_slug}_{blind_id}_p{index}{source.suffix.lower()}"
+                if not target.exists():
+                    shutil.copyfile(source, target)
+                names.append(target.name)
+            if names:
+                by_card[(str(scene["scene_key"]), blind_id)] = names
+    return by_card
+
+
+def _local_video_stills(
+    source: Path, evidence: dict[str, Any], media_dir: Path, stem: str
+) -> list[str]:
+    """Stills from a local clip, sampled at fixed positions. Skipped if already there."""
+
+    duration = float(evidence.get("duration_sec") or 0.0)
+    names: list[str] = []
+    for index, position in enumerate(LOCAL_VIDEO_STILL_POSITIONS):
+        target = media_dir / f"{stem}_{index}.jpg"
+        if not target.exists():
+            offset = duration * position if duration > 0 else float(index + 1)
+            command = [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-ss",
+                f"{offset:.3f}",
+                "-i",
+                str(source),
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=480:-2",
+                "-y",
+                str(target),
+            ]
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode != 0 or not target.exists():
+                continue
+        names.append(target.name)
+    return names
+
+
+def render_pack(corpus: dict[str, Any], *, media: dict[tuple[str, str], list[str]] | None = None) -> str:
     """A disposable, offline, evaluation-only page. Not a product frontend.
 
     What it shows is the whole point: the scene's stated requirement and the
@@ -954,16 +1644,21 @@ def render_pack(corpus: dict[str, Any]) -> str:
     """
 
     assert_current_benchmark_input(corpus, context="annotation pack")
+    # The corpus names the file its labels belong in. Spelling it here as well is
+    # how the two drifted once and cost a whole blind pass, so v2 carries the name
+    # and an older corpus keeps the only name it ever had.
+    annotations_filename = str(corpus.get("annotations_filename") or "") or ANNOTATIONS_FILENAME
+    step = str(corpus.get("plan_step") or "PLAN-9D-A")
     parts: list[str] = [
         "<!doctype html><meta charset='utf-8'>",
-        "<title>PLAN-9D-A blind annotation pack</title>",
+        f"<title>{html.escape(step)} blind annotation pack</title>",
         f"<style>{_PACK_STYLE}</style>",
-        "<div class='bar'><h1>PLAN-9D-A — слепая разметка</h1>",
+        f"<div class='bar'><h1>{html.escape(step)} — слепая разметка</h1>",
         "<p>Выберите лучший кандидат по <b>смыслу сцены</b>. Права, лицензии, "
         "технические размеры и качество метаданных оценивать не нужно — это решает система. "
         "<span class='warn'>Кандидаты обезличены; порядок не отражает оценку системы.</span></p>",
         "<p>Annotator: <input id='annotator' placeholder='имя или псевдоним'> "
-        f"<button onclick='save()'>Сохранить {ANNOTATIONS_FILENAME}</button></p></div>",
+        f"<button onclick='save()'>Сохранить {annotations_filename}</button></p></div>",
     ]
     for scene in corpus["scenes"]:
         semantic = scene.get("semantic_scene") or {}
@@ -990,18 +1685,20 @@ def render_pack(corpus: dict[str, Any]) -> str:
             f"<dt>Кадр</dt><dd>{html.escape(str(scene.get('target_aspect_ratio') or ''))}, "
             f"{scene.get('required_duration_sec', 0)} с</dd></dl><div class='cands'>"
         )
-        # Only a candidate with a picture is a question a human can answer. The
-        # capture previews a shortlist, so most of the pool carries no frame at all
-        # - 64 frames against 1064 candidates in the frozen corpus. Those stay in
-        # the corpus, which is what gets measured, and off the page, which is what
-        # the owner is asked to judge: choosing BEST between blind identifiers with
-        # nothing to look at would produce a label about nothing.
-        visible = [entry for entry in scene["candidates"] if entry["frames"]]
+        # Only a candidate with a picture is a question a human can answer. A run
+        # previews a shortlist, so much of the pool carries no picture at all - 64
+        # frames against 1064 candidates in v1. Those stay in the corpus, which is
+        # what gets measured, and off the page, which is what the owner is asked to
+        # judge: choosing BEST between blind identifiers with nothing to look at
+        # would produce a label about nothing. v2 widens *what counts as a picture*
+        # - a cached preview and a local-library file are pixels already on disk -
+        # and the corpus records which, so page and measurement agree.
+        visible = [entry for entry in scene["candidates"] if candidate_is_visible(entry)]
+        withheld = len(scene["candidates"]) - len(visible)
         for candidate in visible:
             blind_id = html.escape(str(candidate["blind_id"]))
             parts.append(f"<div class='cand' data-blind='{blind_id}'><h3>{blind_id}</h3>")
-            for frame in candidate["frames"]:
-                url = (REPO_ROOT / frame["local_frame_path"]).resolve().as_uri()
+            for url in _card_picture_urls(scene, candidate, media):
                 parts.append(f"<img loading='lazy' src=\"{html.escape(url)}\" alt='{blind_id}'>")
             parts.append(
                 f"<label><input type='checkbox' data-bad='{blind_id}'> неприемлем</label><div class='flags'>"
@@ -1020,6 +1717,17 @@ def render_pack(corpus: dict[str, Any]) -> str:
             "</div><div class='best'><b>BEST:</b> <select data-best><option value=''>—</option>"
             f"{best_options}<option value='none_acceptable'>none_acceptable</option>"
             "<option value='undecidable'>undecidable</option></select></div>"
+        )
+        if withheld:
+            # Said out loud on the page. A silent omission would read as "the pool
+            # was this small", and the owner's BEST would be quoted against a pool
+            # that had more in it.
+            parts.append(
+                f"<p class='warn'>Ещё {withheld} кандидат(ов) этой сцены прогон не "
+                "предпросматривал — картинки нет, поэтому их здесь нет. Они остаются "
+                "в измеряемом пуле.</p>"
+            )
+        parts.append(
             "<textarea class='note' rows='2' placeholder='комментарий (необязательно)'></textarea></div>"
         )
     pack_meta = {
@@ -1027,9 +1735,46 @@ def render_pack(corpus: dict[str, Any]) -> str:
         "corpus_version": corpus["corpus_version"],
         "corpus_sha256": corpus["corpus_sha256"],
     }
-    script = _PACK_SCRIPT.replace("__ANNOTATIONS_FILENAME__", ANNOTATIONS_FILENAME)
+    script = _PACK_SCRIPT.replace("__ANNOTATIONS_FILENAME__", annotations_filename)
     parts.append(f"<script>const PACK={canonical_json(pack_meta)};{script}</script>")
     return "".join(parts)
+
+
+def _card_picture_urls(
+    scene: dict[str, Any],
+    entry: dict[str, Any],
+    media: dict[tuple[str, str], list[str]] | None,
+) -> list[str]:
+    """Where this card's pictures come from on the rendered page.
+
+    With a media directory the page is self-contained and every name is derived
+    from the blind id, which is the only form safe for a local-library file whose
+    own name describes the shot. Without one the behaviour is what it always was:
+    a ``file://`` link into the content-addressed preview cache.
+    """
+
+    if media is not None:
+        return media.get((str(scene["scene_key"]), str(entry["blind_id"])), [])
+    if any(
+        str(evidence.get("media_type") or "") == "video"
+        for evidence in entry.get("visual_evidence") or []
+    ):
+        # A clip cannot be an <img>, and a page that silently drops its picture
+        # would ask the owner to judge a card with nothing on it. Stills come from
+        # ``materialize_blind_media``, which is also the only form safe for a local
+        # file whose name describes the shot.
+        raise BenchmarkError(
+            f"{scene['scene_key']}/{entry['blind_id']}: this candidate is a local clip; "
+            "render the pack with a media directory so its stills exist"
+        )
+    urls: list[str] = []
+    for frame in entry.get("frames") or []:
+        urls.append((REPO_ROOT / frame["local_frame_path"]).resolve().as_uri())
+    for evidence in entry.get("visual_evidence") or []:
+        if str(evidence.get("media_type") or "") == "video":
+            continue
+        urls.append((REPO_ROOT / str(evidence["local_path"])).resolve().as_uri())
+    return urls
 
 
 _REVIEW_STYLE = """
@@ -1145,9 +1890,22 @@ def main(argv: list[str] | None = None) -> int:
     curate = sub.add_parser("curate", help="compact a historical corpus into the failure evidence")
     curate.add_argument("--source-corpus", required=True, help="historical corpus produced by build")
     curate.add_argument("--out", default=str(HISTORICAL_EVIDENCE_PATH), help="destination fixture")
+    build_v2 = sub.add_parser(
+        "build-v2", help="freeze the bilingual corpus v2 from the two saved runs (PLAN-9D-H)"
+    )
+    build_v2.add_argument("--out", default=str(CURRENT_CORPUS_V2_PATH), help="destination corpus")
     pack = sub.add_parser("pack", help="render the blind annotation pack from a frozen current corpus")
     pack.add_argument("--corpus", required=True, help="frozen current corpus (PLAN-9D-B)")
     pack.add_argument("--out", required=True, help="destination .html path (keep it outside the repo)")
+    pack.add_argument(
+        "--media-dir",
+        default="",
+        help=(
+            "copy every picture the page shows into this directory under blind names "
+            "and reference them relatively; required for a corpus carrying "
+            "local-library candidates, whose own file names describe the shot"
+        ),
+    )
     review = sub.add_parser("review", help="render the read-only PLAN-9D-C candidate review pack")
     review.add_argument("--corpus", required=True, help="frozen current corpus (PLAN-9D-B)")
     review.add_argument("--out", required=True, help="destination .html path (keep it outside the repo)")
@@ -1163,6 +1921,29 @@ def main(argv: list[str] | None = None) -> int:
         print(f"scenes={corpus['scene_count']} observations={corpus['observation_count']}")
         print(f"sha256={corpus['corpus_sha256']}")
         print("categories=" + ", ".join(covered))
+        return 0
+
+    if args.command == "build-v2":
+        corpus = build_corpus_v2()
+        validate_corpus(corpus)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(corpus, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        classes = Counter(corpus_class_of(corpus, scene) for scene in corpus["scenes"])
+        stats = corpus["card_statistics"]
+        print(f"corpus v2 written to {out}")
+        print(
+            f"scenes={corpus['scene_count']} cards={stats['cards']} "
+            f"(blind {stats['blind_annotation_cards']} + incident {stats['incident_cards']}) "
+            f"with_pictures={stats['cards_with_pictures']} "
+            f"without={stats['cards_without_pictures']}"
+        )
+        print(
+            "cyrillic_candidate_records="
+            f"{corpus['language_statistics']['candidate_records_with_cyrillic_metadata']}"
+        )
+        print("classes=" + ", ".join(f"{name}:{count}" for name, count in sorted(classes.items())))
+        print(f"sha256={corpus['corpus_sha256']}")
         return 0
 
     if args.command == "curate":
@@ -1187,8 +1968,20 @@ def main(argv: list[str] | None = None) -> int:
         out.write_text(render_review_pack(corpus), encoding="utf-8")
         print(f"review pack written to {out}")
         return 0
-    out.write_text(render_pack(corpus), encoding="utf-8")
+    media = None
+    if args.media_dir:
+        media = materialize_blind_media(corpus, Path(args.media_dir))
+    out.write_text(render_pack(corpus, media=media), encoding="utf-8")
+    cards = sum(
+        1
+        for scene in corpus["scenes"]
+        for entry in scene["candidates"]
+        if candidate_is_visible(entry)
+    )
     print(f"annotation pack written to {out}")
+    print(f"scenes={len(corpus['scenes'])} cards_with_pictures={cards}")
+    if media is not None:
+        print(f"blind media in {Path(args.media_dir)}: {sum(len(v) for v in media.values())} files")
     return 0
 
 

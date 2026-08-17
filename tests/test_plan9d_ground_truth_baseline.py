@@ -36,14 +36,23 @@ import unittest
 from dataclasses import replace
 from typing import Any
 
-from tests.plan9d_corpus_builder import annotation_template, render_pack
+from tests.plan9d_corpus_builder import (
+    annotation_template,
+    materialize_blind_media,
+    render_pack,
+)
 from tests.plan9d_ground_truth import (
     ARM_METADATA_ONLY,
     BLINDED_CANDIDATE_KEYS,
     CANDIDATE_FLAG_SPEC,
+    CORPUS_CLASS_BLIND,
+    CORPUS_CLASS_INCIDENT,
     CORPUS_SCHEMA_VERSION,
     CURRENT_ANNOTATIONS_PATH,
+    CURRENT_ANNOTATIONS_V2_PATH,
     CURRENT_CORPUS_PATH,
+    CURRENT_CORPUS_V2_PATH,
+    EVIDENCE_KIND_LOCAL_FILE,
     FIXTURE_KIND_CURRENT_BENCHMARK,
     FIXTURE_KIND_HISTORICAL_CORPUS,
     FIXTURE_KIND_HISTORICAL_EVIDENCE,
@@ -55,10 +64,13 @@ from tests.plan9d_ground_truth import (
     BenchmarkError,
     annotation_status,
     annotations_are_complete,
+    annotations_path_for,
     assert_admissible_evidence,
     assert_current_benchmark_input,
     assign_blind_ids,
+    candidate_is_visible,
     compare_arms,
+    corpus_class_of,
     corpus_digest,
     evaluate_arm,
     fixture_kind_of,
@@ -70,6 +82,7 @@ from tests.plan9d_ground_truth import (
     scene_verdict,
     validate_annotations,
     validate_corpus,
+    winner_changes,
 )
 
 
@@ -211,6 +224,25 @@ def _pack_save_button(pack: str) -> str:
         if "save()" in block:
             return block.split("</button>")[0]
     raise AssertionError("the pack has no save button")
+
+
+def _blind_media_names(corpus: dict[str, Any]) -> dict[tuple[str, str], list[str]]:
+    """The delivered form of the page, without paying for its pixels.
+
+    ``materialize_blind_media`` copies files and calls ``ffmpeg`` for every local
+    clip; on corpus v2 that is around ninety subprocesses, and the properties these
+    tests check - the names on the page and what the page does not say - do not
+    depend on the bytes. So the mapping is built here in the shape the real one has.
+    """
+
+    return {
+        (str(scene["scene_key"]), str(entry["blind_id"])): [
+            f"card_{str(entry['blind_id'])}_0.jpg"
+        ]
+        for scene in corpus["scenes"]
+        for entry in scene["candidates"]
+        if candidate_is_visible(entry)
+    }
 
 
 def _historical_corpus() -> dict[str, Any]:
@@ -790,6 +822,11 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
                 "safe_escalations_to_review": 10,
                 "auto_safe": 1,
                 "undecidable_cases": 0,
+                # v1 is entirely a blind-annotation corpus: the class field was
+                # added by PLAN-9D-H and this corpus declares none, which reads as
+                # blind. The counter is here so a later corpus cannot mix hand-made
+                # scenes into a total that is quoted as field evidence.
+                "incident_scenes": 0,
             },
             self.result["aggregate"],
         )
@@ -878,6 +915,412 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
         self.assertEqual(
             {"matches": 4, "unacceptable": 2, "unpreviewed": 0, "abstained": 3}, arm
         )
+
+
+class CorpusClassTests(unittest.TestCase):
+    """Two questions a corpus can be asked, and one field that says which.
+
+    A blind-annotation corpus is a pool a run produced; an incident scene is a
+    requirement written by hand on real candidates. Both are measured by the same
+    harness, and the class is what stops the second from being quoted as the first.
+    """
+
+    def test_a_corpus_that_declares_nothing_is_the_blind_one(self) -> None:
+        self.assertEqual(CORPUS_CLASS_BLIND, corpus_class_of(_current_corpus()))
+        self.assertEqual(CORPUS_CLASS_BLIND, corpus_class_of(load_current_corpus()))
+
+    def test_a_scene_may_declare_a_class_of_its_own(self) -> None:
+        corpus = _current_corpus()
+        corpus["scenes"][0]["corpus_class"] = CORPUS_CLASS_INCIDENT
+        corpus["scenes"][0]["incident_note"] = "hand-written requirement, real candidates"
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        validate_corpus(corpus)
+        self.assertEqual(CORPUS_CLASS_INCIDENT, corpus_class_of(corpus, corpus["scenes"][0]))
+        self.assertEqual(CORPUS_CLASS_BLIND, corpus_class_of(corpus, corpus["scenes"][1]))
+
+    def test_an_unknown_class_is_refused(self) -> None:
+        corpus = _current_corpus()
+        corpus["corpus_class"] = "whatever_seems_useful"
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        with self.assertRaises(BenchmarkError):
+            validate_corpus(corpus)
+
+    def test_an_incident_scene_must_say_what_it_reproduces(self) -> None:
+        """Without the note it is indistinguishable from a captured scene."""
+
+        corpus = _current_corpus()
+        corpus["scenes"][0]["corpus_class"] = CORPUS_CLASS_INCIDENT
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        with self.assertRaises(BenchmarkError):
+            validate_corpus(corpus)
+
+    def test_the_measurement_separates_incident_scenes_from_the_totals(self) -> None:
+        corpus = _current_corpus()
+        corpus["scenes"][0]["corpus_class"] = CORPUS_CLASS_INCIDENT
+        corpus["scenes"][0]["incident_note"] = "hand-written requirement, real candidates"
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        result = evaluate_arm(corpus, _complete(corpus), run_metadata_baseline(corpus))
+        self.assertEqual(1, result["aggregate"]["incident_scenes"])
+        self.assertEqual(3, result["aggregate"]["scenes"])
+
+
+class VisibilityTests(unittest.TestCase):
+    """One rule about "could a person see this", shared by the page and the score."""
+
+    def test_a_candidate_with_neither_frame_nor_evidence_is_invisible(self) -> None:
+        self.assertFalse(candidate_is_visible({"frames": [], "visual_evidence": []}))
+        self.assertFalse(candidate_is_visible({}))
+
+    def test_evidence_makes_a_candidate_visible_without_a_sampled_frame(self) -> None:
+        corpus = _current_corpus()
+        scene = corpus["scenes"][0]
+        entry = scene["candidates"][0]
+        entry["frames"] = []
+        entry["visual_evidence"] = [
+            {
+                "kind": EVIDENCE_KIND_LOCAL_FILE,
+                "local_path": "assets/library/videos/whatever.mp4",
+                "sha256": "0" * 64,
+                "media_type": "video",
+            }
+        ]
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        validate_corpus(corpus)
+        self.assertTrue(candidate_is_visible(entry))
+        result = evaluate_arm(corpus, _complete(corpus), run_metadata_baseline(corpus))
+        row = next(r for r in result["scenes"] if r["scene_key"] == scene["scene_key"])
+        self.assertFalse(row["unscorable_winner_not_visible"])
+
+    def test_evidence_of_an_unknown_kind_is_refused(self) -> None:
+        corpus = _current_corpus()
+        corpus["scenes"][0]["candidates"][0]["visual_evidence"] = [
+            {"kind": "whatever", "local_path": "a", "sha256": "b"}
+        ]
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        with self.assertRaises(BenchmarkError):
+            validate_corpus(corpus)
+
+
+class WinnerDiffTests(unittest.TestCase):
+    """"Zero changed winners" becomes a checkable sentence instead of two tables."""
+
+    def setUp(self) -> None:
+        self.corpus = _current_corpus()
+        self.arm = evaluate_arm(
+            self.corpus, _complete(self.corpus), run_metadata_baseline(self.corpus)
+        )
+
+    def test_a_measurement_against_itself_moves_nothing(self) -> None:
+        self.assertEqual([], winner_changes(self.arm, self.arm))
+
+    def test_a_changed_winner_is_named_with_both_sides(self) -> None:
+        after = json.loads(json.dumps(self.arm))
+        after["scenes"][0]["system_selected"] = "C9"
+        changes = winner_changes(self.arm, after)
+        self.assertEqual(1, len(changes))
+        self.assertEqual(self.arm["scenes"][0]["scene_key"], changes[0]["scene_key"])
+        self.assertEqual(self.arm["scenes"][0]["system_selected"], changes[0]["was"])
+        self.assertEqual("C9", changes[0]["now"])
+
+    def test_two_different_corpora_are_never_diffed(self) -> None:
+        other = json.loads(json.dumps(self.arm))
+        other["corpus_sha256"] = "0" * 64
+        with self.assertRaises(BenchmarkError):
+            winner_changes(self.arm, other)
+
+    def test_an_incomplete_measurement_is_not_a_baseline(self) -> None:
+        waiting = {"status": STATUS_WAITING, "corpus_sha256": self.arm["corpus_sha256"], "scenes": []}
+        with self.assertRaises(BenchmarkError):
+            winner_changes(waiting, self.arm)
+
+
+class BilingualCorpusTests(unittest.TestCase):
+    """The frozen corpus v2 (PLAN-9D-H), and the one case it exists to carry.
+
+    v1 cannot see language: 14 English subjects out of 14, an empty media index,
+    2 candidate records with Cyrillic out of 1064. A provability fix measured on it
+    passes on any edit (language audit K12), which is why this corpus was built and
+    why the numbers below are locked rather than described.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.corpus = load_current_corpus(CURRENT_CORPUS_V2_PATH)
+
+    def test_the_corpus_is_frozen_and_declares_its_own_labels(self) -> None:
+        self.assertEqual(CORPUS_CLASS_BLIND, corpus_class_of(self.corpus))
+        self.assertEqual(
+            CURRENT_ANNOTATIONS_V2_PATH, annotations_path_for(self.corpus)
+        )
+        self.assertEqual("PLAN-9D-H", self.corpus["plan_step"])
+        self.assertEqual(
+            {"live_5", "local_after_fix"},
+            {str(run["run_id"]) for run in self.corpus["source_runs"]},
+        )
+
+    def test_the_blind_pass_has_not_happened_and_is_not_faked(self) -> None:
+        """The owner's labels are the input this step ends by asking for.
+
+        If this test ever fails because the file exists, the corpus is measurable
+        and PLAN-9D-H can close - which is a different assertion, and it belongs to
+        the slice that closes it.
+        """
+
+        self.assertFalse(CURRENT_ANNOTATIONS_V2_PATH.exists())
+
+    def test_the_card_count_is_what_the_board_shows(self) -> None:
+        stats = self.corpus["card_statistics"]
+        self.assertEqual(73, stats["blind_annotation_cards"])
+        self.assertEqual(5, stats["incident_cards"])
+        self.assertEqual(78, stats["cards"])
+        self.assertEqual(55, stats["cards_with_pictures"])
+        self.assertEqual(23, stats["cards_without_pictures"])
+        self.assertEqual(
+            stats["cards"], sum(len(scene["candidates"]) for scene in self.corpus["scenes"])
+        )
+        self.assertEqual(
+            stats["cards_with_pictures"],
+            sum(
+                1
+                for scene in self.corpus["scenes"]
+                for entry in scene["candidates"]
+                if candidate_is_visible(entry)
+            ),
+        )
+
+    def test_the_saved_ten_is_not_the_pool_and_the_corpus_says_so(self) -> None:
+        """The limit that decides which questions this corpus may be asked."""
+
+        limits = " ".join(self.corpus["known_limits"]).casefold()
+        self.assertIn("rank forty", limits)
+        self.assertIn("paid run", limits)
+        live = [
+            scene
+            for scene in self.corpus["scenes"]
+            if scene["run_id"] == "live_5" and scene["corpus_class"] == CORPUS_CLASS_BLIND
+        ]
+        self.assertEqual(5, len(live))
+        attempts = sum(scene["captured_attempt_statistics"]["provider_attempts"] for scene in live)
+        results = sum(scene["captured_attempt_statistics"]["provider_results"] for scene in live)
+        saved = sum(scene["captured_attempt_statistics"]["saved_candidate_records"] for scene in live)
+        self.assertEqual(50, saved)
+        self.assertGreater(attempts, saved)
+        self.assertGreater(results, saved)
+
+    def test_the_corpus_carries_cyrillic_where_v1_carried_none(self) -> None:
+        language = self.corpus["language_statistics"]
+        self.assertEqual(30, language["candidate_records_with_cyrillic_metadata"])
+        self.assertEqual(
+            ["local_after_fix/scene_004#ban_declension_cooling_tower"],
+            language["scenes_with_a_russian_subject"],
+        )
+        self.assertEqual(
+            ["local_after_fix/scene_004#ban_declension_cooling_tower"],
+            language["scenes_with_a_russian_prohibition"],
+        )
+        self.assertIn("local_library", language["cards_by_provider"])
+
+    def test_the_named_case_is_in_the_corpus_with_its_numbers(self) -> None:
+        """The outcome PLAN-9C-4 has to overturn, held by name.
+
+        Without it the corpus is pointless: the acceptance of the provability fix
+        would pass on any edit, which is exactly what K12 says about v1.
+        """
+
+        scene = next(s for s in self.corpus["scenes"] if s["scene_key"] == "live_5/scene_003")
+        loser = next(e for e in scene["candidates"] if e["asset_id"] == "pexels_32386564")
+        decision = loser["captured_decision"]
+        self.assertEqual("local_library", decision["provider"])
+        self.assertEqual(0.0, decision["semantic_score"])
+        self.assertEqual("unverified", decision["semantic_match_status"])
+        self.assertEqual(7.5, decision["final_score"])
+        # The same word scores 100 on the positive side while the verdict says the
+        # record is undecidable. That contradiction is C91 in one line.
+        self.assertEqual(100.0, decision["subject_match"])
+        winner = next(e for e in scene["candidates"] if e["blind_id"] == scene["selected_blind_id"])
+        self.assertEqual("wikimedia_116381400", winner["asset_id"])
+        self.assertEqual(72.968, winner["captured_decision"]["final_score"])
+
+    def test_the_provider_is_read_from_the_decision_not_from_the_id(self) -> None:
+        """``pexels_32386564`` is a local-library asset. The prefix is not a provider.
+
+        An external review built a recommendation on the prefix; the corpus must not
+        repeat it, so every card's provider comes from the stored decision.
+        """
+
+        cards = [
+            entry
+            for scene in self.corpus["scenes"]
+            for entry in scene["candidates"]
+            if entry["asset_id"].startswith("pexels_") and entry["asset_id"][7:].isdigit()
+        ]
+        self.assertTrue(cards)
+        self.assertEqual(
+            {"local_library"}, {entry["captured_decision"]["provider"] for entry in cards}
+        )
+
+    def test_the_ban_case_exists_and_the_declension_is_the_only_difference(self) -> None:
+        """The case the ban decision is accepted or refused against.
+
+        Neither run declared a prohibition, so this scene's requirement is written
+        by hand on real candidates. Inside it, one record is caught by the literal
+        ban and its twin is not, while the positive side of the score treats both
+        as a full match of the same word.
+        """
+
+        from src.assets.semantic_selection.evidence import build_evidence, contains_concept
+
+        scene = next(
+            s for s in self.corpus["scenes"] if s["corpus_class"] == CORPUS_CLASS_INCIDENT
+        )
+        self.assertTrue(str(scene.get("incident_note") or "").strip())
+        self.assertEqual(["градирня"], scene["semantic_scene"]["must_not_include"])
+        self.assertEqual("local_after_fix/scene_004", scene["derived_from_scene_key"])
+
+        caught = next(e for e in scene["candidates"] if e["asset_id"] == "pexels_6468629")
+        escaped = next(e for e in scene["candidates"] if e["asset_id"] == "pexels_29491854")
+        for entry, literal in ((caught, True), (escaped, False)):
+            evidence = build_evidence(entry["candidate"])
+            self.assertEqual(
+                literal,
+                contains_concept("градирня", evidence.token_set, evidence.text),
+                entry["asset_id"],
+            )
+            self.assertEqual(
+                100.0, evidence.semantic_inflection_score("градирня"), entry["asset_id"]
+            )
+
+    def test_todays_decision_owner_abstains_on_the_banned_scene(self) -> None:
+        """Recorded as it is, not as it would be convenient.
+
+        Today every local-library candidate is zeroed on meaning (C91), so the
+        scene has no acceptable answer at all and the ban never gets to matter. The
+        ordering is still the finding: the record the ban missed ranks above the one
+        it caught, on the same word.
+        """
+
+        scene = next(
+            s for s in self.corpus["scenes"] if s["corpus_class"] == CORPUS_CLASS_INCIDENT
+        )
+        selections = run_metadata_baseline(self.corpus)
+        self.assertIsNone(selections[scene["scene_key"]].selected_blind_id)
+        per_candidate = selections[scene["scene_key"]].per_candidate
+        blind_by_asset = {e["asset_id"]: e["blind_id"] for e in scene["candidates"]}
+        caught = per_candidate[blind_by_asset["pexels_6468629"]]
+        escaped = per_candidate[blind_by_asset["pexels_29491854"]]
+        self.assertIn("must_avoid_match:градирня", caught["blocking_reject_reasons"])
+        self.assertNotIn("must_avoid_match:градирня", escaped["blocking_reject_reasons"])
+
+    def test_the_captured_numbers_never_reach_the_decision_owner(self) -> None:
+        """Evidence, not input: the arm is unchanged when they are removed."""
+
+        stripped = json.loads(json.dumps(self.corpus))
+        for scene in stripped["scenes"]:
+            for entry in scene["candidates"]:
+                entry.pop("captured_decision", None)
+            scene.pop("selected_blind_id", None)
+        with_evidence = run_metadata_baseline(self.corpus)
+        without = run_metadata_baseline(stripped)
+        self.assertEqual(
+            {key: value.selected_blind_id for key, value in with_evidence.items()},
+            {key: value.selected_blind_id for key, value in without.items()},
+        )
+
+    def test_the_board_stays_blind_on_real_provider_metadata(self) -> None:
+        """The v1 blindness rule, re-checked against records that really exist.
+
+        Checked inside the scene's own block: blind ids restart at ``C1`` in every
+        scene, and one page now holds eleven scenes, so a whole-page search would
+        find a neighbour's requirement and pass for the wrong reason.
+        """
+
+        pack = render_pack(self.corpus, media=_blind_media_names(self.corpus))
+        for scene in self.corpus["scenes"]:
+            block = _scene_block(pack, scene["scene_key"]).casefold()
+            requirement = " ".join(
+                str(value)
+                for values in (scene.get("semantic_scene") or {}).values()
+                for value in (values if isinstance(values, list) else [values])
+            ).casefold()
+            requirement += " " + str(scene["scene_text"]).casefold()
+            for entry in scene["candidates"]:
+                values = [
+                    entry["candidate"].get(key) for key in BLINDED_CANDIDATE_KEYS
+                ]
+                values += [
+                    entry["candidate"].get(key)
+                    for key in ("path", "local_path", "downloaded_path", "preview_url")
+                ]
+                values += list(entry["candidate"].get("keywords") or [])
+                values += list(entry["candidate"].get("tags") or [])
+                for value in values:
+                    if not isinstance(value, str) or len(value.strip()) <= 4:
+                        continue
+                    text = value.strip().casefold()
+                    if text in requirement:
+                        continue
+                    self.assertNotIn(text, block, f"{scene['scene_key']}/{entry['blind_id']}")
+        for token in ("captured_decision", "final_score", "local_library", "selected_blind_id"):
+            self.assertNotIn(token, pack.casefold(), token)
+
+    def test_the_board_says_how_many_cards_it_is_not_showing(self) -> None:
+        pack = render_pack(self.corpus, media=_blind_media_names(self.corpus))
+        for scene in self.corpus["scenes"]:
+            withheld = sum(
+                1 for entry in scene["candidates"] if not candidate_is_visible(entry)
+            )
+            block = _scene_block(pack, scene["scene_key"])
+            shown = sum(
+                1
+                for entry in scene["candidates"]
+                if f"data-blind='{entry['blind_id']}'" in block
+            )
+            self.assertEqual(len(scene["candidates"]) - withheld, shown, scene["scene_key"])
+            if withheld:
+                self.assertIn(f"Ещё {withheld} кандидат", block)
+
+    def test_blind_media_names_carry_nothing_but_the_blind_id(self) -> None:
+        """A local-library file is named after its shot, so the page may not use it.
+
+        Exercised on a copied picture rather than on a clip: extracting stills calls
+        ``ffmpeg``, and the one thing this test is about - the name on the page - is
+        the same either way.
+        """
+
+        import tempfile
+        from pathlib import Path as _Path
+
+        corpus = _current_corpus()
+        scene = corpus["scenes"][0]
+        entry = scene["candidates"][0]
+        with tempfile.TemporaryDirectory() as raw:
+            root = _Path(raw)
+            telling = root / "pexels_video_solar_panel_assembly_line_factory.jpg"
+            telling.write_bytes(b"not really a jpeg")
+            entry["frames"] = []
+            entry["visual_evidence"] = [
+                {
+                    "kind": EVIDENCE_KIND_LOCAL_FILE,
+                    "local_path": telling.as_posix(),
+                    "sha256": "0" * 64,
+                    "media_type": "image",
+                }
+            ]
+            media = materialize_blind_media(corpus, root / "media")
+            names = media[(scene["scene_key"], entry["blind_id"])]
+            self.assertTrue(names)
+            for name in names:
+                self.assertNotIn("solar", name)
+                self.assertIn(entry["blind_id"], name)
+            page = render_pack(corpus, media=media)
+            self.assertNotIn("assembly_line", page)
+            self.assertIn(names[0], page)
 
 
 class EvidenceAdmissibilityTests(unittest.TestCase):
