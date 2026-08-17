@@ -11,7 +11,19 @@ permissions:
 jobs:
   unittest:
     runs-on: windows-latest
-    timeout-minutes: 20
+    # 45, not 20. The ceiling used to sit within a few minutes of the work it
+    # bounds: the suite alone measured 15.5 minutes locally on 2026-08-17 and
+    # 15.5 again after package D (927 s, 2379 tests), and this job also installs
+    # ffmpeg-full through Chocolatey and two lockfiles before it starts. On a
+    # runner slower than the local machine that is not headroom, it is a coin
+    # flip - and a suite that times out reads exactly like a suite that failed.
+    #
+    # Raising the number is the honest fix and not a way to stop watching: the
+    # growth itself is recorded and owned - 1441 tests / 231.8 s at the plan's
+    # measurement, 2379 / 927 s now - and 45 still stops a hung job long before
+    # GitHub's own six-hour limit. What must never be done to fit a ceiling is
+    # dropping tests from the blocking run.
+    timeout-minutes: 45
     env:
       AI_YOUTUBE_ALLOW_LIVE_TESTS: "0"
       AI_YOUTUBE_RUN_LIVE_TESTS: "0"
