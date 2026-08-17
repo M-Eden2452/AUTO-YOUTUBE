@@ -8,6 +8,7 @@ from src.assets.semantic_selection.evidence import (
     LOCAL_MATCH_MAX_GAP,
     METADATA_FIELDS,
     build_evidence,
+    script_mismatch,
 )
 from src.assets.semantic_selection.models import SemanticScene
 
@@ -517,6 +518,171 @@ class EnglishPrefixCreditGuardTest(unittest.TestCase):
         self.assertLessEqual(
             float(by_id[self.WRONG]["subject_match"]),
             float(by_id[self.RIGHT]["subject_match"]),
+        )
+
+
+class GluedEvidenceDecidabilityCharacterizationTest(unittest.TestCase):
+    """What ``script_mismatch`` and ``is_undecidable`` answer on *mixed* writing, today.
+
+    A characterization, not a repair and not an approval. Until this class existed,
+    neither primitive was named by a single test module in this repository - the
+    question "is this term comparable with this metadata at all" gated selection and
+    was frozen nowhere, so the repair that is planned for it would have landed blind.
+
+    Both primitives read ``CandidateEvidence.text``: every provider field glued into one
+    string. Decidability is therefore a property of the *record*, while a match is a
+    property of a *field* - and on a record written in two scripts those two readings
+    disagree. The case below is the disagreement at its plainest: an English title that
+    states the subject verbatim, plus one Russian tag. The tag makes the whole record
+    "incomparable" with the English subject its own title names.
+
+    ``BILINGUAL`` and ``ENGLISH_ONLY`` differ in exactly one thing - the language of the
+    ``tags`` field. Nothing else, including every word the subject is matched against,
+    changes between them.
+
+    EXPECTED TO GO RED. Package D's option A replaces the glued read with a per-field
+    one (``all(script_mismatch(concept, f.text) for f in evidence.fields)``). Under it
+    ``title`` alone answers and the subject below becomes decidable. Measured with that
+    substitution applied to ``CandidateEvidence.is_undecidable`` in memory: **three of
+    these five tests fail** - the primitive, the ranker arithmetic and the requirement
+    slot - and the other two stay green, which is also the intent. The field scores
+    cannot move, because decidability was never what produced them; the Russian
+    direction is the guard. A failure of the three after that change is the signal that
+    the fix reached the primitive, not a regression. What may *not* happen quietly is
+    these numbers moving with no such change behind them.
+
+    MEASURED IN PASSING, and recorded here because it belongs to that repair rather
+    than to this class: substituting the method alone is **not** sufficient. The
+    ``must_include`` loop in ``candidate_ranker`` calls the module-level
+    ``script_mismatch`` on the glued text itself rather than asking the evidence, so
+    with the method replaced the requirement slot flips to ``matched`` while the
+    rejection ``semantic_unverified:cooling tower`` survives unchanged - the record is
+    still refused for a requirement its title states verbatim, now without even a slot
+    saying why. Both assertions of that test are kept for exactly this reason: they
+    move apart, and the surviving one is the part of the defect a method-only repair
+    would leave behind.
+
+    What this class does not claim: that a per-field read is the right repair, that the
+    Russian direction is symmetric (it is not - see the last test), or anything about
+    how often mixed records occur in the field. Two synthetic records prove a mechanism,
+    not a rate.
+    """
+
+    SUBJECT = "cooling tower"
+    TITLE = "Cooling tower at a power plant"
+    DESCRIPTION = "Steam rising from the cooling tower of a thermal power plant"
+    BILINGUAL = "bilingual_cooling_tower"
+    ENGLISH_ONLY = "english_cooling_tower"
+
+    def _candidates(self) -> list[dict[str, object]]:
+        return [
+            _candidate(
+                self.BILINGUAL,
+                provider="local_library",
+                title=self.TITLE,
+                description=self.DESCRIPTION,
+                tags=["градирня", "тепловая электростанция"],
+            ),
+            _candidate(
+                self.ENGLISH_ONLY,
+                provider="local_library",
+                title=self.TITLE,
+                description=self.DESCRIPTION,
+                tags=["cooling tower", "thermal power station"],
+            ),
+        ]
+
+    def _ranked(self, **overrides: list[str]) -> dict[str, dict[str, object]]:
+        scene = SemanticScene(
+            scene_id="scene_bilingual_metadata",
+            subject=[self.SUBJECT],
+            source_class=CLASS_SPECIFIC_OBJECT,
+            **overrides,
+        )
+        ranked = rank_candidates(scene, self._candidates(), source_class=scene.source_class)
+        return {str(item["asset_id"]): item for item in ranked}
+
+    def test_one_foreign_tag_makes_a_record_incomparable_with_its_own_title(self) -> None:
+        """The glued read says "incomparable"; every field read says otherwise.
+
+        Asserted together on purpose: the per-field answers are what package D would
+        make the primitive return, so the two halves of this test are today's answer
+        and tomorrow's side by side.
+        """
+        evidence = build_evidence(self._candidates()[0])
+
+        self.assertTrue(script_mismatch(self.SUBJECT, evidence.text))
+        self.assertTrue(evidence.is_undecidable(self.SUBJECT))
+        self.assertEqual(
+            {"title": False, "description": False, "tags": True},
+            {field.name: script_mismatch(self.SUBJECT, field.text) for field in evidence.fields},
+        )
+
+    def test_the_same_record_scores_a_full_match_on_every_reading_of_the_text(self) -> None:
+        """Undecidable and 100.0 at once - the state the ranker then has to resolve.
+
+        All three readings are asserted because the scoring path and the slot path ask
+        different ones, and the contradiction is present in all of them.
+        """
+        evidence = build_evidence(self._candidates()[0])
+
+        self.assertEqual(100.0, evidence.literal_score(self.SUBJECT))
+        self.assertEqual(100.0, evidence.semantic_literal_score(self.SUBJECT))
+        self.assertEqual(100.0, evidence.semantic_inflection_score(self.SUBJECT))
+
+    def test_the_ranker_resolves_that_contradiction_against_the_bilingual_record(self) -> None:
+        """85 points and the slot, for one tag in another script.
+
+        ``subject_match`` is 100.0 on both records - the field comparison finds the
+        subject in the English title either way. What differs is ``semantic_score``:
+        the scene's only stated field is undecidable, so the weighted average is
+        zeroed, and what is left of ``final_score`` is the technical part alone.
+        """
+        by_id = self._ranked()
+        bilingual, english = by_id[self.BILINGUAL], by_id[self.ENGLISH_ONLY]
+
+        self.assertEqual(100.0, bilingual["subject_match"])
+        self.assertEqual(100.0, english["subject_match"])
+        self.assertEqual(0.0, bilingual["semantic_score"])
+        self.assertEqual(100.0, english["semantic_score"])
+        self.assertEqual(13.875, bilingual["final_score"])
+        self.assertEqual(98.875, english["final_score"])
+        self.assertTrue(bilingual["rejected"])
+        self.assertFalse(english["rejected"])
+        self.assertEqual("score_below_75", bilingual["reject_reason"])
+        self.assertEqual("undecidable", _slot(bilingual, "subject")["status"])
+
+    def test_a_requirement_the_title_states_verbatim_is_reported_unverified(self) -> None:
+        """The author's own ``must_include``, present in the title, refused.
+
+        This is the second call site of the same primitive (``_script_mismatch`` over
+        the glued text in the ``must_include`` loop), and it fails the record for a
+        requirement its title meets word for word.
+        """
+        by_id = self._ranked(must_include=[self.SUBJECT])
+        decision = by_id[self.BILINGUAL]["selection_decision"]
+        assert isinstance(decision, dict)
+
+        self.assertIn(f"semantic_unverified:{self.SUBJECT}", decision["reject_reasons"])
+        self.assertEqual("undecidable", _slot(by_id[self.BILINGUAL], "requirement")["status"])
+        english_decision = by_id[self.ENGLISH_ONLY]["selection_decision"]
+        assert isinstance(english_decision, dict)
+        self.assertEqual([], english_decision["reject_reasons"])
+
+    def test_the_russian_direction_of_the_same_record_is_already_decidable(self) -> None:
+        """A guard: the defect is one-directional, and the repair must not invert it.
+
+        Against the same bilingual record a Russian subject is comparable today - the
+        glued text carries Cyrillic - and stays comparable under a per-field read,
+        because the Russian ``tags`` field answers. Pinned so that a repair aimed at
+        the English direction is not allowed to break this one on the way.
+        """
+        evidence = build_evidence(self._candidates()[0])
+
+        self.assertFalse(script_mismatch("градирня", evidence.text))
+        self.assertFalse(evidence.is_undecidable("градирня"))
+        self.assertFalse(
+            all(script_mismatch("градирня", field.text) for field in evidence.fields)
         )
 
 
