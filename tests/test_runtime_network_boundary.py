@@ -20,6 +20,7 @@ from src.runtime_network import (
     NETWORK_ACTION_PREVIEW_DOWNLOAD,
     NETWORK_ACTION_PROVIDER_SEARCH,
     NETWORK_ACTION_VOICE_PREFLIGHT,
+    NETWORK_ACTION_VOICE_SYNTHESIS,
     NETWORK_ACTIONS,
     NetworkAccessDeniedError,
     approval_for_actions,
@@ -758,8 +759,42 @@ class WizardNetworkStepTests(unittest.TestCase):
                 NETWORK_ACTION_ASSET_DOWNLOAD,
                 NETWORK_ACTION_PREVIEW_DOWNLOAD,
                 NETWORK_ACTION_VOICE_PREFLIGHT,
+                NETWORK_ACTION_VOICE_SYNTHESIS,
             ),
         )
+
+    def test_the_list_the_wizard_shows_is_enough_for_the_run_it_describes(self) -> None:
+        """Approving exactly what was listed must not leave the run refused mid-way.
+
+        This is the assertion the previous one could not make. Until 2026-08-17
+        the list ended at ``voice_preflight``: package E had just put
+        ``voice_synthesis`` in front of the paid call inside the provider, and the
+        declaration did not follow. The owner would approve everything the wizard
+        named, watch the run prepare a script, confirm the payment - and be
+        refused inside ``synthesize`` by a class nobody had been asked about.
+        Registry row ``C96``.
+
+        So the check is not "the tuple has this shape" but "granting the tuple is
+        sufficient": a class added to the provider and forgotten here reddens it.
+        """
+        from src.content_creation.wizard_state import (
+            WizardState,
+            required_network_actions,
+        )
+        state = WizardState(
+            template_id="fullscreen_voiceover_v1",
+            content_input_mode="topic",
+            voice_provider="elevenlabs",
+        )
+        granted = approval_for_actions(
+            required_network_actions(state), granted_by="wizard-network-step"
+        )
+        with network_approval_scope(granted):
+            require_network(NETWORK_ACTION_VOICE_SYNTHESIS)
+            require_network(NETWORK_ACTION_VOICE_PREFLIGHT)
+            require_network(NETWORK_ACTION_PROVIDER_SEARCH)
+            with self.assertRaises(NetworkAccessDeniedError):
+                require_network(NETWORK_ACTION_ARTICLE_FETCH)
 
     def test_dry_run_only_ever_needs_article_fetch(self) -> None:
         from src.content_creation.wizard_state import (

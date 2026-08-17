@@ -11,6 +11,32 @@ from unittest.mock import Mock, patch
 from tests.network_guard import network_guard_scope
 
 
+def _paid_voice_run_approved():
+    """Grant the two classes an approved paid voice run actually reaches.
+
+    Not a convenience: it is what the run looks like after 2026-08-17. Package E
+    put ``voice_synthesis`` in front of the paid POST inside the provider, so a
+    test that means "the owner approved this paid run" has to say so through the
+    network boundary as well - otherwise it silently exercises a path production
+    refuses, which is exactly how these two tests went red (registry row
+    ``C96``). Preflight is named beside it because the workflow reads the account
+    before it generates; nothing wider is granted.
+    """
+    from src.runtime_network import (
+        NETWORK_ACTION_VOICE_PREFLIGHT,
+        NETWORK_ACTION_VOICE_SYNTHESIS,
+        approval_for_actions,
+        network_approval_scope,
+    )
+
+    return network_approval_scope(
+        approval_for_actions(
+            [NETWORK_ACTION_VOICE_PREFLIGHT, NETWORK_ACTION_VOICE_SYNTHESIS],
+            granted_by="test_news_voice_adapter",
+        )
+    )
+
+
 def _fixture_script() -> dict:
     scenes = []
     for i in range(1, 6):
@@ -128,7 +154,7 @@ class NewsVoiceAdapterTests(unittest.TestCase):
 
             fake_http = Mock()
             fake_http.post.return_value = Mock(status_code=200, content=_wav_bytes(0.4))
-            with patch("src.audio.tts.elevenlabs_provider.requests", fake_http):
+            with _paid_voice_run_approved(), patch("src.audio.tts.elevenlabs_provider.requests", fake_http):
                 manifest = build_or_generate_voice_manifest(
                     project_root=root, language="ru", script=script, channel_voice_config=channel_config["voice"],
                     channel_workflow_config=channel_config["voice_workflow"], channel_id="nature_science_news_ru",
@@ -187,7 +213,7 @@ class NewsVoiceAdapterTests(unittest.TestCase):
 
             fake_http = Mock()
             fake_http.post.return_value = Mock(status_code=200, content=_wav_bytes(0.3))
-            with patch("src.audio.tts.elevenlabs_provider.requests", fake_http):
+            with _paid_voice_run_approved(), patch("src.audio.tts.elevenlabs_provider.requests", fake_http):
                 run_news_to_short_job(projects_root=root, job_id=job.job_id, stage="voice", execute_voice=True)
 
             voice_manifest = json.loads((project / "localizations" / "ru" / "voice" / "voice_manifest.json").read_text(encoding="utf-8"))

@@ -9,6 +9,7 @@ from src.runtime_network import (
     NETWORK_ACTION_PREVIEW_DOWNLOAD,
     NETWORK_ACTION_PROVIDER_SEARCH,
     NETWORK_ACTION_VOICE_PREFLIGHT,
+    NETWORK_ACTION_VOICE_SYNTHESIS,
 )
 
 from src.content_creation.models import ContentCreationRequest
@@ -161,7 +162,17 @@ def required_network_actions(state: WizardState) -> tuple[str, ...]:
             )
         )
     if state.voice_provider == "elevenlabs" and not state.dry_run:
-        actions.append(NETWORK_ACTION_VOICE_PREFLIGHT)
+        # Both classes, asked once. The paid generation is a separate and second
+        # gate, so naming synthesis here approves reaching the network, never
+        # spending: a run whose paid confirmation is declined simply never calls
+        # it. Asking only for preflight looked narrower and was in fact broken -
+        # the two-phase paid flow captures allow_network in its first phase and
+        # never asks again (run_creation_with_preflight), so the phase that pays
+        # would be refused inside the provider, after the owner had already
+        # approved everything the wizard showed them.
+        actions.extend(
+            (NETWORK_ACTION_VOICE_PREFLIGHT, NETWORK_ACTION_VOICE_SYNTHESIS)
+        )
     return tuple(dict.fromkeys(actions))
 
 
