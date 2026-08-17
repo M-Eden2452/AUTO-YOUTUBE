@@ -6,8 +6,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.preview_materialisation import decline_preview_materialisation
+
 
 class NewsToShortDeliveryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Nothing here reads a candidate preview: the assertions are about subtitles,
+        # quality, the render preview manifest and the export. See the helper for why
+        # the switch cannot be set through the request.
+        decline_preview_materialisation(self)
+
     def test_export_includes_draft_render_outputs(self) -> None:
         from src.news.exporter import export_localization
 

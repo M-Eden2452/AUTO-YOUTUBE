@@ -6,10 +6,12 @@ query plans explain both dispatched and fail-closed outcomes. The separate
 legacy-template assertion remains pre-fix characterization for PLAN-9B-4.
 
 The tests run the canonical ``create_content`` application entrypoint in-process.
-Only the existing provider-factory seam is replaced: production still builds the
-visual plan, ``ProviderQuery`` values, canonical ``AssetSearchRequest`` objects,
-and the persisted ``assets_manifest.json``.  The package-wide network guard stays
-active throughout.
+Two things are replaced and nothing else: the existing provider-factory seam, and
+the production preview switch (see ``tests.preview_materialisation``, which explains
+why a test cannot reach it through the request). Production still builds the visual
+plan, ``ProviderQuery`` values, canonical ``AssetSearchRequest`` objects, and the
+persisted ``assets_manifest.json``.  The package-wide network guard stays active
+throughout.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ from src.content_creation.models import (
 from src.content_creation.service import create_content
 from src.news.asset_manager import build_assets_manifest
 from tests.network_guard import blocked_attempts
+from tests.preview_materialisation import previews_not_materialised
 
 
 _PROVIDER_IDS = (
@@ -110,10 +113,12 @@ class InputQueryTruthCharacterizationTests(unittest.TestCase):
                 execution=ExecutionFlags(prepare_only=True),
                 project_overrides={"projects_root": tmp},
             )
+            # Previews are ffmpeg work and no assertion below reads one; the queries,
+            # the candidates and the persisted plan are still built by production.
             with patch(
                 "src.news.asset_manager.create_default_asset_providers",
                 return_value=providers,
-            ):
+            ), previews_not_materialised():
                 result = create_content(request)
 
             project_root = Path(result.project_root)

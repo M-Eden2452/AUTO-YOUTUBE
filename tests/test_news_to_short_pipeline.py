@@ -11,8 +11,16 @@ from unittest.mock import patch
 import imageio_ffmpeg
 from PIL import Image
 
+from tests.preview_materialisation import decline_preview_materialisation
+
 
 class NewsToShortPipelineTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # The assertions below are about stages, persisted state and produced files,
+        # never about a candidate preview. See the helper for why the production
+        # switch cannot be set through the request.
+        decline_preview_materialisation(self)
+
     def test_dry_run_from_topic_saves_ab_artifacts_without_paid_tts(self) -> None:
         from src.news.pipeline import create_news_to_short_job, run_news_to_short_job
 

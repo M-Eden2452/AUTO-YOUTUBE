@@ -18,6 +18,20 @@ from src.content_creation.models import (
     VoiceRequestConfig,
 )
 from src.content_creation.service import create_content
+from tests.preview_materialisation import decline_preview_materialisation
+
+
+class _ServiceTestCase(unittest.TestCase):
+    """Base for the classes below: production runs, previews are not materialised.
+
+    Every class here drives ``create_content`` and asserts about projects, stages,
+    persisted state, approvals and produced files - never about a candidate preview.
+    See ``tests.preview_materialisation`` for why the production switch cannot be set
+    through the request.
+    """
+
+    def setUp(self) -> None:
+        decline_preview_materialisation(self)
 
 
 def _make_synthetic_source_video(root: Path) -> Path:
@@ -48,7 +62,7 @@ def _make_synthetic_source_video(root: Path) -> Path:
     return output
 
 
-class MusicValidationServiceTests(unittest.TestCase):
+class MusicValidationServiceTests(_ServiceTestCase):
     def test_local_file_without_path_rejected_before_any_project_creation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             request = ContentCreationRequest(
@@ -79,7 +93,7 @@ class MusicValidationServiceTests(unittest.TestCase):
             self.assertEqual(ctx.exception.reason, "not_found")
 
 
-class TemplateResolutionTests(unittest.TestCase):
+class TemplateResolutionTests(_ServiceTestCase):
     def test_unknown_template_id_raises_clear_error(self) -> None:
         request = ContentCreationRequest(channel_id="nature_pulse", template_id="does_not_exist_v1")
         with self.assertRaises(ContentCreationError):
@@ -100,7 +114,7 @@ class TemplateResolutionTests(unittest.TestCase):
             create_content(request)
 
 
-class StoryCardCreateTests(unittest.TestCase):
+class StoryCardCreateTests(_ServiceTestCase):
     def test_dry_run_creates_no_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             request = ContentCreationRequest(
@@ -145,7 +159,7 @@ class StoryCardCreateTests(unittest.TestCase):
             self.assertTrue(Path(result.output_paths["render_request"]).is_file())
 
 
-class FullscreenVoiceoverCreateTests(unittest.TestCase):
+class FullscreenVoiceoverCreateTests(_ServiceTestCase):
     def _fake_assets(self, root: Path) -> list[dict]:
         images = []
         for index in range(12):
@@ -801,7 +815,7 @@ class FullscreenVoiceoverCreateTests(unittest.TestCase):
             self.assertEqual(stored.localizations["ru"].voice_status, "completed")
 
 
-class MusicWiringTests(unittest.TestCase):
+class MusicWiringTests(_ServiceTestCase):
     """A requested local track must actually reach the renderer.
 
     src/news/final_renderer.py has always been able to loop, sidechain-duck and mix
