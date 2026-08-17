@@ -6,7 +6,9 @@ from src.assets.scene_strategy import CLASS_SPECIFIC_OBJECT
 from src.assets.semantic_selection.candidate_ranker import rank_candidates
 from src.assets.semantic_selection.evidence import (
     LOCAL_MATCH_MAX_GAP,
+    METADATA_AVAILABLE,
     METADATA_FIELDS,
+    CandidateEvidence,
     build_evidence,
     script_mismatch,
 )
@@ -690,6 +692,32 @@ class GluedEvidenceDecidabilityRepairTest(unittest.TestCase):
         self.assertFalse(
             all(script_mismatch("градирня", field.text) for field in evidence.fields)
         )
+
+    def test_a_record_with_metadata_and_no_fields_still_answers(self) -> None:
+        """The branch ``build_evidence`` cannot currently produce, exercised anyway.
+
+        Independent review of the repair (2026-08-17, MINOR) established that
+        ``if not self.fields`` is unreachable through the only production
+        constructor: ``build_evidence`` puts vision tags into a field of their own,
+        so an evidence object with metadata always has at least one field, and one
+        without fields is already refused by ``has_metadata`` a line above.
+
+        The branch stays, and this is what keeps it honest rather than decorative.
+        ``all()`` over nothing is ``True``, so deleting the branch would silently
+        make such a record undecidable for every term - the exact failure the repair
+        exists to remove. Constructed directly, because the point is precisely that
+        the normal path cannot build it.
+        """
+        evidence = CandidateEvidence(
+            text="Cooling tower at a power plant",
+            token_set=frozenset({"cooling", "tower"}),
+            fields=(),
+            metadata_status=METADATA_AVAILABLE,
+        )
+
+        self.assertTrue(evidence.has_metadata)
+        self.assertFalse(evidence.is_undecidable("cooling tower"))
+        self.assertTrue(evidence.is_undecidable("градирня"))
 
 
 if __name__ == "__main__":
