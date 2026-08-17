@@ -8,14 +8,14 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress; this slice does not move it. NEXT: package C
-  (the measurement stand) of docs/audits/ROLLOUT_PLAN_2026-08-17.md, which must
-  run before package D - the frozen corpus cannot see language, so a D
-  acceptance would pass on any edit. CONDITION: C needs the owner's blind
-  labelling of corpus v2; an agent cannot produce it. Packages 0 and A are done
-  (d05d5ec, 3619fe1). WHO DECIDES: the owner, at entry to each package. This
-  field issues no PLAN-ID; the closure history it used to carry is in "Current
-  checkpoint" below.
+  Checkpoint PLAN-9D, in progress; unchanged by this slice. NEXT is PLAN-9D-H -
+  the bilingual ground truth, package C of the rollout plan in docs/audits
+  (see the route block below). It runs before PLAN-9C-4, which stays blocked on
+  it: the frozen v1 corpus cannot see language, so a provability acceptance
+  would pass on any edit. CONDITION: PLAN-9D-H closes only after the owner's
+  blind labelling of 73 cards; an agent cannot produce it. WHO DECIDES: the
+  owner, at entry to each step. The closure history this field used to carry is
+  in "Current checkpoint" below.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -1661,8 +1661,8 @@ script; `C58` — честного pre-final preview нет, оценивать 
 | **0** Сохранность | отчёты 15–17.08 в git и в индексе | закрыт `d05d5ec` |
 | **A** Точка истины `C89` | независимое ревью `ec369f8`, `ede8c4b` | закрыт `3619fe1`, verdict scope PASS · objective PASS |
 | **B** План перестаёт себе противоречить | это поле, замок, база замера, строка `C92` | закрыт коммитом, содержащим эту запись |
-| **C** Прибор | корпус v2 видит язык | следующий; нужна слепая разметка владельца |
-| **D** Доказуемость | `is_undecidable` пофайлово | строго после C; класс HIGH |
+| **C** Прибор | корпус v2 видит язык | **PLAN-9D-H**, следующий; нужна слепая разметка владельца |
+| **D** Доказуемость | `is_undecidable` пофайлово | **PLAN-9C-4**, blocked до PLAN-9D-H; класс HIGH |
 | **E** Безопасность | `synthesize` под `require_network`, `C87` | до следующего платного прогона |
 | **F**, **ADR**, **T**, **G** | смысл · движение · витрина; долговечные решения; тесты; governance | по маршруту |
 
@@ -6630,6 +6630,30 @@ misleading/conflict · paid approval.
   activation, providers и schema не менялись.
 - **rollback:** один commit, revert; миграций данных и provider calls нет.
 
+### PLAN-9C-4 — пофайловая доказуемость
+
+- **status:** blocked (PLAN-9D-H) · **commit:** — · **зависимость:** корпус v2
+  закрыт и размечен; owner decision 2026-08-17 — **вариант A**. Пакет **D**
+  маршрута [ROLLOUT_PLAN_2026-08-17.md](../audits/ROLLOUT_PLAN_2026-08-17.md).
+- **цель:** корневая причина `C91` — вердикт «доказуемо или нет» выносится по
+  склеенному тексту записи, а не по полю, дающему балл. `is_undecidable`
+  становится пофайловым, один примитив на все пять точек вызова.
+- **состав:** characterization-тест первым — он именует `script_mismatch` и
+  `is_undecidable`, которых сегодня нет ни в одном файле `tests/`; затем правка
+  `src/assets/semantic_selection/evidence.py`; расширение формулировки `C91` на
+  слой запретов **до** начала работ, потому что вариант A шире её нынешней
+  редакции; авторский запрет начинает видеть склонения — MAJOR независимого
+  ревью [REVIEW_C79_C89_2026-08-17.md](../audits/REVIEW_C79_C89_2026-08-17.md).
+- **запрещено:** второй примитив доказуемости — строка `C91` запрещает его
+  прямо; приёмка на корпусе v1; смешивание с PLAN-9D-H в одном слайсе.
+- **измеримый результат:** на корпусе v1 ноль изменившихся победителей
+  (аддитивность), на v2 сдвиг назван поимённо. Приписка к `C91`: исправлено,
+  коммит, числа до и после.
+- **класс риска:** **HIGH** (отбор и слой запретов). Owner decision до работы
+  получен; независимый `review-change` после обязателен; findings закрываются
+  тестами, а не отдельным слайсом.
+- **required verification:** targeted tests + независимое ревью + gates.
+
 ### PLAN-9D — offline visual-quality evidence
 
 - **status:** in progress · **commit:** `04fe035` (benchmark harness и
@@ -7096,6 +7120,34 @@ current-quality benchmark. Production logic этой записью не мен�
   blocking regression.
 - **required verification:** targeted evaluation tests + offline product
   fixture gate.
+
+#### PLAN-9D-H — двуязычный ground truth (корпус v2)
+
+- **status:** pending / not started · **commit:** — · **зависимость:** нет
+  блокирующей; решения владельца получены 2026-08-17 (состав корпуса, размер
+  шортлиста). Пакет **C** маршрута
+  [ROLLOUT_PLAN_2026-08-17.md](../audits/ROLLOUT_PLAN_2026-08-17.md).
+- **цель:** корпус, способный увидеть языковой дефект. Существующий v1 этого не
+  может: 14/14 английских субъектов, пустой `media_index`, поэтому приёмка
+  правки доказуемости прошла бы на нём при любой правке (`K12` языкового
+  аудита).
+- **состав:** класс корпуса полем схемы `plan9d-corpus-1` («слепая разметка» ·
+  «разбор инцидента»), harness принимает оба; корпус v2 из сохранённых
+  кандидатов LIVE-5 и LOCAL after fix — 73 уникальные карточки на 10 сцен;
+  слепая доска на существующем `visual_review_board.html`; синтетический случай
+  с `must_not_include` (в обоих прогонах запретов ноль); `measure --baseline`
+  печатает изменившихся победителей поимённо; след отброшенного по языку
+  запроса (`K9`).
+- **запрещено:** сеть, повторный прогон и любой платный вызов; перегенерация
+  корпуса v1; вторая доска ревью; разметка кандидатов агентом — это входная
+  работа владельца, и подменить её нельзя.
+- **измеримый результат:** `measure` на v1 даёт прежние 4/14; корпус v2
+  содержит поимённо `pexels_32386564` (сцена 003 LIVE-5, `provider`
+  `local_library`, `semantic_score` 0.0, `final_score` 7.5, проигравший
+  картинке с 72.968) — исход, который обязан перевернуть PLAN-9C-4.
+- **required verification:** targeted tests изменённых модулей + gates.
+- **вход владельца:** слепая разметка 73 карточек. Шаг закрывается только
+  после неё; подготовка доски — не закрытие.
 
 ### PLAN-9E — controlled semantic activation
 
