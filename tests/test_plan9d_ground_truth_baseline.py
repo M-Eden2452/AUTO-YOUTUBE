@@ -34,11 +34,13 @@ import hashlib
 import json
 import unittest
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from tests.plan9d_corpus_builder import (
     annotation_template,
     materialize_blind_media,
+    media_urls_relative_to,
     render_pack,
 )
 from tests.plan9d_ground_truth import (
@@ -1084,6 +1086,58 @@ class SceneTokenTests(unittest.TestCase):
                 self.assertNotIn("synthetic", name)
                 self.assertNotIn("scene_", name)
                 self.assertTrue(name.startswith("S"), name)
+
+    def test_every_picture_the_page_asks_for_resolves_from_the_page(self) -> None:
+        """Asked the way a browser asks it, because the first check was not.
+
+        The page is written beside the media directory, so a bare file name in
+        ``src`` resolves to nothing and every card comes up blank - which is what
+        happened to the board handed over. The earlier verification joined the
+        media directory itself before testing existence, so it proved the files
+        were on disk and never that the page could reach them.
+        """
+
+        import re as _re
+        import tempfile
+        from pathlib import Path as _Path
+
+        corpus = _current_corpus()
+        with tempfile.TemporaryDirectory() as raw:
+            root = _Path(raw)
+            picture = root / "source.jpg"
+            picture.write_bytes(b"not really a jpeg")
+            for scene in corpus["scenes"]:
+                for entry in scene["candidates"]:
+                    entry["frames"] = []
+                    entry["visual_evidence"] = [
+                        {
+                            "kind": EVIDENCE_KIND_LOCAL_FILE,
+                            "local_path": picture.as_posix(),
+                            "sha256": "0" * 64,
+                            "media_type": "image",
+                        }
+                    ]
+            page = root / "pack" / "board.html"
+            page.parent.mkdir(parents=True, exist_ok=True)
+            media_dir = root / "pack" / "media"
+            media = media_urls_relative_to(
+                materialize_blind_media(corpus, media_dir),
+                media_dir=media_dir,
+                page=page,
+            )
+            page.write_text(render_pack(corpus, media=media), encoding="utf-8")
+            srcs = _re.findall(r'<img loading=.lazy. src="([^"]+)"', page.read_text(encoding="utf-8"))
+            self.assertTrue(srcs)
+            self.assertTrue(all(src.startswith("media/") for src in srcs), srcs[:3])
+            unreachable = [src for src in srcs if not (page.parent / src).is_file()]
+            self.assertEqual([], unreachable)
+
+    def test_a_page_inside_the_media_directory_keeps_bare_names(self) -> None:
+        media = {("k", "C1"): ["S1_C1_0.jpg"]}
+        same = media_urls_relative_to(
+            media, media_dir=Path("/tmp/board"), page=Path("/tmp/board/page.html")
+        )
+        self.assertEqual({("k", "C1"): ["S1_C1_0.jpg"]}, same)
 
     def test_labels_saved_under_the_token_still_measure(self) -> None:
         """The token is opaque to the reader and resolvable by the harness."""

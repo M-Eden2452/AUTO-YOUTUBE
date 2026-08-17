@@ -55,6 +55,7 @@ import argparse
 import hashlib
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -1582,6 +1583,26 @@ def materialize_blind_media(corpus: dict[str, Any], media_dir: Path) -> dict[tup
     return by_card
 
 
+def media_urls_relative_to(
+    media: dict[tuple[str, str], list[str]], *, media_dir: Path, page: Path
+) -> dict[tuple[str, str], list[str]]:
+    """Turn bare file names into references a browser opening ``page`` can follow.
+
+    ``materialize_blind_media`` names files, not paths, and the page is normally
+    written *beside* the directory rather than inside it - so the raw names
+    resolved to nothing and every card came up blank in a real browser. The first
+    check of this missed it by joining the media directory itself before asking
+    whether the file existed, which tested the directory rather than the page.
+    """
+
+    prefix = Path(os.path.relpath(media_dir, page.parent)).as_posix()
+    if prefix in {"", "."}:
+        return {key: list(names) for key, names in media.items()}
+    return {
+        key: [f"{prefix}/{name}" for name in names] for key, names in media.items()
+    }
+
+
 def _local_video_stills(
     source: Path, evidence: dict[str, Any], media_dir: Path, stem: str
 ) -> list[str]:
@@ -1980,7 +2001,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     media = None
     if args.media_dir:
-        media = materialize_blind_media(corpus, Path(args.media_dir))
+        media_dir = Path(args.media_dir)
+        media = media_urls_relative_to(
+            materialize_blind_media(corpus, media_dir), media_dir=media_dir, page=out
+        )
     out.write_text(render_pack(corpus, media=media), encoding="utf-8")
     cards = sum(
         1
