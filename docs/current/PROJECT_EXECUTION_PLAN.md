@@ -8,14 +8,13 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress; unchanged by this slice. NEXT is the owner's
-  blind labelling inside PLAN-9D-H (package C): corpus v2 and the blind board
-  were built 2026-08-17, so 55 of its 78 cards - the ones carrying pictures -
-  wait for the owner. PLAN-9C-4 stays blocked on that labelling: without it the
-  corpus measures nothing and a provability acceptance would pass on any edit.
-  CONDITION: PLAN-9D-H closes only after the labelling; an agent cannot produce
-  it. WHO DECIDES: the owner, at entry to each step. The closure history this
-  field used to carry is in "Current checkpoint" below.
+  Checkpoint PLAN-9D, in progress; unchanged by this slice. NEXT is still the
+  owner's blind labelling inside PLAN-9D-H (package C): 55 of the board's 78
+  cards wait for the owner, and no agent can produce them. PLAN-9C-4 (package D)
+  is closed 2026-08-17 and no longer waits on it - its two acceptance numbers
+  are read off the winners, which need no ground truth; blind agreement does,
+  so 4/14 on v1 stays the last measured product number. WHO DECIDES: the owner,
+  at entry to each step. Closure history is in "Current checkpoint" below.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -1677,12 +1676,16 @@ script; `C58` — честного pre-final preview нет, оценивать 
 | **A** Точка истины `C89` | независимое ревью `ec369f8`, `ede8c4b` | закрыт `3619fe1`, verdict scope PASS · objective PASS |
 | **B** План перестаёт себе противоречить | это поле, замок, база замера, строка `C92` | закрыт коммитом, содержащим эту запись |
 | **C** Прибор | корпус v2 видит язык | **PLAN-9D-H**, in progress: корпус и доска собраны 2026-08-17, ждёт слепой разметки 55 карточек владельцем |
-| **D** Доказуемость | `is_undecidable` пофайлово | **PLAN-9C-4**, blocked до PLAN-9D-H; класс HIGH |
+| **D** Доказуемость | `is_undecidable` пофайлово | **PLAN-9C-4** закрыт 2026-08-17 этим слайсом: v1 `changed_winners 0`, v2 — 2 сцены из 11 поимённо; agreement не измерялся (разметки v2 нет), `4/14` остаётся последним числом. Класс HIGH — независимый `review-change` после |
 | **E** Безопасность | `synthesize` под `require_network`, `C87` | закрыт `d7fb378` (`C94`, `C87`), [ревью](../audits/REVIEW_PACKAGE_E_2026-08-17.md) scope PASS · objective PASS, findings 0 |
 | **F**, **ADR**, **T**, **G** | смысл · движение · витрина; долговечные решения **и перенос ответов владельца 2026-08-16 в `PRODUCT_PLAN.md`** (пакет **P**, строка `C93`); тесты; governance | **P** закрыт `52f4cee`, **T** — `407afe1`+`48266a5`, **ADR** — 2 из 5–6 (`666c296`), остаток состава за владельцем (`C92`); **F** и **G** — по маршруту |
 
-**C строго перед D**: замороженный корпус не видит языка, приёмка `C91` прошла
-бы на любой правке. **ADR не ждёт**: три решения владельца существуют только в
+**C строго перед D** — правило сработало и уточнилось на исполнении: D измерялся
+на **собранном** корпусе v2, а не на размеченном. Смена победителя видна без
+ground truth, поэтому оба числа приёмки получены до слепой разметки; сама
+разметка нужна для `blind agreement`, и без неё нельзя сказать, что новые
+победители лучше. На v1 приёмка действительно прошла бы на любой правке —
+`changed_winners 0` там означает только аддитивность. **ADR не ждёт**: три решения владельца существуют только в
 отчёте. MAJOR из [ревью C79/C89](../audits/REVIEW_C79_C89_2026-08-17.md)
 принадлежит пакету D.
 
@@ -6647,9 +6650,13 @@ misleading/conflict · paid approval.
 
 ### PLAN-9C-4 — пофайловая доказуемость
 
-- **status:** blocked (PLAN-9D-H) · **commit:** — · **зависимость:** корпус v2
-  закрыт и размечен; owner decision 2026-08-17 — **вариант A**. Пакет **D**
-  маршрута [ROLLOUT_PLAN_2026-08-17.md](../audits/ROLLOUT_PLAN_2026-08-17.md).
+- **status:** done (этим слайсом, 2026-08-17) · **commit:** слайс пакета **D**,
+  ищется в `git log` по `C91` · **зависимость снята не так, как ожидалось:**
+  требовался «корпус v2 закрыт и размечен», фактически хватило собранного
+  корпуса v2 без разметки — оба числа приёмки считаются по победителям, а
+  разметка нужна для agreement, а не для смены победителя. Owner decision
+  2026-08-17 — **вариант A**. Пакет **D** маршрута
+  [ROLLOUT_PLAN_2026-08-17.md](../audits/ROLLOUT_PLAN_2026-08-17.md).
 - **цель:** корневая причина `C91` — вердикт «доказуемо или нет» выносится по
   склеенному тексту записи, а не по полю, дающему балл. `is_undecidable`
   становится пофайловым, один примитив на все пять точек вызова.
@@ -6687,6 +6694,43 @@ misleading/conflict · paid approval.
   по-прежнему отклонена за требование, стоящее в её `title` дословно, и уже без
   слота, который бы это объяснил. Пятая точка входит в состав правки отдельной
   строкой; иначе приёмка D пройдёт при неисправленном отказе.
+- **сделано и измерено этим слайсом.** Правок две: `is_undecidable` спрашивает
+  каждое поле (`all(script_mismatch(concept, f.text) for f in fields)`, отдельной
+  веткой — запись без полей, потому что `all()` по пустому даёт `True`), и цикл
+  `must_include` в `candidate_ranker` спрашивает evidence вместо модульного
+  примитива по склейке. Алиас `_script_mismatch` удалён вместе с последним
+  вызывающим — иначе слайс сам заводит второй `C90`. Характеризация `3aff877`
+  покраснела ровно в трёх предсказанных тестах и переписана с «до» на «после»;
+  два записи, различающиеся языком одного тега, теперь равны (98.875 против
+  98.875 при 13.875 до правки), а отказ `semantic_unverified` исчез полностью —
+  это вклад именно пятой точки, при одной первой правке он оставался.
+- **числа приёмки, оба измерены.** **v1: `changed_winners 0`**
+  (`measure --baseline`, корпус `bfb4d02437f3c528`) — правка аддитивна, а
+  `blind agreement` остался `4/14`, потому что v1 языка не проверяет (`K12`).
+  **v2: 2 сцены из 11, поимённо** — `live_5/scene_003` победитель `C5` → `C7`;
+  `local_after_fix/scene_002` воздержание → `C2` (`partial_support`,
+  `slot_verdict incomplete`, `semantic_match_status matched`).
+- **чего эти числа не доказывают.** Что новые победители лучше прежних. На v2
+  нет слепой разметки владельца, agreement по нему не считается, и последним
+  измеренным числом продукта остаётся `4/14` на v1. Пока PLAN-9D-H не размечен,
+  ни один агент не вправе называть эту правку улучшением отбора.
+- **побочная находка и решение владельца 2026-08-17 — строка `C95`.** Правка
+  сдвинула одно производное поле замороженного корпуса v1: `scene_010` потеряла
+  категорию `ambiguous_needs_review`, и `finalize` стал давать другой
+  `corpus_sha256`. Пересчитать корпус нельзя — слепая разметка владельца
+  записывает хеш, против которого делалась, и harness отказывается мерить при
+  несовпадении, то есть пересчёт осиротил бы единственную размеченную истину.
+  Владелец выбрал: дрейф назвать, корпус и разметку не трогать. Пин
+  `KNOWN_DERIVED_DRIFT` требует, чтобы дрейф был ровно этим — шире и уже
+  одинаково краснеют. Настоящее исправление (вынести код-производные поля из
+  хеша) принадлежит прибору, пакет **C**, и встанет там сразу после разметки v2.
+- **метод замера v2.** Состояние «до» воспроизведено подстановкой прежнего тела
+  примитива, а не checkout'ом старого коммита: `git worktree` этого репозитория
+  на Windows не создаётся (длина путей в
+  `docs/implementation/openai_live_evaluation/`). Подстановка точна для обеих
+  точек вызова и самопроверяется — скрипт сначала заново выводит три числа,
+  замороженные `3aff877` на неисправленном HEAD, и отказывается печатать
+  результат, если не воспроизвёл их.
 - **required verification:** targeted tests + независимое ревью + gates.
 
 ### PLAN-9D — offline visual-quality evidence

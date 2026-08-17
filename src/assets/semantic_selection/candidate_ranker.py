@@ -53,7 +53,6 @@ from .evidence import (
     CandidateEvidence,
     build_evidence,
     contains_concept,
-    script_mismatch,
 )
 from .models import (
     SCENE_ENVIRONMENT,
@@ -342,7 +341,16 @@ def _score_candidate(
     must_missing: list[str] = []
     must_undecidable: list[str] = []
     for item in scene.must_include:
-        if _script_mismatch(item, text):
+        # Asked of the evidence rather than of the glued text, so this loop answers the
+        # same question as the slot layer and the score. It used to call the primitive
+        # on ``text`` directly, which is why repairing ``is_undecidable`` alone left the
+        # rejection standing: the requirement slot flipped to matched while the record
+        # stayed refused as ``semantic_unverified`` for a term its title states word for
+        # word. ``has_evidence`` stays the caller's own condition - a record with no
+        # metadata is refused two branches below and reports its status there, and
+        # listing every requirement as undecidable would replace that status with a term
+        # list that says nothing new.
+        if has_evidence and evidence.is_undecidable(item):
             must_undecidable.append(item)
         elif not _contains_concept(item, all_tokens, text):
             must_missing.append(item)
@@ -637,8 +645,10 @@ def _field_match(
 
 
 # The matching primitives live in ``evidence`` so that the slot layer asks the same
-# questions of the same text. These aliases keep the wording of this file intact.
-_script_mismatch = script_mismatch
+# questions of the same text. This alias keeps the wording of this file intact.
+# ``_script_mismatch`` stood here until the ``must_include`` loop stopped asking the
+# glued text; it is removed with its last caller rather than left behind as a second
+# way to ask a question the evidence now answers.
 _contains_concept = contains_concept
 
 

@@ -70,6 +70,40 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 #: edit to the evaluation set cannot quietly drop one of them.
 REQUIRED_SIMPLE_SUBJECTS = ("gecko", "hummingbird", "penguin", "orca")
 
+#: Derived fields of the frozen capture that the current decision path no longer
+#: produces, scene by scene, with the categories it dropped and added.
+#:
+#: The corpus stores two kinds of thing: network facts written once (pools,
+#: queries, frames) and arithmetic over them (categories, statistics). The second
+#: kind is a function of the *code*, so a repair to selection moves it - and the
+#: obvious answer, re-running ``finalize`` and committing the result, is the one
+#: that cannot be taken: ``corpus_sha256`` would change, and the owner's blind
+#: annotations record the hash they were made against
+#: (``current_annotations_v1.json``, checked in ``validate_annotations``). A
+#: recomputed corpus therefore orphans the only labelled ground truth in this
+#: repository, which is a far worse loss than a named drift.
+#:
+#: Owner decision 2026-08-17, at the closure of package D: name the drift, leave
+#: the corpus and the labels untouched. Registry row ``C95`` carries the debt and
+#: its exit condition; the honest fix is to take code-derived fields out of the
+#: hash so labels bind to captured facts, and that belongs to the instrument
+#: (package C), not here.
+#:
+#: This is a pin, not an allowance. The tests below require the drift to be
+#: *exactly* this - a further selection change reddens them again, and a drift
+#: that disappears reddens them too, so the entry is dropped by whoever removed
+#: it rather than left as scenery.
+KNOWN_DERIVED_DRIFT: dict[str, dict[str, tuple[str, ...]]] = {
+    # C91 (per-field decidability): the pool stopped being ambiguous because the
+    # terms that could not be compared against a glued record can be compared
+    # against its fields. No winner changed anywhere in the corpus - measured
+    # with ``measure --baseline``: changed_winners 0.
+    "plan9d_current_capture_v1/scene_010": {
+        "dropped": ("ambiguous_needs_review",),
+        "added": (),
+    },
+}
+
 
 def _corpus() -> dict:
     return load_current_corpus()
@@ -518,12 +552,54 @@ class DerivedFieldTests(unittest.TestCase):
     """
 
     def test_finalize_is_idempotent(self) -> None:
+        """Running it twice says the same thing as running it once.
+
+        This is idempotence of the function, and it holds whatever the decision
+        path currently answers. Until 2026-08-17 the same name asserted something
+        else - that the *stored file* equals its own recomputation - which is a
+        claim about the file being up to date with the code, not about
+        ``finalize``. The two were separated when a repair moved a derived field
+        and took the second claim down with it; the second is now its own test
+        below, with the drift named.
+        """
+        once = finalize(_corpus())
+        twice = finalize(once)
+        self.assertEqual(twice["corpus_sha256"], once["corpus_sha256"])
+
+    def test_the_stored_corpus_still_matches_the_code_apart_from_named_drift(self) -> None:
+        """The file is what today's code derives - or differs exactly as recorded.
+
+        With an empty ``KNOWN_DERIVED_DRIFT`` this is the original assertion, hash
+        against hash. With entries in it the hash cannot match by construction, so
+        the check moves to the categories themselves and requires the difference to
+        be neither wider nor narrower than the pin.
+        """
         corpus = _corpus()
-        again = finalize(corpus)
-        self.assertEqual(again["corpus_sha256"], corpus["corpus_sha256"])
+        if not KNOWN_DERIVED_DRIFT:
+            self.assertEqual(finalize(corpus)["corpus_sha256"], corpus["corpus_sha256"])
+            return
+
+        measured: dict[str, dict[str, tuple[str, ...]]] = {}
+        for scene in corpus["scenes"]:
+            stored, now = list(scene["categories"]), scene_categories(scene)
+            if stored == now:
+                continue
+            measured[scene["scene_key"]] = {
+                "dropped": tuple(item for item in stored if item not in now),
+                "added": tuple(item for item in now if item not in stored),
+            }
+        self.assertEqual(
+            KNOWN_DERIVED_DRIFT,
+            measured,
+            "the frozen corpus drifted from the code by something other than the pin: "
+            "record it in KNOWN_DERIVED_DRIFT with the repair that caused it, or - if a "
+            "pinned entry is gone - drop it in the slice that removed it",
+        )
 
     def test_categories_are_recomputable_from_the_stored_pool(self) -> None:
         for scene in _corpus()["scenes"]:
+            if scene["scene_key"] in KNOWN_DERIVED_DRIFT:
+                continue
             self.assertEqual(scene["categories"], scene_categories(scene), scene["scene_key"])
 
     def test_the_corpus_covers_more_than_one_technical_category(self) -> None:

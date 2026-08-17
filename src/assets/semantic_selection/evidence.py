@@ -411,10 +411,29 @@ class CandidateEvidence:
         return self.metadata_status == METADATA_AVAILABLE or bool(self.vision_tags)
 
     def is_undecidable(self, concept: str) -> bool:
-        """The term cannot be compared with this evidence, in either direction."""
+        """The term cannot be compared with this evidence, in either direction.
+
+        Asked field by field, because a *match* is a property of a field and reading
+        decidability off the glued text made it a property of the whole record. On a
+        record written in two scripts the two readings disagree: one Russian tag beside
+        an English title made an English subject "incomparable" with the very title that
+        stated it verbatim, the ranker zeroed ``meaning_score`` over that, and 100 by
+        field became 7.5 by record. Undecidable therefore means the term is out of
+        script with *every* field - if one field can answer, the record can be judged.
+
+        The empty-``fields`` fallback is deliberate rather than defensive: ``all()`` over
+        nothing is ``True``, and a record with no fields at all would otherwise become
+        undecidable for every term. Today ``has_metadata`` already refuses that record
+        one line above; the fallback keeps the two conditions from having to stay in
+        step to remain correct.
+        """
         if not self.has_metadata:
             return True
-        return script_mismatch(concept, self.text)
+        if not self.fields:
+            return script_mismatch(concept, self.text)
+        return all(
+            script_mismatch(concept, evidence_field.text) for evidence_field in self.fields
+        )
 
     def literal_score(self, concept: str) -> float:
         return concept_score(concept, set(self.token_set), self.text)
