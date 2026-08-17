@@ -6639,7 +6639,8 @@ misleading/conflict · paid approval.
   склеенному тексту записи, а не по полю, дающему балл. `is_undecidable`
   становится пофайловым, один примитив на все пять точек вызова.
 - **состав:** characterization-тест первым — он именует `script_mismatch` и
-  `is_undecidable`, которых сегодня нет ни в одном файле `tests/`; затем правка
+  `is_undecidable`, которых до `3aff877` не было ни в одном файле `tests/`
+  (сделано отдельным слайсом, см. ниже); затем правка
   `src/assets/semantic_selection/evidence.py`; расширение формулировки `C91` на
   слой запретов **до** начала работ, потому что вариант A шире её нынешней
   редакции; авторский запрет начинает видеть склонения — MAJOR независимого
@@ -6652,6 +6653,25 @@ misleading/conflict · paid approval.
 - **класс риска:** **HIGH** (отбор и слой запретов). Owner decision до работы
   получен; независимый `review-change` после обязателен; findings закрываются
   тестами, а не отдельным слайсом.
+- **сделано до начала пакета — commit `3aff877` (LOW, тест-only, поведение
+  отбора не менялось, checkpoint не двигался).** Прибор для этого шага
+  существует: `GluedEvidenceDecidabilityCharacterizationTest` в
+  `tests/test_metadata_evidence_repair.py` (owner-модуль `evidence.py`, как у
+  `C79`/`C89`). Заморожено на двух записях, различающихся ровно языком поля
+  `tags`: `is_undecidable` = True при literal/semantic 100.0, `semantic_score`
+  0.0 против 100.0, `final_score` 13.875 против 98.875, отказ `score_below_75`,
+  слот `subject` — `undecidable`, `must_include` из `title` —
+  `semantic_unverified`. Пятый тест — guard: русское направление разрешимо
+  сегодня и обязано остаться разрешимым. Под вариантом A, подставленным в
+  память, краснеют 3 теста из 5; два зелёных — баллы по полям и guard.
+- **уточнение к «один примитив на все пять точек вызова», измерено тем же
+  слайсом.** Подстановки в `CandidateEvidence.is_undecidable` **недостаточно**.
+  Цикл `must_include` в `candidate_ranker` зовёт модульный `script_mismatch` по
+  склейке напрямую, минуя evidence: при исправленном методе слот требования
+  становится `matched`, а отказ `semantic_unverified:<термин>` остаётся — запись
+  по-прежнему отклонена за требование, стоящее в её `title` дословно, и уже без
+  слота, который бы это объяснил. Пятая точка входит в состав правки отдельной
+  строкой; иначе приёмка D пройдёт при неисправленном отказе.
 - **required verification:** targeted tests + независимое ревью + gates.
 
 ### PLAN-9D — offline visual-quality evidence
