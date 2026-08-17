@@ -21,7 +21,9 @@ Keep the change inside one verified rescue stage or one smaller vertical slice.
 7. Preserve tolerant readers and old entrypoints until their compatibility period ends.
 8. Run targeted contract/regression tests and inspect the diff.
 9. Add an ADR under `docs/adr/` when the decision changes a public contract or system
-   boundary.
+   boundary, and also when it introduces a new module-owner, a new persisted field, a
+   new config-gate, or a new class of network action — these are boundary decisions
+   even when the surrounding diff looks additive.
 10. Refresh `docs/current/` metadata and the rescue handoff when their claims changed.
 
 ## Stop conditions

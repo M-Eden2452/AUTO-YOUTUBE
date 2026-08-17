@@ -975,6 +975,21 @@ persisted-поле · новый config-gate · новый класс сетев
 же пакета. Номера будущих ADR здесь не резервируются: ссылка на несуществующий
 ADR роняет `tools/qa/check_agent_docs.py`.
 
+**G-1 ADR-бэкфилл закрыт (2026-08-17), C92.** Три ADR по составу, подтверждённому
+владельцем: `docs/adr/0019-network-default-deny-by-named-action-class.md`
+(PLAN-STAB-4), `docs/adr/0020-rights-and-render-authorization-fail-closed.md`
+(PLAN-STAB-5/9 + M1-E fresh checksum) и
+`docs/adr/0021-paid-semantic-brief-two-independent-gates.md`
+(PLAN-9B-PRODUCER-M-LIVE). Триггер `skills/architecture-change` расширен тем
+же пакетом (см. выше). **Четвёртый кандидат аудита — «единый владелец
+отбора» (9C-2, media-selection owner) — в этот слайс не входит и ADR не
+получает: владелец решением G-1 подтвердил, что он уже описан closure-блоками
+плана и самим кодом (`src/assets/semantic_selection`), отдельной ADR-записи не
+требует.** Из шести кандидатов R9 два (versioned permission-контракт
+STAB-6 и resume fingerprint M1-D) этим слайсом отдельного ADR тоже не
+получили — они не входили в подтверждённый состав G-1 и остаются
+неадресованным остатком долга R9, если владелец не примет иное решение.
+
 **FIRST OWNER SHORT (optional product diagnostic).** Владелец может получить
 первый настоящий draft Short раньше acceptance, не выдавая его за
 publish-ready: manual assets плюс ручной `visual_brief` по сценам, режим
