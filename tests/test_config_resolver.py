@@ -9,6 +9,9 @@ from typing import Any
 from unittest import mock
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -99,6 +102,155 @@ class KeyRegistryTests(unittest.TestCase):
         }
         for key, value in expected.items():
             self.assertEqual(keys.get_setting(key).default, value, key)
+
+
+#: Keys that really sit in a `config/channels/*/channel_config.json` and that no
+#: module reads, each kept on purpose and each with the reason it is kept.
+#:
+#: Measured 2026-08-17 (test-system audit §7.5, re-verified on this HEAD): of 76
+#: distinct leaf keys across five channel configs, 14 appear nowhere in `src/`,
+#: `tools/` or `scripts/`. That is not an accident anyone can see - the owner
+#: opens their channel file and reads it as settings, because a file of settings
+#: is what it looks like. This list is what turns each of them from an accident
+#: into a decision, and the test below is what stops a fifteenth appearing
+#: quietly.
+#:
+#: The bar for being here is narrow: a key may be a *declared intent* nobody has
+#: wired yet. A key may not be here if it reads as a safety control - a switch
+#: that promises to restrain rights, money or the network and does nothing is
+#: worse than no switch, and `assets.allow_unknown_rights` was deleted from
+#: `nature_science_news_ru` rather than declared for exactly that reason (rights
+#: are enforced by `src/projects/rights.py` and `src/assets/license_policy.py`,
+#: which never read it).
+#:
+#: A key leaves this list in one of two ways: something starts reading it (then
+#: it belongs in `keys.SETTINGS` with real consumers), or it is deleted.
+DECLARATIVE_UNREAD_CHANNEL_KEYS: dict[str, str] = {
+    "approval.script_required": "заявленный порядок приёмки; ladder приёмки живёт в completion, ключ канала в него не заведён",
+    "approval.assets_required": "то же самое для ассетов",
+    "approval.final_render_required": "то же самое для финального рендера",
+    "assets.prefer_user_assets": "приоритет пользовательских ассетов; сегодня порядок источников задаёт retrieval, не канал",
+    "assets.use_local_library": "выключатель локальной библиотеки, который ничего не выключает — строка реестра C83, решение «читать или удалить» за владельцем",
+    "assets.future_paid_providers": "список на будущее и прямо назван будущим; потребителя нет и не должно быть сейчас",
+    "content.niche": "ниша канала как продуктовое описание, а не настройка",
+    "content.avoid_exaggeration": "редакционное правило для человека, пишущего сценарий",
+    "content.distinguish_hypotheses": "то же самое",
+    "content_rules": "редакционные правила размером с абзац; в size_comparison",
+    "default_style_profile": "заявленный стилевой профиль канала; в psychology, quotes, survival",
+    "voice_workflow.audition_max_characters": "ограничение прослушивания; сама audition читает свои параметры из voice-блока",
+    "voice_workflow.audition_model_strategy": "то же самое",
+}
+
+
+def _channel_config_leaf_keys() -> dict[str, list[Any]]:
+    """Every leaf key of every real channel config: dotted name -> values seen."""
+    found: dict[str, list[Any]] = {}
+
+    def walk(value: Any, path: tuple[str, ...]) -> None:
+        if isinstance(value, dict):
+            for name, item in value.items():
+                walk(item, path + (name,))
+            return
+        found.setdefault(".".join(path), []).append(value)
+
+    for config in sorted(REPO_ROOT.glob("config/channels/*/channel_config.json")):
+        walk(json.loads(config.read_text(encoding="utf-8")), ())
+    return found
+
+
+def _names_present_in_code() -> set[str]:
+    """Leaf names that appear literally anywhere in ``src``/``tools``/``scripts``.
+
+    Weak evidence of a consumer, and deliberately the same weak evidence the
+    test-system audit used to count the fourteen dead keys - so this test agrees
+    with the number the owner already accepted, instead of inventing a second.
+    A name that appears somewhere is not proof that the value is honoured; a name
+    that appears **nowhere** is proof that it is not.
+    """
+    names: set[str] = set()
+    text = "\n".join(
+        source.read_text(encoding="utf-8", errors="ignore")
+        for folder in ("src", "tools", "scripts")
+        for source in (REPO_ROOT / folder).rglob("*.py")
+    )
+    for key in _channel_config_leaf_keys():
+        leaf = key.rsplit(".", 1)[-1]
+        if leaf in text:
+            names.add(key)
+    return names
+
+
+class ChannelKeyConsumerTests(unittest.TestCase):
+    """Every key a channel file carries is either read or declared unread.
+
+    The declared-consumer check the test-system audit asked for (§7.5, slice S5),
+    built out of what already exists rather than as a config framework: the
+    resolver's own `keys.SETTINGS` already says which module reads what, and
+    `no_consumer_yet` already exists as a state. What was missing is the
+    obligation to say *something* about a key at all.
+
+    Deliberately not a schema and not a grep for forbidden names: a new key is
+    allowed, it just cannot arrive silently.
+    """
+
+    def test_every_channel_key_is_read_or_declared_unread(self) -> None:
+        from src.config_resolver import keys
+
+        answered = set(keys.list_keys()) | _names_present_in_code()
+        undeclared = sorted(
+            key
+            for key in _channel_config_leaf_keys()
+            if key not in answered and key not in DECLARATIVE_UNREAD_CHANNEL_KEYS
+        )
+        self.assertEqual(
+            [],
+            undeclared,
+            "ключ канала, которого не читает никто и который нигде не объявлен: "
+            "заведи его в keys.SETTINGS с настоящим потребителем, добавь строку "
+            "в DECLARATIVE_UNREAD_CHANNEL_KEYS с причиной, или удали ключ",
+        )
+
+    def test_the_declared_list_does_not_outlive_its_keys(self) -> None:
+        """A key that was deleted or wired must leave the list in the same slice.
+
+        Without this the list becomes the same kind of scenery it exists to
+        prevent - a record of what channel files used to carry.
+        """
+        from src.config_resolver import keys
+
+        present = set(_channel_config_leaf_keys())
+        answered = set(keys.list_keys()) | _names_present_in_code()
+        stale = {
+            key: (
+                "больше нет ни в одном channel_config.json"
+                if key not in present
+                else "теперь читается — место этому ключу в keys.SETTINGS"
+            )
+            for key in DECLARATIVE_UNREAD_CHANNEL_KEYS
+            if key not in present or key in answered
+        }
+        self.assertEqual({}, stale)
+
+    def test_no_declared_key_promises_to_restrain_rights_money_or_network(self) -> None:
+        """The one thing this list may not be used for.
+
+        Declaring a dead safety switch would make the list a way to keep a false
+        promise tidy. The words below are the ones such a switch is written with
+        in this repository - `allow_unknown_rights` was the case that prompted
+        the rule, and it was deleted rather than declared.
+        """
+        restraining = ("rights", "allow", "paid", "budget", "network", "usd", "cost", "license")
+        values = _channel_config_leaf_keys()
+        offenders = [
+            key
+            for key in DECLARATIVE_UNREAD_CHANNEL_KEYS
+            # A switch is a boolean. ``assets.future_paid_providers`` carries the
+            # word and is a list of names for later - it promises nothing to
+            # restrain, and reading it as a switch would make this check noise.
+            if any(isinstance(value, bool) for value in values.get(key, ()))
+            and any(word in key.rsplit(".", 1)[-1].casefold() for word in restraining)
+        ]
+        self.assertEqual([], offenders)
 
 
 class PrecedenceTests(_FixtureCase):

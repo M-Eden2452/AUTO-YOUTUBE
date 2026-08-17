@@ -89,7 +89,6 @@
   },
   "assets": {
     "prefer_user_assets": true,
-    "allow_unknown_rights": false,
     "use_local_library": true,
     "future_paid_providers": [
       "storyblocks",
