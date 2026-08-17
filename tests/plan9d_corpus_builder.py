@@ -106,6 +106,7 @@ from .plan9d_ground_truth import (
     corpus_digest,
     generation_class_of,
     historical_digest,
+    scene_token,
     validate_corpus,
     validate_historical_evidence,
 )
@@ -1549,7 +1550,11 @@ def materialize_blind_media(corpus: dict[str, Any], media_dir: Path) -> dict[tup
     media_dir.mkdir(parents=True, exist_ok=True)
     by_card: dict[tuple[str, str], list[str]] = {}
     for scene in corpus["scenes"]:
-        scene_slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(scene["scene_key"]))
+        # The opaque token, not the scene key. A file called
+        # ``local_after_fix_scene_004_ban_declension_cooling_tower_C1_0.jpg`` sits in
+        # an <img src> on the page and says, before the owner has looked at
+        # anything, that this scene was made by hand and what it bans.
+        scene_slug = scene_token(str(scene["scene_key"]))
         for entry in scene["candidates"]:
             blind_id = str(entry["blind_id"])
             names: list[str] = []
@@ -1621,26 +1626,30 @@ def render_pack(corpus: dict[str, Any], *, media: dict[tuple[str, str], list[str
     Same gate as the template it feeds: a pack is only ever rendered for the
     frozen current capture.
 
+    Scenes appear under an opaque token rather than under ``scene_key``: the key
+    names the run and, for an incident scene, the case, and a blind pass may not
+    carry that hint in a DOM attribute or a picture's file name. The saved labels
+    come back carrying the token and the harness maps it back.
+
     What the resulting ground truth may be used to claim
     ----------------------------------------------------
-    Only candidates that carry a frame are shown, and the capture sampled frames
-    for a preview shortlist. So a label produced here reads *the best visually
-    checkable candidate inside the captured preview shortlist* - never "the best
-    asset in the pool". Two consequences are load-bearing and must not be argued
-    away by a later reader: the benchmark cannot show that retrieval missed a
-    better candidate before the shortlist, and it cannot speak for a media type
-    the capture barely previewed.
+    Only candidates with a picture are shown, and a run only ever previewed a
+    shortlist. So a label produced here reads *the best visually checkable
+    candidate inside what the run saved* - never "the best asset in the pool".
+    Two consequences are load-bearing and must not be argued away by a later
+    reader: the benchmark cannot show that retrieval missed a better candidate
+    before the shortlist, and it cannot speak for a media type the run barely
+    previewed.
 
-    The frozen corpus offers 56 candidate cards - 43 image candidates and 13
-    video candidates - drawn from 64 captured frames: 43 frames belonging to the
-    images and 21 to the videos. Cards and frames are different units and an
-    earlier version of this paragraph mixed them, reading "54 images and 2
-    videos"; the corpus says otherwise and the corpus wins. The limit the
-    sentence was reaching for survives the correction and is if anything
-    sharper: 11 of the 13 video candidates carry a single sampled frame and only
-    2 carry five, so a label on a video card is a judgement of one still, not of
-    motion. These labels do not measure video selection, video-first or
-    composite assembly.
+    Cards and frames are different units, and an earlier version of this
+    paragraph mixed them - it read "54 images and 2 videos" against a corpus
+    holding 43 image cards and 13 video cards. So the counts are not repeated
+    here at all: every corpus carries its own ``card_statistics``, and v1 and v2
+    have different ones (56 of 1064 in v1, 55 of 78 in v2). The limit the
+    sentence was reaching for is the durable part and survives: a video card
+    shows stills, so a label on it is a judgement of frames, not of motion, and
+    these labels do not measure video selection, video-first or composite
+    assembly.
     """
 
     assert_current_benchmark_input(corpus, context="annotation pack")
@@ -1662,9 +1671,10 @@ def render_pack(corpus: dict[str, Any], *, media: dict[tuple[str, str], list[str
     ]
     for scene in corpus["scenes"]:
         semantic = scene.get("semantic_scene") or {}
+        token = scene_token(str(scene["scene_key"]))
         parts.append(
-            f"<div class='scene' data-key=\"{html.escape(scene['scene_key'])}\">"
-            f"<h2>{html.escape(scene['scene_text'] or scene['scene_key'])}</h2><dl class='req'>"
+            f"<div class='scene' data-key=\"{html.escape(token)}\">"
+            f"<h2>{html.escape(scene['scene_text'] or token)}</h2><dl class='req'>"
         )
         for label, key in (
             ("Субъект", "subject"),
@@ -1826,7 +1836,7 @@ def render_review_pack(corpus: dict[str, Any]) -> str:
     for scene in corpus["scenes"]:
         semantic = scene.get("semantic_scene") or {}
         parts.append(
-            f"<div class='scene' data-key=\"{html.escape(str(scene['scene_key']))}\">"
+            f"<div class='scene' data-key=\"{html.escape(scene_token(str(scene['scene_key'])))}\">"
             f"<h2>{html.escape(str(scene.get('scene_text') or scene['scene_key']))}</h2><dl class='req'>"
         )
         for label, key in (

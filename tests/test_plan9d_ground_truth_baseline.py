@@ -79,6 +79,8 @@ from tests.plan9d_ground_truth import (
     load_annotations,
     load_current_corpus,
     run_metadata_baseline,
+    scene_key_index,
+    scene_token,
     scene_verdict,
     validate_annotations,
     validate_corpus,
@@ -208,13 +210,16 @@ def _scene_block(pack: str, scene_key: str) -> str:
     """One scene's markup, so an assertion cannot match a neighbouring card.
 
     Blind identifiers restart at ``C1`` in every scene, so a whole-page search for
-    one would find another scene's candidate and pass for the wrong reason.
+    one would find another scene's candidate and pass for the wrong reason. The
+    page names scenes by their opaque token, so the lookup derives it rather than
+    searching for the key - the key is the one thing the page must not contain.
     """
 
+    token = scene_token(scene_key)
     for block in pack.split("<div class='scene'"):
-        if f'data-key="{scene_key}"' in block:
+        if f'data-key="{token}"' in block:
             return block
-    raise AssertionError(f"scene {scene_key} is not in the pack")
+    raise AssertionError(f"scene {scene_key} ({token}) is not in the pack")
 
 
 def _pack_save_button(pack: str) -> str:
@@ -824,9 +829,18 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
                 "undecidable_cases": 0,
                 # v1 is entirely a blind-annotation corpus: the class field was
                 # added by PLAN-9D-H and this corpus declares none, which reads as
-                # blind. The counter is here so a later corpus cannot mix hand-made
-                # scenes into a total that is quoted as field evidence.
+                # blind. So the blind pair equals the total here, and that equality
+                # is the point - it is what makes the two readings comparable.
+                "blind_annotation_scenes": 14,
+                "scorable_blind_scenes": 14,
+                "preferred_matches_blind": 4,
                 "incident_scenes": 0,
+                "preferred_matches_incident": 0,
+                # 1064 candidates, 56 of which the capture previewed. Everything
+                # else was never shown to anyone, and the number says so instead of
+                # disappearing into the ratio above.
+                "candidates": 1064,
+                "candidates_unreviewable": 1008,
             },
             self.result["aggregate"],
         )
@@ -1005,6 +1019,145 @@ class VisibilityTests(unittest.TestCase):
         corpus["corpus_sha256"] = corpus_digest(corpus)
         with self.assertRaises(BenchmarkError):
             validate_corpus(corpus)
+
+
+class SceneTokenTests(unittest.TestCase):
+    """The page may not name the scene, because the name is a hint.
+
+    A scene key says which run a pool came from - and one of the two runs of
+    corpus v2 is library-only - while an incident scene's key carries its case
+    slug. Two independent reviews read the board and called it fully blind; both
+    missed that the key sat in a ``data-key`` attribute and inside every picture's
+    file name.
+    """
+
+    def setUp(self) -> None:
+        self.corpus = _current_corpus()
+
+    def test_the_token_is_derived_and_says_nothing(self) -> None:
+        key = "local_after_fix/scene_004#ban_declension_cooling_tower"
+        token = scene_token(key)
+        self.assertEqual(token, scene_token(key))
+        self.assertRegex(token, r"^S[0-9a-f]{10}$")
+        for fragment in ("local", "after_fix", "scene", "ban", "declension", "cooling"):
+            self.assertNotIn(fragment, token)
+
+    def test_the_page_carries_the_token_and_not_the_key(self) -> None:
+        """Checked on the attributes, because a requirement may legitimately quote
+        anything - the synthetic fixture even writes the key into its scene text.
+        What must never appear is the key as an identifier the page uses."""
+
+        media = _blind_media_names(self.corpus)
+        pack = render_pack(self.corpus, media=media)
+        for scene in self.corpus["scenes"]:
+            key = str(scene["scene_key"])
+            self.assertIn(f'data-key="{scene_token(key)}"', pack)
+            self.assertNotIn(f'data-key="{key}"', pack)
+            self.assertNotIn(f'src="{key}', pack)
+
+    def test_picture_file_names_carry_the_token_and_not_the_key(self) -> None:
+        """The leak was in ``<img src>`` as much as in the attribute."""
+
+        import tempfile
+        from pathlib import Path as _Path
+
+        corpus = _current_corpus()
+        scene = corpus["scenes"][0]
+        with tempfile.TemporaryDirectory() as raw:
+            root = _Path(raw)
+            picture = root / "some_source_picture.jpg"
+            picture.write_bytes(b"not really a jpeg")
+            for entry in scene["candidates"]:
+                entry["frames"] = []
+                entry["visual_evidence"] = [
+                    {
+                        "kind": EVIDENCE_KIND_LOCAL_FILE,
+                        "local_path": picture.as_posix(),
+                        "sha256": "0" * 64,
+                        "media_type": "image",
+                    }
+                ]
+            media = materialize_blind_media(corpus, root / "media")
+            names = [name for value in media.values() for name in value]
+            self.assertTrue(names)
+            for name in names:
+                self.assertNotIn("synthetic", name)
+                self.assertNotIn("scene_", name)
+                self.assertTrue(name.startswith("S"), name)
+
+    def test_labels_saved_under_the_token_still_measure(self) -> None:
+        """The token is opaque to the reader and resolvable by the harness."""
+
+        annotations = _complete(self.corpus)
+        for entry in annotations["scenes"]:
+            entry["scene_key"] = scene_token(entry["scene_key"])
+        complete, problems = annotations_are_complete(self.corpus, annotations)
+        self.assertEqual([], problems)
+        self.assertTrue(complete)
+        result = evaluate_arm(self.corpus, annotations, run_metadata_baseline(self.corpus))
+        self.assertEqual(STATUS_COMPLETE, result["status"])
+        self.assertEqual(
+            {scene["scene_key"] for scene in self.corpus["scenes"]},
+            {row["scene_key"] for row in result["scenes"]},
+        )
+
+    def test_labels_naming_no_scene_of_this_corpus_are_refused(self) -> None:
+        annotations = _complete(self.corpus)
+        annotations["scenes"][0]["scene_key"] = "S0123456789"
+        complete, problems = annotations_are_complete(self.corpus, annotations)
+        self.assertFalse(complete)
+        self.assertTrue(any("names no scene" in problem for problem in problems))
+
+    def test_the_frozen_v1_labels_still_resolve_by_their_key(self) -> None:
+        corpus = load_current_corpus()
+        index = scene_key_index(corpus)
+        for scene in load_annotations()["scenes"]:
+            self.assertIn(str(scene["scene_key"]), index)
+
+
+class ClassSeparatedNumberTests(unittest.TestCase):
+    """A hand-made scene may not be counted inside field agreement.
+
+    It sat in the single denominator through one round of review: the class was
+    recorded and the ratio still mixed the two.
+    """
+
+    def setUp(self) -> None:
+        self.corpus = _current_corpus()
+        self.corpus["scenes"][0]["corpus_class"] = CORPUS_CLASS_INCIDENT
+        self.corpus["scenes"][0]["incident_note"] = "hand-written requirement, real candidates"
+        self.corpus["corpus_sha256"] = ""
+        self.corpus["corpus_sha256"] = corpus_digest(self.corpus)
+        self.result = evaluate_arm(
+            self.corpus, _complete(self.corpus), run_metadata_baseline(self.corpus)
+        )
+
+    def test_the_blind_ratio_excludes_the_incident_scene(self) -> None:
+        aggregate = self.result["aggregate"]
+        self.assertEqual(3, aggregate["scenes"])
+        self.assertEqual(2, aggregate["blind_annotation_scenes"])
+        self.assertEqual(1, aggregate["incident_scenes"])
+        self.assertEqual(2, aggregate["scorable_blind_scenes"])
+        self.assertLessEqual(aggregate["preferred_matches_blind"], aggregate["preferred_matches"])
+        self.assertEqual(
+            aggregate["preferred_matches"],
+            aggregate["preferred_matches_blind"] + aggregate["preferred_matches_incident"],
+        )
+
+    def test_the_printed_report_states_both_and_mixes_neither(self) -> None:
+        text = format_measurement(self.result)
+        self.assertIn("blind agreement", text)
+        self.assertIn("incident scenes", text)
+        self.assertIn("cards not shown to anyone", text)
+
+    def test_cards_without_pictures_are_counted_as_not_asked(self) -> None:
+        corpus = _current_corpus()
+        corpus["scenes"][0]["candidates"][0]["frames"] = []
+        corpus["corpus_sha256"] = ""
+        corpus["corpus_sha256"] = corpus_digest(corpus)
+        result = evaluate_arm(corpus, _complete(corpus), run_metadata_baseline(corpus))
+        self.assertEqual(1, result["aggregate"]["candidates_unreviewable"])
+        self.assertEqual(6, result["aggregate"]["candidates"])
 
 
 class WinnerDiffTests(unittest.TestCase):
@@ -1268,6 +1421,13 @@ class BilingualCorpusTests(unittest.TestCase):
                     self.assertNotIn(text, block, f"{scene['scene_key']}/{entry['blind_id']}")
         for token in ("captured_decision", "final_score", "local_library", "selected_blind_id"):
             self.assertNotIn(token, pack.casefold(), token)
+        # On real data the scene key appears nowhere at all: the narration is the
+        # scene text, so nothing legitimately quotes the key. This is the assertion
+        # the synthetic fixture cannot make, and the one that matters - it covers
+        # the run name and the incident case slug in one line.
+        for scene in self.corpus["scenes"]:
+            self.assertNotIn(str(scene["scene_key"]), pack)
+            self.assertNotIn(str(scene["run_id"]), pack)
 
     def test_the_board_says_how_many_cards_it_is_not_showing(self) -> None:
         pack = render_pack(self.corpus, media=_blind_media_names(self.corpus))
@@ -1444,9 +1604,12 @@ class MeasurementReadoutTests(unittest.TestCase):
     def test_the_readout_states_the_denominator_and_not_just_the_number(self) -> None:
         # 4 on its own is not a measurement: the honest denominator is the
         # scorable scenes, because the difference is scenes where the owner was
-        # never shown the winner.
+        # never shown the winner. Since PLAN-9D-H the total is printed under its
+        # own name, because the ratio that describes field behaviour is the blind
+        # one above it and the two must not be read as the same number.
         text = format_measurement(self._report())
-        self.assertIn("preferred_matches            4 / 14 scorable", text)
+        self.assertIn("all scenes together          4 / 14 scorable", text)
+        self.assertIn("blind agreement", text)
         self.assertIn("must_avoid_escaped           0", text)
         self.assertIn("scene_001", text)
 

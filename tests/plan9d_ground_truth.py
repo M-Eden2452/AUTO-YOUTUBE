@@ -324,6 +324,43 @@ def blind_order_key(scene_key: str, asset_id: str) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def scene_token(scene_key: str) -> str:
+    """An opaque page-side name for a scene, derived and reproducible.
+
+    The blind page cannot carry ``scene_key`` itself. The key names the run a pool
+    came from (``live_5`` against ``local_after_fix``, and one of those two is
+    library-only), and an incident scene's key carries the case slug - so a reader
+    who opens the page source, or reads a picture's file name, learns which scene
+    was made by hand and what it is about before judging it. That is not the
+    provider or the ranker's answer, but it is a hint about the answer, and a blind
+    pass has to be free of hints.
+
+    The page therefore shows this token, the saved labels come back carrying it,
+    and the harness maps it back to the key because it holds the corpus. Nothing
+    on the page maps in the other direction.
+    """
+
+    digest = hashlib.sha256(f"{BLIND_SALT}|scene|{scene_key}".encode("utf-8")).hexdigest()
+    return f"S{digest[:10]}"
+
+
+def scene_key_index(corpus: dict[str, Any]) -> dict[str, str]:
+    """Every name a scene may be referred to by, mapped to its real key.
+
+    Both spellings resolve: annotations made against the opaque token and the
+    frozen v1 labels, which were made when the page still showed the key.
+    """
+
+    index: dict[str, str] = {}
+    for scene in corpus.get("scenes") or []:
+        key = str(scene.get("scene_key") or "")
+        if not key:
+            continue
+        index[key] = key
+        index[scene_token(key)] = key
+    return index
+
+
 def assign_blind_ids(scene_key: str, asset_ids: Iterable[str]) -> dict[str, str]:
     """Map each real asset id to ``C1..Cn`` in hash order, not in rank order."""
 
@@ -750,7 +787,15 @@ def annotations_are_complete(corpus: dict[str, Any], annotations: dict[str, Any]
         problems.append("corpus_sha256 does not match the frozen corpus")
     if not str(annotations.get("annotator") or "").strip():
         problems.append("annotator is empty")
-    by_key = {str(s.get("scene_key")): s for s in annotations.get("scenes") or []}
+    index = scene_key_index(corpus)
+    by_key: dict[str, dict[str, Any]] = {}
+    for entry in annotations.get("scenes") or []:
+        named = str(entry.get("scene_key") or "")
+        resolved = index.get(named)
+        if resolved is None:
+            problems.append(f"{named or '(no scene_key)'}: names no scene of this corpus")
+            continue
+        by_key[resolved] = entry
     for scene in corpus["scenes"]:
         key = str(scene["scene_key"])
         entry = by_key.get(key)
@@ -1073,7 +1118,8 @@ def evaluate_arm(
             "aggregate": {},
         }
 
-    by_key = {str(s["scene_key"]): s for s in annotations["scenes"]}
+    index = scene_key_index(corpus)
+    by_key = {index[str(s["scene_key"])]: s for s in annotations["scenes"]}
     rows: list[dict[str, Any]] = []
     for scene in corpus["scenes"]:
         key = str(scene["scene_key"])
@@ -1130,6 +1176,18 @@ def evaluate_arm(
             }
         )
 
+    # The headline ratio must not mix the two classes. An incident scene is a
+    # requirement written by hand, so counting it inside "how often the system
+    # agrees with the owner" would quote a made-up scene as field behaviour - the
+    # exact confusion the class field exists to prevent, and it survived one round
+    # of review inside the denominator.
+    blind_rows = [r for r in rows if r["corpus_class"] != CORPUS_CLASS_INCIDENT]
+    incident_rows = [r for r in rows if r["corpus_class"] == CORPUS_CLASS_INCIDENT]
+    scorable_blind = [r for r in blind_rows if not r["unscorable_winner_not_visible"]]
+    # Counted from the corpus, not from the labels: a candidate with no picture was
+    # never shown, so its absence from the owner's marks means "not asked", and a
+    # later reader must not be able to read it as "the owner said no".
+    cards = [entry for scene in corpus["scenes"] for entry in scene["candidates"]]
     aggregate = {
         "scenes": len(rows),
         # ``scenes`` counts what was measured; ``scorable_scenes`` is the only
@@ -1147,12 +1205,20 @@ def evaluate_arm(
         "safe_escalations_to_review": sum(1 for r in rows if r["safe_escalation_to_review"]),
         "auto_safe": sum(1 for r in rows if r["auto_safe"]),
         "undecidable_cases": sum(1 for r in rows if r["undecidable"]),
-        # Kept apart from the totals rather than folded into them: an incident
-        # scene proves something about a mechanism and nothing about the field,
-        # so a reader has to be able to see how much of the number it carries.
-        "incident_scenes": sum(
-            1 for r in rows if r["corpus_class"] == CORPUS_CLASS_INCIDENT
+        # The two classes, separated. ``preferred_matches`` above stays the total
+        # because older readers and the frozen v1 numbers are written against it;
+        # the pair below is what may be quoted as field behaviour.
+        "blind_annotation_scenes": len(blind_rows),
+        "scorable_blind_scenes": len(scorable_blind),
+        "preferred_matches_blind": sum(
+            1 for r in scorable_blind if r["selection_matches_preferred"]
         ),
+        "incident_scenes": len(incident_rows),
+        "preferred_matches_incident": sum(
+            1 for r in incident_rows if r["selection_matches_preferred"]
+        ),
+        "candidates": len(cards),
+        "candidates_unreviewable": sum(1 for entry in cards if not candidate_is_visible(entry)),
     }
     return {
         "status": STATUS_COMPLETE,
@@ -1364,8 +1430,19 @@ def format_measurement(report: dict[str, Any], *, corpus_path: Path | None = Non
         f"corpus    {(corpus_path or CURRENT_CORPUS_PATH).name}  sha256 {report['corpus_sha256'][:16]}",
         f"annotator {report.get('annotator') or '-'}  at {report.get('annotated_at_utc') or '-'}",
         "",
-        f"preferred_matches            {aggregate['preferred_matches']} / {scorable} scorable"
+        # The blind ratio first and alone: it is the only one that describes what
+        # the system does in the field. The hand-made scenes are printed beside it,
+        # never inside it.
+        f"blind agreement              {aggregate.get('preferred_matches_blind', 0)}"
+        f" / {aggregate.get('scorable_blind_scenes', 0)} scorable"
+        f"  ({aggregate.get('blind_annotation_scenes', 0)} captured scenes)",
+        f"incident scenes              {aggregate.get('incident_scenes', 0)}"
+        f"  (agreement {aggregate.get('preferred_matches_incident', 0)}; hand-written"
+        " requirement - mechanism evidence, not field evidence)",
+        f"all scenes together          {aggregate['preferred_matches']} / {scorable} scorable"
         f"  ({aggregate['scenes']} scenes)",
+        f"cards not shown to anyone    {aggregate.get('candidates_unreviewable', 0)}"
+        f" of {aggregate.get('candidates', 0)}  (no picture on disk - not asked, not refused)",
     ]
     for key in (
         "unacceptable_selected",
