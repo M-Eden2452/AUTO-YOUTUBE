@@ -605,6 +605,50 @@ class AnnotationContractTests(unittest.TestCase):
         self.assertFalse(complete)
         self.assertTrue(any("corpus_sha256" in problem for problem in problems))
 
+    def test_a_recomputed_derived_field_orphans_labels_about_the_same_pictures(self) -> None:
+        """`C95`, pinned before repair: the binding asks the file, not the question.
+
+        Nothing the annotator saw moves here. Same scenes, same stated
+        requirement, same blind identifiers, same frames and the same frame
+        checksums; only ``categories`` changes, which is derived by
+        ``finalize`` from the pool, is kept off the pack on purpose, and is
+        therefore not part of what a human was asked about. Today that is
+        enough to unbind the labels, because ``corpus_sha256`` covers every key
+        of the file - so the next repair that moves a derived field either
+        orphans the only annotated truth in the repository or forbids the
+        recompute. This test states the current answer; the slice that closes
+        `C95` inverts it.
+        """
+
+        annotations = _complete(self.corpus)
+        recomputed = json.loads(json.dumps(self.corpus))
+        recomputed["scenes"][0]["categories"] = ["subject_mismatch_risk", "recomputed"]
+        recomputed["corpus_sha256"] = ""
+        recomputed["corpus_sha256"] = corpus_digest(recomputed)
+
+        complete, problems = annotations_are_complete(recomputed, annotations)
+        self.assertFalse(complete)
+        self.assertTrue(any("corpus_sha256" in problem for problem in problems))
+
+    def test_changing_what_the_annotator_saw_unbinds_the_labels(self) -> None:
+        """The half that must survive the repair, whatever the binding becomes.
+
+        A frame checksum is the identity of the picture on the card. If it can
+        move while the labels stay bound, the ground truth stops being a
+        statement about the pixels the owner judged - which is the whole reason
+        the binding exists. Green before the `C95` repair and required to stay
+        green after it, so a narrower binding cannot narrow past the question.
+        """
+
+        annotations = _complete(self.corpus)
+        recaptured = json.loads(json.dumps(self.corpus))
+        recaptured["scenes"][0]["candidates"][0]["frames"][0]["sha256"] = "f" * 64
+        recaptured["corpus_sha256"] = ""
+        recaptured["corpus_sha256"] = corpus_digest(recaptured)
+
+        complete, _problems = annotations_are_complete(recaptured, annotations)
+        self.assertFalse(complete)
+
 
 class MetadataBaselineTests(unittest.TestCase):
     """Wiring, not quality: a synthetic pool cannot say how good a decision is."""
