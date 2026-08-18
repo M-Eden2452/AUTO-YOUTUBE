@@ -107,9 +107,13 @@ class KeyRegistryTests(unittest.TestCase):
 #: Keys that really sit in a `config/channels/*/channel_config.json` and that no
 #: module reads, each kept on purpose and each with the reason it is kept.
 #:
-#: Measured 2026-08-17 (test-system audit §7.5, re-verified on this HEAD): of 76
-#: distinct leaf keys across five channel configs, 14 appear nowhere in `src/`,
-#: `tools/` or `scripts/`. That is not an accident anyone can see - the owner
+#: Measured with `_channel_config_leaf_keys` below, so the number is recomputable
+#: rather than quoted: of 79 distinct leaf keys across five channel configs, 14
+#: appeared nowhere in `src/`, `tools/` or `scripts/`; after
+#: `assets.allow_unknown_rights` was deleted, 78 and 13. The test-system audit
+#: §7.5 said 76, this comment repeated it, and an independent review of the slice
+#: recounted with this file's own helper - the census total was wrong, the
+#: load-bearing count of dead keys was not. That is not an accident anyone can see - the owner
 #: opens their channel file and reads it as settings, because a file of settings
 #: is what it looks like. This list is what turns each of them from an accident
 #: into a decision, and the test below is what stops a fifteenth appearing
