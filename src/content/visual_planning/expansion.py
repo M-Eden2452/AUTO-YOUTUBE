@@ -278,9 +278,11 @@ def _mentions_avoided(query: str, must_avoid: tuple[str, ...]) -> bool:
 
     Matched as a consecutive token phrase, so "Suez Canal" does not veto a query about
     the Panama Canal and "blue whale" does not veto one about whale watching. Both
-    sides are tokenised with the same provider-token rule used to build queries, so
-    punctuation ("Panama Canal," or a truncated "Panama Canal.") cannot smuggle an
-    avoided phrase past a raw-whitespace split.
+    sides are tokenised the same way - the token *shape* queries are built with, in any
+    script rather than in Latin only (see ``_avoided_match_tokens``) - so punctuation
+    ("Panama Canal," or a truncated "Panama Canal.") cannot smuggle an avoided phrase
+    past a raw-whitespace split, and a ban written in the scene's own language is not
+    silently unenforceable.
     """
     tokens = _avoided_match_tokens(query)
     for phrase in must_avoid:
