@@ -25,6 +25,19 @@ scenes measurable, which is "not reliably distinguishable" rather than a rule. I
 is not in ``SHOT_TYPE_SCALE_INTENT``, and this file asserts that a payoff scene
 gets no adjustment so a future edit cannot quietly reintroduce a rule that was
 already falsified once.
+
+A second finding, from the independent review of the commit that first shipped
+this signal: "meaning always outranks shot scale" does not follow from ``+-8``
+being smaller than a *large* meaning gap - it was reproduced flipping a *partial*
+compound-subject match (two words of three shared, real corpus subjects are
+phrases like "factory assembly line") past a full match, purely on shot-scale
+wording, at a base-score gap under the raw swing. ``SHOT_SCALE_TIE_EPSILON`` and
+``_apply_shot_scale_within_meaning_tier`` close that gap structurally: a candidate
+already trailing the scene's best meaning-driven score by more than the epsilon
+gets no adjustment at all, so it can never be lifted past a candidate meaning
+already ranks above it. ``ShotScaleTieEpsilonTests`` below tests that guard
+directly, and ``test_a_partial_subject_match_cannot_be_lifted_past_a_full_match``
+locks the exact scenario the review found.
 """
 
 from __future__ import annotations
@@ -33,7 +46,9 @@ import unittest
 
 from src.assets.semantic_selection.candidate_ranker import (
     SHOT_SCALE_ADJUSTMENT,
+    SHOT_SCALE_TIE_EPSILON,
     SHOT_TYPE_SCALE_INTENT,
+    _apply_shot_scale_within_meaning_tier,
     rank_candidates,
 )
 from src.assets.semantic_selection.models import SemanticScene
@@ -104,8 +119,10 @@ class ShotScaleSignalTests(unittest.TestCase):
         self.assertGreater(ranked["wide"]["final_score"], ranked["close"]["final_score"])
 
     def test_a_detail_scene_rewards_close_and_penalises_wide(self) -> None:
-        wide = _candidate("wide", title="Aerial shot of a solar farm at dawn")
-        close = _candidate("close", title="Close-up of a solar panel cell")
+        # Same subject wording on both sides, for the same reason as the establishing
+        # test above.
+        wide = _candidate("wide", title="Aerial shot of a solar panel array in daylight")
+        close = _candidate("close", title="Close-up of a solar panel array in daylight")
         ranked = _ranked(_scene(shot_type="detail"), [wide, close])
         self.assertEqual(SHOT_SCALE_ADJUSTMENT, ranked["close"]["shot_scale_adjustment"])
         self.assertEqual(-SHOT_SCALE_ADJUSTMENT, ranked["wide"]["shot_scale_adjustment"])
@@ -131,7 +148,14 @@ class ShotScaleSignalTests(unittest.TestCase):
         self.assertEqual("", ranked["wide"]["shot_scale_intent"])
 
     def test_meaning_still_outranks_shot_scale(self) -> None:
-        """A strong subject mismatch is not something a shot-scale bonus may cover."""
+        """A fully disjoint subject is not something a shot-scale bonus may cover.
+
+        The gap here is so large that ``weak``'s own bonus is suppressed outright by
+        the tie-epsilon guard (it never even reaches ``strong``) - a stronger result
+        than merely losing the sort, and covered on its own terms by the closer,
+        realistic case in ``test_a_partial_subject_match_cannot_be_lifted_past_a_full_
+        match`` below.
+        """
 
         scene = _scene(shot_type="establishing", subject=["solar panel"])
         strong_match_wrong_scale = _candidate(
@@ -142,8 +166,98 @@ class ShotScaleSignalTests(unittest.TestCase):
         )
         ranked = _ranked(scene, [strong_match_wrong_scale, weak_match_right_scale])
         self.assertEqual(-SHOT_SCALE_ADJUSTMENT, ranked["strong"]["shot_scale_adjustment"])
-        self.assertEqual(SHOT_SCALE_ADJUSTMENT, ranked["weak"]["shot_scale_adjustment"])
+        self.assertEqual(0.0, ranked["weak"]["shot_scale_adjustment"])
         self.assertGreater(ranked["strong"]["final_score"], ranked["weak"]["final_score"])
+
+    def test_a_partial_subject_match_cannot_be_lifted_past_a_full_match(self) -> None:
+        """The exact case the independent review of this signal's first commit found.
+
+        A candidate naming two of the scene's three subject words, worded with the
+        "right" shot scale, does not outrank a candidate naming all three, worded
+        with the "wrong" one - the closer meaning-driven gap (a partial match, not a
+        disjoint subject) is exactly the boundary ``SHOT_SCALE_TIE_EPSILON`` exists
+        to hold.
+        """
+
+        scene = _scene(shot_type="establishing", subject=["solar panel array"])
+        full_match_wrong_scale = _candidate(
+            "full", title="Close-up of a solar panel array cell"
+        )
+        partial_match_right_scale = _candidate(
+            "partial", title="Aerial shot of a solar panel installation"
+        )
+        ranked = _ranked(scene, [full_match_wrong_scale, partial_match_right_scale])
+        self.assertEqual(0.0, ranked["partial"]["shot_scale_adjustment"])
+        self.assertGreater(ranked["full"]["final_score"], ranked["partial"]["final_score"])
+
+
+class ShotScaleTieEpsilonTests(unittest.TestCase):
+    """The pool-aware guard added after independent review of this primitive.
+
+    Tested directly against the helper rather than through text scoring: the
+    guard's contract is about a plain ``final_score`` gap, and constructing an
+    exact boundary through stemmer-driven text matching is not precise. The helper
+    takes and mutates a list of ranked-candidate dicts in place, which is all it
+    needs from ``rank_candidates``.
+    """
+
+    @staticmethod
+    def _pool(gap: float, *, raw: float) -> list[dict[str, object]]:
+        return [
+            {"asset_id": "best", "final_score": 100.0, "shot_scale_adjustment": 0.0},
+            {
+                "asset_id": "trailing",
+                "final_score": 100.0 - gap,
+                "shot_scale_adjustment": raw,
+            },
+        ]
+
+    def test_a_candidate_inside_the_tier_keeps_its_adjustment(self) -> None:
+        pool = self._pool(SHOT_SCALE_TIE_EPSILON - 0.5, raw=SHOT_SCALE_ADJUSTMENT)
+        _apply_shot_scale_within_meaning_tier(pool)
+        self.assertEqual(SHOT_SCALE_ADJUSTMENT, pool[1]["shot_scale_adjustment"])
+
+    def test_a_candidate_exactly_at_the_boundary_keeps_its_adjustment(self) -> None:
+        pool = self._pool(SHOT_SCALE_TIE_EPSILON, raw=SHOT_SCALE_ADJUSTMENT)
+        _apply_shot_scale_within_meaning_tier(pool)
+        self.assertEqual(SHOT_SCALE_ADJUSTMENT, pool[1]["shot_scale_adjustment"])
+
+    def test_a_candidate_outside_the_tier_loses_its_adjustment_and_cannot_catch_up(
+        self,
+    ) -> None:
+        pool = self._pool(SHOT_SCALE_TIE_EPSILON + 0.5, raw=SHOT_SCALE_ADJUSTMENT)
+        _apply_shot_scale_within_meaning_tier(pool)
+        self.assertEqual(0.0, pool[1]["shot_scale_adjustment"])
+        self.assertLess(pool[1]["final_score"], pool[0]["final_score"])
+
+    def test_the_pool_best_still_receives_its_own_penalty(self) -> None:
+        # Being the meaning leader does not exempt a candidate from a shot-scale
+        # penalty when it is the one whose own text names the wrong scale.
+        pool = [
+            {
+                "asset_id": "best",
+                "final_score": 100.0,
+                "shot_scale_adjustment": -SHOT_SCALE_ADJUSTMENT,
+            }
+        ]
+        _apply_shot_scale_within_meaning_tier(pool)
+        self.assertEqual(-SHOT_SCALE_ADJUSTMENT, pool[0]["shot_scale_adjustment"])
+        self.assertEqual(100.0 - SHOT_SCALE_ADJUSTMENT, pool[0]["final_score"])
+
+    def test_scene_match_score_is_recomputed_and_clamped_after_the_adjustment(self) -> None:
+        # ``final_score`` itself is never clamped (existing behaviour, unrelated to
+        # this guard); ``scene_match_score`` is the 0-100 display value and must
+        # track whatever the adjustment just changed ``final_score`` to.
+        pool = [
+            {
+                "asset_id": "best",
+                "final_score": 97.0,
+                "shot_scale_adjustment": SHOT_SCALE_ADJUSTMENT,
+            }
+        ]
+        _apply_shot_scale_within_meaning_tier(pool)
+        self.assertEqual(105.0, pool[0]["final_score"])
+        self.assertEqual(100.0, pool[0]["scene_match_score"])
 
 
 class SceneAnalyzerShotTypeTests(unittest.TestCase):

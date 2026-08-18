@@ -176,6 +176,21 @@ SHOT_TYPE_SCALE_INTENT: dict[str, str] = {
 # subject match than it is.
 SHOT_SCALE_ADJUSTMENT = 8.0
 
+# The owner's second constraint - meaning must always outrank shot scale - does not
+# hold from magnitude alone: independent review of this primitive (C99) reproduced a
+# real flip with realistic data, a partial compound-subject match (two words of three
+# shared) losing to a full match purely on shot-scale wording, at a base-score gap of
+# about 15 points - comfortably inside +-8's 16-point swing. The two real corpus fixes
+# this signal exists for need far less room than that: measured directly on the frozen
+# pools, ``live_5/scene_001`` needed 9.4 points of headroom, ``plan9d_current_capture_
+# v1/scene_010`` needed 3.3, ``scene_006`` needed 1.3. ``SHOT_SCALE_TIE_EPSILON`` is set
+# above the largest of those with margin to spare and below the review's falsifying
+# case with margin to spare - applied in ``rank_candidates``, not here, because "how
+# far behind the scene's own best meaning is this candidate" needs the whole pool, not
+# one candidate at a time. A candidate trailing the pool's best by more than this can
+# never be lifted past it by shot scale, structurally, not just typically.
+SHOT_SCALE_TIE_EPSILON = 12.0
+
 
 def rank_candidates(
     scene: SemanticScene,
@@ -202,7 +217,30 @@ def rank_candidates(
         )
         for candidate in candidates
     ]
+    _apply_shot_scale_within_meaning_tier(ranked)
     return sorted(ranked, key=_ranking_key, reverse=True)
+
+
+def _apply_shot_scale_within_meaning_tier(ranked: list[dict[str, Any]]) -> None:
+    """Add each candidate's shot-scale adjustment, or drop it to 0.0 - in place.
+
+    The guard C99's independent review asked for: a candidate already trailing the
+    scene's best ``final_score`` (computed without any shot-scale term - see
+    ``_score_candidate``) by more than ``SHOT_SCALE_TIE_EPSILON`` gets no adjustment at
+    all, so it cannot be lifted past a candidate meaning already ranks above it. One
+    that is within the tier keeps its raw bonus or penalty. This only ever narrows
+    ``final_score``'s spread among near-tied candidates; nothing here can widen a gap
+    meaning already decided.
+    """
+    if not ranked:
+        return
+    best = max(item["final_score"] for item in ranked)
+    for item in ranked:
+        raw = float(item["shot_scale_adjustment"])
+        applied = raw if (best - item["final_score"]) <= SHOT_SCALE_TIE_EPSILON else 0.0
+        item["final_score"] = round(item["final_score"] + applied, 3)
+        item["scene_match_score"] = round(max(0.0, min(100.0, item["final_score"])), 3)
+        item["shot_scale_adjustment"] = applied
 
 
 def _ranking_key(item: dict[str, Any]) -> tuple[int, int, float]:
@@ -379,6 +417,14 @@ def _score_candidate(
     # the weighted average means ``semantic_score`` keeps reporting meaning alone, and
     # a scene with no ``shot_type`` or a candidate whose text names no scale gets
     # exactly 0.0 - additive by construction, not just by measurement.
+    #
+    # Not yet added to ``final_score`` here: whether it may apply at all depends on how
+    # far this candidate already trails the *scene's* best-meaning candidate, which is
+    # pool information a single candidate's score cannot see. ``rank_candidates`` adds
+    # it - or drops it to 0.0 - once every candidate in the scene has been scored, and
+    # the min-score reject gate below is deliberately evaluated on the score *without*
+    # it: a cosmetic framing signal must not be able to tip a candidate across a
+    # meaning threshold that exists to gate meaning.
     shot_scale_observed, shot_scale_intent, shot_scale_adjustment = _shot_scale_signal(
         scene.shot_type, text
     )
@@ -389,7 +435,6 @@ def _score_candidate(
         - contradiction_penalty
         - duplicate_penalty
         - watermark_penalty
-        + shot_scale_adjustment
     )
     must_missing: list[str] = []
     must_undecidable: list[str] = []
