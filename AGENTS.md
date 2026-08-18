@@ -39,13 +39,14 @@
 
 ## Gates
 
-Перед коммитом выполняй `.\venv\Scripts\python.exe scripts\gates.py`; все
-гейты обязаны быть зелёными. Обход хука (`--no-verify`) запрещён без явного
-разрешения владельца. Отдельные команды линта/тестов заменой gates.py не являются.
-Свежий clone включает pre-commit hook командой `git config core.hooksPath .githooks`.
-Слайс, меняющий модуль из ruff/mypy baseline в `pyproject.toml`, снимает
-подавление для этого модуля либо одной строкой в commit body объясняет,
-почему ratchet в этом слайсе невозможен.
+Перед коммитом выполняй `.\venv\Scripts\python.exe scripts\gates.py`; все гейты обязаны
+быть зелёными: линт, типы, docs-checker и фиксированный набор repo-state guard-тестов
+(~11 с) — тех, что проверяют сам репозиторий, а не поведение кода. Полный suite в gates
+не входит и остаётся в CI. Обход хука (`--no-verify`) запрещён без явного разрешения
+владельца. Отдельные команды линта/тестов заменой gates.py не являются. Свежий clone
+включает pre-commit hook командой `git config core.hooksPath .githooks`. Слайс, меняющий
+модуль из ruff/mypy baseline в `pyproject.toml`, снимает подавление для этого модуля
+либо одной строкой в commit body объясняет, почему ratchet в этом слайсе невозможен.
 
 ## Review по классам риска
 
