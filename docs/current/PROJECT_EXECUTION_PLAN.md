@@ -8,13 +8,14 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress. The owner's blind pass landed 2026-08-18, so
-  PLAN-9D-H (package C) is measured: blind agreement 2 / 10 scorable on corpus
-  v2, 4/14 on v1 unchanged. NEXT is the step this plan reserved for the moment
-  labels exist - read the seven scenes the labels call wrong (4 miss, 3 taking a
-  card the owner marked unacceptable), name ONE cause class with an existing
-  owner, fix that one, re-measure on the same frozen corpus. WHO DECIDES: the
-  owner, at entry to each step. History is in "Current checkpoint" below.
+  Checkpoint PLAN-9D, in progress. The blind pass is measured (2 / 10 on v2,
+  4/14 on v1) and the eight wrong scenes are diagnosed - four cause classes,
+  registry rows C98 and C99, evidence in
+  docs/audits/PLAN_9D_FAILURE_DIAGNOSIS_2026-08-18.md. NEXT is one slice on C98
+  only: the brief's subject and provider_queries must keep the video's topic
+  (PD-13, ADR 0022), enforced offline where queries are built, then re-measure
+  blind agreement on the same frozen corpus. C99 waits for an owner decision
+  between a shot-type feature and Vision. WHO DECIDES: the owner, at entry.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
