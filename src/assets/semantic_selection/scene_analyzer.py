@@ -60,6 +60,10 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
     source_class = str(
         explicit.get("source_class") or scene.get("source_class") or brief.get("source_class") or ""
     ).strip()
+    # Same dual-read as everything else above: a plan written by ``scene_to_legacy``
+    # may duplicate it into ``semantic``, a hand-written fixture may carry only the
+    # brief's own field.
+    shot_type = str(explicit.get("shot_type") or brief.get("shot_type") or "").strip()
     return SemanticScene(
         scene_id=str(scene.get("scene_id", "")),
         subject=subject,
@@ -77,6 +81,7 @@ def analyze_scene(scene: dict[str, Any]) -> SemanticScene:
         source_class=source_class,
         visual_priority=priority,
         fallback_level=fallback_level,
+        shot_type=shot_type,
     )
 
 

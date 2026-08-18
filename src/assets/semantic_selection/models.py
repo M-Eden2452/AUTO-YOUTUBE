@@ -38,6 +38,12 @@ class SemanticScene:
     source_class: str = ""
     visual_priority: str = SCENE_EXACT_SUBJECT
     fallback_level: int = 1
+    # One of src.content.visual_planning.models.SHOT_TYPES (establishing/action/
+    # detail/evidence/payoff/context) - what the frame has to do dramatically, per
+    # that module's own definition. Read here only to let the ranker weigh a
+    # candidate's own stated shot scale against it (C99); it is never inferred and
+    # an empty value asks nothing of any candidate.
+    shot_type: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,4 +63,5 @@ class SemanticScene:
             "source_class": self.source_class,
             "visual_priority": self.visual_priority,
             "fallback_level": self.fallback_level,
+            "shot_type": self.shot_type,
         }

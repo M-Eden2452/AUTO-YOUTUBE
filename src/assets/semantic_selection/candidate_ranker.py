@@ -132,6 +132,50 @@ PROVIDER_CONFIDENCE: dict[str, float] = {
     "fake": 1.0,
 }
 
+# Shot-scale vocabulary a provider's own title or description sometimes states
+# outright (C99). Read the same way ``_watermark_penalty`` reads ``tokens``/``text``
+# below - a small closed list, never inferred from what the scene asked for, and
+# silent whenever neither list appears: a record that says nothing about framing is
+# not evidence against it.
+WIDE_SHOT_TERMS = (
+    "wide shot", "wide angle", "establishing shot", "aerial", "aerial view",
+    "aerial shot", "drone shot", "bird's eye", "panoramic", "panorama", "long shot",
+)
+CLOSE_SHOT_TERMS = (
+    "close-up", "close up", "closeup", "extreme close-up", "macro", "macro shot",
+)
+SHOT_SCALE_WIDE = "wide"
+SHOT_SCALE_CLOSE = "close"
+
+# What each dramaturgical shot type (src.content.visual_planning.models.SHOT_TYPES -
+# "what the frame has to do dramatically", per that module's own definition) implies
+# about scale, when it implies anything at all. Only the two pairs where the
+# definition itself is close to unambiguous are mapped: an establishing or context
+# shot is conventionally wide almost by definition, and a detail shot is close almost
+# by definition. ``payoff`` was tried and measured out: on the frozen v2 corpus it
+# predicted the owner's pick correctly in ``local_after_fix/scene_005`` (a close-up
+# was preferred) and *wrongly* in ``live_5/scene_005`` (an aerial/wide shot was
+# preferred for another payoff scene about the same subject) - one win, one loss on
+# the only two "payoff" scenes measurable, which is exactly "not reliably
+# distinguishable by this signal" rather than a rule. ``action`` and ``evidence`` were
+# never mapped for the same reason, stated in advance rather than found by measuring:
+# guessing a scale for them would be the "fix it with weights, blindly" the C99
+# registry row forbids.
+SHOT_TYPE_SCALE_INTENT: dict[str, str] = {
+    "establishing": SHOT_SCALE_WIDE,
+    "context": SHOT_SCALE_WIDE,
+    "detail": SHOT_SCALE_CLOSE,
+}
+
+# A should, not a must: small enough that a scene's actual subject and action always
+# still decide the winner first (0.85 weight on ``meaning_score`` alone spans 0-85
+# points), large enough to break the kind of near-tie C99 measured (two candidates a
+# point or two apart in meaning, or perfectly tied). Applied to ``final_score``
+# directly rather than folded into ``meaning_score``, so ``semantic_score`` keeps
+# reporting meaning alone and this signal cannot be mistaken for a bigger claim about
+# subject match than it is.
+SHOT_SCALE_ADJUSTMENT = 8.0
+
 
 def rank_candidates(
     scene: SemanticScene,
@@ -330,6 +374,14 @@ def _score_candidate(
         )
         if not decidable
     ]
+    # Outside ``meaning_score`` on purpose (C99): a should about which frame reads
+    # better, not a claim about whether the subject is even present. Keeping it out of
+    # the weighted average means ``semantic_score`` keeps reporting meaning alone, and
+    # a scene with no ``shot_type`` or a candidate whose text names no scale gets
+    # exactly 0.0 - additive by construction, not just by measurement.
+    shot_scale_observed, shot_scale_intent, shot_scale_adjustment = _shot_scale_signal(
+        scene.shot_type, text
+    )
     final_score = (
         0.85 * meaning_score
         + 0.075 * quality_score
@@ -337,6 +389,7 @@ def _score_candidate(
         - contradiction_penalty
         - duplicate_penalty
         - watermark_penalty
+        + shot_scale_adjustment
     )
     must_missing: list[str] = []
     must_undecidable: list[str] = []
@@ -535,6 +588,9 @@ def _score_candidate(
         "contradiction_penalty": contradiction_penalty,
         "duplicate_penalty": duplicate_penalty,
         "watermark_penalty": watermark_penalty,
+        "shot_scale_intent": shot_scale_intent,
+        "shot_scale_observed": shot_scale_observed,
+        "shot_scale_adjustment": shot_scale_adjustment,
         "fallback_level": fallback_level,
         "scene_match_score": round(max(0.0, min(100.0, final_score)), 3),
         "final_score": round(final_score, 3),
@@ -690,6 +746,31 @@ def _watermark_penalty(candidate: dict[str, Any], tokens: set[str], text: str) -
     if {"watermark", "logo"} & tokens or "stock logo" in text:
         return 35.0
     return 0.0
+
+
+def _shot_scale_signal(shot_type: str, text: str) -> tuple[str, str, float]:
+    """(observed_scale, intent, adjustment) for the scene's declared shot type.
+
+    Returns ``("", intent, 0.0)`` whenever the candidate's own text names no shot
+    scale at all - most provider records say nothing about framing, and silence is
+    not evidence of a mismatch. Returns ``("ambiguous", intent, 0.0)`` when a record
+    names both a wide and a close phrase (a compilation description, typically) - two
+    contradicting claims are not evidence either way. ``intent`` is reported even when
+    it is empty, so a caller can tell "no preference for this shot_type" apart from
+    "no evidence in this text".
+    """
+    intent = SHOT_TYPE_SCALE_INTENT.get(str(shot_type or "").strip().casefold(), "")
+    if not intent:
+        return "", intent, 0.0
+    observed_wide = any(term in text for term in WIDE_SHOT_TERMS)
+    observed_close = any(term in text for term in CLOSE_SHOT_TERMS)
+    if observed_wide == observed_close:
+        # Both true (contradicting claims) or both false (no evidence) - neither
+        # supports an adjustment.
+        return ("ambiguous" if observed_wide else "", intent, 0.0)
+    observed = SHOT_SCALE_WIDE if observed_wide else SHOT_SCALE_CLOSE
+    adjustment = SHOT_SCALE_ADJUSTMENT if observed == intent else -SHOT_SCALE_ADJUSTMENT
+    return observed, intent, adjustment
 
 
 def _candidate_fallback_level(

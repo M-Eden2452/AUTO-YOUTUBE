@@ -1094,6 +1094,12 @@ class SceneSelection:
 def scene_from_corpus(scene: dict[str, Any]) -> SemanticScene:
     stored = dict(scene.get("semantic_scene") or {})
     known = {name: stored[name] for name in SemanticScene.__dataclass_fields__ if name in stored}
+    if "shot_type" not in known:
+        # The frozen ``semantic_scene`` predates the field (C99) and was never asked
+        # to carry it - the production dual-read in ``analyze_scene`` falls back to
+        # ``visual_brief`` for the same reason, and the corpus already stores it
+        # there. Reading it here changes no bytes of the frozen corpus file.
+        known["shot_type"] = str((scene.get("visual_brief") or {}).get("shot_type") or "")
     return SemanticScene(**known)
 
 

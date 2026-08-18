@@ -916,8 +916,11 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
     over the pool captured at ``d01914d7``, so it measures the current decision
     owner, not the decision the capture recorded. Those differ, and deliberately:
     ``388b9b1`` landed after the capture and stopped a video winning by being a
-    video. The comparison is locked below because it is the most useful thing
-    this ground truth can say today.
+    video, and the C99 shot-scale signal (``candidate_ranker.SHOT_TYPE_SCALE_INTENT``)
+    moved two more winners on 2026-08-18 - ``scene_006`` and ``scene_010`` - from
+    a miss to a match, both additive: ``changed_winners 2`` on ``measure --baseline``,
+    zero scenes moved the other way. The comparison is locked below because it is
+    the most useful thing this ground truth can say today.
     """
 
     @classmethod
@@ -940,7 +943,7 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
                 "scenes": 14,
                 "scorable_scenes": 14,
                 "unscorable_winner_not_visible": 0,
-                "preferred_matches": 4,
+                "preferred_matches": 6,
                 "unacceptable_selected": 2,
                 "abstentions": 3,
                 "correct_abstentions": 0,
@@ -956,7 +959,7 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
                 # is the point - it is what makes the two readings comparable.
                 "blind_annotation_scenes": 14,
                 "scorable_blind_scenes": 14,
-                "preferred_matches_blind": 4,
+                "preferred_matches_blind": 6,
                 "incident_scenes": 0,
                 "preferred_matches_incident": 0,
                 # 1064 candidates, 56 of which the capture previewed. Everything
@@ -988,7 +991,7 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
             ["scene_004", "scene_005", "scene_008"], scenes_where("wrong_abstention")
         )
         self.assertEqual(
-            ["scene_003", "scene_009", "scene_012", "scene_014"],
+            ["scene_003", "scene_006", "scene_009", "scene_010", "scene_012", "scene_014"],
             scenes_where("selection_matches_preferred"),
         )
 
@@ -1020,8 +1023,9 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
         It is the only before/after this ground truth can support without a
         second capture, and it says something specific: the video-first
         substitution PLAN-9D-C found is gone - no winner is unpreviewed any more
-        - and agreement doubled, while the two scenes where the system picks
-        something the owner struck out survived the change untouched.
+        - agreement doubled by PLAN-9C-2, then rose from 4 to 6 by the C99
+        shot-scale signal, while the two scenes where the system picks something
+        the owner struck out survived both changes untouched.
         """
 
         selections = run_metadata_baseline(self.corpus)
@@ -1050,7 +1054,7 @@ class FrozenBaselineMeasurementTests(unittest.TestCase):
             {"matches": 2, "unacceptable": 2, "unpreviewed": 3, "abstained": 2}, captured
         )
         self.assertEqual(
-            {"matches": 4, "unacceptable": 2, "unpreviewed": 0, "abstained": 3}, arm
+            {"matches": 6, "unacceptable": 2, "unpreviewed": 0, "abstained": 3}, arm
         )
 
 
@@ -1347,11 +1351,20 @@ class FrozenBilingualMeasurementTests(unittest.TestCase):
         )
 
     def test_every_winner_is_named_so_a_change_cannot_hide_in_a_ratio(self) -> None:
-        """Two scenes can swap and leave the ratio flat. The pairs cannot."""
+        """Two scenes can swap and leave the ratio flat. The pairs cannot.
+
+        ``live_5/scene_001`` is the residual gap the C99 signal admits rather than
+        hides: it no longer picks the close-up (``C5``), it now picks a different
+        wide/aerial shot (``C7``) than the owner's own preferred ``C1`` - both
+        state "establishing" in ``visual_brief.shot_type``, but the metadata-only
+        signal cannot tell two wide shots apart from each other, only a wide shot
+        from a close one. The pair is still a miss and the aggregate above still
+        counts it as one.
+        """
 
         self.assertEqual(
             {
-                "live_5/scene_001": ("C5", "C1"),
+                "live_5/scene_001": ("C7", "C1"),
                 "live_5/scene_002": ("C5", "C6"),
                 "live_5/scene_003": ("C7", "C7"),
                 "live_5/scene_004": ("C9", "undecidable"),
