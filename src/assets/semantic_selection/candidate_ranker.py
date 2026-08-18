@@ -314,10 +314,8 @@ def _score_candidate(
 
     negative_matches = [word for word in scene.must_not_include if _contains_concept(word, all_tokens, text)]
     media_type = str(candidate.get("media_type") or candidate.get("type") or "").casefold()
-    # Commons can categorize an exact orca clip under "People with dolphins" because
-    # Orcinus orca belongs to the dolphin family. That broader taxonomy must not
-    # overrule a title/description that explicitly identifies the animal as an orca.
-    # A primary description that actually says "dolphin" remains disqualifying.
+    # The scene's own title and description, apart from the rest of the metadata: what
+    # the provider says the asset *is*, rather than everything it was ever tagged with.
     primary_text = " ".join(
         str(candidate.get(field) or "") for field in ("title", "description")
     ).casefold()
@@ -328,7 +326,6 @@ def _score_candidate(
     exact_orca_evidence = bool(
         re.search(r"\b(?:orcas?|killer\s+whales?|orcinus\s+orca)\b", text)
     )
-    primary_mentions_dolphin = bool(re.search(r"\bdolphins?\b", primary_text))
     missing_orca_evidence_for_orca_video = bool(
         exact_orca_scene
         and media_type == "video"
@@ -338,10 +335,6 @@ def _score_candidate(
         missing_orca_evidence_for_orca_video
         and re.search(r"\bwhales?\b", primary_text)
     )
-    if exact_orca_scene and exact_orca_evidence and not primary_mentions_dolphin:
-        negative_matches = [
-            word for word in negative_matches if str(word).strip().casefold() != "dolphin"
-        ]
     non_real_video_matches = (
         [
             term

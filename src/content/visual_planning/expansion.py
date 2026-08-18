@@ -52,6 +52,12 @@ _MAX_QUERY_TERMS = 8
 _MIN_QUERY_TERMS = 2
 
 _PROVIDER_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9.'-]*")
+# The same token shape without the alphabet, for comparing a ban with a query rather
+# than for building one. Building is deliberately Latin-only - the active providers
+# search English indexes - but *refusing* is not: a ban the author wrote in the
+# script's own language tokenised to nothing under the rule above, so it vetoed
+# nothing at all, not even a query written in that same language (C104).
+_AVOIDED_TOKEN_RE = re.compile(r"[^\W\d_](?:[^\W_]|[.'-])*", re.UNICODE)
 _CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 
 # A query made only of production vocabulary is a plausible-looking substitute, not
@@ -288,14 +294,23 @@ def _mentions_avoided(query: str, must_avoid: tuple[str, ...]) -> bool:
 
 
 def _avoided_match_tokens(text: str) -> list[str]:
-    """Case-normalised provider tokens for ``_mentions_avoided`` comparison.
+    """Case-normalised tokens for ``_mentions_avoided`` comparison, in any script.
 
-    ``_PROVIDER_TOKEN_RE`` keeps a trailing ``.``/``'``/``-`` attached when it follows a
-    letter, so an abbreviation like "U.S." tokenises whole - but that same rule leaves
-    ordinary sentence punctuation ("Canal." at a truncation boundary) stuck to the last
-    word. Stripped here, on both sides of the comparison, so it cannot hide a match.
+    Same token shape as the one queries are built from, minus its alphabet: a word
+    starts with a letter and may carry digits or ``.``/``'``/``-`` afterwards, so an
+    abbreviation like "U.S." tokenises whole. That rule leaves ordinary sentence
+    punctuation ("Canal." at a truncation boundary) stuck to the last word, stripped
+    here on both sides of the comparison so it cannot hide a match.
+
+    The alphabet is dropped because a ban is not a query. Queries stay Latin-only - the
+    providers search English indexes - but the ban is kept in whatever language its
+    author wrote it in, and under ``_PROVIDER_TOKEN_RE`` a Cyrillic ban produced an
+    empty token list and therefore matched nothing at all: not the English query it was
+    never comparable with, and not the Russian one naming the forbidden thing verbatim.
+    What this does not do is bridge two scripts - "люди" still does not match "people",
+    and that bridge is a translation contract, not a tokeniser.
     """
-    return [token.strip(".'-").casefold() for token in _PROVIDER_TOKEN_RE.findall(text)]
+    return [token.strip(".'-").casefold() for token in _AVOIDED_TOKEN_RE.findall(text)]
 
 
 def _dedupe(values: list[str]) -> list[str]:

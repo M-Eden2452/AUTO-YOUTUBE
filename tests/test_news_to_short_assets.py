@@ -306,7 +306,21 @@ class NewsToShortAssetTests(unittest.TestCase):
         self.assertTrue(ranked[0]["rejected"])
         self.assertIn("non_real_video_footage:", ranked[0]["reject_reason"])
 
-    def test_exact_orca_metadata_outweighs_broader_dolphin_taxonomy_category(self) -> None:
+    def test_a_banned_word_in_the_metadata_disqualifies_whatever_the_species(self) -> None:
+        """C104, owner decision 2026-08-18: the species exception is gone.
+
+        The ranker used to strike ``dolphin`` out of ``negative_matches`` for an
+        exact-orca scene whose evidence named an orca, because Commons files orca
+        footage under "People with dolphins". That was one animal's name wired into a
+        general ranker, and it is the only place where a stated ban did not mean what
+        it says. The cost of removing it was measured before it was removed, not
+        argued: over 1928 saved candidates in 212 scenes the exception rescues exactly
+        one record (``wikimedia_44588420``), that record wins no scene either way -
+        ``pixabay_image_74081`` stays the winner - and neither frozen corpus contains a
+        ``dolphin`` ban at all. What is lost is real and stated: a genuine orca clip
+        whose provider taxonomy says "dolphins" is now refused, and the author who
+        wants it must not ban the word.
+        """
         from src.assets.semantic_selection import SemanticScene, rank_candidates
 
         scene = SemanticScene(
@@ -331,8 +345,11 @@ class NewsToShortAssetTests(unittest.TestCase):
 
         ranked = rank_candidates(scene, [candidate], required_duration_sec=10.0)
 
-        self.assertNotIn("dolphin", ranked[0]["negative_matches"])
-        self.assertNotIn("must_avoid_match:dolphin", ranked[0]["reject_reason"])
+        self.assertIn("dolphin", ranked[0]["negative_matches"])
+        self.assertIn("must_avoid_match:dolphin", ranked[0]["reject_reason"])
+        # The orca evidence itself is still read: the clip is refused for the ban the
+        # author wrote, not for failing to prove it shows an orca.
+        self.assertNotIn("missing_orca_evidence_for_orca_scene", ranked[0]["reject_reason"])
 
     def test_explicit_dolphin_description_stays_blocked_for_orca_scene(self) -> None:
         from src.assets.semantic_selection import SemanticScene, rank_candidates

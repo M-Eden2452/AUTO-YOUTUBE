@@ -35,6 +35,7 @@ from src.content.visual_planning import (
 )
 from src.content.visual_planning.brief import VisualBrief, produce_brief
 from src.content.visual_planning.contract import VisualPlannerCapabilities
+from src.content.visual_planning.expansion import mentions_avoided
 
 
 class _PreparedPlanner:
@@ -215,6 +216,41 @@ class MustAvoidIsPartOfTheQueryTest(unittest.TestCase):
             with self.subTest(label=label):
                 queries = expand_queries(planning_input(must_avoid=must_avoid), seeds=[seed])
                 self.assertEqual(seed not in queries, expect_blocked)
+
+    def test_a_ban_written_in_the_scenes_own_script_vetoes_a_query_in_that_script(self) -> None:
+        """C104: the comparison had no mechanism for the alphabet at all.
+
+        ``_avoided_match_tokens`` tokenised both sides with the tokeniser that *builds*
+        provider queries, so a Cyrillic ban tokenised to nothing and vetoed nothing -
+        not only an English query, but a Russian one naming the forbidden thing
+        verbatim. Measured on 43 saved plans this changes no stored query (the ladder
+        composes in the provider's language and a Cyrillic string can only enter it as
+        an author's own seed), which is why the ban is pinned here by direct call.
+        """
+        self.assertTrue(mentions_avoided("люди идут по мосту", ["люди"]))
+        self.assertTrue(mentions_avoided("дельфин выпрыгивает из воды", ["дельфин"]))
+        self.assertEqual(
+            [],
+            expand_queries(planning_input(must_avoid=["люди"]), seeds=["люди идут по мосту"]),
+        )
+
+    def test_a_ban_still_matches_a_phrase_and_not_a_shared_word_in_any_script(self) -> None:
+        """The phrase rule is what keeps the ban from becoming a mute, and it is not a
+        property of the Latin alphabet: "текст в кадре" must not veto a query about
+        текст, exactly as "Suez Canal" does not veto the Panama Canal."""
+        self.assertFalse(mentions_avoided("текст на экране", ["текст в кадре"]))
+        self.assertTrue(mentions_avoided("крупный текст в кадре", ["текст в кадре"]))
+        self.assertFalse(mentions_avoided("горная река", ["горы"]))
+
+    def test_a_ban_in_another_script_than_the_query_still_cannot_match(self) -> None:
+        """The half this does *not* close, pinned so nobody reads more into it.
+
+        A Russian ban against an English query is a translation question, not a
+        tokenisation one: ``C105`` owns the bridge, and until it exists a Russian
+        author's ban is enforced downstream (ranking, slots) rather than here.
+        """
+        self.assertFalse(mentions_avoided("people walking on a bridge", ["люди"]))
+        self.assertFalse(mentions_avoided("люди идут по мосту", ["people"]))
 
     def test_the_truncation_rung_does_not_leak_the_avoided_phrase(self) -> None:
         """Rung 7 offers the leading stated query truncated to its two most specific

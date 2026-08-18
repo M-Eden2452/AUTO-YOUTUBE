@@ -29,6 +29,8 @@ from src.assets.scene_strategy import (
     classify_scene,
 )
 from src.assets.semantic_selection import SemanticScene, rank_candidates
+from src.assets.semantic_selection.decision import build_slot_verdict
+from src.assets.semantic_selection.evidence import build_evidence
 from src.content.script_engine import ScriptConstraints, ScriptRequest, generate_script
 from src.content.visual_planning.brief import apply_brief, parse_brief
 from src.content.visual_planning.models import SceneVisualPlan
@@ -691,6 +693,37 @@ class MustIncludeAndAvoidTests(unittest.TestCase):
         ranked = rank_candidates(scene, [_candidate("c", "Антарктида пингвины на снегу")])
         self.assertTrue(ranked[0]["rejected"])
         self.assertIn("пингвины", ranked[0]["negative_matches"])
+
+    def test_the_disqualifying_ban_does_not_ask_whether_the_term_was_provable(self) -> None:
+        """C97, owner decision 2026-08-18: the split between the two ban paths stays.
+
+        The slot layer asks ``is_undecidable`` before ``contains``; the ranker, which
+        is the path that actually disqualifies, asks only whether the word is there.
+        The two can disagree on exactly one shape of record - a field written in two
+        scripts at once, which is out of script with the term and still contains it
+        verbatim - and that shape is pinned here on both layers.
+
+        Measured before the decision, not after: aligning them changes 0 of 1928
+        candidates in 212 saved scenes and 0 of 599 (v1) and 5 (v2) corpus triples, and
+        the only available alignment silences a ban that literally matched. So the
+        ranker keeps the strict question, and this test is what a future slice has to
+        argue with before making the ban conditional on decidability.
+        """
+        scene = SemanticScene(
+            scene_id="s", must_not_include=["penguin"], visual_priority="environment"
+        )
+        candidate = _candidate("mixed", "Антарктида penguin colony")
+        evidence = build_evidence(candidate)
+
+        self.assertTrue(evidence.is_undecidable("penguin"))
+        self.assertTrue(evidence.contains("penguin"))
+
+        ranked = rank_candidates(scene, [candidate])
+        self.assertIn("penguin", ranked[0]["negative_matches"])
+        self.assertIn("must_avoid_match:penguin", ranked[0]["reject_reason"])
+
+        verdict = build_slot_verdict(scene, evidence, source_class=scene.source_class)
+        self.assertEqual([], verdict.conflicting_slots)
 
 
 class DurationSuitabilityTests(unittest.TestCase):
