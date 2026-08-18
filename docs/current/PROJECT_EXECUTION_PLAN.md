@@ -2,20 +2,20 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-18
+updated_at: 2026-08-19
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress. C98 is closed 2026-08-18 in
-  src/assets/query_adapter.py: a plan-level TopicAnchor keeps the video's topic in
-  every query (PD-13, ADR 0022). Census on the frozen scenes 15 of 42 -> 0; blind
-  agreement unchanged at 2 / 10 on v2 and 4 / 14 on v1, which is the guard, not the
-  acceptance. NEXT is an independent review-change in a clean context over that
-  immutable commit - the slice is HIGH risk (selection). Then C99, the largest
-  measured class left. No live run is authorised here. WHO DECIDES: the owner, at
-  entry.
+  Checkpoint PLAN-9D, in progress. C98 review and C99 are done; all four classes of
+  the 2026-08-18 diagnosis have a closed slice. Measured 2026-08-19 (C118,
+  PLAN_9D_SLICE_REACHABILITY_2026-08-19.md): three of the four are never executed
+  by the benchmark - call counts 0 - so 2 / 10 on v2 guards nothing for them. NEXT,
+  chosen by those numbers: the requirement's ban field, the only measured cause
+  this corpus can score offline - an English must_not_include turns
+  live_5/scene_002 into a match, the Russian form does not (C105). Classes 1 and 4
+  need a paid v3 capture. WHO DECIDES: the owner, at entry.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
