@@ -50,8 +50,19 @@ EXPECTED_PREVIEWED = 56
 EXPECTED_FRAMES = 64
 EXPECTED_LICENSED = 745
 EXPECTED_REVIEW_REQUIRED = 319
+# The pin is the "the corpus did not drift behind our back" anchor, so it is
+# only ever moved together with a named cause. It moved once, in 20f02cd (C95),
+# when the existing ``finalize`` recomputed the derived fields of the v1 corpus:
+# ``plan9d_current_capture_v1/scene_010`` lost the ``ambiguous_needs_review``
+# category and ``technical_categories.ambiguous_needs_review`` went 2 -> 1.
+# Nothing captured changed - the annotation identity digest stayed
+# 04b33c9bad935d5a, the owner annotation stayed bound, and ``measure`` kept
+# printing 4 / 14 with the same winners in all 14 scenes. That commit emptied
+# ``KNOWN_DERIVED_DRIFT`` and moved the annotation binding in
+# ``test_plan9d_current_capture`` onto the identity digest, but left this pin
+# behind, which is why this file was red on HEAD until C100.
 EXPECTED_CORPUS_SHA256 = (
-    "bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4"
+    "280e6da190b7fb0324b03f460ba4367e00390d101f147d0c35868967e689664f"
 )
 
 
