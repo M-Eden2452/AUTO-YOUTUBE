@@ -1633,6 +1633,35 @@ class ShortlistIdentityTests(unittest.TestCase):
         self.assertTrue(asset_ids)
         self.assertEqual(len(asset_ids), len(set(asset_ids)))
 
+    def test_the_surviving_copy_names_the_most_direct_query(self) -> None:
+        """Which duplicate survives is not "the first one sent".
+
+        A provider's planned queries do not arrive in order of directness - on the
+        stored solar plan one provider's levels arrive as 1, 2, 3, 4, 1, 3 - so the
+        first copy of an asset can be the one a level-4 fallback found while a level-1
+        query returned the same asset later. Position still comes from the first
+        occurrence, because pool order is the ranker's tie-break; the provenance the
+        manifest reports comes from the most direct query that actually returned it.
+        """
+        from types import SimpleNamespace
+
+        from src.news.asset_manifest_builder import AssetManifestBuilder
+
+        state = SimpleNamespace(
+            candidates=[
+                {"asset_id": "roof", "fallback_level": 4, "search_query": "daylight"},
+                {"asset_id": "farm", "fallback_level": 1, "search_query": "solar farm"},
+                {"asset_id": "roof", "fallback_level": 1, "search_query": "solar panels"},
+            ]
+        )
+        # The step reads nothing off ``self``, so the builder need not be constructed
+        # with a project, providers and an index just to exercise one rule.
+        AssetManifestBuilder._deduplicate_candidates(None, state)
+
+        self.assertEqual([item["asset_id"] for item in state.candidates], ["roof", "farm"])
+        self.assertEqual(state.candidates[0]["fallback_level"], 1)
+        self.assertEqual(state.candidates[0]["search_query"], "solar panels")
+
     def test_the_review_board_shows_each_record_once(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             manifest = self._manifest(Path(tmp))

@@ -622,7 +622,8 @@ class AssetManifestBuilder:
         state.candidates.insert(0, state.generated_asset)
 
     def _deduplicate_candidates(self, state: SceneBuildState) -> None:
-        """One record, one place in the pool - keeping the first time it was found.
+        """One record, one place in the pool - at its first position, with its best
+        provenance.
 
         Every query of the ladder is searched on its own, so a provider that answers
         two of them with the same asset returned it twice, and the scene pool carried
@@ -634,18 +635,32 @@ class AssetManifestBuilder:
         Placed after ``_search_scene_providers``, so every raw provider attempt is
         already recorded with its own ``result_count``: what a provider returned is
         evidence and stays untouched, while what the scene *considers* is this list.
-        The first occurrence is the one kept, because the pool order is the ranker's
-        tie-break and the earliest query is the most direct one.
+
+        Position comes from the first occurrence, because pool order is the ranker's
+        tie-break and must not start depending on which duplicate arrived. Which copy
+        survives is a separate question, and "the first one" would answer it wrongly:
+        a provider's queries are not sent in order of directness - measured on the
+        stored solar plan, one provider's levels arrive as 1, 2, 3, 4, 1, 3 - so the
+        first copy can be the one a level-4 fallback found. The copy with the lowest
+        recorded ``fallback_level`` is kept instead, which is the most direct query
+        that actually returned this asset. Nothing in selection reads that field - the
+        ranker recomputes distance from evidence in ``_candidate_fallback_level`` - so
+        this decides what the manifest reports as provenance, not who wins.
         """
-        seen: set[str] = set()
-        unique: list[dict[str, Any]] = []
+        best_by_identity: dict[str, dict[str, Any]] = {}
+        order: list[str] = []
         for candidate in state.candidates:
             identity = str(candidate.get("asset_id") or "") or stable_asset_id(candidate)
-            if identity in seen:
+            previous = best_by_identity.get(identity)
+            if previous is None:
+                best_by_identity[identity] = candidate
+                order.append(identity)
                 continue
-            seen.add(identity)
-            unique.append(candidate)
-        state.candidates = unique
+            if int(candidate.get("fallback_level") or 0) < int(
+                previous.get("fallback_level") or 0
+            ):
+                best_by_identity[identity] = candidate
+        state.candidates = [best_by_identity[identity] for identity in order]
 
     def _select_scene_asset(self, state: SceneBuildState) -> None:
         if state.user_ranked:

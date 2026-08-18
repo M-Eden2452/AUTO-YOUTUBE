@@ -450,24 +450,48 @@ class MediaLibraryTests(unittest.TestCase):
             self.assertIn("match:градирня", matches[0]["reasons"])
 
     def test_one_word_is_counted_once_however_many_fields_state_it(self) -> None:
-        """``keywords`` and the sentence repeat each other by construction, not by luck."""
+        """``keywords`` and the sentence repeat each other by construction, not by luck.
+
+        Both halves of the rule are asserted on scores a keyword-only matcher could not
+        produce: a word stated only in the sentence has to earn its points, and a word
+        stated in two fields must not earn them twice.
+        """
         from src.media_library import _score_asset
 
-        record = {
+        repeated = {
             "type": "video",
             "keywords": ["солнечная", "панель"],
             "title": "Солнечная панель крупным планом",
             "description": "Солнечная панель крупным планом",
         }
         score, reasons = _score_asset(
-            record,
+            repeated,
             {"visual_keywords": ["солнечная", "панель"]},
             "video",
             "",
         )
 
+        # Two distinct words, not four field-hits: 3 + 3, plus the point for being a video.
         self.assertEqual(score, 3 * 2 + 1)
         self.assertEqual([reason for reason in reasons if reason.startswith("match:")],
+                         ["match:панель,солнечная"])
+
+        split = {
+            "type": "video",
+            "keywords": ["солнечная"],
+            "title": "Панель крупным планом",
+            "description": "Панель крупным планом",
+        }
+        split_score, split_reasons = _score_asset(
+            split,
+            {"visual_keywords": ["солнечная", "панель"]},
+            "video",
+            "",
+        )
+
+        # Keyword-only scoring saw one word here and would have returned 3 + 1.
+        self.assertEqual(split_score, 3 * 2 + 1)
+        self.assertEqual([reason for reason in split_reasons if reason.startswith("match:")],
                          ["match:панель,солнечная"])
 
 

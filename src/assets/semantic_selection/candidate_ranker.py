@@ -434,7 +434,7 @@ def _score_candidate(
     #
     #   * the two scales are of different natures. ``relevance_score`` is whole points
     #     of lexical overlap, unbounded in practice (0-24 over 23 800 scene/record pairs
-    #     of the 280 stored scenes), and 20 366 of those pairs sit at exactly 3 - the
+    #     of the 280 stored scenes), and 20 251 of those pairs sit at exactly 3 - the
     #     free points for being a video, being 16:9 and being long enough, which say
     #     nothing about the frame. ``final_score`` is 0-100 and 0.85 of it is meaning;
     #   * a weight small enough to be safe changes nothing, and a weight large enough
