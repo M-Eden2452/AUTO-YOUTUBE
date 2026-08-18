@@ -18,7 +18,7 @@ from src.assets.generated_infographic import (
     build_generated_asset,
 )
 from src.assets.provider_contract import ProviderError
-from src.assets.query_adapter import STATUS_OK, build_slot_queries
+from src.assets.query_adapter import STATUS_OK, TopicAnchor, build_slot_queries
 from src.assets.semantic_selection import rank_candidates
 from src.assets.semantic_selection.decision import carry_decision
 from src.assets.semantic_selection.media_policy import (
@@ -105,6 +105,7 @@ def complete_scene_assembly(
     original_selected_asset_id: str = "",
     allow_emergency_backdrop: bool = True,
     request_budget: SceneRequestBudget | None = None,
+    topic_anchor: TopicAnchor | None = None,
 ) -> tuple[dict[str, Any] | None, SceneVisualAssembly, list[dict[str, Any]]]:
     """Assemble ``draft_complete`` around the canonical primary selection."""
 
@@ -283,6 +284,7 @@ def complete_scene_assembly(
                         rank_provider_results=rank_provider_results,
                         search_provider=search_provider,
                         request_budget=request_budget,
+                        topic_anchor=topic_anchor,
                     )
                     attempts.extend(targeted_attempts)
                     if found:
@@ -321,6 +323,7 @@ def targeted_slot_search(
     rank_provider_results: RankProviderResults,
     search_provider: SearchProvider,
     request_budget: SceneRequestBudget | None = None,
+    topic_anchor: TopicAnchor | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Run one bounded targeted search for still-unfilled semantic slots.
 
@@ -341,6 +344,7 @@ def targeted_slot_search(
             slot_name,
             providers=provider_names,
             capabilities=provider_capabilities,
+            topic_anchor=topic_anchor,
         )
         for item in plan.queries:
             if item.status != STATUS_OK:

@@ -102,7 +102,6 @@ module = [
     "src.assets.generated_infographic",
     "src.assets.license_policy",
     "src.assets.models",
-    "src.assets.query_adapter",
     "src.assets.review_bundle",
     "src.assets.scene_strategy",
     "src.assets.semantic_selection.decision",

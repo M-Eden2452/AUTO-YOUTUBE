@@ -26,6 +26,22 @@ A query refused for its language is written into the plan as
 but it is now visible: while a scene kept at least one English query the loss of its
 most precise one was recorded nowhere, so "the language broke" and "the plan was
 narrow" produced identical evidence.
+
+It also refuses to ask about something else. A query may be built from perfectly
+English evidence and still lose the subject the video is about: of the 42 distinct
+queries the two frozen runs sent, 15 named no form of the topic at all - ``battery
+pack``, ``factory machines industrial production line``, ``sunset`` - while the plan
+that produced them stated ``topic_entity`` = "панель" and nothing compared the two
+(C98, ADR 0022, measured 2026-08-18). So the plan now hands the scene a
+``TopicAnchor``: the English form of its topic, read from the plan's own English
+evidence, and every English query that does not name it gets it back. The anchor is
+prepended, never substituted - the rest of the query is the scene's own evidence.
+
+The anchor is never translated. When the topic is written in Russian and the plan's
+scenes offer no recurring English subject, no anchor is invented: the scene's queries
+are marked ``query_subject_unverified`` and stay visible as unchecked, because a
+guessed translation would swap the subject of the video silently, which is the exact
+failure this module exists to refuse.
 """
 
 from __future__ import annotations
@@ -44,6 +60,19 @@ STATUS_TRANSLATION_REQUIRED = "query_translation_required"
 #: (language audit 2026-08-16, K9). It is never sendable - ``for_provider`` returns
 #: only ``STATUS_OK`` - so no request and no budget follows from it.
 STATUS_LANGUAGE_UNSUPPORTED = "query_language_unsupported"
+#: The plan named a topic, and no English form of it could be read from the plan's
+#: own English evidence, so no query of this scene could be checked against it. The
+#: queries are still sent - they are the only evidence there is - but the fact that
+#: nobody verified their subject is written down instead of assumed away (C98).
+#: Never sendable itself: ``for_provider`` returns only ``STATUS_OK``.
+STATUS_SUBJECT_UNVERIFIED = "query_subject_unverified"
+
+#: Where the English form of the topic came from. Both are English written by the
+#: planner or by the brief; neither is a translation of a Russian field.
+ANCHOR_SOURCE_TOPIC_ENTITY = "plan_topic_entity"
+ANCHOR_SOURCE_SCENE_SUBJECTS = "plan_scene_subjects"
+#: The topic is stated but has no English form anywhere in the plan.
+ANCHOR_SOURCE_UNRESOLVED = "topic_not_in_english_evidence"
 
 SOURCE_EXPLICIT = "explicit_override"
 SOURCE_BRIEF_FIELDS = "visual_brief_fields"
@@ -225,6 +254,169 @@ _GLOSSARY_CONTEXT_ONLY = frozenset(
 )
 
 
+# A topic is what a plan returns to, not what one of its scenes happens to be
+# about: below two scenes a recurring word is a coincidence, not the subject.
+_ANCHOR_MIN_SCENES = 2
+
+# English function words carry no subject. Without this a plan whose subjects all
+# start with "the" would anchor on "the", and every query would "keep the topic".
+_ANCHOR_FUNCTION_WORDS = frozenset(
+    {
+        "a", "an", "the", "of", "in", "on", "at", "to", "into", "with", "and",
+        "or", "for", "from", "by", "over", "under", "near", "its", "their",
+    }
+)
+
+
+@dataclass(frozen=True)
+class TopicAnchor:
+    """The English form of the video's topic, and the evidence it was read from.
+
+    ``stems`` is empty when the plan states a topic that has no English form in the
+    plan at all. That is not "no topic": it is a topic nobody could check the
+    queries against, and ``build_scene_queries`` records it rather than pretending
+    the check passed.
+    """
+
+    text: str = ""
+    stems: tuple[str, ...] = ()
+    source: str = ANCHOR_SOURCE_UNRESOLVED
+    topic_entity: str = ""
+
+    @property
+    def resolved(self) -> bool:
+        return bool(self.stems)
+
+    def carried_by(self, query: str) -> bool:
+        """True when ``query`` still names the topic in some form.
+
+        One shared stem is enough, and deliberately so: this is the same rule the
+        C98 census counts by, so what the code enforces and what the measurement
+        reports cannot drift apart. ``solar panels power plant`` keeps the topic of
+        ``solar panel``; ``manufacturing plant`` does not.
+        """
+
+        return bool(set(_anchor_stems(query)) & set(self.stems))
+
+
+def plan_topic_anchor(visual_plan: dict[str, Any]) -> TopicAnchor | None:
+    """The anchor every query of ``visual_plan`` has to keep, or ``None``.
+
+    ``None`` means the plan states no topic, so there is nothing to keep and
+    nothing to report - the queries are built exactly as they were before C98.
+
+    Two sources, both already English inside the plan:
+
+    1. ``topic_entity`` itself, when the plan wrote it in English;
+    2. otherwise the English ``subject``/``exact_entities`` its scenes return to.
+
+    A Russian ``topic_entity`` is never rendered into English here. The same rule
+    that keeps a guessed translation out of a query (K9) keeps it out of the
+    anchor: a wrong anchor would be pushed into *every* query of the plan.
+    """
+
+    topic = _clean_query_text(str(visual_plan.get("topic_entity") or ""))
+    if not topic:
+        return None
+    if _query_language(topic) == "en":
+        stems = _anchor_stems(topic)
+        if stems:
+            return TopicAnchor(topic, stems, ANCHOR_SOURCE_TOPIC_ENTITY, topic)
+        return TopicAnchor(topic_entity=topic)
+    phrases = _plan_english_subject_phrases(visual_plan)
+    scenes_by_stem: dict[str, set[int]] = {}
+    for index, phrase in phrases:
+        for stem in _anchor_stems(phrase):
+            scenes_by_stem.setdefault(stem, set()).add(index)
+    recurring = {
+        stem
+        for stem, scenes in scenes_by_stem.items()
+        if len(scenes) >= _ANCHOR_MIN_SCENES
+    }
+    if not recurring:
+        return TopicAnchor(topic_entity=topic)
+    best_text = ""
+    best_key: tuple[int, int, int] | None = None
+    for position, (_, phrase) in enumerate(phrases):
+        kept = [
+            word
+            for word in phrase.split()
+            if (_anchor_stems(word) or ("",))[0] in recurring
+        ]
+        if not kept:
+            continue
+        text = " ".join(kept)
+        # Most of the topic first, then the shortest way of saying it, then the
+        # scene that said it first: one phrase, chosen the same way every run.
+        key = (-len(_anchor_stems(text)), len(kept), position)
+        if best_key is None or key < best_key:
+            best_key, best_text = key, text
+    if not best_text:
+        return TopicAnchor(topic_entity=topic)
+    return TopicAnchor(
+        best_text, _anchor_stems(best_text), ANCHOR_SOURCE_SCENE_SUBJECTS, topic
+    )
+
+
+def _plan_english_subject_phrases(visual_plan: dict[str, Any]) -> list[tuple[int, str]]:
+    """Every English thing the plan's scenes say they are *about*, scene by scene.
+
+    Only ``exact_entities`` and ``subject``: place, action and mood describe the
+    shot, and anchoring on them is how ``sunset`` became a query in the first place.
+    """
+
+    scenes = visual_plan.get("scenes")
+    if not isinstance(scenes, list):
+        return []
+    phrases: list[tuple[int, str]] = []
+    for index, scene in enumerate(scenes):
+        if not isinstance(scene, dict):
+            continue
+        brief = _sub_dict(scene, "visual_brief")
+        for value in [*(brief.get("exact_entities") or []), brief.get("subject")]:
+            text = _english_only(str(value or ""))
+            if text:
+                phrases.append((index, text))
+    return phrases
+
+
+def _sub_dict(container: dict[str, Any], key: str) -> dict[str, Any]:
+    """``container[key]`` when it is a mapping, ``{}`` otherwise.
+
+    Tolerant readers keep meeting plans that wrote a scalar, a null or nothing at
+    all where a mapping belongs. Reading it once instead of twice also lets the
+    type checker see the narrowing, which is why this module leaves the mypy
+    baseline with this slice.
+    """
+
+    value = container.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _anchor_stems(value: str) -> tuple[str, ...]:
+    """Content words of ``value``, folded to the one inflection stock English varies
+    by. Order preserved and duplicates dropped, so the anchor reads as it was written."""
+
+    stems: list[str] = []
+    for token in _word_tokens(value):
+        if len(token) < 2 or token in _ANCHOR_FUNCTION_WORDS:
+            continue
+        stem = _english_number_stem(token)
+        if stem not in stems:
+            stems.append(stem)
+    return tuple(stems)
+
+
+def _english_number_stem(word: str) -> str:
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 4 and word.endswith(("ses", "xes", "zes", "ches", "shes")):
+        return word[:-2]
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
 @dataclass
 class ProviderQuery:
     """One query for one provider, with a record of where its words came from."""
@@ -286,8 +478,15 @@ def build_scene_queries(
     providers: list[str],
     intent_language: str = "ru",
     capabilities: dict[str, dict[str, Any]] | None = None,
+    topic_anchor: TopicAnchor | None = None,
 ) -> SceneQueryPlan:
-    """Build the queries every provider in ``providers`` should receive for ``scene``."""
+    """Build the queries every provider in ``providers`` should receive for ``scene``.
+
+    ``topic_anchor`` is the plan's, not the scene's: a scene cannot tell that its
+    own subject drifted off the topic of the video. Pass ``plan_topic_anchor(plan)``
+    from the owner that holds the plan. Left ``None`` the queries are exactly what
+    they were before C98, which is what a caller with no plan in hand should get.
+    """
     caps = capabilities or {}
     source_queries = _source_language_queries(scene)
     english = _english_queries(scene, intent_language=intent_language)
@@ -314,6 +513,8 @@ def build_scene_queries(
             *adapted,
         ]
         chosen, dropped = _provider_ready_candidates(candidates, languages=languages)
+        if topic_anchor is not None and topic_anchor.resolved:
+            chosen = _anchored_to_topic(chosen, topic_anchor)
         if not chosen:
             plan.queries.append(
                 ProviderQuery(
@@ -340,10 +541,75 @@ def build_scene_queries(
                     kind=str(item.get("kind") or "primary"),
                     fallback_level=int(item.get("fallback_level") or index + 1),
                     source=str(item.get("source") or SOURCE_BRIEF_FIELDS),
+                    notes=str(item.get("notes") or ""),
                 )
             )
+        if topic_anchor is not None and not topic_anchor.resolved:
+            plan.queries.append(_subject_unverified_record(provider, topic_anchor))
         plan.queries.extend(_dropped_records(provider, dropped, languages=languages))
     return plan
+
+
+def _anchored_to_topic(
+    chosen: list[dict[str, Any]],
+    anchor: TopicAnchor,
+) -> list[dict[str, Any]]:
+    """Put the topic back into every English query of this scene that dropped it.
+
+    Prepended, not substituted: the rest of the query is the scene's own evidence
+    about what this shot shows, and it stays. A query that already names the topic
+    is untouched, and a query written in another language is untouched too - an
+    English anchor glued onto a Russian string would produce a mixed-script query
+    that no provider in ``PROVIDER_QUERY_LANGUAGES`` can be searched with.
+
+    Anchoring can make two different queries collide (``industrial plant`` and
+    ``manufacturing plant`` both become the same anchored string once the topic is
+    in front), so the result is deduplicated again here rather than sending the
+    same request twice on the scene's budget.
+    """
+
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in chosen:
+        query = str(item.get("query") or "")
+        if str(item.get("language") or "") == "en" and not anchor.carried_by(query):
+            anchored = " ".join(_terms([anchor.text, query]))
+            item = {
+                **item,
+                "query": anchored,
+                "notes": (
+                    f"Запрос {query!r} не называл предмет темы "
+                    f"({anchor.topic_entity!r}); добавлен якорь {anchor.text!r}, "
+                    f"прочитанный из плана ({anchor.source})."
+                ),
+            }
+            query = anchored
+        key = _query_key(query)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result
+
+
+def _subject_unverified_record(provider: str, anchor: TopicAnchor) -> ProviderQuery:
+    """The plan names a topic this module could not check the queries against."""
+
+    return ProviderQuery(
+        provider=provider,
+        query="",
+        language="en",
+        kind="topic_anchor",
+        fallback_level=0,
+        source=SOURCE_BRIEF_FIELDS,
+        status=STATUS_SUBJECT_UNVERIFIED,
+        notes=(
+            f"Тема плана {anchor.topic_entity!r} не имеет английской формы ни в "
+            "одном subject/exact_entities этого плана: запросы отправлены без "
+            "проверки предмета. Перевод не выдумывается; добавьте английский "
+            "subject или provider_queries, чтобы проверка стала возможной."
+        ),
+    )
 
 
 def _dropped_records(
@@ -398,6 +664,7 @@ def build_slot_queries(
     *,
     providers: list[str],
     capabilities: dict[str, dict[str, Any]] | None = None,
+    topic_anchor: TopicAnchor | None = None,
 ) -> SceneQueryPlan:
     """One targeted query per provider for exactly the semantic slot ``slot_name``.
 
@@ -406,10 +673,20 @@ def build_slot_queries(
     or a brief with nothing English to say about this slot, gets an explicit
     ``query_translation_required`` entry rather than a guessed or repeated query - the
     same honesty rule ``build_scene_queries`` already applies to the general query.
+
+    A slot narrows a query on purpose, which is exactly how a subject gets dropped:
+    the ``location`` slot of a scene whose place is ``sunset`` asks for ``sunset``.
+    So the same ``topic_anchor`` applies here (C98). No ``query_subject_unverified``
+    record is written on this path: a slot plan is transient - it is consumed by the
+    targeted search and never persisted - and the scene's unverified mark is already
+    in the plan that ``build_scene_queries`` wrote for the same scene.
     """
     caps = capabilities or {}
     plan = SceneQueryPlan(scene_id=str(scene.get("scene_id") or ""), intent_language="en")
     query_text = " ".join(_slot_english_terms(scene, slot_name))
+    if query_text and topic_anchor is not None and topic_anchor.resolved:
+        if not topic_anchor.carried_by(query_text):
+            query_text = " ".join(_terms([topic_anchor.text, query_text]))
     for provider in providers:
         languages = provider_query_languages(provider, caps.get(provider))
         if not query_text or "en" not in languages:
@@ -444,7 +721,7 @@ def build_slot_queries(
 
 
 def _slot_english_terms(scene: dict[str, Any], slot_name: str) -> list[str]:
-    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
+    brief = _sub_dict(scene, "visual_brief")
     fields = SLOT_QUERY_FIELDS.get(slot_name, ())
     parts: list[str] = []
     if "exact_entities" in fields:
@@ -466,7 +743,7 @@ def _slot_english_terms(scene: dict[str, Any], slot_name: str) -> list[str]:
 
 def _explicit_provider_queries(scene: dict[str, Any], provider: str) -> list[dict[str, Any]]:
     """Queries the author wrote, either for this provider by name or for all of them."""
-    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
+    brief = _sub_dict(scene, "visual_brief")
     raw = brief.get("provider_queries") or scene.get("provider_queries") or {}
     values: list[str] = []
     if isinstance(raw, dict):
@@ -488,7 +765,7 @@ def _explicit_provider_queries(scene: dict[str, Any], provider: str) -> list[dic
 
 def _english_queries(scene: dict[str, Any], *, intent_language: str) -> list[dict[str, Any]]:
     """An English query built from English evidence, never from a guessed translation."""
-    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
+    brief = _sub_dict(scene, "visual_brief")
     exact = [str(item).strip() for item in (brief.get("exact_entities") or []) if str(item).strip()]
     subject = _english_only(str(brief.get("subject") or ""))
     action = _english_only(str(brief.get("action") or ""))
@@ -575,7 +852,7 @@ def _source_language_queries(scene: dict[str, Any]) -> list[dict[str, Any]]:
                 )
         return queries
 
-    queries: list[dict[str, Any]] = []
+    queries = []
     primary = str(scene.get("primary_query") or "").strip()
     if primary and not _is_legacy_broad_query(primary):
         queries.append({"query": primary, "kind": "primary", "fallback_level": 1})
@@ -644,7 +921,7 @@ def _glossary_terms(scene: dict[str, Any]) -> list[str]:
 
 
 def _latin_terms(scene: dict[str, Any]) -> list[str]:
-    semantic = scene.get("semantic") if isinstance(scene.get("semantic"), dict) else {}
+    semantic = _sub_dict(scene, "semantic")
     pieces = [
         *(str(item) for item in (semantic.get("subject") or [])),
         *(str(item) for item in (semantic.get("location") or [])),
@@ -752,12 +1029,18 @@ __all__ = [
     "SOURCE_GLOSSARY",
     "SOURCE_LATIN_TOKENS",
     "SOURCE_SAME_LANGUAGE",
+    "ANCHOR_SOURCE_SCENE_SUBJECTS",
+    "ANCHOR_SOURCE_TOPIC_ENTITY",
+    "ANCHOR_SOURCE_UNRESOLVED",
     "STATUS_LANGUAGE_UNSUPPORTED",
     "STATUS_OK",
+    "STATUS_SUBJECT_UNVERIFIED",
     "STATUS_TRANSLATION_REQUIRED",
     "ProviderQuery",
     "SceneQueryPlan",
+    "TopicAnchor",
     "build_scene_queries",
     "build_slot_queries",
+    "plan_topic_anchor",
     "provider_query_languages",
 ]

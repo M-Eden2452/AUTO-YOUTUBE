@@ -90,6 +90,7 @@ from src.assets.provider_routing import route_providers
 from src.assets.query_adapter import (
     STATUS_TRANSLATION_REQUIRED,
     build_scene_queries,
+    plan_topic_anchor,
 )
 from src.assets.review_bundle import (
     attach_selected_asset,
@@ -231,6 +232,9 @@ class AssetManifestBuilder:
         minimum_video_duration_ratio: float,
     ) -> None:
         self.visual_plan = visual_plan
+        # Read once per plan, not per scene: a scene cannot tell that its own
+        # subject drifted off the topic of the video (C98, ADR 0022).
+        self.topic_anchor = plan_topic_anchor(visual_plan)
         self.media_index = media_index
         self.providers = providers or []
         self.dry_run = dry_run
@@ -376,6 +380,7 @@ class AssetManifestBuilder:
                 or "ru"
             ),
             capabilities=capabilities,
+            topic_anchor=self.topic_anchor,
         )
         preferred = set(scene.get("preferred_asset_ids") or [])
         user_ranked = rank_user_assets(
@@ -1023,6 +1028,7 @@ class AssetManifestBuilder:
                 routing_decision=state.routing_decision,
                 provider_capabilities=state.provider_capabilities,
                 scene_provider_attempts=state.scene_provider_attempts,
+                topic_anchor=self.topic_anchor,
                 allow_emergency_backdrop=self.allow_emergency_backdrop,
                 original_selected_asset_id=original_selected_asset_id,
                 # The same object the general search drew from: the ladder is the

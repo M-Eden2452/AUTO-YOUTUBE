@@ -2,20 +2,20 @@
 status: active
 plan_revision: 2.1
 created_at: 2026-07-30
-updated_at: 2026-08-17
+updated_at: 2026-08-18
 baseline_head: 38fed31
 working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress. The blind pass is measured (2 / 10 on v2,
-  4/14 on v1) and the eight wrong scenes are diagnosed - four classes, rows C98
-  and C99, evidence in docs/audits/PLAN_9D_FAILURE_DIAGNOSIS_2026-08-18.md.
-  NEXT is one slice on C98: queries must keep the video's topic (PD-13, ADR
-  0022), enforced offline where queries are built. Acceptance is the query
-  census on the same saved plans (15 of 42 subject-less -> 0), NOT blind
-  agreement - the instrument replays selection over a frozen pool and re-issues
-  no query. C99 waits for an owner decision. WHO DECIDES: the owner, at entry.
+  Checkpoint PLAN-9D, in progress. C98 is closed 2026-08-18 in
+  src/assets/query_adapter.py: a plan-level TopicAnchor keeps the video's topic in
+  every query (PD-13, ADR 0022). Census on the frozen scenes 15 of 42 -> 0; blind
+  agreement unchanged at 2 / 10 on v2 and 4 / 14 on v1, which is the guard, not the
+  acceptance. NEXT is an independent review-change in a clean context over that
+  immutable commit - the slice is HIGH risk (selection). Then C99, the largest
+  measured class left. No live run is authorised here. WHO DECIDES: the owner, at
+  entry.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -7291,6 +7291,47 @@ current-quality benchmark. Production logic этой записью не мен�
   `local_after_fix/scene_002` (система `C2`, владелец `C5`) — то есть правка
   купила одно совпадение и оставила вторую сцену неверной по-другому. Это
   меньше, чем «стало лучше вообще», и больше, чем «сдвинулось».
+- **сделано 2026-08-18: слайс C98 — запрос больше не теряет предмет темы.**
+  Один слайс на существующих владельцах, класс риска HIGH (отбор). Сначала
+  characterization: `tests/test_query_topic_anchor.py` переигрывает запросы обоих
+  замороженных прогонов через самого владельца (`build_scene_queries`), сходится
+  с сохранённым `query_plan` запись в запись и воспроизводит измеренное число —
+  **15 из 42** уникальных запросов без предмета. Затем правка:
+  `src/assets/query_adapter.py` получил `TopicAnchor` и
+  `plan_topic_anchor(visual_plan)`. Английская форма якоря берётся либо из
+  `topic_entity`, когда он английский, либо из английских `subject` /
+  `exact_entities` сцен **того же плана**, повторяющихся минимум в двух сценах;
+  для обоих прогонов из русского «панель» вышел `solar panel` — английское
+  свидетельство плана, а не перевод. Каждый английский запрос, не называющий
+  якорь, получает его в начало, а исходная строка пишется в `notes`. `K9` не
+  ослаблен: русский `topic_entity` не переводится, русский запрос локальной
+  библиотеки якорем не склеивается. Когда тема названа, но английской формы в
+  плане нет, запрос не уходит молча — сцена получает нерассылаемую запись
+  `query_subject_unverified`. Якорь считается один раз на план
+  (`AssetManifestBuilder.topic_anchor`) и идёт и в `build_scene_queries`, и в
+  `build_slot_queries`. **Приёмка:** та же перепись на тех же сценах — **15 из 42
+  → 0**; число «до» осталось воспроизводимым (тот же прогон без якоря по-прежнему
+  даёт 15). Уникальных запросов 42 → 41: один якорённый совпал с уже имевшимся,
+  новых запросов якорь не добавляет; 27 запросов, уже называвших тему, не
+  изменились. Существующий потолок `_MAX_QUERY_TERMS` (8 слов) якорь не поднимал,
+  поэтому один самый длинный запрос из пятнадцати ужался с хвоста
+  (`…industrial power storage facility` → `…industrial power`): предмет темы
+  дороже двух последних слов контекста. **Guard зелёный:** `blind agreement` 2 / 10 на v2 и 4 / 14 на v1 —
+  до и после, потому что прибор переигрывает отбор по замороженному пулу и
+  запросов не переотправляет. **Не заявляется:** улучшение отбора — по разбору
+  правка двигает 2–3 сцены из восьми, в шести нужный кандидат и так лежал в пуле
+  и проигрывал ранжированию (`C99`). Продуктовый эффект на пуле покажет только
+  новый живой прогон — платное действие и отдельное решение владельца; в этом
+  слайсе не делалось. **Не покрыто:** локальная библиотека приходит в пул вообще
+  без запроса, «подтверждённый эквивалент» пункта 1 ADR 0022 не реализован
+  (совпадение считается по общей основе слова — ровно как считает перепись), путь
+  `build_slot_queries` заякорен, но переписью не измерен и проверен модульно.
+  **Ratchet:** `src.assets.query_adapter` снят из mypy baseline в `pyproject.toml`
+  — все 16 подавленных ошибок модуля были одним идиомом чтения вложенного словаря,
+  вынесенным в `_sub_dict`. **Найдено попутно и не чинилось:** строка `C100` —
+  `test_plan9d_retrieval_gate` красный и на чистом HEAD, пин sha корпуса v1 отстал
+  от корпуса после `20f02cd`. Строка `C98` закрыта. Осталось после слайса:
+  независимый `review-change` в чистом контексте по неизменяемому коммиту.
 - **выполнено (было: ждёт владельца):** слепая разметка **55 карточек с картинками**
   по доске (`%TEMP%\plan9d_h\plan9d_h_pack.html`, медиа —
   `%TEMP%\plan9d_h\media\`, пересобирается командой `pack` из
