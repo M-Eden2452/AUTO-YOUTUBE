@@ -92,6 +92,11 @@
   строкой в [docs/current/CLEANUP_REGISTRY.md](docs/current/CLEANUP_REGISTRY.md)
   с существующим владельцем. Реестр — не разрешение на удаление, а второй реестр
   не создаётся.
+- Слайс, который вводит или меняет долговечную архитектурную границу — public
+  contract, системную границу, module-owner, persisted-поле, config-gate или
+  класс сетевого действия, — открывает `skills/architecture-change/SKILL.md` и в
+  том же слайсе создаёт или обновляет [ADR](docs/adr/). Closure-блок плана и
+  строка реестра ADR не заменяют.
 - Новый governance-механизм до v1 (документ-правило, чекер, реестр, роль) —
   только по owner decision, который называет заменяемое или отказ,
   предотвращённый по факту. Evidence-отчёт в существующем каталоге
@@ -99,15 +104,9 @@
 
 ## Versioned agent skills
 
-Процедуры находятся в `skills/`:
-
-- `create-short-video-first`
-- `evaluate-render-quality`
-- `resume-project`
-- `replace-visual-slot`
-- `architecture-change`
-- `create-handoff`
-- `review-change`
+Процедуры находятся в `skills/`: `create-short-video-first`,
+`evaluate-render-quality`, `resume-project`, `replace-visual-slot`,
+`architecture-change`, `create-handoff`, `review-change`.
 
 Используй только skill, соответствующий задаче, и проверяй команды по текущему `--help`.
 
