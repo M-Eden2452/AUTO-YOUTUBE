@@ -327,10 +327,13 @@ class CurrentBenchmarkSlotTests(unittest.TestCase):
         complete, problems = annotations_are_complete(corpus, annotations)
         self.assertEqual([], problems)
         self.assertTrue(complete)
-        self.assertEqual(corpus["corpus_sha256"], annotations["corpus_sha256"])
-        # The load-bearing half since `C95`: provenance says which file produced
-        # the pass, identity says what the pass answered, and only the second
-        # decides whether it still counts.
+        # Two hashes, two claims. ``corpus_sha256`` in the annotation file names
+        # the file the pass was produced from - bfb4d02..., the corpus as it stood
+        # on 2026-08-12 - and it is deliberately not updated when the file's
+        # derived fields are re-derived, because the owner did not annotate the
+        # new file. Identity is what decides whether the labels still count, and
+        # it survived the 2026-08-18 recompute unchanged.
+        self.assertEqual(64, len(str(annotations["corpus_sha256"])))
         self.assertEqual(
             annotation_identity_digest(corpus), annotations["annotation_identity_sha256"]
         )

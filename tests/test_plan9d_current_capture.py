@@ -52,6 +52,7 @@ from tests.plan9d_ground_truth import (
     STATUS_COMPLETE,
     STATUS_WAITING,
     BenchmarkError,
+    annotation_identity_digest,
     annotation_status,
     assert_current_benchmark_input,
     corpus_digest,
@@ -93,16 +94,17 @@ REQUIRED_SIMPLE_SUBJECTS = ("gecko", "hummingbird", "penguin", "orca")
 #: *exactly* this - a further selection change reddens them again, and a drift
 #: that disappears reddens them too, so the entry is dropped by whoever removed
 #: it rather than left as scenery.
-KNOWN_DERIVED_DRIFT: dict[str, dict[str, tuple[str, ...]]] = {
-    # C91 (per-field decidability): the pool stopped being ambiguous because the
-    # terms that could not be compared against a glued record can be compared
-    # against its fields. No winner changed anywhere in the corpus - measured
-    # with ``measure --baseline``: changed_winners 0.
-    "plan9d_current_capture_v1/scene_010": {
-        "dropped": ("ambiguous_needs_review",),
-        "added": (),
-    },
-}
+#: Empty since 2026-08-18, and that is the point rather than an accident.
+#: The single entry it held - ``scene_010`` losing ``ambiguous_needs_review``
+#: after `C91` - was pinned because recomputing the file would have re-signed
+#: ``corpus_sha256`` and unbound the owner's blind pass, which was bound to it.
+#: `C95` moved the binding onto ``annotation_identity_sha256``, the digest of
+#: what the annotator was actually asked, so the recompute could finally be run:
+#: the derived fields are the code's again, the identity digest came out
+#: byte-identical, and the labels stayed bound. The mechanism stays because the
+#: next repair to move a derived field should record it here for the slice it
+#: takes to re-derive the file - not carry it for weeks.
+KNOWN_DERIVED_DRIFT: dict[str, dict[str, tuple[str, ...]]] = {}
 
 
 def _corpus() -> dict:
@@ -353,10 +355,22 @@ class AnnotationTests(unittest.TestCase):
     """
 
     def test_the_annotation_is_a_separate_owner_artifact(self) -> None:
+        """Signed by a human, and bound to what that human was asked.
+
+        The binding used to be read off ``corpus_sha256`` here too. Since `C95`
+        that field is provenance - the file the pass came from - and the labels
+        are bound by ``annotation_identity_sha256``, which the 2026-08-18
+        re-derivation of the corpus's derived fields left unchanged. Asserting
+        the old equality would now assert that nothing may ever be recomputed,
+        which is the state `C95` existed to end.
+        """
+
         annotations = load_annotations()
         self.assertTrue(str(annotations.get("annotator") or "").strip())
         self.assertIs(True, annotations.get("blind"))
-        self.assertEqual(_corpus()["corpus_sha256"], annotations["corpus_sha256"])
+        self.assertEqual(
+            annotation_identity_digest(_corpus()), annotations["annotation_identity_sha256"]
+        )
 
     def test_annotation_status_follows_the_owner_file_not_the_capture(self) -> None:
         """Only the owner's file moves this needle, and its absence is honest."""
