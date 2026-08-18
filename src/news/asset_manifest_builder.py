@@ -1647,9 +1647,11 @@ def rank_local_assets(
         # being long enough - bought a place in the shortlist: for ``['градирня']`` and
         # ``['кит','океан']`` 85 records of 85 passed, none of them sharing a word with
         # the scene, and the shortlist became "the ten longest clips of the index".
-        # Measured cost of the rule on the 280 stored scenes: 83 of them now get no
-        # local shortlist at all, because there is nothing local to show them, and the
-        # mean shortlist is 4.96 records instead of a full ten.
+        # Measured cost of the rule on the 217 stored scenes this function routes to
+        # video: 77 of them now get no local shortlist at all, because there is nothing
+        # local to show them, and the mean shortlist is 4.53 records instead of a full
+        # ten. The other 63 stored scenes ask for an image and were already empty - the
+        # library holds 85 videos and no image at all (C112), which is not this rule.
         require_lexical_match=True,
         limit=10,
     )
