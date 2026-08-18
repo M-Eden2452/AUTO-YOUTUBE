@@ -16,6 +16,12 @@ from .utils import project_path
 
 WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
 
+#: Marks the one reason that means "this record repeats a word of the scene". Every
+#: other reason a record can earn - type, aspect, duration, mood, channel - says
+#: nothing about what is in the frame, so admission is read off this prefix rather
+#: than off the total.
+MATCH_REASON_PREFIX = "match:"
+
 LIBRARY_ROOT = Path("assets/library")
 INDEX_PATH = LIBRARY_ROOT / "metadata/media_index.json"
 MEDIA_EXTENSIONS = {
@@ -80,7 +86,20 @@ def search_local_assets(
     channel: str = "",
     min_score: int = 4,
     limit: int | None = None,
+    require_lexical_match: bool = False,
 ) -> list[dict[str, Any]]:
+    """Records of ``media_type`` this scene has a reason to consider, best first.
+
+    ``require_lexical_match`` states the admission rule as a property rather than as a
+    number: the record must repeat at least one word of the scene. A threshold cannot
+    say that. Type, 16:9 and duration are worth a point each and mood and channel two
+    each, so any fixed number is reachable by a record that shares no word at all with
+    the scene - which is how a query about a cooling tower came back holding the ten
+    longest clips of the index.
+
+    Callers that select on something other than words - music matches on mood and
+    duration - leave it off and keep scoring by number alone.
+    """
     matches: list[dict[str, Any]] = []
     for item in index.get("items", []):
         if media_type and item.get("type") != media_type:
@@ -89,6 +108,10 @@ def search_local_assets(
         if path and not project_path(path).exists():
             continue
         score, reasons = _score_asset(item, scene, media_type, channel)
+        if require_lexical_match and not any(
+            reason.startswith(MATCH_REASON_PREFIX) for reason in reasons
+        ):
+            continue
         if score >= min_score:
             matches.append({"asset": item, "score": score, "reasons": reasons})
     matches.sort(key=lambda match: (match["score"], float(match["asset"].get("duration") or 0)), reverse=True)
@@ -536,12 +559,26 @@ def _asset_id(asset: dict[str, Any]) -> str:
 def _score_asset(item: dict[str, Any], scene: dict[str, Any], media_type: str, channel: str) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
-    item_keywords = set(tokenize(item.get("keywords", [])))
+    # Every field in which the record states what the frame shows, asked as one
+    # question. ``keywords`` is a curated list and ``title``/``description`` are the
+    # same Russian sentence written by ``tools/library/curated_index.py`` - the only
+    # place the curation says anything in prose. Reading keywords alone meant a word
+    # stated only in that sentence was worth nothing, which is most of what the
+    # bilingual curation actually produced.
+    #
+    # A word counts once however many of the three fields repeat it: the writer copies
+    # the sentence into two fields by construction, so counting per field would score
+    # the same evidence twice and make prose length beat agreement.
+    item_words = set(
+        tokenize(item.get("keywords", []))
+    ) | set(
+        tokenize([item.get("title", ""), item.get("description", "")])
+    )
     scene_keywords = set(tokenize(scene.get("visual_keywords", []) or scene.get("image_query", "")))
-    keyword_hits = item_keywords & scene_keywords
+    keyword_hits = item_words & scene_keywords
     if keyword_hits:
         score += 3 * len(keyword_hits)
-        reasons.append(f"keyword:{','.join(sorted(keyword_hits))}")
+        reasons.append(f"{MATCH_REASON_PREFIX}{','.join(sorted(keyword_hits))}")
     item_mood = set(tokenize(item.get("mood", [])))
     scene_mood = set(tokenize(scene.get("mood", "")))
     if item_mood & scene_mood:

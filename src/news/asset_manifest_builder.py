@@ -1615,7 +1615,15 @@ def rank_local_assets(
         },
         media_type=requested_type,
         channel=channel,
-        min_score=1,
+        # The owner's own default, and the admission rule that a number cannot state.
+        # ``min_score=1`` here meant one free point - being a video, or being 16:9, or
+        # being long enough - bought a place in the shortlist: for ``['градирня']`` and
+        # ``['кит','океан']`` 85 records of 85 passed, none of them sharing a word with
+        # the scene, and the shortlist became "the ten longest clips of the index".
+        # Measured cost of the rule on the 280 stored scenes: 83 of them now get no
+        # local shortlist at all, because there is nothing local to show them, and the
+        # mean shortlist is 4.96 records instead of a full ten.
+        require_lexical_match=True,
         limit=10,
     )
     ranked = []

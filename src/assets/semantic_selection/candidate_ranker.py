@@ -428,6 +428,32 @@ def _score_candidate(
     shot_scale_observed, shot_scale_intent, shot_scale_adjustment = _shot_scale_signal(
         scene.shot_type, text
     )
+    # ``relevance_score`` - the local matcher's own count of words a record shares with
+    # the scene - is deliberately absent from what follows. Owner decision 2026-08-18,
+    # taken on measurement rather than on principle:
+    #
+    #   * the two scales are of different natures. ``relevance_score`` is whole points
+    #     of lexical overlap, unbounded in practice (0-24 over 23 800 scene/record pairs
+    #     of the 280 stored scenes), and 20 366 of those pairs sit at exactly 3 - the
+    #     free points for being a video, being 16:9 and being long enough, which say
+    #     nothing about the frame. ``final_score`` is 0-100 and 0.85 of it is meaning;
+    #   * a weight small enough to be safe changes nothing, and a weight large enough
+    #     to change anything is unsafe. On ``scene_003`` of the frozen solar plan the
+    #     term needs w > 0.972 per point to reorder two candidates and w > 0.556 to
+    #     push one across the meaning gate of 60 - at which point three free points
+    #     carry a record with no shared word over a threshold that exists to gate
+    #     meaning, the very thing C99's tie-tier guard was added to prevent;
+    #   * the frozen corpora cannot referee this. ``tests/plan9d_corpus_builder.py``
+    #     strips ``relevance_score`` as ranker output, so 0 of 1064 (v1) and 0 of 78
+    #     (v2) candidates carry it - v2 holds 30 local records - and every weight from
+    #     0.075 to a deliberately huge 2.0 measured exactly the baseline 6/14 and 2/10;
+    #   * the curation is not unread here in any case: ``build_evidence`` reads the
+    #     record's own ``title``/``description``, which is where the Russian sentence
+    #     lives, and judges meaning on it directly.
+    #
+    # What the local score does instead is decide *admission*: a record must repeat a
+    # word of the scene to reach this function at all (``search_local_assets``,
+    # ``require_lexical_match``). Re-opening this needs a corpus that carries the field.
     final_score = (
         0.85 * meaning_score
         + 0.075 * quality_score

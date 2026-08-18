@@ -358,6 +358,119 @@ class MediaLibraryTests(unittest.TestCase):
 
         self.assertEqual([candidate.provider_asset_id for candidate in found], ["1"])
 
+    def test_shortlist_admits_only_records_that_matched_a_word(self) -> None:
+        """A record the scene never named must not reach the shortlist at all.
+
+        ``min_score=1`` let type + 16:9 + duration carry a record in on their own, so a
+        query about a cooling tower got the ten longest clips of the index. The gate is
+        stated as "at least one word of the scene appears in this record", not as a
+        number: mood and channel tags can reach any fixed threshold without a single
+        shared word, and then the same defect returns through a different door.
+        """
+        from src.media_library import search_local_assets
+
+        with TemporaryDirectory() as tmp:
+            index = _russian_energy_library(Path(tmp))
+            scene = {
+                "visual_keywords": ["градирня"],
+                "scene_type": "video",
+                "duration": 6,
+            }
+
+            admitted = search_local_assets(
+                index,
+                scene,
+                media_type="video",
+                channel="",
+                require_lexical_match=True,
+            )
+            self.assertEqual(admitted, [])
+
+            without_the_rule = search_local_assets(
+                index,
+                scene,
+                media_type="video",
+                channel="",
+                min_score=1,
+            )
+            self.assertEqual(len(without_the_rule), 5)
+            self.assertEqual(without_the_rule[0]["asset"]["id"], "long_unrelated")
+
+    def test_local_score_reads_the_curated_sentence_too(self) -> None:
+        """The Russian curation lives in ``title``/``description``; the matcher read neither.
+
+        ``tools/library/curated_index.py`` writes the same Russian sentence into both,
+        and it is the only place a record says what the frame shows in prose. A word
+        stated there and nowhere else used to be worth nothing to retrieval.
+        """
+        from src.media_library import register_asset, search_local_assets
+
+        with TemporaryDirectory() as tmp:
+            index = _russian_energy_library(Path(tmp))
+            path = Path(tmp) / "tower.mp4"
+            path.write_bytes(b"dummy")
+            register_asset(
+                index,
+                {
+                    "id": "tower",
+                    "type": "video",
+                    "provider": "fake",
+                    "provider_asset_id": "tower",
+                    "local_path": str(path),
+                    "source_url": "https://fake.local/video/tower",
+                    "title": "Градирня электростанции выбрасывает пар",
+                    "description": "Градирня электростанции выбрасывает пар",
+                    "keywords": ["cooling", "tower"],
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": 10.0,
+                    "schema_version": 1,
+                    "rights_status": "licensed",
+                    "allowed_for_render": True,
+                    "review_required": False,
+                    "license": {
+                        "license_name": "fake_test_license",
+                        "rights_status": "licensed",
+                        "allowed_for_render": True,
+                        "review_required": False,
+                    },
+                    "provenance": {"provider": "fake", "provider_asset_id": "tower"},
+                },
+            )
+
+            matches = search_local_assets(
+                index,
+                {"visual_keywords": ["градирня"], "scene_type": "video", "duration": 6},
+                media_type="video",
+                channel="",
+                require_lexical_match=True,
+            )
+
+            self.assertEqual([match["asset"]["id"] for match in matches], ["tower"])
+            self.assertIn("match:градирня", matches[0]["reasons"])
+
+    def test_one_word_is_counted_once_however_many_fields_state_it(self) -> None:
+        """``keywords`` and the sentence repeat each other by construction, not by luck."""
+        from src.media_library import _score_asset
+
+        record = {
+            "type": "video",
+            "keywords": ["солнечная", "панель"],
+            "title": "Солнечная панель крупным планом",
+            "description": "Солнечная панель крупным планом",
+        }
+        score, reasons = _score_asset(
+            record,
+            {"visual_keywords": ["солнечная", "панель"]},
+            "video",
+            "",
+        )
+
+        self.assertEqual(score, 3 * 2 + 1)
+        self.assertEqual([reason for reason in reasons if reason.startswith("match:")],
+                         ["match:панель,солнечная"])
+
+
 
 if __name__ == "__main__":
     unittest.main()
