@@ -1,0 +1,794 @@
+{
+ "schema_version": "plan9d-annotations-1",
+ "corpus_version": "plan9d-h-2026-08-17",
+ "corpus_sha256": "5b03ec88589aabc4736d88d7da75838bb0336390b6a7d5c879c5ddae19f629b6",
+ "annotation_identity_sha256": "12a969a4b286ad21fb0443abe72a63fbdd645186f9181dd3c26cb219b8b6ac14",
+ "blind": true,
+ "annotator": "PLAN_9D_TEST",
+ "annotated_at_utc": "2026-08-18T07:22:54Z",
+ "status": "COMPLETE",
+ "scenes": [
+  {
+   "scene_key": "S9d6dadf5c0",
+   "preferred_candidate": "C1",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C7": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C10": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S4b9e378936",
+   "preferred_candidate": "C6",
+   "unacceptable_candidates": [
+    "C5"
+   ],
+   "note": "Тут одна неприемлемая, то, что там люди стоят и реклама какая-то. Такое я не знаю, как избегать таких. То есть это я понимаю, что на поисковых сайтах оно: паттерн там, панели солнечные панели. Да возможно и мы, наверное, такие не можем избегать. Это только потом, когда когда нейросеть может определять, что на картинке алгоритм, наверное, такой не может избегать. Здесь на картинке рекламы это вообще мы не можем допустить. ",
+   "candidates": {
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C6": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S919f388d0e",
+   "preferred_candidate": "C7",
+   "unacceptable_candidates": [
+    "C1",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "note": "Заводы штампуют панели все быстрее и стоят они все дешевле. Понимаешь, тут не написаны «солнечные панели», то есть написано «панели». Да, оно нашло нам три материала, как собирают на заводе автомобиль. То есть это тоже, допустим, нельзя так делать. То есть нам надо на заводе солнечные панели и только все. Если этого нет, не надо искать автомобили или что-то другое. Зачем тут какая-то какая-то речка и закат? Как это могло вообще появиться здесь?",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C6": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C7": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "Sdd4aaad864",
+   "preferred_candidate": "undecidable",
+   "unacceptable_candidates": [
+    "C1",
+    "C4",
+    "C7",
+    "C9"
+   ],
+   "note": "Надо понимать всегда смысл. У нас смысл солнечная панель. В предложении аккумуляторы. Ну кто? Как приложение строило этот запрос? Какие аккумуляторы, блять! То есть почему тут на картинках у нас какие-то перфораторы, дрельки и зарядные устройства телефонов? Ну нельзя допускать такое! Как это? Оно ищет, я так понял, по запросу аккумуляторов и то, что держит энергию до вечера, но нам не это надо. То есть в предложении нет солнечных панелей, оно значит не ищет их даже!\n\nНадо по смыслу создавать теги правильно. Не от определенного предложения а от контекста к сценарию! Главное узкое место это аккумуляторы. Они держат энергию до вечера.\n\nВот предложение: ну аккумуляторы и солнечные панели. То есть нельзя искать видео или фотки без солнечных панелей! То есть это должны быть аккумуляторы и солнечные панели либо просто показать солнечные панели! ",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C7": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C9": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S3b2901a8a3",
+   "preferred_candidate": "C7",
+   "unacceptable_candidates": [
+    "C4"
+   ],
+   "note": "То же самое: как появился ветряк? Вот как допускается запрос: что у нас появился ветряк, типа солнечная энергия, но это природная энергия. Ветряк ",
+   "candidates": {
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C6": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C7": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S9a09f141e5",
+   "preferred_candidate": "C2",
+   "unacceptable_candidates": [],
+   "note": "",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C6": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C7": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S346ba272cd",
+   "preferred_candidate": "C5",
+   "unacceptable_candidates": [
+    "C3",
+    "C4"
+   ],
+   "note": "Написано в полдень станция выдаёт пик мощности. И оно нашло станцию, причем атомную станцию, которая не имеет отношения к солнечным панелям, и нашло полдень или закат, я не знаю. То есть зачем это искать, зачем вообще это искать, зачем такие картинки, зачем такие ключевые слова, такие теги поиска создавать?\n\nУ нас смысл в панелях: нам не надо заката или полдень без панели. То есть это, ну при создании вот этих тегов поиска, должен быть смысл: должен строить их так, чтобы понимать, что оно может найти что-то другое. Сайт устроен же не так, блядь. Там по тегам нужны панели как-то оценивать и зачем разрешать искать станции.\n\nВот вы это предложение поняли: она ищет именно панели, полный вот, и все не отдельно полдень и какие станции не горизонт. То есть смысл предложения понимать, что нам нужно с ней из этого строить правильно. ",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S39fa26eec3",
+   "preferred_candidate": "C3",
+   "unacceptable_candidates": [
+    "C1",
+    "C2",
+    "C4",
+    "C5",
+    "C7"
+   ],
+   "note": "То же самое. Вот сам посмотри, куча лишнего: тупо завод и любая какая-то херня.",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C6": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C7": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "Seb87de5458",
+   "preferred_candidate": "C1",
+   "unacceptable_candidates": [
+    "C3",
+    "C4",
+    "C5"
+   ],
+   "note": "Я просто не знаю. Первое и второе, картинка, она подходит под энергии, электроэнергии, наверное, подходит. Типа электростанции или что или это атомная станция я не знаю. Но если это оно, может, это и подходит. Я выберу первый или второй вариант? Ну я не уверен но нам надо проверять. ",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S54964d51d1",
+   "preferred_candidate": "C8",
+   "unacceptable_candidates": [
+    "C1"
+   ],
+   "note": "",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C8": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  },
+  {
+   "scene_key": "S74a58707be",
+   "preferred_candidate": "undecidable",
+   "unacceptable_candidates": [
+    "C2",
+    "C3",
+    "C4"
+   ],
+   "note": "",
+   "candidates": {
+    "C1": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C2": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C3": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C4": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    },
+    "C5": {
+     "subject_coverage": "",
+     "action_coverage": "",
+     "environment_coverage": "",
+     "location_coverage": "",
+     "must_include": "",
+     "must_avoid": "",
+     "non_real_footage": "",
+     "crop_survives_9_16": "",
+     "visible_text_or_logo": "",
+     "exact_entity_match": ""
+    }
+   }
+  }
+ ]
+}

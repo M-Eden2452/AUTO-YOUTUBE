@@ -8,13 +8,13 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress; unchanged by this slice. NEXT is still the
-  owner's blind labelling inside PLAN-9D-H (package C): 55 of the board's 78
-  cards wait for the owner, and no agent can produce them. PLAN-9C-4 (package D)
-  is closed 2026-08-17 and no longer waits on it - its two acceptance numbers
-  are read off the winners, which need no ground truth; blind agreement does,
-  so 4/14 on v1 stays the last measured product number. WHO DECIDES: the owner,
-  at entry to each step. Closure history is in "Current checkpoint" below.
+  Checkpoint PLAN-9D, in progress. The owner's blind pass landed 2026-08-18, so
+  PLAN-9D-H (package C) is measured: blind agreement 2 / 10 scorable on corpus
+  v2, 4/14 on v1 unchanged. NEXT is the step this plan reserved for the moment
+  labels exist - read the seven scenes the labels call wrong (4 miss, 3 taking a
+  card the owner marked unacceptable), name ONE cause class with an existing
+  owner, fix that one, re-measure on the same frozen corpus. WHO DECIDES: the
+  owner, at entry to each step. History is in "Current checkpoint" below.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -1675,7 +1675,7 @@ script; `C58` — честного pre-final preview нет, оценивать 
 | **0** Сохранность | отчёты 15–17.08 в git и в индексе | закрыт `d05d5ec` |
 | **A** Точка истины `C89` | независимое ревью `ec369f8`, `ede8c4b` | закрыт `3619fe1`, verdict scope PASS · objective PASS |
 | **B** План перестаёт себе противоречить | это поле, замок, база замера, строка `C92` | закрыт коммитом, содержащим эту запись |
-| **C** Прибор | корпус v2 видит язык | **PLAN-9D-H**, in progress: корпус и доска собраны 2026-08-17, ждёт слепой разметки 55 карточек владельцем |
+| **C** Прибор | корпус v2 видит язык | **PLAN-9D-H**, измерено 2026-08-18: разметка владельца легла, blind agreement **2 / 10** scorable, v1 прежние 4/14 |
 | **D** Доказуемость | `is_undecidable` пофайлово | **PLAN-9C-4** закрыт 2026-08-17 этим слайсом: v1 `changed_winners 0`, v2 — 2 сцены из 11 поимённо; agreement не измерялся (разметки v2 нет), `4/14` остаётся последним числом. Класс HIGH — независимый `review-change` после |
 | **E** Безопасность | `synthesize` под `require_network`, `C87` | закрыт `d7fb378` (`C94`, `C87`), [ревью](../audits/REVIEW_PACKAGE_E_2026-08-17.md) scope PASS · objective PASS, findings 0 |
 | **F**, **ADR**, **T**, **G** | смысл · движение · витрина; долговечные решения **и перенос ответов владельца 2026-08-16 в `PRODUCT_PLAN.md`** (пакет **P**, строка `C93`); тесты; governance | **P** закрыт `52f4cee`, **T** — `407afe1`+`48266a5`, **ADR** — 2 из 5–6 (`666c296`), остаток состава за владельцем (`C92`); **F** и **G** — по маршруту |
@@ -7270,7 +7270,27 @@ current-quality benchmark. Production logic этой записью не мен�
      проверяется так, как его открывает человек.
   5. Порядок пакета D подтверждается или пересматривается **после** разметки, по
      крупнейшему измеренному классу ошибок, а не по номеру PLAN-ID.
-- **не сделано и ждёт владельца:** слепая разметка **55 карточек с картинками**
+- **сделано 2026-08-18: разметка владельца легла, корпус измерен.**
+  `tests/data/plan9d/current_annotations_v2.json` — 11 сцен, annotator
+  `PLAN_9D_TEST`, 25 карточек помечены неприемлемыми, две сцены владелец назвал
+  `undecidable`. Привязка — `annotation_identity_sha256` (`C95`), поэтому
+  пересчёт производных полей корпуса разметку больше не осиротляет. Числа
+  metadata-only арма на v2, зафиксированные тестом
+  `FrozenBilingualMeasurementTests`: **blind agreement 2 / 10 scorable**
+  (10 снятых сцен), инцидентная сцена — 1, agreement 0, печатается отдельно;
+  `all scenes together` 2 / 11; **cards not shown to anyone 23 из 78**.
+  Разбор десяти слепых сцен: match 2, miss 4, выбрана карточка, которую
+  владелец назвал неприемлемой — 2 (плюс третья на сцене, где владелец
+  воздержался: `live_5/scene_002` C5, `local_after_fix/scene_003` C4,
+  `live_5/scene_004` C9), воздержание против названного предпочтения — 1,
+  `undecidable` — 1. `must_avoid_escaped` 0, `non_real_footage_selected` 0,
+  `safe_escalations_to_review` 9, `auto_safe` 0. Про `C91` разметка говорит
+  ровно одно: из двух сцен, где правка сменила победителя, владелец согласен с
+  новым победителем в `live_5/scene_003` (`C7`) и не согласен в
+  `local_after_fix/scene_002` (система `C2`, владелец `C5`) — то есть правка
+  купила одно совпадение и оставила вторую сцену неверной по-другому. Это
+  меньше, чем «стало лучше вообще», и больше, чем «сдвинулось».
+- **выполнено (было: ждёт владельца):** слепая разметка **55 карточек с картинками**
   по доске (`%TEMP%\plan9d_h\plan9d_h_pack.html`, медиа —
   `%TEMP%\plan9d_h\media\`, пересобирается командой `pack` из
   `tests/data/plan9d/README.md`). Кнопка сохраняет

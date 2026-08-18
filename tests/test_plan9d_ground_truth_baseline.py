@@ -1287,6 +1287,104 @@ class SceneTokenTests(unittest.TestCase):
             self.assertIn(str(scene["scene_key"]), index)
 
 
+class FrozenBilingualMeasurementTests(unittest.TestCase):
+    """PLAN-9D-H: today's decision owner scored against the owner's v2 labels.
+
+    The same shape as ``FrozenBaselineMeasurementTests`` and for the same reason
+    - the number becomes a repository fact that the next change to selection has
+    to move on purpose - but this corpus is the one that can see language: two
+    real runs, 11 scenes, 30 Cyrillic records against v1's 2.
+
+    What the number is and is not. ``blind agreement`` is the only ratio that
+    describes field behaviour, and the hand-made incident scene stays outside it.
+    A label says "of the cards that had a picture, this one" - 23 of 78 cards had
+    none and were never shown, so this cannot say retrieval missed something
+    before the shortlist. And the pass is one annotator's, recorded once.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.corpus = load_current_corpus(CURRENT_CORPUS_V2_PATH)
+        cls.annotations = load_annotations(CURRENT_ANNOTATIONS_V2_PATH)
+        cls.result = evaluate_arm(
+            cls.corpus, cls.annotations, run_metadata_baseline(cls.corpus)
+        )
+
+    def test_the_measurement_runs_instead_of_waiting(self) -> None:
+        self.assertEqual(STATUS_COMPLETE, self.result["status"])
+        self.assertEqual([], self.result["blocking"])
+        self.assertEqual(ARM_METADATA_ONLY, self.result["arm"])
+        self.assertEqual(self.corpus["corpus_sha256"], self.result["corpus_sha256"])
+
+    def test_the_bilingual_aggregate_is_what_the_frozen_inputs_say(self) -> None:
+        self.assertEqual(
+            {
+                "scenes": 11,
+                "scorable_scenes": 11,
+                "unscorable_winner_not_visible": 0,
+                "preferred_matches": 2,
+                "blind_annotation_scenes": 10,
+                "scorable_blind_scenes": 10,
+                "preferred_matches_blind": 2,
+                "incident_scenes": 1,
+                "preferred_matches_incident": 0,
+                "unacceptable_selected": 3,
+                "abstentions": 2,
+                "correct_abstentions": 0,
+                "wrong_abstentions": 1,
+                "must_avoid_escaped": 0,
+                "non_real_footage_selected": 0,
+                "safe_escalations_to_review": 9,
+                "auto_safe": 0,
+                "undecidable_cases": 2,
+                "candidates": 78,
+                "candidates_unreviewable": 23,
+            },
+            self.result["aggregate"],
+        )
+
+    def test_every_winner_is_named_so_a_change_cannot_hide_in_a_ratio(self) -> None:
+        """Two scenes can swap and leave the ratio flat. The pairs cannot."""
+
+        self.assertEqual(
+            {
+                "live_5/scene_001": ("C5", "C1"),
+                "live_5/scene_002": ("C5", "C6"),
+                "live_5/scene_003": ("C7", "C7"),
+                "live_5/scene_004": ("C9", "undecidable"),
+                "live_5/scene_005": ("C7", "C7"),
+                "local_after_fix/scene_001": ("C5", "C2"),
+                "local_after_fix/scene_002": ("C2", "C5"),
+                "local_after_fix/scene_003": ("C4", "C3"),
+                "local_after_fix/scene_004": ("", "C1"),
+                "local_after_fix/scene_005": ("C2", "C8"),
+                "local_after_fix/scene_004#ban_declension_cooling_tower": ("", "undecidable"),
+            },
+            {
+                str(row["scene_key"]): (
+                    str(row["system_selected"] or ""),
+                    str(row["human_preferred"] or ""),
+                )
+                for row in self.result["scenes"]
+            },
+        )
+
+    def test_the_scene_c91_moved_is_the_one_the_owner_agrees_with(self) -> None:
+        """The only human-checked statement about `C91` on this corpus.
+
+        `C91` changed exactly two winners here (`2b636ab`): ``live_5/scene_003``
+        from ``C5`` to ``C7``, and ``local_after_fix/scene_002`` from an
+        abstention to ``C2``. The labels judge them differently - ``C7`` is what
+        the owner preferred, ``C2`` is not - so the repair bought one agreement
+        and left the other scene wrong in a different way. That is the whole of
+        what this corpus supports about `C91`, and it is smaller than "better".
+        """
+
+        rows = {str(row["scene_key"]): row for row in self.result["scenes"]}
+        self.assertTrue(rows["live_5/scene_003"]["selection_matches_preferred"])
+        self.assertFalse(rows["local_after_fix/scene_002"]["selection_matches_preferred"])
+
+
 class ClassSeparatedNumberTests(unittest.TestCase):
     """A hand-made scene may not be counted inside field agreement.
 
@@ -1389,15 +1487,24 @@ class BilingualCorpusTests(unittest.TestCase):
             {str(run["run_id"]) for run in self.corpus["source_runs"]},
         )
 
-    def test_the_blind_pass_has_not_happened_and_is_not_faked(self) -> None:
-        """The owner's labels are the input this step ends by asking for.
+    def test_the_blind_pass_happened_and_binds_to_this_corpus(self) -> None:
+        """The assertion this class carried until 2026-08-18, now on its other side.
 
-        If this test ever fails because the file exists, the corpus is measurable
-        and PLAN-9D-H can close - which is a different assertion, and it belongs to
-        the slice that closes it.
+        It used to say the file did not exist, and named the condition for
+        flipping it: the moment the owner's labels land, the corpus is
+        measurable and the claim becomes "they are here, and they belong to
+        *these* pictures". They landed on 2026-08-18 - 11 scenes, 55 of 78 cards
+        carrying a picture - so this is that claim. The binding is checked
+        through the same gate a measurement uses, not by comparing strings.
         """
 
-        self.assertFalse(CURRENT_ANNOTATIONS_V2_PATH.exists())
+        self.assertTrue(CURRENT_ANNOTATIONS_V2_PATH.is_file())
+        annotations = load_annotations(CURRENT_ANNOTATIONS_V2_PATH)
+        self.assertIs(True, annotations.get("blind"))
+        self.assertTrue(str(annotations.get("annotator") or "").strip())
+        complete, problems = annotations_are_complete(self.corpus, annotations)
+        self.assertEqual([], problems)
+        self.assertTrue(complete)
 
     def test_the_card_count_is_what_the_board_shows(self) -> None:
         stats = self.corpus["card_statistics"]
