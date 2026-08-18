@@ -2,6 +2,7 @@
  "schema_version": "plan9d-annotations-1",
  "corpus_version": "plan9d-b-2026-08-08",
  "corpus_sha256": "bfb4d02437f3c52879c98367558de339ffb8e352d6dd4ef743e14c4185ccf1b4",
+ "annotation_identity_sha256": "04b33c9bad935d5ac9d565257226903e9a3c590ee37468044ee9168f1a64cffc",
  "blind": true,
  "annotator": "Test2",
  "annotated_at_utc": "2026-08-12T08:05:31Z",

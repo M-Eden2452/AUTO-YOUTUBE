@@ -100,6 +100,7 @@ from .plan9d_ground_truth import (
     STATUS_WAITING,
     BenchmarkError,
     assert_current_benchmark_input,
+    annotation_identity_digest,
     assign_blind_ids,
     candidate_is_visible,
     canonical_json,
@@ -499,6 +500,7 @@ def annotation_template(corpus: dict[str, Any]) -> dict[str, Any]:
         "schema_version": ANNOTATIONS_SCHEMA_VERSION,
         "corpus_version": corpus["corpus_version"],
         "corpus_sha256": corpus["corpus_sha256"],
+        "annotation_identity_sha256": annotation_identity_digest(corpus),
         "blind": True,
         "annotator": "",
         "annotated_at_utc": "",
@@ -1501,6 +1503,7 @@ function collect(){
     schema_version:PACK.schema_version,
     corpus_version:PACK.corpus_version,
     corpus_sha256:PACK.corpus_sha256,
+    annotation_identity_sha256:PACK.annotation_identity_sha256,
     blind:true,
     annotator:document.getElementById('annotator').value.trim(),
     annotated_at_utc:new Date().toISOString().replace(/\\.\\d+Z$/,'Z'),
@@ -1765,6 +1768,10 @@ def render_pack(corpus: dict[str, Any], *, media: dict[tuple[str, str], list[str
         "schema_version": ANNOTATIONS_SCHEMA_VERSION,
         "corpus_version": corpus["corpus_version"],
         "corpus_sha256": corpus["corpus_sha256"],
+        # What the saved labels are bound to. The page carries it because the page
+        # is the only producer of the owner's ground truth, and a pass saved
+        # without it is refused by the harness rather than silently unbound.
+        "annotation_identity_sha256": annotation_identity_digest(corpus),
     }
     script = _PACK_SCRIPT.replace("__ANNOTATIONS_FILENAME__", annotations_filename)
     parts.append(f"<script>const PACK={canonical_json(pack_meta)};{script}</script>")

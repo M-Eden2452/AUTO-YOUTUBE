@@ -192,6 +192,12 @@ LEGACY_BROAD_QUERY_LITERALS = frozenset(
 #: unrelated to any ranking, so the order carries no signal about the answer.
 BLIND_SALT = "plan9d-blind-2026-08-08"
 
+#: Spelling of the annotation-identity projection. It is part of the digest, so a
+#: later slice that changes *what counts as the question* cannot silently keep a
+#: pass bound: the version moves, the digest moves, and the labels ask to be
+#: re-bound by whoever changed the projection.
+ANNOTATION_IDENTITY_VERSION = "plan9d-annotation-identity-1"
+
 STATUS_WAITING = "WAITING_FOR_OWNER_ANNOTATION"
 STATUS_COMPLETE = "COMPLETE"
 
@@ -315,6 +321,74 @@ def corpus_digest(corpus: dict[str, Any]) -> str:
 
     payload = {key: value for key, value in corpus.items() if key != "corpus_sha256"}
     return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def annotation_identity(corpus: dict[str, Any]) -> dict[str, Any]:
+    """The corpus reduced to what a blind label is actually a statement about.
+
+    A label says "of these pictures, shown under these blind identifiers, against
+    this stated requirement, that one is best". So identity is exactly that: the
+    scene's requirement, the identity of every candidate, and the pixels the pack
+    could put on a card. Nothing else.
+
+    What is deliberately outside, and why it has to be
+    -------------------------------------------------
+    ``corpus_sha256`` covers every key of the file, and the file also carries
+    fields the code derives from the pool - ``categories``, the captured
+    decision, the selection and the statistics over it. Binding labels to the
+    whole file therefore ties a human answer to the current behaviour of the
+    ranker: any repair that moves a derived field either orphans the only
+    annotated truth in the repository or must be forbidden from recomputing it
+    (``C95``, measured at the closure of ``C91``). The two claims are separate,
+    and so are their hashes: ``corpus_sha256`` stays the file's integrity - it
+    still refuses a corpus edited after it was written - while this digest is
+    what the labels are bound to.
+
+    Also outside: where the pixels live. ``local_frame_path`` and ``local_path``
+    are locations, and moving a cached preview does not change the picture the
+    owner judged; the checksum is the picture. Ordering is outside as well -
+    scenes, candidates and pieces of evidence are sorted here, so rewriting the
+    file in another order cannot unbind a finished pass.
+    """
+
+    scenes: list[dict[str, Any]] = []
+    for scene in corpus.get("scenes") or []:
+        candidates: list[dict[str, Any]] = []
+        for entry in scene.get("candidates") or []:
+            pixels = sorted(
+                [("frame", str(frame.get("sha256") or "")) for frame in entry.get("frames") or []]
+                + [
+                    (str(item.get("kind") or ""), str(item.get("sha256") or ""))
+                    for item in entry.get("visual_evidence") or []
+                ]
+            )
+            candidates.append(
+                {
+                    "blind_id": str(entry.get("blind_id") or ""),
+                    "asset_id": str(entry.get("asset_id") or ""),
+                    "pixels": [list(item) for item in pixels],
+                }
+            )
+        candidates.sort(key=lambda item: (item["blind_id"], item["asset_id"]))
+        scenes.append(
+            {
+                "scene_key": str(scene.get("scene_key") or ""),
+                "scene_text": str(scene.get("scene_text") or ""),
+                "semantic_scene": scene.get("semantic_scene") or {},
+                "target_aspect_ratio": str(scene.get("target_aspect_ratio") or ""),
+                "required_duration_sec": float(scene.get("required_duration_sec") or 0.0),
+                "prefer_video": bool(scene.get("prefer_video")),
+                "candidates": candidates,
+            }
+        )
+    scenes.sort(key=lambda item: item["scene_key"])
+    return {"annotation_identity_version": ANNOTATION_IDENTITY_VERSION, "scenes": scenes}
+
+
+def annotation_identity_digest(corpus: dict[str, Any]) -> str:
+    """SHA256 of the question, so labels bind to it instead of to the whole file."""
+
+    return hashlib.sha256(canonical_json(annotation_identity(corpus)).encode("utf-8")).hexdigest()
 
 
 def blind_order_key(scene_key: str, asset_id: str) -> str:
@@ -746,6 +820,14 @@ def validate_annotations(annotations: dict[str, Any]) -> None:
         raise BenchmarkError(f"unexpected annotations status: {status!r}")
     if not annotations.get("corpus_sha256"):
         raise BenchmarkError("annotations must record the corpus_sha256 they were made against")
+    if not annotations.get("annotation_identity_sha256"):
+        # Both, and they answer different questions: ``corpus_sha256`` names the
+        # file the pass was produced from, ``annotation_identity_sha256`` is what
+        # the pass is bound to. Dropping the first would lose the provenance of a
+        # human's afternoon; binding on it is what ``C95`` had to undo.
+        raise BenchmarkError(
+            "annotations must record the annotation_identity_sha256 they were made against"
+        )
     for scene in annotations.get("scenes") or []:
         key = str(scene.get("scene_key") or "")
         if not key:
@@ -783,8 +865,21 @@ def annotations_are_complete(corpus: dict[str, Any], annotations: dict[str, Any]
     problems: list[str] = []
     if str(annotations.get("status")) != STATUS_COMPLETE:
         problems.append(f"status={annotations.get('status')!r}")
-    if str(annotations.get("corpus_sha256")) != str(corpus.get("corpus_sha256")):
-        problems.append("corpus_sha256 does not match the frozen corpus")
+    recorded_identity = str(annotations.get("annotation_identity_sha256") or "")
+    if not recorded_identity:
+        problems.append(
+            "annotations record no annotation_identity_sha256: they cannot be bound to a corpus"
+        )
+    elif recorded_identity != annotation_identity_digest(corpus):
+        # Not ``corpus_sha256``. The labels answer a question - these pictures,
+        # these blind identifiers, this requirement - and that is what has to
+        # still hold. A file whose derived fields were recomputed asks the same
+        # question and keeps its labels; a file whose pictures or requirement
+        # moved does not, and is refused here.
+        problems.append(
+            "annotation_identity_sha256 does not match this corpus: the labels were made "
+            "against different pictures, identifiers or scene requirements"
+        )
     if not str(annotations.get("annotator") or "").strip():
         problems.append("annotator is empty")
     index = scene_key_index(corpus)

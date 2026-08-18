@@ -64,6 +64,7 @@ from tests.plan9d_ground_truth import (
     STATUS_COMPLETE,
     STATUS_WAITING,
     BenchmarkError,
+    annotation_identity_digest,
     annotation_status,
     annotations_are_complete,
     annotations_path_for,
@@ -273,6 +274,7 @@ def _complete(corpus: dict, *, preference: str | None = None) -> dict:
         "schema_version": "plan9d-annotations-1",
         "corpus_version": corpus["corpus_version"],
         "corpus_sha256": corpus["corpus_sha256"],
+        "annotation_identity_sha256": annotation_identity_digest(corpus),
         "blind": True,
         "annotator": "synthetic-harness-test",
         "annotated_at_utc": "2026-08-08T00:00:00Z",
@@ -326,6 +328,12 @@ class CurrentBenchmarkSlotTests(unittest.TestCase):
         self.assertEqual([], problems)
         self.assertTrue(complete)
         self.assertEqual(corpus["corpus_sha256"], annotations["corpus_sha256"])
+        # The load-bearing half since `C95`: provenance says which file produced
+        # the pass, identity says what the pass answered, and only the second
+        # decides whether it still counts.
+        self.assertEqual(
+            annotation_identity_digest(corpus), annotations["annotation_identity_sha256"]
+        )
         self.assertEqual(STATUS_COMPLETE, annotation_status())
         self.assertTrue(str(annotations.get("annotator") or "").strip())
         self.assertIs(True, annotations.get("blind"))
@@ -599,25 +607,33 @@ class AnnotationContractTests(unittest.TestCase):
         self.assertTrue(any("C99" in problem for problem in problems))
 
     def test_annotations_are_bound_to_one_corpus(self) -> None:
+        """Same claim as before `C95`, asked of the field that now carries it.
+
+        The binding moved from the file's integrity hash to the digest of the
+        question, so this is where a foreign or hand-edited value has to be
+        caught. ``corpus_sha256`` stays in the file as provenance - which
+        corpus the pass was produced from - and is still required to be there.
+        """
+
         annotations = _complete(self.corpus)
-        annotations["corpus_sha256"] = "0" * 64
+        annotations["annotation_identity_sha256"] = "0" * 64
         complete, problems = annotations_are_complete(self.corpus, annotations)
         self.assertFalse(complete)
-        self.assertTrue(any("corpus_sha256" in problem for problem in problems))
+        self.assertTrue(any("annotation_identity_sha256" in problem for problem in problems))
 
-    def test_a_recomputed_derived_field_orphans_labels_about_the_same_pictures(self) -> None:
-        """`C95`, pinned before repair: the binding asks the file, not the question.
+    def test_a_recomputed_derived_field_keeps_labels_about_the_same_pictures(self) -> None:
+        """`C95`, inverted: recomputing what the code derives keeps the labels.
 
         Nothing the annotator saw moves here. Same scenes, same stated
         requirement, same blind identifiers, same frames and the same frame
-        checksums; only ``categories`` changes, which is derived by
-        ``finalize`` from the pool, is kept off the pack on purpose, and is
-        therefore not part of what a human was asked about. Today that is
-        enough to unbind the labels, because ``corpus_sha256`` covers every key
-        of the file - so the next repair that moves a derived field either
-        orphans the only annotated truth in the repository or forbids the
-        recompute. This test states the current answer; the slice that closes
-        `C95` inverts it.
+        checksums; only ``categories`` changes, which ``finalize`` derives from
+        the pool and which the pack keeps off the page on purpose. Until this
+        slice that was enough to unbind a finished blind pass, because the
+        labels were bound to ``corpus_sha256`` and that covers every key of the
+        file - so any repair moving a derived field had to choose between
+        orphaning the only annotated truth in the repository and not being made.
+        The labels are now bound to the question instead, and the file keeps its
+        own integrity hash.
         """
 
         annotations = _complete(self.corpus)
@@ -625,10 +641,44 @@ class AnnotationContractTests(unittest.TestCase):
         recomputed["scenes"][0]["categories"] = ["subject_mismatch_risk", "recomputed"]
         recomputed["corpus_sha256"] = ""
         recomputed["corpus_sha256"] = corpus_digest(recomputed)
+        self.assertNotEqual(self.corpus["corpus_sha256"], recomputed["corpus_sha256"])
 
         complete, problems = annotations_are_complete(recomputed, annotations)
+        self.assertEqual([], problems)
+        self.assertTrue(complete)
+
+    def test_the_captured_decision_is_not_part_of_the_question(self) -> None:
+        """The ranker's own answer cannot decide whether a human answer still counts.
+
+        ``captured_decision`` is a snapshot of what selection said at capture
+        time - scores, shortlisting, the verdict. It is the thing a selection
+        repair moves, and it is the thing the pack never shows. If it entered the
+        binding, every future repair would again face the choice this slice
+        removed.
+        """
+
+        annotations = _complete(self.corpus)
+        rescored = json.loads(json.dumps(self.corpus))
+        for scene in rescored["scenes"]:
+            for entry in scene["candidates"]:
+                entry["captured_decision"] = {"final_score": 1.0, "shortlisted": False}
+        rescored["corpus_sha256"] = ""
+        rescored["corpus_sha256"] = corpus_digest(rescored)
+
+        complete, problems = annotations_are_complete(rescored, annotations)
+        self.assertEqual([], problems)
+        self.assertTrue(complete)
+
+    def test_labels_without_an_identity_are_not_bound_to_anything(self) -> None:
+        """A pass that names no question is refused, not read as matching."""
+
+        annotations = _complete(self.corpus)
+        annotations.pop("annotation_identity_sha256")
+        complete, problems = annotations_are_complete(self.corpus, annotations)
         self.assertFalse(complete)
-        self.assertTrue(any("corpus_sha256" in problem for problem in problems))
+        self.assertTrue(any("annotation_identity_sha256" in problem for problem in problems))
+        with self.assertRaises(BenchmarkError):
+            validate_annotations(annotations)
 
     def test_changing_what_the_annotator_saw_unbinds_the_labels(self) -> None:
         """The half that must survive the repair, whatever the binding becomes.
@@ -646,8 +696,32 @@ class AnnotationContractTests(unittest.TestCase):
         recaptured["corpus_sha256"] = ""
         recaptured["corpus_sha256"] = corpus_digest(recaptured)
 
-        complete, _problems = annotations_are_complete(recaptured, annotations)
+        complete, problems = annotations_are_complete(recaptured, annotations)
         self.assertFalse(complete)
+        self.assertTrue(any("annotation_identity_sha256" in problem for problem in problems))
+
+    def test_moving_the_requirement_or_the_identifiers_unbinds_the_labels(self) -> None:
+        """The rest of the question, held to the same rule as the pictures.
+
+        A label is an answer to a stated requirement, given under a blind
+        identifier. Change either and the same answer means something else, so
+        each of these has to unbind on its own - a narrower binding must not
+        narrow past the question it is protecting.
+        """
+
+        annotations = _complete(self.corpus)
+        for mutate in (
+            lambda c: c["scenes"][0].update(scene_text="a different scene entirely"),
+            lambda c: c["scenes"][0]["semantic_scene"].update(subject=["cormorant"]),
+            lambda c: c["scenes"][0]["candidates"][0].update(blind_id="C9"),
+            lambda c: c["scenes"][0]["candidates"][0].update(asset_id="another_asset"),
+            lambda c: c["scenes"][0].update(target_aspect_ratio="16:9"),
+        ):
+            with self.subTest(mutate=mutate):
+                changed = json.loads(json.dumps(self.corpus))
+                mutate(changed)
+                complete, _problems = annotations_are_complete(changed, annotations)
+                self.assertFalse(complete)
 
 
 class MetadataBaselineTests(unittest.TestCase):
