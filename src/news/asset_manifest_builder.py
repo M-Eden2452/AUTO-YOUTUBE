@@ -278,6 +278,7 @@ class AssetManifestBuilder:
             state = self._prepare_scene(scene)
             self._search_scene_providers(state)
             self._add_generated_infographic(state)
+            self._deduplicate_candidates(state)
             self._select_scene_asset(state)
             self._prepare_visual_review(state)
             self._download_and_complete(state)
@@ -619,6 +620,32 @@ class AssetManifestBuilder:
             source_class=state.source_class,
         )
         state.candidates.insert(0, state.generated_asset)
+
+    def _deduplicate_candidates(self, state: SceneBuildState) -> None:
+        """One record, one place in the pool - keeping the first time it was found.
+
+        Every query of the ladder is searched on its own, so a provider that answers
+        two of them with the same asset returned it twice, and the scene pool carried
+        the copies into ranking, into the top ten of the manifest and onto the review
+        board. Measured on the LIVE-5 manifest: distinct records per top ten were
+        9 / 6 / 10 / 6 / 5, with one record holding four of the ten places in
+        ``scene_002`` - the depth a person reviews is half of what the board claims.
+
+        Placed after ``_search_scene_providers``, so every raw provider attempt is
+        already recorded with its own ``result_count``: what a provider returned is
+        evidence and stays untouched, while what the scene *considers* is this list.
+        The first occurrence is the one kept, because the pool order is the ranker's
+        tie-break and the earliest query is the most direct one.
+        """
+        seen: set[str] = set()
+        unique: list[dict[str, Any]] = []
+        for candidate in state.candidates:
+            identity = str(candidate.get("asset_id") or "") or stable_asset_id(candidate)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            unique.append(candidate)
+        state.candidates = unique
 
     def _select_scene_asset(self, state: SceneBuildState) -> None:
         if state.user_ranked:

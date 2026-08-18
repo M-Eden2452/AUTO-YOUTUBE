@@ -1586,5 +1586,62 @@ class SceneRequestBudgetTests(unittest.TestCase):
         self.assertEqual(self._sent(providers), DEFAULT)
 
 
+class ShortlistIdentityTests(unittest.TestCase):
+    """One record, one place on the shortlist.
+
+    Every query of the ladder is searched separately, and a provider that answers two
+    of them with the same asset used to put that asset on the shortlist twice. Measured
+    on the LIVE-5 manifest: 6 distinct records in a top ten, one of them holding four
+    places, so the depth a person sees on the review board is half of what it claims.
+    """
+
+    def _manifest(self, root: Path) -> dict:
+        from src.news.asset_manager import build_assets_manifest
+
+        fixture = root / "fixture.jpg"
+        Image.new("RGB", (1080, 1920), (30, 60, 90)).save(fixture)
+        provider = FakeStockProvider(image_fixture=fixture)
+        scene = {
+            "scene_id": "scene_001",
+            "visual_type": "image",
+            "primary_query": "solar panels on a roof",
+            "alternative_queries": [
+                "solar panels roof",
+                "solar panels",
+                "roof panels daylight",
+                "solar array",
+            ],
+            "target_duration_sec": 4.0,
+        }
+        return build_assets_manifest(
+            visual_plan={"scenes": [scene]},
+            user_assets=[],
+            media_index={"version": 1, "items": []},
+            providers=[provider],
+            dry_run=False,
+            project_root=root / "project",
+            project_id="shortlist_identity",
+        )
+
+    def test_one_record_takes_one_place_on_the_shortlist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self._manifest(Path(tmp))
+
+        shortlist = manifest["scenes"][0]["ranked_candidates"]
+        asset_ids = [item["asset_id"] for item in shortlist]
+
+        self.assertTrue(asset_ids)
+        self.assertEqual(len(asset_ids), len(set(asset_ids)))
+
+    def test_the_review_board_shows_each_record_once(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self._manifest(Path(tmp))
+
+        scene = manifest["scenes"][0]
+        for field in ("candidates", "rejected_candidates"):
+            ids = [item["asset_id"] for item in scene[field]]
+            self.assertEqual(len(ids), len(set(ids)), field)
+
+
 if __name__ == "__main__":
     unittest.main()
