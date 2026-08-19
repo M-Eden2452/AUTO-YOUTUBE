@@ -817,7 +817,13 @@ class M1CProductionMaterializationIntegrationTests(unittest.TestCase):
         self.assertEqual(selected["vision_tags_source_sha256"], selected["checksum_sha256"])
         self.assertTrue(selected["vision_tags_cache_key"])
         self.assertEqual(sorted(build_evidence(selected).vision_tags), ["ocean", "whale"])
-        self.assertEqual(selected["provenance"]["provider_asset_id"], "scene_001_image_001")
+        # Provenance names the record that was actually selected, not a literal the
+        # fixture happens to mint: the fake provider's ids follow the query wording,
+        # so what this asserts is the binding between the two, and the scene it was
+        # searched for.
+        provider_asset_id = selected["provenance"]["provider_asset_id"]
+        self.assertEqual(selected["asset_id"], f"fake_{provider_asset_id}")
+        self.assertTrue(provider_asset_id.startswith("scene_001_image_"))
         self.assertEqual(selected["license"]["rights_status"], "licensed")
         self.assertEqual(selected["replaces_asset_id"], "")
 

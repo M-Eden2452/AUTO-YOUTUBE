@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +54,16 @@ class FakeStockProvider:
         media_type = request.media_type if request.media_type in {"image", "video"} else "video"
         fixture = self._fixture_for(media_type)
         width, height = (1080, 1920) if request.orientation_preference == "vertical" else (1920, 1080)
-        provider_asset_id = f"{request.scene_id or 'scene'}_{media_type}_001"
+        # Identity follows content. The title and description below are written from
+        # the query, so two queries of one scene's ladder are two different records,
+        # and filing them under a single id would state that they are one asset. The
+        # pool keeps one entry per ``asset_id``, so that statement is acted on: every
+        # wording but one is dropped before ranking sees it, and which one survives is
+        # decided by the ladder rather than by the scene. A real provider never poses
+        # this question - its metadata describes the asset, not the question that found
+        # it - and this fixture stands in for a real one.
+        query_digest = hashlib.sha1(request.query.strip().casefold().encode("utf-8")).hexdigest()[:8]
+        provider_asset_id = f"{request.scene_id or 'scene'}_{media_type}_{query_digest}"
         license_data = self._license()
         candidate = AssetCandidate(
             asset_id=f"fake_{provider_asset_id}",

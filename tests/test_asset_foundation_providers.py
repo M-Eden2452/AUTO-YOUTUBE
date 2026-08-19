@@ -46,6 +46,68 @@ class ProviderFoundationTests(unittest.TestCase):
             with self.assertRaises(LicenseReviewRequired):
                 blocked.download(blocked_candidate, root / "blocked", DownloadContext(project_id="project_001", scene_id="scene_001"))
 
+    def test_fake_provider_gives_two_differently_worded_answers_two_identities(self) -> None:
+        """Two queries, two records: the fixture may not file them under one id.
+
+        The fixture writes ``title`` and ``description`` from the query it was asked,
+        so answering a scene's query ladder produces genuinely different records. The
+        pool keeps one entry per ``asset_id`` (``_deduplicate_candidates``), so a
+        fixture that reused one id across queries would be claiming those records are
+        the same asset, and every wording but one would be dropped before ranking ever
+        saw it. A real provider never poses this question - its metadata describes the
+        asset rather than the question - and the fixture stands in for a real one.
+        """
+        from src.assets.provider_contract import AssetSearchRequest
+        from src.providers.fake_provider import FakeStockProvider
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            image = root / "fixture.jpg"
+            Image.new("RGB", (1080, 1920), (20, 80, 120)).save(image)
+            provider = FakeStockProvider(image_fixture=image)
+
+            def _search(query: str):
+                return provider.search(
+                    AssetSearchRequest(
+                        query=query,
+                        media_type="image",
+                        target_aspect_ratio="9:16",
+                        orientation_preference="vertical",
+                        min_width=720,
+                        min_height=1280,
+                        max_results=3,
+                        scene_id="scene_001",
+                        project_id="project_001",
+                    )
+                )[0]
+
+            english = _search("Why whales swim ocean")
+            russian = _search("историю появляются данные")
+            repeat = _search("Why whales swim ocean")
+
+            self.assertNotEqual(english.title, russian.title)
+            self.assertNotEqual(english.asset_id, russian.asset_id)
+            self.assertNotEqual(english.provider_asset_id, russian.provider_asset_id)
+            # The same question still names the same asset: identity follows the
+            # record's content, so re-issuing a query is a real duplicate.
+            self.assertEqual(english.asset_id, repeat.asset_id)
+            # Media type keeps its own identity, and the scene stays part of it.
+            video = provider.search(
+                AssetSearchRequest(
+                    query="Why whales swim ocean",
+                    media_type="video",
+                    target_aspect_ratio="9:16",
+                    orientation_preference="vertical",
+                    min_width=720,
+                    min_height=1280,
+                    max_results=3,
+                    scene_id="scene_001",
+                    project_id="project_001",
+                )
+            )[0]
+            self.assertNotEqual(english.asset_id, video.asset_id)
+            self.assertIn("scene_001", english.provider_asset_id)
+
     def test_pexels_stock_provider_keeps_landscape_results_and_prefers_vertical_rendition(self) -> None:
         from src.assets.provider_contract import AssetSearchRequest
         from src.providers.pexels_provider import PexelsStockProvider
