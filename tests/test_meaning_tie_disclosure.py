@@ -14,7 +14,10 @@ What broke those ties instead:
 
 * ``0.075 * vertical_score`` - the declared width and height. In
   ``live_5/scene_004`` the whole margin is **0.001** of ``final_score``, produced by
-  2204x3307 against 2208x3312: four pixels of declared height;
+  2204x3307 against 3840x5760: two ten-thousandths of aspect ratio. (The audit that
+  found this scene names 2208x3312 as the runner-up; that record ranks *third*, and
+  ``test_two_ten_thousandths_of_aspect_ratio_decide_live_5_scene_004`` below is where
+  the correction is asserted rather than asserted about.);
 * nothing at all, in three scenes across the two corpora
   (``plan9d_current_capture_v1/scene_010``, ``plan9d_current_capture_v1/scene_011``,
   ``local_after_fix/scene_002``). Every candidate in the group carries exactly the
