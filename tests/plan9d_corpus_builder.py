@@ -142,6 +142,7 @@ RANKER_OUTPUT_KEYS = frozenset(
         "duplicate_penalty", "watermark_penalty", "fallback_level", "scene_match_score",
         "final_score", "rejected", "reject_reason", "blocking_reject_reasons",
         "advisory_reject_reasons", "why_selected", "semantic_scene", "slot_verdict",
+        "meaning_tie_peers", "meaning_tie_broken_by",
         "support_status", "support_requirements", "selection_decision", "selected_by",
         "total_score", "relevance_score", "rights_score",
     }

@@ -191,6 +191,28 @@ SHOT_SCALE_ADJUSTMENT = 8.0
 # never be lifted past it by shot scale, structurally, not just typically.
 SHOT_SCALE_TIE_EPSILON = 12.0
 
+# What decided the order between candidates whose *meaning* reading is identical.
+# Measured on the two frozen corpora (PLAN-9D class 5): among the scenes that still
+# have two or more selectable candidates after the gates, 5 of 9 on v2 and 6 of 8 on
+# v1 have a first and second whose every stated-requirement reading is the same
+# number. Nothing in this file can prefer one of those over the other on meaning,
+# because meaning read them as the same candidate.
+#
+# What did decide them was never said out loud. Either the non-meaning quarter of
+# ``final_score`` - ``live_5/scene_004`` is settled by 0.001, the whole of it coming
+# from 2204x3307 against 3840x5760, two ten-thousandths of aspect ratio - or, in three
+# scenes across the two corpora, nothing whatsoever: the scores are exactly equal and
+# ``sorted`` is stable, so the winner is whichever the manifest recorded first.
+#
+# This is reported, never enforced. No preference is invented here: the pool genuinely
+# does not contain evidence that separates these records, and a rule that produced one
+# would be fitted rather than measured. What changes is that the record now names the
+# group meaning could not split and names the ground actually used, so a reviewer, the
+# completion ladder and the manifest can tell "meaning chose this" from "the manifest
+# order chose this".
+TIE_BROKEN_BY_NON_MEANING_SCORE = "non_meaning_score"
+TIE_BROKEN_BY_INPUT_ORDER = "input_order"
+
 
 def rank_candidates(
     scene: SemanticScene,
@@ -218,7 +240,9 @@ def rank_candidates(
         for candidate in candidates
     ]
     _apply_shot_scale_within_meaning_tier(ranked)
-    return sorted(ranked, key=_ranking_key, reverse=True)
+    ordered = sorted(ranked, key=_ranking_key, reverse=True)
+    _name_meaning_ties(ordered)
+    return ordered
 
 
 def _apply_shot_scale_within_meaning_tier(ranked: list[dict[str, Any]]) -> None:
@@ -241,6 +265,70 @@ def _apply_shot_scale_within_meaning_tier(ranked: list[dict[str, Any]]) -> None:
         item["final_score"] = round(item["final_score"] + applied, 3)
         item["scene_match_score"] = round(max(0.0, min(100.0, item["final_score"])), 3)
         item["shot_scale_adjustment"] = applied
+
+
+def _meaning_signature(item: dict[str, Any]) -> tuple[Any, ...]:
+    """Everything this file concluded about *meaning*, and nothing else.
+
+    Two candidates with the same signature were read as the same answer to the scene:
+    the same score on every requirement it stated, the same verdict about whether that
+    reading could be trusted, and the same shot-scale adjustment. What is deliberately
+    outside it is what a stock library says about pixels and what a licence says about
+    rights - those decide the order today, and the point of the signature is to be able
+    to say when they did.
+
+    ``location_match`` is computed and reported but feeds neither ``meaning_score`` nor
+    ``final_score``, so including it would split a group over a number that decides
+    nothing and would understate the tie.
+    """
+    return (
+        str(item.get("support_status") or ""),
+        str(item.get("slot_verdict") or ""),
+        str(item.get("semantic_match_status") or ""),
+        float(item.get("semantic_score") or 0.0),
+        float(item.get("subject_match") or 0.0),
+        float(item.get("action_match") or 0.0),
+        float(item.get("environment_match") or 0.0),
+        float(item.get("camera_match") or 0.0),
+        int(item.get("fallback_level") or 0),
+        float(item.get("shot_scale_adjustment") or 0.0),
+        tuple(item.get("undecidable_fields") or ()),
+        tuple(item.get("must_include_unverifiable") or ()),
+        tuple(item.get("negative_matches") or ()),
+    )
+
+
+def _name_meaning_ties(ordered: list[dict[str, Any]]) -> None:
+    """Record, on each selectable candidate, whom meaning could not tell it apart from.
+
+    Pure reporting, in place, after the sort: ``_ranking_key``, ``final_score`` and
+    ``semantic_score`` are not read back and not written. A refused candidate is not a
+    peer of anyone - it was never competing for the slot - and keeps the empty values
+    ``_score_candidate`` gave it.
+
+    ``meaning_tie_broken_by`` names the *weakest* ground actually used, so a group where
+    one peer is separated by a fraction of ``vertical_score`` and another is not
+    separated at all reports ``input_order`` rather than hiding behind the fraction.
+    """
+    selectable = [item for item in ordered if not item.get("rejected", False)]
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for item in selectable:
+        groups.setdefault(_meaning_signature(item), []).append(item)
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        for item in group:
+            peers = [other for other in group if other is not item]
+            item["meaning_tie_peers"] = [str(other.get("asset_id") or "") for other in peers]
+            item["meaning_tie_broken_by"] = (
+                TIE_BROKEN_BY_INPUT_ORDER
+                if any(
+                    float(other.get("final_score") or 0.0)
+                    == float(item.get("final_score") or 0.0)
+                    for other in peers
+                )
+                else TIE_BROKEN_BY_NON_MEANING_SCORE
+            )
 
 
 def _ranking_key(item: dict[str, Any]) -> tuple[int, int, float]:
@@ -671,6 +759,13 @@ def _score_candidate(
         "shot_scale_intent": shot_scale_intent,
         "shot_scale_observed": shot_scale_observed,
         "shot_scale_adjustment": shot_scale_adjustment,
+        # Empty by construction here, exactly like ``shot_scale_adjustment`` above:
+        # "whom could meaning not tell this apart from" needs the whole pool, and
+        # ``rank_candidates`` fills both in once every candidate has been scored. A
+        # caller that scores one candidate on its own therefore reads "no tie" rather
+        # than a missing key.
+        "meaning_tie_peers": [],
+        "meaning_tie_broken_by": "",
         "fallback_level": fallback_level,
         "scene_match_score": round(max(0.0, min(100.0, final_score)), 3),
         "final_score": round(final_score, 3),

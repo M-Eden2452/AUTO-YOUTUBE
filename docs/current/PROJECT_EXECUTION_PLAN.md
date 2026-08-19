@@ -8,13 +8,14 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress. The ban half of C105 is done (2026-08-19, ADR
-  0023): a ban the metadata cannot answer is named in must_avoid_unverifiable
-  instead of being stored like a cleared one - 5 scenes, 50 cards, 15 terms on the
-  saved pools; changed_winners 0 on both corpora, blind agreement v1 6/14 and v2
-  2/10 unmoved. It reports, it does not enforce. NEXT is an owner decision, not a
-  slice: does an unanswerable ban disqualify, and is the ru->en bridge built - 59 of
-  273 scenes still send no query. Classes 1 and 4 still need a paid v3 capture.
+  Checkpoint PLAN-9D, in progress. Class 5 measured and named (2026-08-19, ADR 0024,
+  C121): where two candidates survive, meaning reads them identically - 5 of 9 scenes
+  on v2, 6 of 8 on v1 - and 3 scenes are decided by manifest order alone.
+  rank_candidates now records meaning_tie_peers/meaning_tie_broken_by; it reports and
+  invents no preference, so changed_winners 0 and agreement v1 6/14, v2 2/10 are
+  unmoved by design. NEXT is an owner decision, not a slice: abstain inside a tie
+  group, or buy the v3 capture. Also open - C105 (ru->en bridge; 59 of 273 scenes
+  send no query).
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
