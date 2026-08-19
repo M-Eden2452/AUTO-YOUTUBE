@@ -694,6 +694,41 @@ class MustIncludeAndAvoidTests(unittest.TestCase):
         self.assertTrue(ranked[0]["rejected"])
         self.assertIn("пингвины", ranked[0]["negative_matches"])
 
+    def test_a_ban_the_metadata_cannot_answer_is_not_a_cleared_ban(self) -> None:
+        """C105, ban half: a Russian prohibition against English metadata.
+
+        ``must_include`` has said this since Q2.2A - a term written in a script the
+        provider's metadata cannot contain is *unverifiable*, and the record says so in
+        ``must_include_unverifiable``. The ban field said nothing at all: the term
+        matched nothing, ``negative_matches`` came back empty, and the record was
+        indistinguishable from one where the author's prohibition was checked and
+        found absent. Measured 2026-08-19 on the 44 saved plans: 26 such bans in 5
+        scenes of ``2026-08-13_polog-dozhdevogo-lesa``.
+
+        Reported, not enforced. Making the ban conditional on decidability is the
+        separate owner decision pinned by the test below (``C97``, 2026-08-18), and
+        rejecting on an unanswerable ban would refuse every English candidate of a
+        Russian scene. So the candidate stays selectable and the record stops claiming
+        the ban was cleared.
+        """
+        scene = SemanticScene(
+            scene_id="s", subject=["laboratory"], must_not_include=["люди"],
+            visual_priority="environment",
+        )
+        ranked = rank_candidates(scene, [_candidate("c", "Laboratory people at work")])
+
+        self.assertEqual([], ranked[0]["negative_matches"])
+        self.assertNotIn("must_avoid_match", ranked[0]["reject_reason"])
+        self.assertFalse(ranked[0]["rejected"])
+        self.assertEqual(["люди"], ranked[0]["must_avoid_unverifiable"])
+
+    def test_a_ban_that_literally_matched_is_not_also_reported_unverifiable(self) -> None:
+        """One term, one verdict: the mixed-script record of ``C97`` stays a match."""
+        scene = SemanticScene(scene_id="s", must_not_include=["penguin"], visual_priority="environment")
+        ranked = rank_candidates(scene, [_candidate("mixed", "Антарктида penguin colony")])
+        self.assertIn("penguin", ranked[0]["negative_matches"])
+        self.assertEqual([], ranked[0]["must_avoid_unverifiable"])
+
     def test_the_disqualifying_ban_does_not_ask_whether_the_term_was_provable(self) -> None:
         """C97, owner decision 2026-08-18: the split between the two ban paths stays.
 

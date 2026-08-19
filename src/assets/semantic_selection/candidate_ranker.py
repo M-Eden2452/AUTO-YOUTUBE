@@ -313,6 +313,21 @@ def _score_candidate(
     provider_confidence = PROVIDER_CONFIDENCE.get(str(candidate.get("provider") or ""), 0.5)
 
     negative_matches = [word for word in scene.must_not_include if _contains_concept(word, all_tokens, text)]
+    # A ban the evidence cannot answer is not a cleared ban. ``must_include`` has said
+    # this since Q2.2A - a term out of script with every field is *unverifiable*, and
+    # the record names it - while the ban field said nothing at all: the term matched
+    # nothing, and a Russian prohibition against English metadata was stored exactly
+    # like one that was checked and found absent.
+    #
+    # Reported, not enforced. The ranker's ban stays the strict question of whether the
+    # word is there (owner decision ``C97``, 2026-08-18), and disqualifying on a ban
+    # nobody could check would refuse every English candidate of a Russian scene. A
+    # term that literally matched is not repeated here: one term, one verdict.
+    must_avoid_unverifiable = [
+        word
+        for word in scene.must_not_include
+        if word not in negative_matches and has_evidence and evidence.is_undecidable(word)
+    ]
     media_type = str(candidate.get("media_type") or candidate.get("type") or "").casefold()
     # The scene's own title and description, apart from the rest of the metadata: what
     # the provider says the asset *is*, rather than everything it was ever tagged with.
@@ -649,6 +664,7 @@ def _score_candidate(
         "undecidable_fields": undecidable_fields,
         "must_include_unverifiable": must_undecidable,
         "negative_matches": negative_matches,
+        "must_avoid_unverifiable": must_avoid_unverifiable,
         "contradiction_penalty": contradiction_penalty,
         "duplicate_penalty": duplicate_penalty,
         "watermark_penalty": watermark_penalty,
