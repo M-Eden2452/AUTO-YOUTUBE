@@ -722,6 +722,24 @@ class MustIncludeAndAvoidTests(unittest.TestCase):
         self.assertFalse(ranked[0]["rejected"])
         self.assertEqual(["люди"], ranked[0]["must_avoid_unverifiable"])
 
+    def test_a_ban_the_metadata_can_answer_and_does_not_contain_stays_silent(self) -> None:
+        """The third case, named by the independent review of 3ccf04a.
+
+        Checked and absent is not unverifiable: a Latin ban against Latin metadata is
+        decidable, so both lists are empty and the record says the ban was answered.
+        Without this the two tests above could pass on a field that fired for every
+        ban that failed to match.
+        """
+        scene = SemanticScene(
+            scene_id="s", subject=["laboratory"], must_not_include=["beauty salon"],
+            visual_priority="environment",
+        )
+        ranked = rank_candidates(scene, [_candidate("c", "Laboratory microscope close up")])
+
+        self.assertEqual([], ranked[0]["negative_matches"])
+        self.assertEqual([], ranked[0]["must_avoid_unverifiable"])
+        self.assertFalse(ranked[0]["rejected"])
+
     def test_a_ban_that_literally_matched_is_not_also_reported_unverifiable(self) -> None:
         """One term, one verdict: the mixed-script record of ``C97`` stays a match."""
         scene = SemanticScene(scene_id="s", must_not_include=["penguin"], visual_priority="environment")
