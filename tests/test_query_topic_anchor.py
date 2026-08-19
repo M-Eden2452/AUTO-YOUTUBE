@@ -67,6 +67,11 @@ _TOPIC_FORMS = re.compile(r"solar|photovoltaic|panel|панел|солнеч|ф�
 #: except the local library.
 _TOPIC_ENTITY = "панель"
 
+#: The subjects the three drifted scenes of the frozen corpus declared for themselves.
+#: Evaluation vocabulary again: it names *which* ten queries C124 leaves un-anchored,
+#: so the number cannot quietly become ten different ones.
+_SCENE_SUBJECT_FORMS = re.compile(r"batter|factory|assembly", re.IGNORECASE)
+
 
 def _load_runs() -> dict[str, dict[str, Any]]:
     """The frozen scenes, regrouped into the plan each run actually had."""
@@ -147,8 +152,20 @@ class QuerySubjectCensus(unittest.TestCase):
         self.assertEqual(len(distinct), 42)
         self.assertEqual(len(subjectless), 15)
 
-    def test_with_the_plan_anchor_no_query_loses_the_subject(self) -> None:
-        """The acceptance of C98: the same plans, the same scenes, 15 -> 0."""
+    def test_with_the_plan_anchor_only_driftless_briefs_still_lose_the_subject(
+        self,
+    ) -> None:
+        """C98's acceptance was 15 -> 0. C124 moves it to 15 -> 10, on purpose.
+
+        The ten that remain are not ten unrepaired queries: every one of them names
+        the subject *its own scene declared* (``battery pack``, ``factory assembly
+        line``, ``large batteries``), and C124's rule is that the video's topic may
+        not overwrite what a scene said it shows. What C98 was actually looking at in
+        those scenes is a brief that drifted from the topic - the finding's own
+        wording, "бриф теряет тему видео" - and a query-time rewrite hid it instead
+        of fixing it. The rungs that name nothing the scene declared are still
+        anchored, which is the whole of what remains repairable here.
+        """
 
         rebuilt = []
         for run in _load_runs().values():
@@ -158,11 +175,15 @@ class QuerySubjectCensus(unittest.TestCase):
             for scene in run["scenes"]:
                 rebuilt.append(_rebuild(scene, topic_anchor=anchor))
         distinct, subjectless = _census(rebuilt)
-        self.assertEqual(subjectless, [])
         # 42 distinct queries become 41: anchoring can make two of them collide,
         # and the pair is then sent once rather than twice on the scene's budget.
         # It never adds a query - the anchor rewrites, it does not widen the ladder.
         self.assertEqual(len(distinct), 41)
+        self.assertEqual(len(subjectless), 10)
+        self.assertTrue(
+            all(_SCENE_SUBJECT_FORMS.search(query) for query in subjectless),
+            subjectless,
+        )
 
     def test_the_anchor_only_touches_queries_that_dropped_the_topic(self) -> None:
         """The queries that already named the topic are still sent, unchanged."""
@@ -262,6 +283,106 @@ class TopicAnchorDerivation(unittest.TestCase):
         self.assertFalse(anchor.resolved)
 
 
+class AnchorLeadsTheLadderWithoutReplacingIt(unittest.TestCase):
+    """C124: the topic goes in front of a rung that names nothing the scene declared.
+
+    Measured 2026-08-19 on the saved plan of the first end-to-end run: with the topic
+    prepended to *every* rung, **6 of 13** scenes could not search their own subject at
+    any rung of the ladder - each of them was searched for the subject of the video
+    instead. The scenes below are the *shape* of that failure, not its wording: the
+    rule is about a plan whose topic and whose scene name different things, and pinning
+    it to the vocabulary of one project would test that project rather than the rule.
+    """
+
+    #: A plan whose topic is stated in Russian, so the anchor is read from the English
+    #: subjects its scenes return to - the ``plan_scene_subjects`` path.
+    PLAN = {
+        "topic_entity": "турбина",
+        "scenes": [
+            {"visual_brief": {"subject": "wind turbine"}},
+            {"visual_brief": {"subject": "wind turbine"}},
+        ],
+    }
+
+    #: A scene of that plan that is about something else entirely: the part, not the
+    #: machine. This is the class of scene the live run could not search for.
+    OWN_SUBJECT = {
+        "scene_id": "scene_004",
+        "visual_brief": {
+            "subject": "copper coil",
+            "action": "winding",
+            "place": "dark workshop",
+        },
+    }
+
+    def _sent(self, scene: dict[str, Any]) -> list[Any]:
+        return [
+            item
+            for item in build_scene_queries(
+                scene,
+                providers=["pexels"],
+                intent_language="ru",
+                topic_anchor=plan_topic_anchor(self.PLAN),
+            ).queries
+            if item.status == STATUS_OK
+        ]
+
+    def test_a_rung_naming_the_scene_subject_is_sent_as_the_scene_wrote_it(self) -> None:
+        sent = [item.query for item in self._sent(self.OWN_SUBJECT)]
+        self.assertIn("copper coil winding dark workshop", sent)
+        self.assertNotIn("wind turbine copper coil winding dark workshop", sent)
+
+    def test_a_scene_can_always_search_the_subject_it_declared(self) -> None:
+        """The property the live run lost: not one rung left naming the part."""
+
+        own = [
+            item.query
+            for item in self._sent(self.OWN_SUBJECT)
+            if "coil" in item.query and not item.query.startswith("wind turbine")
+        ]
+        self.assertTrue(
+            own, "every rung naming the scene's subject was overwritten by the topic"
+        )
+
+    def test_a_rung_naming_neither_the_topic_nor_the_subject_still_gets_the_topic(
+        self,
+    ) -> None:
+        """The rung C98 was built for: a fallback that searches scenery alone."""
+
+        sent = [item.query for item in self._sent(self.OWN_SUBJECT)]
+        self.assertIn("wind turbine dark workshop", sent)
+        self.assertNotIn("dark workshop", sent)
+
+    def test_a_scene_whose_subject_is_the_topic_keeps_every_rung_it_had(self) -> None:
+        """No regression where C98 and C124 agree: nothing here is rewritten.
+
+        The scene's own rungs go out verbatim and unannotated. Its place-only rung is
+        still folded into the anchored one - that is C98's behaviour, unchanged by
+        C124, and it is asserted rather than left to look like a loss.
+        """
+
+        scene = {
+            "scene_id": "scene_001",
+            "visual_brief": {"subject": "wind turbine", "place": "coastal ridge"},
+        }
+        sent = self._sent(scene)
+        self.assertEqual([item.query for item in sent], ["wind turbine coastal ridge"])
+        self.assertEqual([item.notes for item in sent], [""])
+
+    def test_a_scene_with_no_english_subject_of_its_own_still_gets_the_topic(self) -> None:
+        """The anchor stays a fallback exactly where the scene has nothing to say."""
+
+        scene = {
+            "scene_id": "scene_009",
+            "visual_brief": {"place": "control room", "must_include": ["night shift"]},
+        }
+        sent = [item.query for item in self._sent(scene)]
+        self.assertTrue(sent)
+        self.assertTrue(
+            all(query.startswith("wind turbine") for query in sent), sent
+        )
+
+
 class AnchorApplication(unittest.TestCase):
     """What an anchor does to a scene's queries, and what it refuses to do."""
 
@@ -280,7 +401,31 @@ class AnchorApplication(unittest.TestCase):
             scene, providers=[provider], intent_language="ru", **kwargs
         ).queries
 
-    def test_a_query_without_the_topic_is_sent_with_the_topic_in_front(self) -> None:
+    def test_a_query_naming_neither_topic_nor_subject_is_sent_with_the_topic_in_front(
+        self,
+    ) -> None:
+        """A rung built from place alone searches scenery; the topic goes in front."""
+
+        scene = {
+            "scene_id": "scene_003",
+            "visual_brief": {
+                "subject": "factory machines",
+                "place": "industrial production line",
+                "must_include": ["conveyor"],
+            },
+        }
+        sent = [
+            item.query
+            for item in self._queries(scene, topic_anchor=plan_topic_anchor(self.PLAN))
+            if item.status == STATUS_OK
+        ]
+        self.assertIn("solar panel industrial production line conveyor", sent)
+
+    def test_a_query_naming_the_scene_subject_is_sent_as_the_scene_wrote_it(
+        self,
+    ) -> None:
+        """C124: the topic of the video does not overwrite the subject of the scene."""
+
         scene = {
             "scene_id": "scene_003",
             "visual_brief": {
@@ -296,18 +441,20 @@ class AnchorApplication(unittest.TestCase):
             for item in self._queries(scene, topic_anchor=plan_topic_anchor(self.PLAN))
             if item.status == STATUS_OK
         ]
-        self.assertIn("solar panel factory machines industrial production line", sent)
-        self.assertTrue(all(_TOPIC_FORMS.search(query) for query in sent))
+        self.assertIn("factory machines industrial production line", sent)
+        self.assertNotIn(
+            "solar panel factory machines industrial production line", sent
+        )
 
     def test_the_repair_is_written_down_with_the_query_it_replaced(self) -> None:
-        scene = {"scene_id": "s", "visual_brief": {"subject": "battery pack"}}
+        scene = {"scene_id": "s", "visual_brief": {"place": "warehouse aisle"}}
         repaired = [
             item
             for item in self._queries(scene, topic_anchor=plan_topic_anchor(self.PLAN))
             if item.status == STATUS_OK and item.notes
         ]
         self.assertTrue(repaired)
-        self.assertIn("battery pack", repaired[0].notes)
+        self.assertIn("warehouse aisle", repaired[0].notes)
         self.assertIn("панель", repaired[0].notes)
 
     def test_a_query_that_already_names_the_topic_is_untouched(self) -> None:

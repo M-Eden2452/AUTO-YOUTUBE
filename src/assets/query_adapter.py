@@ -380,6 +380,25 @@ def _plan_english_subject_phrases(visual_plan: dict[str, Any]) -> list[tuple[int
     return phrases
 
 
+def _scene_subject_stems(scene: dict[str, Any]) -> frozenset[str]:
+    """What the scene itself declared it is about, folded the way the anchor folds.
+
+    The same two fields ``_plan_english_subject_phrases`` reads for the plan, read
+    for one scene: "the topic of the video" and "the subject of this scene" are then
+    the same kind of evidence and can be compared at all. Place, action and mood are
+    excluded here for the same reason they are excluded there - they describe the
+    shot, not the thing the shot is of.
+    """
+
+    brief = _sub_dict(scene, "visual_brief")
+    stems: set[str] = set()
+    for value in [*(brief.get("exact_entities") or []), brief.get("subject")]:
+        text = _english_only(str(value or ""))
+        if text:
+            stems.update(_anchor_stems(text))
+    return frozenset(stems)
+
+
 def _sub_dict(container: dict[str, Any], key: str) -> dict[str, Any]:
     """``container[key]`` when it is a mapping, ``{}`` otherwise.
 
@@ -514,7 +533,9 @@ def build_scene_queries(
         ]
         chosen, dropped = _provider_ready_candidates(candidates, languages=languages)
         if topic_anchor is not None and topic_anchor.resolved:
-            chosen = _anchored_to_topic(chosen, topic_anchor)
+            chosen = _anchored_to_topic(
+                chosen, topic_anchor, _scene_subject_stems(scene)
+            )
         if not chosen:
             plan.queries.append(
                 ProviderQuery(
@@ -553,14 +574,27 @@ def build_scene_queries(
 def _anchored_to_topic(
     chosen: list[dict[str, Any]],
     anchor: TopicAnchor,
+    subject_stems: frozenset[str] = frozenset(),
 ) -> list[dict[str, Any]]:
-    """Put the topic back into every English query of this scene that dropped it.
+    """Put the topic in front of every English query that names *nothing* the scene has.
 
     Prepended, not substituted: the rest of the query is the scene's own evidence
     about what this shot shows, and it stays. A query that already names the topic
     is untouched, and a query written in another language is untouched too - an
     English anchor glued onto a Russian string would produce a mixed-script query
     that no provider in ``PROVIDER_QUERY_LANGUAGES`` can be searched with.
+
+    ``subject_stems`` is the third untouched case and the one C124 added. A rung that
+    names the subject *this scene declared* is the scene saying what it shows, and the
+    video's topic may not overwrite it: measured 2026-08-19 on the live plan of the
+    first end-to-end run, prepending the topic to every rung left **6 of 13** scenes
+    unable to search their own subject anywhere on the ladder - the brain, the neurons
+    and the MRI of a video about the body were all searched as ``sleeping person ...``
+    and every provider returned nothing usable. What stays anchored is the rung that
+    names neither the topic nor the scene's subject - a place-only or context-only
+    fallback, which is the ``sunset`` this repair was built for in the first place.
+    Left empty the behaviour is what it was before C124, so a caller with no scene in
+    hand loses nothing.
 
     Anchoring can make two different queries collide (``industrial plant`` and
     ``manufacturing plant`` both become the same anchored string once the topic is
@@ -572,7 +606,11 @@ def _anchored_to_topic(
     seen: set[str] = set()
     for item in chosen:
         query = str(item.get("query") or "")
-        if str(item.get("language") or "") == "en" and not anchor.carried_by(query):
+        if (
+            str(item.get("language") or "") == "en"
+            and not anchor.carried_by(query)
+            and not (set(_anchor_stems(query)) & subject_stems)
+        ):
             anchored = " ".join(_terms([anchor.text, query]))
             item = {
                 **item,
@@ -685,7 +723,9 @@ def build_slot_queries(
     plan = SceneQueryPlan(scene_id=str(scene.get("scene_id") or ""), intent_language="en")
     query_text = " ".join(_slot_english_terms(scene, slot_name))
     if query_text and topic_anchor is not None and topic_anchor.resolved:
-        if not topic_anchor.carried_by(query_text):
+        if not topic_anchor.carried_by(query_text) and not (
+            set(_anchor_stems(query_text)) & _scene_subject_stems(scene)
+        ):
             query_text = " ".join(_terms([topic_anchor.text, query_text]))
     for provider in providers:
         languages = provider_query_languages(provider, caps.get(provider))
