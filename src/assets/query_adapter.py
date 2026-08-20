@@ -37,6 +37,12 @@ that produced them stated ``topic_entity`` = "панель" and nothing compared
 evidence, and every English query that does not name it gets it back. The anchor is
 prepended, never substituted - the rest of the query is the scene's own evidence.
 
+Since C124 there is a third case the anchor leaves alone, beside "already carries the
+topic" and "not English": a query that names the *scene's own* declared subject. A
+scene about the brain inside a video about sleep asks for the brain, and prepending the
+video's topic to that query replaced the scene's subject with the reel's. See
+``_anchored_to_topic``, which owns the exception and states it in full.
+
 The anchor is never translated. When the topic is written in Russian and the plan's
 scenes offer no recurring English subject, no anchor is invented: the scene's queries
 are marked ``query_subject_unverified`` and stay visible as unchecked, because a
