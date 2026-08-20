@@ -17,6 +17,7 @@ from typing import Any
 
 from src.content.script_engine.models import SEVERITY_ERROR, SEVERITY_WARNING
 
+from .brief import MEANING_ROLES, over_declared_terms, restated_role
 from .entities import content_tokens, stem
 from .models import (
     MEDIA_KINDS,
@@ -53,6 +54,7 @@ def validate_visual_plan(
     issues.extend(_check_scene_content(plan))
     issues.extend(_check_intents(plan))
     issues.extend(_check_grounding(plan, script, source_text))
+    issues.extend(_check_meaning_roles(plan))
     return VisualPlanValidationResult(issues=issues)
 
 
@@ -234,6 +236,48 @@ def _check_intents(plan: VisualPlanResult) -> list[VisualPlanValidationIssue]:
                 severity=SEVERITY_WARNING,
             )
         )
+    return issues
+
+
+def _check_meaning_roles(plan: VisualPlanResult) -> list[VisualPlanValidationIssue]:
+    """Whether each meaning field holds its own role, as far as that can be proved.
+
+    Warnings, not errors, and deliberately so. ``semantic_brief.parse_response`` refuses
+    the same two shapes outright, because a model has no authority here and a refused
+    answer costs the scene nothing it had. An author does have authority: their brief is
+    applied last and wins on purpose, and a validator that failed their plan would be
+    taking that away rather than telling them something. So the same verdict arrives as
+    a sentence they can read and overrule.
+
+    Only what the plan proves against itself. A subject that names an intention rather
+    than a thing is the same defect and is not reported, because separating it from an
+    ordinary answer is a judgement about language, not a comparison of terms.
+    """
+    issues: list[VisualPlanValidationIssue] = []
+    for scene in plan.scenes:
+        roles = {role: str(getattr(scene, role, "") or "") for role in MEANING_ROLES}
+        restated = restated_role(roles)
+        if restated:
+            issues.append(
+                _issue(
+                    "meaning_role_restated",
+                    f"Сцена {scene.scene_id}: поле {restated!r} не называет ничего своего — "
+                    "все его слова уже сказаны другими полями.",
+                    severity=SEVERITY_WARNING,
+                    scene_id=scene.scene_id,
+                )
+            )
+        overflow = over_declared_terms(roles)
+        if overflow:
+            issues.append(
+                _issue(
+                    "meaning_roles_over_declared",
+                    f"Сцена {scene.scene_id}: предмет, действие и место вместе не помещаются "
+                    f"в запрос, который называет их разом — лишних слов {overflow}.",
+                    severity=SEVERITY_WARNING,
+                    scene_id=scene.scene_id,
+                )
+            )
     return issues
 
 

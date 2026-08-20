@@ -21,11 +21,13 @@ from typing import Any
 
 from .expansion import (
     MAX_PROVIDER_QUERIES,
+    MAX_QUERY_TERMS,
     PROVIDER_LANGUAGE,
     expand_queries,
     planning_input_from_scene,
     provider_language_query,
     provider_language_text,
+    query_terms,
 )
 from .models import MEDIA_KINDS, SHOT_TYPES
 
@@ -111,6 +113,68 @@ class VisualBrief:
             "notes": self.notes,
         }
         return {key: value for key, value in data.items() if value}
+
+
+#: The three fields that hold a role each, in the order the widest rung states them.
+#: ``context`` is deliberately absent: it is defined as whatever the other three do not
+#: already say, and is already checked against them item by item.
+#:
+#: The two functions below are the part of the role split that can be *proved* from a
+#: brief rather than judged about its language. They live here, beside the brief itself,
+#: because both the model adapter that refuses an answer and the plan validator that
+#: warns about an author's own brief have to reach the same verdict - a second copy is
+#: how two layers that each answer correctly end up disagreeing.
+MEANING_ROLES: tuple[str, ...] = ("subject", "action", "place")
+
+
+def _role_terms(value: str) -> list[str]:
+    """What one field contributes to a query, counted the way the ladder counts it."""
+    return [term.casefold() for term in query_terms([value])]
+
+
+def restated_role(values: dict[str, str]) -> str:
+    """A declared role whose every term another role already stated, or ``""``.
+
+    The narrow reading on purpose. "Shares a word with another field" is not a defect -
+    a subject and a place naturally share the word that ties them together, and refusing
+    that would refuse ordinary answers. What cannot be an answer is a role that adds no
+    term of its own: whatever it was asked, it did not say it, and the field it repeats
+    already carried that meaning into every rung.
+
+    No threshold and no judgement of degree, because both would be guesses about phrases
+    this layer cannot parse. Either the role contributed something or it contributed
+    nothing.
+    """
+    terms = {role: _role_terms(values.get(role, "")) for role in MEANING_ROLES}
+    declared = [role for role in MEANING_ROLES if terms[role]]
+    if len(declared) < 2:
+        return ""
+    for role in declared:
+        stated_elsewhere = {
+            term for other in declared if other != role for term in terms[other]
+        }
+        if set(terms[role]) <= stated_elsewhere:
+            return role
+    return ""
+
+
+def over_declared_terms(values: dict[str, str]) -> int:
+    """How many declared terms the rung that states all three roles cannot carry.
+
+    ``expand_queries`` widens a scene by rungs, and one of them is subject *and* action
+    *and* place together. That rung is built by the same builder as every other, so it
+    stops at the ceiling like every other - and an answer whose three roles do not fit
+    loses whichever role is last, silently, after the brief was accepted. A field ceiling
+    cannot see this: each field can be inside its own limit while the three together are
+    not.
+
+    Counted with the builder's own accounting, so the answer is exactly what the rung
+    would drop rather than a second opinion about it.
+    """
+    declared = [values.get(role, "") for role in MEANING_ROLES if values.get(role, "").strip()]
+    if len(declared) < 2:
+        return 0
+    return max(0, len(query_terms(declared)) - MAX_QUERY_TERMS)
 
 
 # The fields by which an author states *what the frame shows*, as opposed to bounding or
@@ -370,10 +434,13 @@ def _unique(values: list[str]) -> list[str]:
 
 __all__ = [
     "AUTHOR_SEMANTIC_FIELDS",
+    "MEANING_ROLES",
     "VisualBrief",
     "apply_brief",
     "author_semantics_are_sufficient",
+    "over_declared_terms",
     "parse_brief",
     "produce_brief",
+    "restated_role",
     "scene_claim_texts",
 ]

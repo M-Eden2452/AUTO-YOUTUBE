@@ -62,9 +62,10 @@ from typing import Any, Callable
 
 from src.content.script_engine.text_analysis import STOPWORDS
 
-from .brief import VisualBrief, apply_brief, scene_claim_texts
+from .brief import MEANING_ROLES, VisualBrief, apply_brief, scene_claim_texts
 from .contract import VisualPlannerError, VisualPlannerUnavailableError
 from .expansion import (
+    MAX_QUERY_TERMS,
     NON_FACTUAL_QUERY_TERMS,
     PROVIDER_LANGUAGE,
     mentions_avoided,
@@ -97,6 +98,16 @@ _PHRASE_RULE = (
     "not a sentence"
 )
 
+# The two shapes that can be *counted* rather than judged: a field whose every word
+# another field already said, and three fields that together outgrow the rung stating
+# all three at once. Neither refuses an answer - both are symptoms an ordinary answer can
+# show - so they are asked for here and reported by the plan validator, never enforced.
+_ROLE_RULE = (
+    "prefer leaving it empty to repeating what another field already states, and keep "
+    f"the three meaning fields together under {MAX_QUERY_TERMS} significant words, which "
+    "is what the rung naming all three can carry"
+)
+
 # The four meaning fields are four *roles*, not four chances to say the same thing.
 # Everything downstream is built on that: ``expansion.expand_queries`` widens a scene by
 # dropping one role at a time, ``models`` builds an intent that is deliberately the
@@ -106,26 +117,36 @@ _PHRASE_RULE = (
 # still carries the action, and the two ranker slots count one phrase twice.
 #
 # The third live run answered every scene inside every stated limit and did exactly that
-# in six of six scenes. Nothing the parser can see is wrong with such an answer: each
+# in six of six scenes. Nothing the parser could see was wrong with such an answer: each
 # field is short, in the provider's language and within the ceiling. What had never been
 # stated is which role each field holds, so that is stated here - generally, in terms of
 # the roles themselves, never as a list of the subjects one diagnostic script happened
 # to use.
+#
+# Stating them is the whole mechanism. Nothing below refuses an answer for holding the
+# wrong role, because nothing below can tell the difference: the two shapes that *are*
+# countable are symptoms shared by good answers and bad ones alike, and they are reported
+# on the finished plan rather than enforced here. What the model is told is therefore the
+# only lever, so the roles are spelled out in terms of what a camera can point at.
 RESPONSE_CONTRACT: dict[str, Any] = {
     "subject": (
-        "str - the entity or object to be shown: a noun phrase naming *what* is in "
-        "frame, never what it is doing and never where it is, "
-        f"{_PHRASE_RULE}. "
+        "str - the entity, object or person directly visible in frame: a noun phrase "
+        "naming a thing a camera can be pointed at, never what it is doing, never where "
+        "it is, and never a skill, a process, an intention or an idea, "
+        f"{_PHRASE_RULE}. {_ROLE_RULE} "
         "Empty when the evidence does not say what to show."
     ),
     "action": (
-        "str, optional - the observable action the subject performs: the scene's own "
-        "central visible event, not the mechanism that explains it, "
-        f"{_PHRASE_RULE}"
+        "str, optional - the directly observable action the subject performs: what a "
+        "viewer would see happening, never what it means and never the mechanism that "
+        "explains it, "
+        f"{_PHRASE_RULE}. {_ROLE_RULE}"
     ),
     "place": (
-        "str, optional - the environment or location the action happens in, stating "
-        f"neither the subject nor the action again, {_PHRASE_RULE}"
+        "str, optional - the observable environment the action is seen in: the "
+        "surroundings, location or setting, stating neither the subject nor the action "
+        "again, "
+        f"{_PHRASE_RULE}. {_ROLE_RULE}"
     ),
     "context": [
         "str, optional - one secondary visual cue around the subject, repeating nothing "
@@ -219,10 +240,13 @@ def build_prompt(evidence: SceneBriefEvidence) -> str:
     model was never told.
 
     The field roles are stated alongside those limits rather than left to the schema
-    dump below, and for a different reason: a role is not something the parser can check
-    at all. An answer that packs the action into the subject is short, English and inside
-    every ceiling, so nothing downstream can tell it apart from a well-formed one - see
-    the note on ``RESPONSE_CONTRACT``.
+    dump below, and for a different reason: a role is not something the parser can check.
+    An answer that packs the action into the subject is short, English and inside every
+    ceiling, so nothing here can tell it apart from a well-formed one. Two *symptoms* of
+    such an answer are mechanically detectable, but a symptom is not a proof - see the
+    note in ``parse_response`` - so they are reported on the finished plan as warnings
+    and refuse nothing. Which makes the wording below the only thing that actually moves
+    a model towards the right shape, and worth being exact about.
     """
     lines = [
         "Ты определяешь, что должно быть в кадре одной сцены видео.",
@@ -231,13 +255,24 @@ def build_prompt(evidence: SceneBriefEvidence) -> str:
         "Не выдумывай сущность, место и факты, которых нет в материале ниже."
         " Если материал не говорит, что показывать, верни пустой subject.",
         "У каждого поля своя роль, и одно и то же не повторяется в двух полях:",
-        "- subject — только сама сущность или объект в кадре: назови, что показывать,"
-        " без действия и без места;",
-        "- action — наблюдаемое действие этой сущности: главное видимое событие сцены,"
-        " а не механизм, который его объясняет;",
-        "- place — только среда или место, где это происходит;",
+        "- subject — только то, что непосредственно видно в кадре: предмет, человек,"
+        " животное, устройство. То, на что можно навести камеру. Не умение, не процесс,"
+        " не намерение и не идея; без действия и без места;",
+        "- action — только непосредственно наблюдаемое действие этой сущности: то, что"
+        " зритель увидит происходящим. Не причина, не объяснение и не смысл;",
+        "- place — только наблюдаемая обстановка или место, где это видно;",
         "- context — второстепенные визуальные признаки, которых нет ни в subject,"
         " ни в action, ни в place.",
+        "Смысл сцены, её причина и то, что она доказывает, — не поля этого ответа."
+        " Не пиши их ни в subject, ни в action, ни в place: они уже сказаны текстом"
+        " сцены, а сток подписывает материал названиями вещей.",
+        "Ещё две просьбы о форме — за них ответ не отменяется, но план пометит его"
+        " как подозрительный:",
+        "- поле, все слова которого уже сказаны другим полем, лучше оставить пустым,"
+        " чем повторять сказанное;",
+        f"- subject, action и place вместе — короче {MAX_QUERY_TERMS} значимых слов:"
+        " столько несёт запрос, который называет их разом, остальное до провайдера"
+        " не дойдёт.",
         "Правила для значений (нарушение любого отменяет весь ответ целиком):",
         f"- каждое значение — на языке провайдера ({PROVIDER_LANGUAGE}) и только на нём;",
         f"- каждое значение — не длиннее {MAX_FIELD_TERMS} слов;",
@@ -314,6 +349,15 @@ def parse_response(raw: Any, *, evidence: SceneBriefEvidence) -> VisualBrief:
             "Ответ модели просит показать то, что сцена запретила.", planner=ADAPTER_ID
         )
 
+    # No role check refuses an answer here, and that is a decision rather than a gap.
+    # Two symptoms of a muddled answer are mechanically detectable - a field whose every
+    # term another field already stated, and three fields that together outgrow the rung
+    # naming all three - and neither *proves* the role is wrong. ``wild tiger`` /
+    # ``walking through forest`` / ``forest`` states a correct place that happens to add
+    # no new word, and an answer too wordy for the ladder is hard to search rather than
+    # wrong about what it means. Refusing on either would turn a plausible reading into a
+    # new source of empty scenes. ``validation.validate_visual_plan`` reports both as
+    # warnings on the finished plan, where an author can read them and overrule them.
     return VisualBrief(
         subject=subject,
         action=action,
@@ -523,6 +567,7 @@ __all__ = [
     "ADAPTER_ID",
     "MAX_CONTEXT_ITEMS",
     "MAX_FIELD_TERMS",
+    "MEANING_ROLES",
     "RESPONSE_CONTRACT",
     "RESPONSE_FIELDS",
     "ModelSemanticBriefAdapter",

@@ -74,6 +74,7 @@ from pathlib import Path
 
 from src.assets.query_adapter import STATUS_OK, STATUS_TRANSLATION_REQUIRED, build_scene_queries
 from src.assets.semantic_selection.candidate_ranker import rank_candidates
+from src.assets.semantic_selection.evidence import stem_concept_score, tokens
 from src.assets.semantic_selection.scene_analyzer import analyze_scene
 from src.content.script_engine import ScriptResult, ScriptScene
 from src.content.visual_planning import (
@@ -83,11 +84,23 @@ from src.content.visual_planning import (
     build_plan,
 )
 from src.content.visual_planning.brief import VisualBrief, apply_brief
-from src.content.visual_planning.models import ENTITY_KIND_TOPIC
-from src.content.visual_planning.expansion import PROVIDER_LANGUAGE
+from src.content.script_engine.models import SEVERITY_WARNING
+from src.content.visual_planning.models import (
+    ENTITY_KIND_TOPIC,
+    SceneVisualPlan,
+    VisualPlanResult,
+)
+from src.content.visual_planning.validation import validate_visual_plan
+from src.content.visual_planning.expansion import (
+    MAX_QUERY_TERMS,
+    PROVIDER_LANGUAGE,
+    provider_language_query,
+    query_terms,
+)
 from src.content.visual_planning.semantic_brief import (
     MAX_CONTEXT_ITEMS,
     MAX_FIELD_TERMS,
+    MEANING_ROLES,
     RESPONSE_CONTRACT,
     ModelSemanticBriefAdapter,
     SceneBriefEvidence,
@@ -1440,6 +1453,354 @@ class NoDiagnosticHardcodeTest(unittest.TestCase):
             for term in DIAGNOSTIC_TERMS:
                 with self.subTest(module=module.name, term=term):
                     self.assertNotIn(term, literals)
+
+
+SUSPECT_SHAPES = {
+    # Every one of these is a brief a real run produced. Named so a reader can tell what
+    # the plan is being warned about without decoding the fields.
+    "action repeats the subject": {
+        "subject": "sleeping woman",
+        "action": "sleeping",
+        "place": "dark bedroom",
+    },
+    "place repeats the subject": {
+        "subject": "laboratory pipette",
+        "action": "dispensing a sample",
+        "place": "laboratory",
+    },
+    "subject repeats the other roles": {
+        "subject": "closed eyes",
+        "action": "eyes moving under closed eyelids",
+        "place": "bed",
+    },
+    "three roles outgrow the rung": {
+        "subject": "tired person waking",
+        "action": "rubbing eyes after too little sleep",
+        "place": "bedroom morning",
+    },
+    "the composite subject that reached a provider in live-3": {
+        "subject": "orca whale jumping out of water",
+        "action": "leaping fully above surface",
+        "place": "open ocean",
+    },
+}
+
+ORDINARY_SHAPES = {
+    "the roles stated separately": {
+        "subject": "tired person",
+        "action": "waking",
+        "place": "bedroom",
+    },
+    "a subject with only an environment": {"subject": "bed", "action": "", "place": "morning"},
+    "a subject, what it does and where": {
+        "subject": "student",
+        "action": "studying",
+        "place": "desk evening",
+    },
+    "a place that shares a word but adds its own": {
+        "subject": "solar panels",
+        "action": "stretch into the horizon",
+        "place": "solar power station",
+    },
+    "an action that shares a word but adds its own": {
+        "subject": "brain scan",
+        "action": "rotating scan slices",
+        "place": "medical display",
+    },
+}
+
+#: The counter-example that decided this slice: a correct place that happens to add no
+#: word of its own. Kept apart from both groups because it belongs to neither - the plan
+#: may warn about it, and refusing it would be wrong.
+CORRECT_PLACE_THAT_ADDS_NO_WORD = {
+    "subject": "wild tiger",
+    "action": "walking through forest",
+    "place": "forest",
+}
+
+
+class NoRoleShapeCostsAnAnswerItsBriefTest(unittest.TestCase):
+    """The parser refuses nothing for how its roles are split, and that is the decision.
+
+    Two shapes of a muddled answer can be counted rather than judged, and an earlier draft
+    of this slice refused both. Its own measurement withdrew that: ``wild tiger`` /
+    ``walking through forest`` / ``forest`` states a correct place that adds no new word,
+    and an answer too wordy for the query ladder is hard to search rather than wrong about
+    what it means. Refusing on a symptom shared by good answers would have made this layer
+    a new source of scenes with no material at all.
+    """
+
+    def _brief(self, answer: dict) -> object:
+        return parse_response(
+            answer,
+            evidence=SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"]),
+        )
+
+    def test_a_correct_place_that_adds_no_new_word_is_not_refused(self) -> None:
+        brief = self._brief(CORRECT_PLACE_THAT_ADDS_NO_WORD)
+        self.assertEqual(brief.place, "forest")
+
+    def test_no_suspect_shape_is_refused(self) -> None:
+        for name, answer in SUSPECT_SHAPES.items():
+            with self.subTest(shape=name):
+                self.assertEqual(self._brief(answer).subject, answer["subject"])
+
+    def test_no_ordinary_shape_is_refused(self) -> None:
+        for name, answer in ORDINARY_SHAPES.items():
+            with self.subTest(shape=name):
+                self.assertEqual(self._brief(answer).subject, answer["subject"])
+
+    def test_the_unambiguous_refusals_still_refuse(self) -> None:
+        """Nothing here loosened what the parser could always prove."""
+        evidence = SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"])
+        for name, answer in {
+            "a field longer than a phrase": {"subject": " ".join(["word"] * (MAX_FIELD_TERMS + 1))},
+            "an unknown field": {"subject": "bed", "mood": "calm"},
+            "a field of the wrong type": {"subject": 7},
+            "too many context items": {"subject": "bed", "context": ["glass"] * (MAX_CONTEXT_ITEMS + 1)},
+        }.items():
+            with self.subTest(refusal=name):
+                with self.assertRaises(SemanticBriefResponseError):
+                    parse_response(answer, evidence=evidence)
+
+
+class SuspectRoleShapesAreReportedOnThePlanTest(unittest.TestCase):
+    """The findings survive as warnings on the finished plan, where they can be overruled.
+
+    One validator for both origins on purpose. A model brief is overlaid onto the scene
+    before ``validate_visual_plan`` runs, and an author's brief is applied last and wins,
+    so the same sentence reaches whoever wrote the fields.
+    """
+
+    ROLE_CODES = frozenset({"meaning_role_restated", "meaning_roles_over_declared"})
+
+    def _role_warnings(self, answer: dict) -> list:
+        plan = VisualPlanResult(
+            scenes=[
+                SceneVisualPlan(
+                    scene_id="scene_001",
+                    meaning="что показывать в этой сцене",
+                    subject=answer.get("subject", ""),
+                    action=answer.get("action", ""),
+                    place=answer.get("place", ""),
+                )
+            ]
+        )
+        issues = validate_visual_plan(plan).issues
+        return [issue for issue in issues if issue.code in self.ROLE_CODES]
+
+    def test_every_suspect_shape_is_reported(self) -> None:
+        for name, answer in SUSPECT_SHAPES.items():
+            with self.subTest(shape=name):
+                self.assertTrue(self._role_warnings(answer), "no warning for a shape a real run produced")
+
+    def test_no_ordinary_shape_is_reported(self) -> None:
+        for name, answer in ORDINARY_SHAPES.items():
+            with self.subTest(shape=name):
+                self.assertEqual(self._role_warnings(answer), [])
+
+    def test_every_report_is_a_warning_and_never_an_error(self) -> None:
+        for name, answer in SUSPECT_SHAPES.items():
+            with self.subTest(shape=name):
+                for issue in self._role_warnings(answer):
+                    self.assertEqual(issue.severity, SEVERITY_WARNING)
+
+    def test_a_reported_plan_is_still_a_valid_plan(self) -> None:
+        """A warning may not become a blocker by another name."""
+        plan = VisualPlanResult(
+            scenes=[
+                SceneVisualPlan(
+                    scene_id="scene_001",
+                    meaning="что показывать",
+                    **SUSPECT_SHAPES["action repeats the subject"],
+                )
+            ]
+        )
+        result = validate_visual_plan(plan)
+        self.assertFalse([issue for issue in result.issues if issue.code in self.ROLE_CODES and issue.severity != SEVERITY_WARNING])
+
+    def test_the_correct_place_that_adds_no_word_is_reported_and_not_refused(self) -> None:
+        """The counter-example, stated as the behaviour it argued for."""
+        self.assertTrue(self._role_warnings(CORRECT_PLACE_THAT_ADDS_NO_WORD))
+        brief = parse_response(
+            CORRECT_PLACE_THAT_ADDS_NO_WORD,
+            evidence=SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"]),
+        )
+        self.assertEqual(brief.place, "forest")
+
+    def test_nothing_is_rewritten_on_the_way_through(self) -> None:
+        for name, answer in {**SUSPECT_SHAPES, "counter-example": CORRECT_PLACE_THAT_ADDS_NO_WORD}.items():
+            with self.subTest(shape=name):
+                brief = parse_response(
+                    answer,
+                    evidence=SceneBriefEvidence(
+                        scene_id="scene_001", narration=NARRATIONS["scene_001"]
+                    ),
+                )
+                self.assertEqual(brief.subject, answer.get("subject", ""))
+                self.assertEqual(brief.action, answer.get("action", ""))
+                self.assertEqual(brief.place, answer.get("place", ""))
+
+
+class TheRolesAreSpelledOutToTheModelTest(unittest.TestCase):
+    """The wording is the only lever left, so it is the thing under test.
+
+    Nothing refuses an answer for holding the wrong role, which makes what the model is
+    told the whole mechanism rather than a courtesy beside an enforcing parser.
+    """
+
+    def _rules(self) -> str:
+        prompt = build_prompt(
+            SceneBriefEvidence(scene_id="scene_001", narration=NARRATIONS["scene_001"])
+        )
+        return prompt.split("Ответ — строго JSON")[0]
+
+    def test_the_subject_is_defined_as_what_a_camera_can_be_pointed_at(self) -> None:
+        rules = self._rules()
+        self.assertIn("непосредственно видно в кадре", rules)
+        self.assertIn("навести камеру", rules)
+
+    def test_the_subject_is_told_it_is_not_a_skill_or_an_intention(self) -> None:
+        rules = self._rules()
+        self.assertIn("умение", rules)
+        self.assertIn("намерение", rules)
+
+    def test_the_action_is_defined_as_what_a_viewer_would_see(self) -> None:
+        rules = self._rules()
+        self.assertIn("непосредственно наблюдаемое действие", rules)
+        self.assertIn("Не причина", rules)
+
+    def test_the_place_is_defined_as_observable_surroundings(self) -> None:
+        self.assertIn("наблюдаемая обстановка", self._rules())
+
+    def test_the_abstract_meaning_is_told_to_stay_out_of_all_three(self) -> None:
+        rules = self._rules()
+        self.assertIn("Смысл сцены", rules)
+        self.assertIn("не поля этого ответа", rules)
+
+    def test_the_two_countable_shapes_are_asked_for_without_being_threatened(self) -> None:
+        """Asking is honest; claiming the answer is voided would not be."""
+        rules = self._rules()
+        parts = rules.split("Ещё две просьбы о форме", 1)
+        self.assertEqual(len(parts), 2, "the two form asks should stand apart from the hard rules")
+        asks = parts[1].split("Правила для значений", 1)[0]
+        self.assertIn("ответ не отменяется", asks)
+        self.assertIn(str(MAX_QUERY_TERMS), asks)
+        self.assertNotIn("отменяет весь ответ целиком", asks)
+
+    def test_every_meaning_role_carries_the_shape_asks_in_the_schema_dump(self) -> None:
+        for field in MEANING_ROLES:
+            with self.subTest(field=field):
+                self.assertIn(str(MAX_QUERY_TERMS), RESPONSE_CONTRACT[field])
+
+
+class TheReportStopsWhereProofStopsTest(unittest.TestCase):
+    """What is neither refused nor reported, recorded as a test.
+
+    Both are role failures and neither leaves a trace anything here can count. A subject
+    naming an intention rather than a thing, and a subject carrying its own place in fresh
+    words, are separated from ordinary answers only by judgement about language. The
+    repository has no means to make that judgement, and assembling one from these two
+    examples is how a validator earns its first false report.
+
+    So they pass in silence, and that is a decision. Whoever changes it owes what this
+    slice produced: a measurement over the saved briefs showing what else the new rule
+    would flag.
+    """
+
+    def _role_warnings(self, answer: dict) -> list:
+        plan = VisualPlanResult(
+            scenes=[
+                SceneVisualPlan(
+                    scene_id="scene_001",
+                    meaning="что показывать",
+                    subject=answer.get("subject", ""),
+                    action=answer.get("action", ""),
+                    place=answer.get("place", ""),
+                )
+            ]
+        )
+        return [
+            issue
+            for issue in validate_visual_plan(plan).issues
+            if issue.code in {"meaning_role_restated", "meaning_roles_over_declared"}
+        ]
+
+    def test_a_subject_that_names_an_intention_passes_unremarked(self) -> None:
+        self.assertEqual(self._role_warnings({"subject": "person practicing a skill"}), [])
+
+    def test_a_subject_that_carries_its_place_in_fresh_words_passes_unremarked(self) -> None:
+        self.assertEqual(
+            self._role_warnings(
+                {
+                    "subject": "morning light on a bed",
+                    "action": "sunrise light moving across the bed",
+                    "place": "bedroom window",
+                }
+            ),
+            [],
+        )
+
+
+class SharedTermAccountingDidNotChangeTheLadderTest(unittest.TestCase):
+    """``query_terms`` was split out of the query builder, not written beside it.
+
+    The extraction is only safe if the builder still answers exactly as it did, so the
+    behaviour is pinned here rather than inferred from the suite passing.
+    """
+
+    CASES = (
+        (["orcas jumping out of water", "leaping fully above surface", "open ocean"],
+         "orcas jumping water leaping fully above surface open"),
+        (["bed", "morning"], "bed morning"),
+        (["solar panels", "stretch into the horizon", "solar power station"],
+         "solar panels stretch horizon power station"),
+        (["bed"], ""),
+        ([""], ""),
+        (["кровать утром"], ""),
+    )
+
+    def test_the_builder_answers_exactly_as_before(self) -> None:
+        for values, expected in self.CASES:
+            with self.subTest(values=values):
+                self.assertEqual(provider_language_query(values), expected)
+
+    def test_the_builder_is_the_terms_it_counts(self) -> None:
+        for values, _ in self.CASES:
+            with self.subTest(values=values):
+                terms = query_terms(values, limit=MAX_QUERY_TERMS)
+                built = provider_language_query(values)
+                self.assertEqual(built, " ".join(terms) if len(terms) >= 2 else "")
+
+    def test_the_ceiling_still_stops_the_builder(self) -> None:
+        values = [" ".join(f"term{index}" for index in range(20))]
+        self.assertEqual(len(provider_language_query(values).split()), MAX_QUERY_TERMS)
+
+
+class ARoleViolatingSubjectCostsTheSceneItsOwnFootageTest(unittest.TestCase):
+    """Why the roles matter, measured on the scoring rule the fields are read by.
+
+    One catalogue record, one scoring function, two ways of naming the same thing. The
+    composite loses to the role-compliant phrase by the width of the ranker's whole
+    subject weight, and nothing about the material changed between the two rows. This is
+    the reason the wording was sharpened; it is not a reason to refuse anybody's answer.
+    """
+
+    RECORD = "a woman making her bed in the morning"
+
+    def _score(self, concept: str) -> float:
+        return stem_concept_score(concept, tokens(self.RECORD), self.RECORD)
+
+    def test_the_composite_subject_scores_a_fraction_of_the_record(self) -> None:
+        self.assertEqual(self._score("morning light on a bed"), 60.0)
+
+    def test_the_same_thing_named_as_an_entity_scores_the_whole_record(self) -> None:
+        self.assertEqual(self._score("bed in the morning"), 100.0)
+
+    def test_an_unobservable_subject_scores_lowest_of_the_three(self) -> None:
+        self.assertLess(
+            self._score("person practicing a skill"), self._score("morning light on a bed")
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

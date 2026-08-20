@@ -48,7 +48,10 @@ MAX_PROVIDER_QUERIES = 4
 # evidence and never produces it.
 PROVIDER_LANGUAGE = "en"
 
-_MAX_QUERY_TERMS = 8
+#: The widest a single built query gets. Public because the meaning contract is
+#: judged against it: an answer that declares more than this cannot be asked in full.
+MAX_QUERY_TERMS = 8
+_MAX_QUERY_TERMS = MAX_QUERY_TERMS
 _MIN_QUERY_TERMS = 2
 
 _PROVIDER_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9.'-]*")
@@ -125,12 +128,15 @@ def provider_language_text(value: object) -> str:
     return text if _PROVIDER_TOKEN_RE.search(text) else ""
 
 
-def provider_language_query(values: list[str]) -> str:
-    """One query string built from ``values``, most specific term first.
+def query_terms(values: Iterable[object], *, limit: int | None = None) -> list[str]:
+    """The terms a query built from ``values`` would actually carry, in ladder order.
 
-    One word is usually a category or a name with too little scene intent to search
-    truthfully, so the two-term floor is kept: it is also what rejects bare slugs and
-    labels.
+    Split out of ``provider_language_query`` so that anything which needs to *count* what
+    a rung can carry counts it with the ladder's own accounting rather than a second one:
+    the stopword and production-vocabulary filters, the cross-value de-duplication and
+    the order are all the query builder's, because they are the same code.
+
+    ``limit`` stops at that many terms, exactly where the builder stops.
     """
     terms: list[str] = []
     seen: set[str] = set()
@@ -144,10 +150,19 @@ def provider_language_query(values: list[str]) -> str:
                 continue
             seen.add(key)
             terms.append(token)
-            if len(terms) >= _MAX_QUERY_TERMS:
-                break
-        if len(terms) >= _MAX_QUERY_TERMS:
-            break
+            if limit is not None and len(terms) >= limit:
+                return terms
+    return terms
+
+
+def provider_language_query(values: list[str]) -> str:
+    """One query string built from ``values``, most specific term first.
+
+    One word is usually a category or a name with too little scene intent to search
+    truthfully, so the two-term floor is kept: it is also what rejects bare slugs and
+    labels.
+    """
+    terms = query_terms(values, limit=MAX_QUERY_TERMS)
     return " ".join(terms) if len(terms) >= _MIN_QUERY_TERMS else ""
 
 
@@ -360,6 +375,7 @@ def _first(*values: object) -> str:
 __all__ = [
     "MAX_EXPANSION_QUERIES",
     "MAX_PROVIDER_QUERIES",
+    "MAX_QUERY_TERMS",
     "NON_FACTUAL_QUERY_TERMS",
     "PROVIDER_LANGUAGE",
     "QueryPlanningInput",
@@ -369,4 +385,5 @@ __all__ = [
     "planning_input_from_scene",
     "provider_language_query",
     "provider_language_text",
+    "query_terms",
 ]
