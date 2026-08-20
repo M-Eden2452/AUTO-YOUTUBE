@@ -40,6 +40,7 @@ from .decision import (
     DECISION_KEY,
     EXACTING_CLASSES,
     FRAMING_HARD_REJECT,
+    SLOT_MATCH_SCORE,
     SUPPORT_FULL,
     SUPPORT_MANUAL,
     SUPPORT_PARTIAL,
@@ -627,6 +628,23 @@ def _score_candidate(
     else:
         semantic_match_status = "mismatched"
 
+    # C127. The average has two answers where the evidence has three. A stock catalogue
+    # that never describes the action or the room is not a catalogue saying the action
+    # and the room are wrong, and spending that silence as a zero is what put the two
+    # states back into one.
+    subject_named_rest_unanswered = _subject_named_rest_unanswered(
+        scene,
+        slot_verdict,
+        source_class=source_class,
+        negative_matches=negative_matches,
+        subject_match=subject_match,
+        fields=(
+            (scene.action, action_match, action_decidable),
+            (scene.environment, environment_match, environment_decidable),
+            (scene.camera, camera_match, camera_decidable),
+        ),
+    )
+
     reject_reasons: list[str] = []
     if must_missing:
         reject_reasons.append("must_include_missing:" + ",".join(must_missing))
@@ -704,7 +722,13 @@ def _score_candidate(
         semantically_disqualified=(
             bool(negative_matches)
             or bool(non_real_video_matches)
-            or semantic_match_status == "mismatched"
+            # A low average disqualifies - unless the only thing that made it low was
+            # the catalogue's silence about requirements it never had to describe.
+            # Owner decision 2026-08-20, ADR 0028. This is the *only* clause C127
+            # touches: the average itself, the weights and both thresholds are
+            # unchanged, and the candidate is still refused if anything actually
+            # contradicted the scene.
+            or (semantic_match_status == "mismatched" and not subject_named_rest_unanswered)
         ),
     )
     # An objection that the slot verdict has already answered stops being a refusal and
@@ -856,6 +880,71 @@ def _duration_check(candidate: dict[str, Any], required_duration_sec: float) -> 
         "tolerance_sec": DURATION_TOLERANCE_SEC,
         "adaptation": "hold_last_frame" if status == "not_applicable" else ("slow_down_or_loop" if 0 < deficit <= 1.0 else ""),
     }
+
+
+def _unanswered(terms: list[str], score: float, decidable: bool) -> bool:
+    """Whether the catalogue *did not answer* this requirement.
+
+    Three cases, and only these count as unanswered: the scene never stated the field,
+    the field cannot be compared at all (already dropped from the average as
+    undecidable), or the record contains no word of it. Anything above zero means the
+    provider did write about it and what it wrote fell short - that is evidence, and
+    evidence that missed is not silence.
+    """
+    if not terms:
+        return True
+    if not decidable:
+        return True
+    return score == 0.0
+
+
+def _subject_named_rest_unanswered(
+    scene: SemanticScene,
+    slot_verdict: Any,
+    *,
+    source_class: str,
+    negative_matches: list[str],
+    subject_match: float,
+    fields: tuple[tuple[list[str], float, bool], ...],
+) -> bool:
+    """The one shape a low average is allowed not to disqualify.
+
+    The scene's subject is *named*, nothing contradicts the scene, and every other
+    requirement it stated went unanswered. Such a candidate becomes eligible for
+    selection and review at ``partial_support``; it does not become confident, and
+    ``partial_support_marked_render_ready`` still forbids it from being render-ready.
+
+    "Named" is ``subject_match >= SLOT_MATCH_SCORE``, the same bar the slot layer uses,
+    and since C126 that number carries the rest of the meaning for free: a field too
+    large to be about one asset tops out at ``SUPPORTING_EVIDENCE_SCORE`` (75), so a
+    score of 99 or more can only have come from a field written about this asset. The
+    two slices are ordered on purpose - without C126 this rule would have admitted the
+    documentary about tribal medicine into the scene about closed eyes.
+
+    Everything that is not the average keeps its own veto: ``must_avoid`` and a declared
+    ``conflicting_context`` are checked here, and rights, duration, framing, media
+    policy, ``must_include`` and ``required_slot_missing`` are separate reject reasons
+    that this function cannot reach.
+
+    An **exacting class is excluded outright**, and not as a safety margin: such a class
+    is *defined* by refusing to guess - ``build_strategy`` gives it
+    ``requires_provider_metadata=True`` and the ranker refuses it a requirement its
+    evidence cannot show. "Silence is not a refusal" is the exact opposite statement, so
+    applying it there would contradict the class rather than extend it. Measured: with
+    the exclusion the Russian ``specific_object`` case of C89 keeps its answer - a car
+    dashboard whose title carries ``панель`` in the other sense stays refused for a
+    scene about solar-panel assembly, where the subject is named, the assembly and the
+    factory are unmentioned, and nothing in the metadata contradicts anything.
+    """
+    if source_class in EXACTING_CLASSES:
+        return False
+    return (
+        bool(scene.subject)
+        and subject_match >= SLOT_MATCH_SCORE
+        and not negative_matches
+        and not slot_verdict.declared_conflict_terms
+        and all(_unanswered(terms, score, decidable) for terms, score, decidable in fields)
+    )
 
 
 def _field_match(

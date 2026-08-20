@@ -8,13 +8,13 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress. Class 5 (C121, ADR 0024) is now partly fixed and
-  not only reported: C126 / ADR 0027 stopped a catalogue-sized field from making the
-  claim a title makes; v1 tie groups 6 -> 5, agreement and changed_winners unmoved on
-  both corpora. NEXT is the ceiling - a perfect subject with metadata silent about
-  action and place scores 58.824 against MIN_SCORE 60, and four scenes of the saved
-  run (004, 009, 012, 013) stand on it; that is an owner decision about the scale, not
-  a slice. Also open - C105 (ru->en bridge). Details: Current checkpoint, C126 CLOSURE.
+  Checkpoint PLAN-9D, in progress. Two slices landed 2026-08-20: C126 / ADR 0027 stopped
+  a catalogue-sized field from making the claim a title makes, C127 / ADR 0028 stopped a
+  silent catalogue from being spent as a mismatch. The owner refused the threshold
+  change; 58.824 stands and is no longer the blocker it looked like. NEXT is recall,
+  measured: in scenes 009/012/013 no candidate names the subject at all, because the
+  brief writes it as a sentence stock cannot name. Also open - C105 (ru->en bridge).
+  Details: Current checkpoint, C126/C127 CLOSURE.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -98,6 +98,39 @@ Evidence (офлайн, без провайдерских вызовов, ни �
 побайтово; `unacceptable_selected`, `must_avoid_escaped`, `non_real_footage_selected`
 и `wrong_abstentions` не выросли. Baseline полного offline suite на `6405764` —
 **2470 OK / 729.7 s**. Checkpoint не двигался.
+
+**Correction по итогам независимого ревью.** Ревью `52004c5` нашло в ADR 0027 ложное
+утверждение «на обоих корпусах это не изменило ни одного вердикта»: фактически v1 — 12
+изменений `slot_verdict` и 5 `support_status`, v2 — 0 и 3, все ужесточения, победитель
+сцены не изменился нигде. Исправлено разделом «Correction» в ADR 0027. Там же записана
+вторая деталь, ревью не найденная: на v1 `scene_013` изменился порядок **внутри
+ранкера**, на приёмку не вышедший, потому что production-путь `prefer_video` выбирал то
+же видео и до слайса.
+
+**C127 CLOSURE (2026-08-20, ADR 0028).** Owner decision запретил менять `MIN_SCORE`,
+веса и подстраивать порог под `58.824`, и назвал принцип: **absence of evidence в stock
+metadata != evidence of mismatch**; различать MATCH · CONFLICT · UNKNOWN. Замер **до
+кода** (1419 кандидатов, офлайн) поправил постановку: из четырёх сцен на потолке
+`UNKNOWN` блокирует **одну** (`scene_004`); в `009`/`012`/`013` предмет не назван ни
+одним кандидатом — это recall. Найден циклический отказ: `meaning_score < MIN_SCORE`
+объявляет кандидата `mismatched`, это ставит `support_status = unsupported`, а из-за
+этого `score_below_60` не может стать advisory — то есть `SOFT_REJECT_PREFIXES`,
+написанные ровно для того, чтобы вердикт слотов перевешивал среднее, для таких
+кандидатов не срабатывали никогда. Исправлено одним выражением
+`semantically_disqualified`: низкое среднее не дисквалифицирует, если предмет **назван**
+(`subject_match >= SLOT_MATCH_SCORE`, что после `C126` может прийти только из поля про
+один ассет), ничто не противоречит и каждое остальное заявленное требование — **ровно
+ноль**. `EXACTING_CLASSES` исключён целиком, потому что такой класс определён отказом
+угадывать (`requires_provider_metadata`); это же сохраняет ответ измеренного случая
+`C89` (омоним `панель`: приборная панель автомобиля остаётся отказанной). Eligibility, а
+не confidence: кандидат становится отбираемым при `partial_support`, `score_below_N`
+переходит в `advisory_reject_reasons` и из записи не исчезает, `render_ready` не
+выдаётся. Evidence: заполнена **1** сцена (`sleep-viz-probe/scene_004` →
+`wikimedia_142165496`), стало отбираемыми 1 + 1 + 5 записей, **отказано заново — 0**,
+на корпусе v1 — **ни одного изменения**. Приёмка: `blind agreement` v1 **6/14**
+(побайтово тот же вывод), v2 **2/10**, `changed_winners` **0**,
+`unacceptable_selected`/`must_avoid_escaped`/`non_real_footage_selected`/
+`wrong_abstentions` не выросли. Checkpoint не двигался.
 
 **WHAT JUST COMPLETED.** `WP0-A` machine gates существуют фактически:
 `requirements-dev.lock`, Ruff (`F`, `E9`) и Mypy (`files = src/assets`,
