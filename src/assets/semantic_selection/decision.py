@@ -39,6 +39,7 @@ from src.assets.scene_strategy import (
     CLASS_RESEARCH_ACTIVITY,
     CLASS_SATELLITE,
     CLASS_SCIENTIFIC_EQUIPMENT,
+    CLASS_SCIENTIFIC_VISUALIZATION,
     CLASS_SPECIFIC_OBJECT,
     EXACTING_CLASSES,
 )
@@ -125,6 +126,9 @@ REQUIRED_SLOT_KINDS: dict[str, tuple[str, ...]] = {
     CLASS_ARCHIVE: (SLOT_SUBJECT,),
     CLASS_GENERIC_BROLL: (),
     CLASS_DATA_INFOGRAPHIC: (),
+    # A visualisation is judged on the one thing it exists to show. Its "action" and
+    # "place" are how the animator drew it, and no catalogue states them.
+    CLASS_SCIENTIFIC_VISUALIZATION: (SLOT_SUBJECT,),
     CLASS_MANUAL_REQUIRED: (),
 }
 # A scene whose class was never decided constrains nothing beyond its own explicit

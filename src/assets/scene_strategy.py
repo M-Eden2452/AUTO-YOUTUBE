@@ -31,6 +31,12 @@ CLASS_SPECIFIC_OBJECT = "specific_object"
 CLASS_ARCHIVE = "archive"
 CLASS_GENERIC_BROLL = "generic_broll"
 CLASS_DATA_INFOGRAPHIC = "data_infographic"
+# A process no camera can honestly film: what happens inside a cell, a neuron, a
+# molecule, a body. Owner decision 2026-08-20 (ADR 0026). It is not "the scene may be
+# a drawing" - ``data_infographic`` already means that and is never answered by a
+# search. This class *is* answered by a search; what changes is that a scientific
+# animation stops being disqualified for being an animation.
+CLASS_SCIENTIFIC_VISUALIZATION = "scientific_visualization"
 CLASS_MANUAL_REQUIRED = "manual_required"
 
 SOURCE_CLASSES = (
@@ -42,6 +48,7 @@ SOURCE_CLASSES = (
     CLASS_ARCHIVE,
     CLASS_GENERIC_BROLL,
     CLASS_DATA_INFOGRAPHIC,
+    CLASS_SCIENTIFIC_VISUALIZATION,
     CLASS_MANUAL_REQUIRED,
 )
 
@@ -61,6 +68,11 @@ PROVIDER_PRIORITY: dict[str, list[str]] = {
     CLASS_GENERIC_BROLL: ["local_library", "pexels", "pixabay", "wikimedia", "internet_archive", "nasa_images"],
     # Not a search at all: the picture is drawn from the scene's own numbers.
     CLASS_DATA_INFOGRAPHIC: ["local_library"],
+    # Scientific visualisation lives in curated collections before it lives on a
+    # general stock site, so the order follows the material and not the class's novelty.
+    CLASS_SCIENTIFIC_VISUALIZATION: [
+        "local_library", "wikimedia", "internet_archive", "nasa_images", "pexels", "pixabay",
+    ],
     CLASS_MANUAL_REQUIRED: [],
 }
 
@@ -84,6 +96,20 @@ _MANUAL_FALLBACK_PROVIDERS = ("envato_manual",)
 # Bilingual on purpose: the brief is written in English, the narration is not, and a
 # classifier that only reads one of them is the bug this module exists to fix. These
 # are recognition hints only - they never become a provider query.
+# Subjects a camera cannot honestly point at: what happens below the resolution of
+# sight, or inside a living body. Bilingual for the same reason as every vocabulary
+# here - the brief is English and the narration is not - and read from the scene's
+# *declared subject* only, never from its narration. A scene that merely mentions a
+# hormone out loud is still whatever it shows.
+_VISUALIZATION_TERMS = {
+    "neuron", "neural", "synapse", "brain", "cell", "cells", "cellular",
+    "molecule", "molecular", "dna", "protein", "bloodstream", "blood flow",
+    "immune", "virus", "bacteria", "atom", "hormone", "metabolism", "nervous system",
+    "нейрон", "нейронн", "синапс", "мозг", "клетк", "клеточн", "молекул", "днк", "белок",
+    "кровоток", "кровообращ", "иммун", "вирус", "бактери", "атом", "гормон",
+    "обмен веществ", "нервная систем",
+}
+
 _SATELLITE_TERMS = {
     "satellite", "orbit", "earth observation", "aerial view from space", "spaceborne",
     "спутник", "орбит", "из космоса", "космическ",
@@ -157,6 +183,17 @@ def classify_scene(scene: dict[str, Any]) -> tuple[str, str, str]:
     media = _media_type(scene)
     if media in {"diagram", "animated_image"} or str(scene.get("fallback_type") or "") == "diagram":
         return CLASS_DATA_INFOGRAPHIC, "scene asks for a drawn figure, not footage", "media_type"
+
+    # Read before the free-text cascade and from a *narrower* source than it. This
+    # class relaxes the footage rule, so it may not be entered by a word the shot is
+    # not about: the alarm-clock scene of the 2026-08-19 run says "гормон" in its
+    # narration and shows a clock.
+    if _has_any(_subject_text(scene), _VISUALIZATION_TERMS):
+        return (
+            CLASS_SCIENTIFIC_VISUALIZATION,
+            "scene's subject is a process no camera can film",
+            "glossary",
+        )
 
     text = _evidence_text(scene)
     if _has_any(text, _DATA_TERMS) and _has_number(text):
@@ -316,6 +353,25 @@ def _evidence_text(scene: dict[str, Any]) -> str:
         " ".join(str(item) for item in (semantic.get("subject") or [])),
         " ".join(str(item) for item in (semantic.get("location") or [])),
         " ".join(str(item) for item in (semantic.get("environment") or [])),
+    ]
+    return " ".join(pieces).lower()
+
+
+def _subject_text(scene: dict[str, Any]) -> str:
+    """Only what the scene declared it is *about* - never its narration.
+
+    The same two fields the topic anchor and the query ladder call the subject
+    (``visual_brief.subject``/``exact_entities``), plus the semantic subject the
+    planner derived from them. Everything else ``_evidence_text`` reads describes the
+    shot or speaks the script aloud, and neither says what the frame is of.
+    """
+
+    brief = scene.get("visual_brief") if isinstance(scene.get("visual_brief"), dict) else {}
+    semantic = scene.get("semantic") if isinstance(scene.get("semantic"), dict) else {}
+    pieces = [
+        str(brief.get("subject") or ""),
+        " ".join(str(item) for item in (brief.get("exact_entities") or [])),
+        " ".join(str(item) for item in (semantic.get("subject") or [])),
     ]
     return " ".join(pieces).lower()
 

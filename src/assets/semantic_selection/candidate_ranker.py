@@ -34,6 +34,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from src.assets.scene_strategy import CLASS_SCIENTIFIC_VISUALIZATION
+
 from .decision import (
     DECISION_KEY,
     EXACTING_CLASSES,
@@ -63,14 +65,24 @@ from .models import (
 
 MIN_SCORE = 60.0
 EXACT_SUBJECT_MIN_SCORE = 75.0
-NON_REAL_VIDEO_TERMS = (
-    "animation",
-    "animated",
+# Two different objections, kept apart since C125. Entertainment is refused because of
+# what it *is*; a synthetic frame is refused because of what the scene needed. A scene
+# about a neuron needs the second kind and can never be answered by a camera, so for
+# ``CLASS_SCIENTIFIC_VISUALIZATION`` - and only there - the second list is not a
+# refusal. Owner decision 2026-08-20, ADR 0026.
+ENTERTAINMENT_VIDEO_TERMS = (
     "cartoon",
     "disney",
     "little einsteins",
     "gameplay",
 )
+SYNTHETIC_VIDEO_TERMS = (
+    "animation",
+    "animated",
+)
+#: Every term either list holds. Kept so a reader that means "not real footage" as one
+#: idea - the corpus builder does - has one name for it and cannot drift from the rule.
+NON_REAL_VIDEO_TERMS = SYNTHETIC_VIDEO_TERMS + ENTERTAINMENT_VIDEO_TERMS
 
 # The averaged relevance score is the oldest gate in this file and the one least able
 # to say what it objects to. Once the slot layer has judged the candidate against every
@@ -438,10 +450,15 @@ def _score_candidate(
         missing_orca_evidence_for_orca_video
         and re.search(r"\bwhales?\b", primary_text)
     )
+    refused_video_terms = (
+        ENTERTAINMENT_VIDEO_TERMS
+        if source_class == CLASS_SCIENTIFIC_VISUALIZATION
+        else NON_REAL_VIDEO_TERMS
+    )
     non_real_video_matches = (
         [
             term
-            for term in NON_REAL_VIDEO_TERMS
+            for term in refused_video_terms
             if _contains_concept(term, all_tokens, text)
         ]
         if media_type == "video"
