@@ -44,6 +44,17 @@ and no prefix relation. The slot layer keeps ``semantic_stem_score``, prefix inc
 Different questions, different strictness - which is why this asymmetry is not the C79
 disagreement returning: there the two layers gave different answers about the *same*
 word by accident; here they answer different questions on purpose.
+
+C126 answers the question both of those repairs left open: *where* the words were. Both
+relations above ask only whether a word is present, and both readings then take the best
+field. Field size never entered it, so a phrase found once inside a 604-token collection
+description, or inside a 1370-token keyword dump written for a whole film series, made
+exactly the claim a 12-token title makes when it names the subject outright. Measured on
+the 2026-08-20 sleep runs, that flattening is what let four unrelated candidates of one
+scene come back with one ``semantic_score``, and what put a documentary about tribal
+medicine at the top of a scene about closed eyes. A field larger than
+``MAX_NAMING_FIELD_TOKENS`` therefore supports a claim instead of making one, and only
+a full-strength claim is capped: see ``semantic_concept_score``.
 """
 
 from __future__ import annotations
@@ -84,15 +95,32 @@ MIN_STEM_LENGTH = 5
 # fit inside a small lexical neighbourhood. Six intervening words allow ordinary
 # descriptions ("hummingbird hovering almost motionless in the open air") while
 # refusing tokens collected from unrelated sentences or catalogue sections. Strong
-# provider labels (title/tags/keywords) are already bounded fields and do not need this
-# window. Boundary behaviour is covered by PLAN-9C-3 regressions.
+# provider labels (title/tags/keywords) are bounded fields and do not need this window -
+# as long as they really are bounded, which ``MAX_NAMING_FIELD_TOKENS`` below is what
+# now decides. Boundary behaviour is covered by PLAN-9C-3 regressions.
 LOCAL_MATCH_MAX_GAP = 6
 
-# One word in a free-form description is useful supporting evidence, but it cannot by
-# itself prove that a catalogue item depicts that entity. Titles, provider tags and
-# Vision tags remain full-strength. A multiword phrase/local window in a description
-# may also remain full-strength, regardless of the description's total length.
-DESCRIPTION_SINGLE_WORD_SCORE = 75.0
+# A mention that is not a naming: useful supporting evidence, but not by itself proof
+# that a catalogue item depicts that entity. Two things score at this ceiling - one word
+# found in free-form prose, and anything found in a field too large to be about one
+# asset (see below). Named for what it means rather than for where it was first needed:
+# until C126 the only case was a single word in a description.
+SUPPORTING_EVIDENCE_SCORE = 75.0
+
+# The largest field a provider writes *about one asset*. Past it, the field is a
+# catalogue page: an Internet Archive collection description, a Wikimedia maintenance
+# category list, a keyword dump for a whole series. Such a field can support a claim
+# about a candidate but cannot make one, because the words in it were not written about
+# the asset in hand.
+#
+# Measured 2026-08-20 over every provider field in the two saved sleep runs and both
+# frozen PLAN-9D corpora - 516 records, 2067 fields. Titles never exceed 25 tokens; the
+# longest field any provider writes about a single asset is a 100-token Wikimedia
+# category list; the shortest catalogue page is 153 tokens, and Internet Archive
+# descriptions run to 43496. Every value in 101..152 is the same rule on all evidence in
+# this repository, which is the point: the constant sits in a measured gap rather than
+# on a tuned edge.
+MAX_NAMING_FIELD_TOKENS = 120
 
 
 @dataclass(frozen=True)
@@ -109,6 +137,20 @@ class EvidenceField:
     @property
     def token_set(self) -> set[str]:
         return set(self.token_sequence)
+
+    @property
+    def names_one_asset(self) -> bool:
+        """Whether this field is small enough to be *about* the asset it is attached to.
+
+        A property of the field itself, deliberately not of the record and not of the
+        provider. ADR 0024 measured two neighbouring rules into refusal and they are
+        not being re-proposed here: corroboration across a record's own fields measures
+        the provider's export format, and ranking by "how much of the record is about
+        something else" ranked one keyword dump above another by the length of the dump.
+        This asks neither. It asks one yes/no question of the single field a match was
+        found in, ranks nothing by size, and gives every oversized field the same answer.
+        """
+        return len(self.token_sequence) <= MAX_NAMING_FIELD_TOKENS
 
 
 def provider_evidence_fields(candidate: dict[str, Any]) -> tuple[EvidenceField, ...]:
@@ -333,6 +375,19 @@ def semantic_concept_score(
     Hard requirements and declared conflicts intentionally continue to use the strict
     corpus-wide literal/stem primitives above. Weakening negative evidence would turn
     this correctness repair into a way around ``must_avoid``.
+
+    C126 added the last part of "field quality" this was already claiming to keep: *how
+    much* the field is about one asset. Before it, a field's score was decided only by
+    its name, so a 604-token collection description that said ``the sound of the human
+    brain at rest`` once, and a 1370-token keyword dump for a whole film series, each
+    made the same full-strength claim as a title that named the subject outright - and
+    four unrelated candidates of one scene came back with a single ``semantic_score``.
+    A field past ``MAX_NAMING_FIELD_TOKENS`` now tops out at ``SUPPORTING_EVIDENCE_SCORE``.
+
+    Only a *naming* is capped. Nothing already below the ceiling moves, no field is
+    refused, and the reading of a field written about one asset is untouched - which is
+    what keeps a permuted phrase in a short title or label list ("a woman sleeping in a
+    bed" for the subject "sleeping woman") the full match it should be.
     """
     normalized = concept.lower().strip()
     if not normalized:
@@ -343,18 +398,18 @@ def semantic_concept_score(
     scores: list[float] = []
     for evidence_field in fields:
         if evidence_field.name == "description":
-            scores.append(
-                _description_concept_score(words, evidence_field.token_sequence, variant=variant)
+            score = _description_concept_score(
+                words, evidence_field.token_sequence, variant=variant
             )
-            continue
-        if variant is None:
-            scores.append(concept_score(concept, evidence_field.token_set, evidence_field.text))
-            continue
-        scores.append(
-            stem_concept_score(
+        elif variant is None:
+            score = concept_score(concept, evidence_field.token_set, evidence_field.text)
+        else:
+            score = stem_concept_score(
                 concept, evidence_field.token_set, evidence_field.text, variant=variant
             )
-        )
+        if not evidence_field.names_one_asset:
+            score = min(score, SUPPORTING_EVIDENCE_SCORE)
+        scores.append(score)
     return max(scores, default=0.0)
 
 
@@ -368,7 +423,7 @@ def _description_concept_score(
         return 0.0
     if len(words) == 1:
         return (
-            DESCRIPTION_SINGLE_WORD_SCORE
+            SUPPORTING_EVIDENCE_SCORE
             if any(_token_matches(words[0], token, variant=variant) for token in sequence)
             else 0.0
         )
@@ -528,15 +583,16 @@ def build_evidence(candidate: dict[str, Any]) -> CandidateEvidence:
 
 __all__ = [
     "CYRILLIC_RE",
-    "DESCRIPTION_SINGLE_WORD_SCORE",
     "EvidenceField",
     "LOCAL_MATCH_MAX_GAP",
+    "MAX_NAMING_FIELD_TOKENS",
     "METADATA_AVAILABLE",
     "METADATA_FIELDS",
     "METADATA_QUERY_DERIVED",
     "METADATA_UNAVAILABLE",
     "MIN_STEM_LENGTH",
     "QUERY_FIELDS",
+    "SUPPORTING_EVIDENCE_SCORE",
     "TAG_FIELDS",
     "WORD_RE",
     "CandidateEvidence",

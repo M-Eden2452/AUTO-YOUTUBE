@@ -8,14 +8,13 @@ working_branch: governance-reset
 owner_decisions_date: 2026-08-11
 current_checkpoint: PLAN-9D
 next_exact_action: >-
-  Checkpoint PLAN-9D, in progress. Class 5 measured and named (2026-08-19, ADR 0024,
-  C121): where two candidates survive, meaning reads them identically - 5 of 9 scenes
-  on v2, 6 of 8 on v1 - and 3 scenes are decided by manifest order alone.
-  rank_candidates now records meaning_tie_peers/meaning_tie_broken_by; it reports and
-  invents no preference, so changed_winners 0 and agreement v1 6/14, v2 2/10 are
-  unmoved by design. NEXT is an owner decision, not a slice: abstain inside a tie
-  group, or buy the v3 capture. Also open - C105 (ru->en bridge; 59 of 273 scenes
-  send no query).
+  Checkpoint PLAN-9D, in progress. Class 5 (C121, ADR 0024) is now partly fixed and
+  not only reported: C126 / ADR 0027 stopped a catalogue-sized field from making the
+  claim a title makes; v1 tie groups 6 -> 5, agreement and changed_winners unmoved on
+  both corpora. NEXT is the ceiling - a perfect subject with metadata silent about
+  action and place scores 58.824 against MIN_SCORE 60, and four scenes of the saved
+  run (004, 009, 012, 013) stand on it; that is an owner decision about the scale, not
+  a slice. Also open - C105 (ru->en bridge). Details: Current checkpoint, C126 CLOSURE.
 # PLAN-9C-2-B1 correction (2026-08-10): the preceding historical summary
 # describes implementation commit 388b9b1. This repair completed canonical
 # policy application through draft completion; the routing field above records
@@ -68,6 +67,37 @@ labels и owner-issued действия, а не plan steps; canonical traceabil
 остаётся на существующих PLAN owners.
 
 **CURRENT CHECKPOINT.** **PLAN-9D** (in progress). Этой сверкой не менялся.
+
+**C126 CLOSURE (2026-08-20, ADR 0027).** Второй пример класса `C121` из
+`docs/audits/E2E_ASSET_SEARCH_RECHECK_2026-08-20.md` доведён до механизма и
+исправлен у существующего владельца `src/assets/semantic_selection/evidence.py`.
+Качество поля читалось по **имени** поля и никогда по его размеру: многословная фраза
+в `description` давала полные 100.0 при любой длине описания (записано намеренно), а
+`title`/`tags`/`keywords` сравнивались по множеству токенов вообще без окна — на
+посылке «strong provider labels are already bounded fields», ложной для Internet
+Archive и Wikimedia. Поэтому фраза один раз в описании на 604 токена делала то же
+утверждение, что заголовок из 12 токенов, называющий предмет: четыре кандидата
+`scene_004` вернули один `semantic_score = 58.824`, высший балл прогона **90.588**
+пришёл из **1370-токенного** дампа ключевых слов (`Tribal Medicines`, сцена про
+закрытые глаза), а `scene_003` (`sleeping man`) выбирала коллекционную страницу
+`Erotic Art Gallery` с баллом **94.231**. Теперь поле длиннее
+`MAX_NAMING_FIELD_TOKENS = 120` подтверждает утверждение и не делает его: вклад
+ограничен сверху `SUPPORTING_EVIDENCE_SCORE` (переименованный
+`DESCRIPTION_SINGLE_WORD_SCORE`, то же значение 75.0). Константа выбрана в измеренном
+промежутке 101..152 (516 записей, 2067 полей двух сохранённых прогонов и обоих
+корпусов). Веса `0.45/0.20/0.15/0.05`, `MIN_SCORE`, `EXACT_SUBJECT_MIN_SCORE`,
+`SLOT_MATCH_SCORE` и `_ranking_key` не тронуты; `must_avoid`, `conflicting_context` и
+`must_include` идут по склеенному тексту и `semantic_concept_score` не вызывают.
+Evidence (офлайн, без провайдерских вызовов, ни один проект не перезаписан):
+`scene_004` четыре одинаковых `58.824` → два `58.824` + два `45.588`; `scene_010`
+`Tribal Medicines` **90.588 → 72.941**; `scene_003` `changed_winner` → pexels-фото
+спящего мужчины; `subject_match = 100` 28 → **20** на `sleep-anchor-recheck` и
+39 → **32** на `sleep-viz-probe`; групп равенства на v1 6 → **5**. Приёмка обоими
+корпусами: `blind agreement` v1 **6/14** (1008 из 1064 карточек непоказаны), v2
+**2/10** (23 из 78) — не сдвинулись, `changed_winners` **0**, вывод прибора совпадает
+побайтово; `unacceptable_selected`, `must_avoid_escaped`, `non_real_footage_selected`
+и `wrong_abstentions` не выросли. Baseline полного offline suite на `6405764` —
+**2470 OK / 729.7 s**. Checkpoint не двигался.
 
 **WHAT JUST COMPLETED.** `WP0-A` machine gates существуют фактически:
 `requirements-dev.lock`, Ruff (`F`, `E9`) и Mypy (`files = src/assets`,

@@ -378,7 +378,16 @@ class FrozenCorpusMeaningTieTests(unittest.TestCase):
             tied,
         )
 
-    def test_v1_names_the_six_scenes_meaning_could_not_split(self) -> None:
+    def test_v1_names_the_five_scenes_meaning_could_not_split(self) -> None:
+        """C126 moved this measurement, which is what naming it was for.
+
+        At C121 v1 held **six** groups: ``scene_011`` with 12 peers and ``scene_013``
+        with 2. Those two scenes are Internet Archive records, and their survivors were
+        read as one answer only because a match anywhere inside a catalogue-sized field
+        counted as a naming. With ``MAX_NAMING_FIELD_TOKENS`` in place meaning separates
+        four of ``scene_011``'s twelve and both of ``scene_013``'s two, and the group
+        count drops to five. No winner moved on either corpus, and v2 is unchanged.
+        """
         survivors = self._survivors(CORPUS_V1)
         with_choice = {key: rows for key, rows in survivors.items() if len(rows) >= 2}
         self.assertEqual(8, len(with_choice))
@@ -393,8 +402,7 @@ class FrozenCorpusMeaningTieTests(unittest.TestCase):
                 "plan9d_current_capture_v1/scene_002": 2,
                 "plan9d_current_capture_v1/scene_009": 2,
                 "plan9d_current_capture_v1/scene_010": 2,
-                "plan9d_current_capture_v1/scene_011": 12,
-                "plan9d_current_capture_v1/scene_013": 2,
+                "plan9d_current_capture_v1/scene_011": 8,
             },
             tied,
         )
